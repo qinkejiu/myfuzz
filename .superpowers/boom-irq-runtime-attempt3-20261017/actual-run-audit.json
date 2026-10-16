@@ -1,0 +1,827 @@
+{
+  "suppressed": {
+    "status": "complete",
+    "error": null,
+    "accounting": {
+      "indirect_steps": 16,
+      "local_ticks": {
+        "cpu": 3000,
+        "gpio": 3016
+      },
+      "main_direct_steps": 6000,
+      "max_quiesce_steps": 512,
+      "quiesce_direct_steps": 0,
+      "requested_main_outer_steps": 6000,
+      "shared_total_limit": 6512,
+      "total_local_steps": 6016,
+      "unconditional_quiesce_reservation": false
+    },
+    "lifecycles": {
+      "cpu": [
+        {
+          "args": [
+            "/root/fanzehui/boom-irq-factory-fix-20261017/artifact-finalized/obj/VBoomTile"
+          ],
+          "binary_sha256": "6367b592b743f935cb2de04bc6dfc4ac54c9ec8cf5dce4eb6545b140971e6c90",
+          "closed": true,
+          "execution_id": "22dfdb60-e86d-4eee-a0cf-3045a72c3206",
+          "exit": 0,
+          "pid": 271316,
+          "ready": {
+            "probes": [
+              {
+                "id": "meip",
+                "path": "TOP.BoomTile.core.csr_io_interrupts_meip",
+                "width": 1
+              },
+              {
+                "id": "rob_exception",
+                "path": "TOP.BoomTile.core.rob_io_com_xcpt_valid",
+                "width": 1
+              },
+              {
+                "id": "rob_cause",
+                "path": "TOP.BoomTile.core.rob_io_com_xcpt_bits_cause",
+                "width": 64
+              },
+              {
+                "id": "csr_exception",
+                "path": "TOP.BoomTile.core.csr_io_exception",
+                "width": 1
+              },
+              {
+                "id": "csr_cause",
+                "path": "TOP.BoomTile.core.csr_io_cause",
+                "width": 64
+              },
+              {
+                "id": "csr_pc",
+                "path": "TOP.BoomTile.core.csr_io_pc",
+                "width": 40
+              },
+              {
+                "id": "csr_evec",
+                "path": "TOP.BoomTile.core.csr_io_evec",
+                "width": 40
+              },
+              {
+                "id": "mie",
+                "path": "TOP.BoomTile.core.csr.reg_mie",
+                "width": 64
+              },
+              {
+                "id": "global_mie",
+                "path": "TOP.BoomTile.core.csr.reg_mstatus_mie",
+                "width": 1
+              },
+              {
+                "id": "privilege",
+                "path": "TOP.BoomTile.core.csr.reg_mstatus_prv",
+                "width": 2
+              },
+              {
+                "id": "mtvec",
+                "path": "TOP.BoomTile.core.csr.reg_mtvec",
+                "width": 32
+              },
+              {
+                "id": "mcause",
+                "path": "TOP.BoomTile.core.csr.reg_mcause",
+                "width": 64
+              },
+              {
+                "id": "mepc",
+                "path": "TOP.BoomTile.core.csr.reg_mepc",
+                "width": 40
+              },
+              {
+                "id": "system_return",
+                "path": "TOP.BoomTile.core.csr.insn_ret",
+                "width": 1
+              },
+              {
+                "id": "csr_addr",
+                "path": "TOP.BoomTile.core.csr.io_rw_addr",
+                "width": 12
+              },
+              {
+                "id": "csr_cmd",
+                "path": "TOP.BoomTile.core.csr.io_rw_cmd",
+                "width": 3
+              }
+            ],
+            "ready": true
+          }
+        },
+        {
+          "args": [
+            "/root/fanzehui/boom-irq-factory-fix-20261017/artifact-finalized/obj/VBoomTile"
+          ],
+          "binary_sha256": "6367b592b743f935cb2de04bc6dfc4ac54c9ec8cf5dce4eb6545b140971e6c90",
+          "closed": true,
+          "execution_id": "f8e3b5a6-c75b-427e-a075-7993822e13f3",
+          "exit": 0,
+          "pid": 271444,
+          "ready": {
+            "probes": [
+              {
+                "id": "meip",
+                "path": "TOP.BoomTile.core.csr_io_interrupts_meip",
+                "width": 1
+              },
+              {
+                "id": "rob_exception",
+                "path": "TOP.BoomTile.core.rob_io_com_xcpt_valid",
+                "width": 1
+              },
+              {
+                "id": "rob_cause",
+                "path": "TOP.BoomTile.core.rob_io_com_xcpt_bits_cause",
+                "width": 64
+              },
+              {
+                "id": "csr_exception",
+                "path": "TOP.BoomTile.core.csr_io_exception",
+                "width": 1
+              },
+              {
+                "id": "csr_cause",
+                "path": "TOP.BoomTile.core.csr_io_cause",
+                "width": 64
+              },
+              {
+                "id": "csr_pc",
+                "path": "TOP.BoomTile.core.csr_io_pc",
+                "width": 40
+              },
+              {
+                "id": "csr_evec",
+                "path": "TOP.BoomTile.core.csr_io_evec",
+                "width": 40
+              },
+              {
+                "id": "mie",
+                "path": "TOP.BoomTile.core.csr.reg_mie",
+                "width": 64
+              },
+              {
+                "id": "global_mie",
+                "path": "TOP.BoomTile.core.csr.reg_mstatus_mie",
+                "width": 1
+              },
+              {
+                "id": "privilege",
+                "path": "TOP.BoomTile.core.csr.reg_mstatus_prv",
+                "width": 2
+              },
+              {
+                "id": "mtvec",
+                "path": "TOP.BoomTile.core.csr.reg_mtvec",
+                "width": 32
+              },
+              {
+                "id": "mcause",
+                "path": "TOP.BoomTile.core.csr.reg_mcause",
+                "width": 64
+              },
+              {
+                "id": "mepc",
+                "path": "TOP.BoomTile.core.csr.reg_mepc",
+                "width": 40
+              },
+              {
+                "id": "system_return",
+                "path": "TOP.BoomTile.core.csr.insn_ret",
+                "width": 1
+              },
+              {
+                "id": "csr_addr",
+                "path": "TOP.BoomTile.core.csr.io_rw_addr",
+                "width": 12
+              },
+              {
+                "id": "csr_cmd",
+                "path": "TOP.BoomTile.core.csr.io_rw_cmd",
+                "width": 3
+              }
+            ],
+            "ready": true
+          }
+        }
+      ],
+      "gpio": [
+        {
+          "args": [
+            "/root/fanzehui/boom-irq-runtime-attempt3-20261017/gpio-cache/e6ab38c349c45e8e1de245ce8b08de434e6db24afacad0a482a0cf11e911eb9b/harness"
+          ],
+          "closed": true,
+          "execution_id": "80347151b1e1481981ae6fa770a83154",
+          "exit": 0,
+          "pid": 271572
+        }
+      ]
+    },
+    "identities": {
+      "coherent_stream": "e9f7abc9-9840-4f52-a1b5-292f81d70d53",
+      "cpu_execution": "f8e3b5a6-c75b-427e-a075-7993822e13f3",
+      "cpu_startup_execution": "22dfdb60-e86d-4eee-a0cf-3045a72c3206",
+      "gpio_execution": "80347151b1e1481981ae6fa770a83154",
+      "runner_execution": "c6ea28963abb4586aef7b8b4f3821af5"
+    },
+    "delivery_requested": 64,
+    "delivery_delivered": 0,
+    "last_cpu_outputs": {
+      "boot_ready": 1,
+      "drained": 1,
+      "exact_mret_decode": 0,
+      "irq_masked": 0,
+      "ram_3000": 1,
+      "ram_3010": 0,
+      "ram_3018": 0,
+      "ram_3020": 0,
+      "ram_3028": 0,
+      "reset": 0,
+      "tl_a_accepted": 0,
+      "tl_c_accepted": 0,
+      "tl_d_accepted": 0,
+      "tl_e_accepted": 0
+    },
+    "coherent_report": {
+      "normalization_poisoned": false,
+      "observed_events": 385,
+      "pending_sinks": 0,
+      "pending_sources": 0,
+      "runtime_accepted": false,
+      "runtime_record_count": 770,
+      "schema_version": "coherent_protocol_check.v1",
+      "scope": "single_client_no_external_probes_per_source_manager",
+      "semantic_accepted": false,
+      "source_authority": false,
+      "stream_closed": true,
+      "stream_id": "e9f7abc9-9840-4f52-a1b5-292f81d70d53",
+      "stream_poisoned": false,
+      "structural_error": false
+    },
+    "counts": {
+      "cpu_commands": 22088,
+      "cpu_transport_reads": 22090,
+      "cpu_samples": 3000,
+      "gpio_commands": 3004,
+      "gpio_transport_reads": 3192,
+      "gpio_samples": 3016,
+      "events": 55133,
+      "runtime_events": 770,
+      "router_deliveries": 4
+    }
+  },
+  "first": {
+    "status": "complete",
+    "error": null,
+    "accounting": {
+      "indirect_steps": 24,
+      "local_ticks": {
+        "cpu": 3000,
+        "gpio": 3024
+      },
+      "main_direct_steps": 6000,
+      "max_quiesce_steps": 512,
+      "quiesce_direct_steps": 0,
+      "requested_main_outer_steps": 6000,
+      "shared_total_limit": 6512,
+      "total_local_steps": 6024,
+      "unconditional_quiesce_reservation": false
+    },
+    "lifecycles": {
+      "cpu": [
+        {
+          "args": [
+            "/root/fanzehui/boom-irq-factory-fix-20261017/artifact-finalized/obj/VBoomTile"
+          ],
+          "binary_sha256": "6367b592b743f935cb2de04bc6dfc4ac54c9ec8cf5dce4eb6545b140971e6c90",
+          "closed": true,
+          "execution_id": "00f977a8-58e4-4d2f-8e35-06cf86283208",
+          "exit": 0,
+          "pid": 270138,
+          "ready": {
+            "probes": [
+              {
+                "id": "meip",
+                "path": "TOP.BoomTile.core.csr_io_interrupts_meip",
+                "width": 1
+              },
+              {
+                "id": "rob_exception",
+                "path": "TOP.BoomTile.core.rob_io_com_xcpt_valid",
+                "width": 1
+              },
+              {
+                "id": "rob_cause",
+                "path": "TOP.BoomTile.core.rob_io_com_xcpt_bits_cause",
+                "width": 64
+              },
+              {
+                "id": "csr_exception",
+                "path": "TOP.BoomTile.core.csr_io_exception",
+                "width": 1
+              },
+              {
+                "id": "csr_cause",
+                "path": "TOP.BoomTile.core.csr_io_cause",
+                "width": 64
+              },
+              {
+                "id": "csr_pc",
+                "path": "TOP.BoomTile.core.csr_io_pc",
+                "width": 40
+              },
+              {
+                "id": "csr_evec",
+                "path": "TOP.BoomTile.core.csr_io_evec",
+                "width": 40
+              },
+              {
+                "id": "mie",
+                "path": "TOP.BoomTile.core.csr.reg_mie",
+                "width": 64
+              },
+              {
+                "id": "global_mie",
+                "path": "TOP.BoomTile.core.csr.reg_mstatus_mie",
+                "width": 1
+              },
+              {
+                "id": "privilege",
+                "path": "TOP.BoomTile.core.csr.reg_mstatus_prv",
+                "width": 2
+              },
+              {
+                "id": "mtvec",
+                "path": "TOP.BoomTile.core.csr.reg_mtvec",
+                "width": 32
+              },
+              {
+                "id": "mcause",
+                "path": "TOP.BoomTile.core.csr.reg_mcause",
+                "width": 64
+              },
+              {
+                "id": "mepc",
+                "path": "TOP.BoomTile.core.csr.reg_mepc",
+                "width": 40
+              },
+              {
+                "id": "system_return",
+                "path": "TOP.BoomTile.core.csr.insn_ret",
+                "width": 1
+              },
+              {
+                "id": "csr_addr",
+                "path": "TOP.BoomTile.core.csr.io_rw_addr",
+                "width": 12
+              },
+              {
+                "id": "csr_cmd",
+                "path": "TOP.BoomTile.core.csr.io_rw_cmd",
+                "width": 3
+              }
+            ],
+            "ready": true
+          }
+        },
+        {
+          "args": [
+            "/root/fanzehui/boom-irq-factory-fix-20261017/artifact-finalized/obj/VBoomTile"
+          ],
+          "binary_sha256": "6367b592b743f935cb2de04bc6dfc4ac54c9ec8cf5dce4eb6545b140971e6c90",
+          "closed": true,
+          "execution_id": "951e5db0-49f9-427b-ba01-349e5ef35245",
+          "exit": 0,
+          "pid": 270266,
+          "ready": {
+            "probes": [
+              {
+                "id": "meip",
+                "path": "TOP.BoomTile.core.csr_io_interrupts_meip",
+                "width": 1
+              },
+              {
+                "id": "rob_exception",
+                "path": "TOP.BoomTile.core.rob_io_com_xcpt_valid",
+                "width": 1
+              },
+              {
+                "id": "rob_cause",
+                "path": "TOP.BoomTile.core.rob_io_com_xcpt_bits_cause",
+                "width": 64
+              },
+              {
+                "id": "csr_exception",
+                "path": "TOP.BoomTile.core.csr_io_exception",
+                "width": 1
+              },
+              {
+                "id": "csr_cause",
+                "path": "TOP.BoomTile.core.csr_io_cause",
+                "width": 64
+              },
+              {
+                "id": "csr_pc",
+                "path": "TOP.BoomTile.core.csr_io_pc",
+                "width": 40
+              },
+              {
+                "id": "csr_evec",
+                "path": "TOP.BoomTile.core.csr_io_evec",
+                "width": 40
+              },
+              {
+                "id": "mie",
+                "path": "TOP.BoomTile.core.csr.reg_mie",
+                "width": 64
+              },
+              {
+                "id": "global_mie",
+                "path": "TOP.BoomTile.core.csr.reg_mstatus_mie",
+                "width": 1
+              },
+              {
+                "id": "privilege",
+                "path": "TOP.BoomTile.core.csr.reg_mstatus_prv",
+                "width": 2
+              },
+              {
+                "id": "mtvec",
+                "path": "TOP.BoomTile.core.csr.reg_mtvec",
+                "width": 32
+              },
+              {
+                "id": "mcause",
+                "path": "TOP.BoomTile.core.csr.reg_mcause",
+                "width": 64
+              },
+              {
+                "id": "mepc",
+                "path": "TOP.BoomTile.core.csr.reg_mepc",
+                "width": 40
+              },
+              {
+                "id": "system_return",
+                "path": "TOP.BoomTile.core.csr.insn_ret",
+                "width": 1
+              },
+              {
+                "id": "csr_addr",
+                "path": "TOP.BoomTile.core.csr.io_rw_addr",
+                "width": 12
+              },
+              {
+                "id": "csr_cmd",
+                "path": "TOP.BoomTile.core.csr.io_rw_cmd",
+                "width": 3
+              }
+            ],
+            "ready": true
+          }
+        }
+      ],
+      "gpio": [
+        {
+          "args": [
+            "/root/fanzehui/boom-irq-runtime-attempt3-20261017/gpio-cache/e6ab38c349c45e8e1de245ce8b08de434e6db24afacad0a482a0cf11e911eb9b/harness"
+          ],
+          "closed": true,
+          "execution_id": "53190e0382c542d4a02cf7eb0e18e741",
+          "exit": 0,
+          "pid": 270394
+        }
+      ]
+    },
+    "identities": {
+      "coherent_stream": "0703d186-94cd-4d56-9985-af0671e3d968",
+      "cpu_execution": "951e5db0-49f9-427b-ba01-349e5ef35245",
+      "cpu_startup_execution": "00f977a8-58e4-4d2f-8e35-06cf86283208",
+      "gpio_execution": "53190e0382c542d4a02cf7eb0e18e741",
+      "runner_execution": "73a99da84e1e421a809294cff1087129"
+    },
+    "delivery_requested": 64,
+    "delivery_delivered": 64,
+    "last_cpu_outputs": {
+      "boot_ready": 0,
+      "drained": 1,
+      "exact_mret_decode": 0,
+      "irq_masked": 1,
+      "ram_3000": 1,
+      "ram_3010": 9223372036854775819,
+      "ram_3018": 2147483740,
+      "ram_3020": 1,
+      "ram_3028": 4294967297,
+      "reset": 0,
+      "tl_a_accepted": 0,
+      "tl_c_accepted": 0,
+      "tl_d_accepted": 0,
+      "tl_e_accepted": 0
+    },
+    "coherent_report": {
+      "normalization_poisoned": false,
+      "observed_events": 81,
+      "pending_sinks": 0,
+      "pending_sources": 0,
+      "runtime_accepted": false,
+      "runtime_record_count": 162,
+      "schema_version": "coherent_protocol_check.v1",
+      "scope": "single_client_no_external_probes_per_source_manager",
+      "semantic_accepted": false,
+      "source_authority": false,
+      "stream_closed": true,
+      "stream_id": "0703d186-94cd-4d56-9985-af0671e3d968",
+      "stream_poisoned": false,
+      "structural_error": false
+    },
+    "counts": {
+      "cpu_commands": 19372,
+      "cpu_transport_reads": 19374,
+      "cpu_samples": 3000,
+      "gpio_commands": 3006,
+      "gpio_transport_reads": 3194,
+      "gpio_samples": 3024,
+      "events": 54669,
+      "runtime_events": 162,
+      "router_deliveries": 6
+    }
+  },
+  "fresh": {
+    "status": "complete",
+    "error": null,
+    "accounting": {
+      "indirect_steps": 24,
+      "local_ticks": {
+        "cpu": 3000,
+        "gpio": 3024
+      },
+      "main_direct_steps": 6000,
+      "max_quiesce_steps": 512,
+      "quiesce_direct_steps": 0,
+      "requested_main_outer_steps": 6000,
+      "shared_total_limit": 6512,
+      "total_local_steps": 6024,
+      "unconditional_quiesce_reservation": false
+    },
+    "lifecycles": {
+      "cpu": [
+        {
+          "args": [
+            "/root/fanzehui/boom-irq-factory-fix-20261017/artifact-finalized/obj/VBoomTile"
+          ],
+          "binary_sha256": "6367b592b743f935cb2de04bc6dfc4ac54c9ec8cf5dce4eb6545b140971e6c90",
+          "closed": true,
+          "execution_id": "b43902f8-e3de-48d4-8bdc-a365e34c93b0",
+          "exit": 0,
+          "pid": 270782,
+          "ready": {
+            "probes": [
+              {
+                "id": "meip",
+                "path": "TOP.BoomTile.core.csr_io_interrupts_meip",
+                "width": 1
+              },
+              {
+                "id": "rob_exception",
+                "path": "TOP.BoomTile.core.rob_io_com_xcpt_valid",
+                "width": 1
+              },
+              {
+                "id": "rob_cause",
+                "path": "TOP.BoomTile.core.rob_io_com_xcpt_bits_cause",
+                "width": 64
+              },
+              {
+                "id": "csr_exception",
+                "path": "TOP.BoomTile.core.csr_io_exception",
+                "width": 1
+              },
+              {
+                "id": "csr_cause",
+                "path": "TOP.BoomTile.core.csr_io_cause",
+                "width": 64
+              },
+              {
+                "id": "csr_pc",
+                "path": "TOP.BoomTile.core.csr_io_pc",
+                "width": 40
+              },
+              {
+                "id": "csr_evec",
+                "path": "TOP.BoomTile.core.csr_io_evec",
+                "width": 40
+              },
+              {
+                "id": "mie",
+                "path": "TOP.BoomTile.core.csr.reg_mie",
+                "width": 64
+              },
+              {
+                "id": "global_mie",
+                "path": "TOP.BoomTile.core.csr.reg_mstatus_mie",
+                "width": 1
+              },
+              {
+                "id": "privilege",
+                "path": "TOP.BoomTile.core.csr.reg_mstatus_prv",
+                "width": 2
+              },
+              {
+                "id": "mtvec",
+                "path": "TOP.BoomTile.core.csr.reg_mtvec",
+                "width": 32
+              },
+              {
+                "id": "mcause",
+                "path": "TOP.BoomTile.core.csr.reg_mcause",
+                "width": 64
+              },
+              {
+                "id": "mepc",
+                "path": "TOP.BoomTile.core.csr.reg_mepc",
+                "width": 40
+              },
+              {
+                "id": "system_return",
+                "path": "TOP.BoomTile.core.csr.insn_ret",
+                "width": 1
+              },
+              {
+                "id": "csr_addr",
+                "path": "TOP.BoomTile.core.csr.io_rw_addr",
+                "width": 12
+              },
+              {
+                "id": "csr_cmd",
+                "path": "TOP.BoomTile.core.csr.io_rw_cmd",
+                "width": 3
+              }
+            ],
+            "ready": true
+          }
+        },
+        {
+          "args": [
+            "/root/fanzehui/boom-irq-factory-fix-20261017/artifact-finalized/obj/VBoomTile"
+          ],
+          "binary_sha256": "6367b592b743f935cb2de04bc6dfc4ac54c9ec8cf5dce4eb6545b140971e6c90",
+          "closed": true,
+          "execution_id": "78a5be65-e7b6-4cd0-aad6-a1956fb6a982",
+          "exit": 0,
+          "pid": 270910,
+          "ready": {
+            "probes": [
+              {
+                "id": "meip",
+                "path": "TOP.BoomTile.core.csr_io_interrupts_meip",
+                "width": 1
+              },
+              {
+                "id": "rob_exception",
+                "path": "TOP.BoomTile.core.rob_io_com_xcpt_valid",
+                "width": 1
+              },
+              {
+                "id": "rob_cause",
+                "path": "TOP.BoomTile.core.rob_io_com_xcpt_bits_cause",
+                "width": 64
+              },
+              {
+                "id": "csr_exception",
+                "path": "TOP.BoomTile.core.csr_io_exception",
+                "width": 1
+              },
+              {
+                "id": "csr_cause",
+                "path": "TOP.BoomTile.core.csr_io_cause",
+                "width": 64
+              },
+              {
+                "id": "csr_pc",
+                "path": "TOP.BoomTile.core.csr_io_pc",
+                "width": 40
+              },
+              {
+                "id": "csr_evec",
+                "path": "TOP.BoomTile.core.csr_io_evec",
+                "width": 40
+              },
+              {
+                "id": "mie",
+                "path": "TOP.BoomTile.core.csr.reg_mie",
+                "width": 64
+              },
+              {
+                "id": "global_mie",
+                "path": "TOP.BoomTile.core.csr.reg_mstatus_mie",
+                "width": 1
+              },
+              {
+                "id": "privilege",
+                "path": "TOP.BoomTile.core.csr.reg_mstatus_prv",
+                "width": 2
+              },
+              {
+                "id": "mtvec",
+                "path": "TOP.BoomTile.core.csr.reg_mtvec",
+                "width": 32
+              },
+              {
+                "id": "mcause",
+                "path": "TOP.BoomTile.core.csr.reg_mcause",
+                "width": 64
+              },
+              {
+                "id": "mepc",
+                "path": "TOP.BoomTile.core.csr.reg_mepc",
+                "width": 40
+              },
+              {
+                "id": "system_return",
+                "path": "TOP.BoomTile.core.csr.insn_ret",
+                "width": 1
+              },
+              {
+                "id": "csr_addr",
+                "path": "TOP.BoomTile.core.csr.io_rw_addr",
+                "width": 12
+              },
+              {
+                "id": "csr_cmd",
+                "path": "TOP.BoomTile.core.csr.io_rw_cmd",
+                "width": 3
+              }
+            ],
+            "ready": true
+          }
+        }
+      ],
+      "gpio": [
+        {
+          "args": [
+            "/root/fanzehui/boom-irq-runtime-attempt3-20261017/gpio-cache/e6ab38c349c45e8e1de245ce8b08de434e6db24afacad0a482a0cf11e911eb9b/harness"
+          ],
+          "closed": true,
+          "execution_id": "fb449ceebcc34342aea5833113ae3201",
+          "exit": 0,
+          "pid": 271038
+        }
+      ]
+    },
+    "identities": {
+      "coherent_stream": "801d5509-5daa-4bc9-9e42-b6fb399cc1f2",
+      "cpu_execution": "78a5be65-e7b6-4cd0-aad6-a1956fb6a982",
+      "cpu_startup_execution": "b43902f8-e3de-48d4-8bdc-a365e34c93b0",
+      "gpio_execution": "fb449ceebcc34342aea5833113ae3201",
+      "runner_execution": "af1aeeab653c4b62bf4109a1f282804c"
+    },
+    "delivery_requested": 64,
+    "delivery_delivered": 64,
+    "last_cpu_outputs": {
+      "boot_ready": 0,
+      "drained": 1,
+      "exact_mret_decode": 0,
+      "irq_masked": 1,
+      "ram_3000": 1,
+      "ram_3010": 9223372036854775819,
+      "ram_3018": 2147483740,
+      "ram_3020": 1,
+      "ram_3028": 4294967297,
+      "reset": 0,
+      "tl_a_accepted": 0,
+      "tl_c_accepted": 0,
+      "tl_d_accepted": 0,
+      "tl_e_accepted": 0
+    },
+    "coherent_report": {
+      "normalization_poisoned": false,
+      "observed_events": 81,
+      "pending_sinks": 0,
+      "pending_sources": 0,
+      "runtime_accepted": false,
+      "runtime_record_count": 162,
+      "schema_version": "coherent_protocol_check.v1",
+      "scope": "single_client_no_external_probes_per_source_manager",
+      "semantic_accepted": false,
+      "source_authority": false,
+      "stream_closed": true,
+      "stream_id": "801d5509-5daa-4bc9-9e42-b6fb399cc1f2",
+      "stream_poisoned": false,
+      "structural_error": false
+    },
+    "counts": {
+      "cpu_commands": 19372,
+      "cpu_transport_reads": 19374,
+      "cpu_samples": 3000,
+      "gpio_commands": 3006,
+      "gpio_transport_reads": 3194,
+      "gpio_samples": 3024,
+      "events": 54669,
+      "runtime_events": 162,
+      "router_deliveries": 6
+    }
+  }
+}

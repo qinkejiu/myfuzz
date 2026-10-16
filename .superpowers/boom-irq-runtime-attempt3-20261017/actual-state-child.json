@@ -1,0 +1,28 @@
+{
+  "pid": 269888,
+  "args": [
+    "/usr/bin/python3",
+    "-u",
+    "-m",
+    "myfuzz.scenario.boom_gpio_irq_verification",
+    "--run-native",
+    "--repo",
+    "/root/fanzehui/boom-irq-runtime-attempt3-20261017/project",
+    "--cpu-output",
+    "/root/fanzehui/boom-irq-factory-fix-20261017/artifact-finalized",
+    "--cache-dir",
+    "/root/fanzehui/boom-irq-runtime-attempt3-20261017/gpio-cache",
+    "--output",
+    "/root/fanzehui/boom-irq-runtime-attempt3-20261017/gate-output",
+    "--freeze-path",
+    "/root/fanzehui/boom-irq-runtime-attempt3-20261017/source-freeze.json",
+    "--freeze-sha256",
+    "d0eb71f1cfaa7a6db158f3c9211249c03e7703b89519a94db42cfd8317f0803e",
+    "--artifact-sha256",
+    "3f405a57322a697f0dfee4004ef15e9c3c5c849bf1fc360b0dd0d087f2bbf89d",
+    "--heavy-lock",
+    "/root/fanzehui/system-20261016/project/.superpowers/heavy-worker.lock"
+  ],
+  "exit": 0,
+  "poll": 0
+}

@@ -1,0 +1,259 @@
+{
+  "validation": "saved_actual_streams_pass",
+  "full_fresh_prefix_equal": true,
+  "checks": {
+    "first": {
+      "suppressed": false,
+      "pulse_start": 221,
+      "pulse_end": 285,
+      "status_reads": [
+        0,
+        1,
+        0
+      ],
+      "source_witness": {
+        "source_event_id": 1,
+        "source_runner_event_id": 4335,
+        "pulse_runner_event_id": 4336,
+        "producer_event_id": 4334,
+        "injection_event_id": 4303,
+        "gpio_command_sequence": 225,
+        "gpio_local_tick": 237,
+        "source_cpu_tick": 220,
+        "source_trigger": null,
+        "tracker_installed": false,
+        "authority": "observation_only",
+        "source_authority": false,
+        "trigger_boundary": "no_tracker_raw_phase_join_only"
+      },
+      "temporal_witness": {
+        "rob_tick": 281,
+        "rob_phase": "post",
+        "csr_tick": 282,
+        "csr_phase": "post",
+        "mret_pre_tick": 429,
+        "acceptance_phase": "pre_handshake_at_rising_edge",
+        "same_edge_ordering_admitted": false,
+        "raw_reference_namespace": "this_run.runtime_events.raw_event_id",
+        "status_accesses": [
+          {
+            "source_transaction": {
+              "channel_id": "coherent-A-uncached",
+              "execution_id": "951e5db0-49f9-427b-ba01-349e5ef35245",
+              "source_component": "cpu",
+              "source_epoch": 1,
+              "source_sequence": 4,
+              "testcase_id": "boom-pulp-gpio-meip"
+            },
+            "target_access_id": "gpio-access:gpio:0:4",
+            "gpio_tick": 189,
+            "gpio_phase": "pre",
+            "a_tick": 173,
+            "d_tick": 174,
+            "a_raw_event_id": 34,
+            "d_raw_event_id": 35
+          },
+          {
+            "source_transaction": {
+              "channel_id": "coherent-A-uncached",
+              "execution_id": "951e5db0-49f9-427b-ba01-349e5ef35245",
+              "source_component": "cpu",
+              "source_epoch": 1,
+              "source_sequence": 5,
+              "testcase_id": "boom-pulp-gpio-meip"
+            },
+            "target_access_id": "gpio-access:gpio:0:5",
+            "gpio_tick": 392,
+            "gpio_phase": "pre",
+            "a_tick": 372,
+            "d_tick": 373,
+            "a_raw_event_id": 68,
+            "d_raw_event_id": 69
+          },
+          {
+            "source_transaction": {
+              "channel_id": "coherent-A-uncached",
+              "execution_id": "951e5db0-49f9-427b-ba01-349e5ef35245",
+              "source_component": "cpu",
+              "source_epoch": 1,
+              "source_sequence": 6,
+              "testcase_id": "boom-pulp-gpio-meip"
+            },
+            "target_access_id": "gpio-access:gpio:0:6",
+            "gpio_tick": 418,
+            "gpio_phase": "pre",
+            "a_tick": 394,
+            "d_tick": 395,
+            "a_raw_event_id": 70,
+            "d_raw_event_id": 71
+          }
+        ],
+        "result_acceptances": {
+          "3010": {
+            "raw_event_id": 61,
+            "local_tick": 339
+          },
+          "3018": {
+            "raw_event_id": 66,
+            "local_tick": 346
+          },
+          "3020": {
+            "raw_event_id": 72,
+            "local_tick": 403
+          },
+          "3024": {
+            "raw_event_id": 74,
+            "local_tick": 407
+          },
+          "3028": {
+            "raw_event_id": 76,
+            "local_tick": 412
+          },
+          "302c": {
+            "raw_event_id": 80,
+            "local_tick": 475
+          }
+        }
+      }
+    },
+    "fresh": {
+      "suppressed": false,
+      "pulse_start": 221,
+      "pulse_end": 285,
+      "status_reads": [
+        0,
+        1,
+        0
+      ],
+      "source_witness": {
+        "source_event_id": 1,
+        "source_runner_event_id": 4335,
+        "pulse_runner_event_id": 4336,
+        "producer_event_id": 4334,
+        "injection_event_id": 4303,
+        "gpio_command_sequence": 225,
+        "gpio_local_tick": 237,
+        "source_cpu_tick": 220,
+        "source_trigger": null,
+        "tracker_installed": false,
+        "authority": "observation_only",
+        "source_authority": false,
+        "trigger_boundary": "no_tracker_raw_phase_join_only"
+      },
+      "temporal_witness": {
+        "rob_tick": 281,
+        "rob_phase": "post",
+        "csr_tick": 282,
+        "csr_phase": "post",
+        "mret_pre_tick": 429,
+        "acceptance_phase": "pre_handshake_at_rising_edge",
+        "same_edge_ordering_admitted": false,
+        "raw_reference_namespace": "this_run.runtime_events.raw_event_id",
+        "status_accesses": [
+          {
+            "source_transaction": {
+              "channel_id": "coherent-A-uncached",
+              "execution_id": "78a5be65-e7b6-4cd0-aad6-a1956fb6a982",
+              "source_component": "cpu",
+              "source_epoch": 1,
+              "source_sequence": 4,
+              "testcase_id": "boom-pulp-gpio-meip"
+            },
+            "target_access_id": "gpio-access:gpio:0:4",
+            "gpio_tick": 189,
+            "gpio_phase": "pre",
+            "a_tick": 173,
+            "d_tick": 174,
+            "a_raw_event_id": 34,
+            "d_raw_event_id": 35
+          },
+          {
+            "source_transaction": {
+              "channel_id": "coherent-A-uncached",
+              "execution_id": "78a5be65-e7b6-4cd0-aad6-a1956fb6a982",
+              "source_component": "cpu",
+              "source_epoch": 1,
+              "source_sequence": 5,
+              "testcase_id": "boom-pulp-gpio-meip"
+            },
+            "target_access_id": "gpio-access:gpio:0:5",
+            "gpio_tick": 392,
+            "gpio_phase": "pre",
+            "a_tick": 372,
+            "d_tick": 373,
+            "a_raw_event_id": 68,
+            "d_raw_event_id": 69
+          },
+          {
+            "source_transaction": {
+              "channel_id": "coherent-A-uncached",
+              "execution_id": "78a5be65-e7b6-4cd0-aad6-a1956fb6a982",
+              "source_component": "cpu",
+              "source_epoch": 1,
+              "source_sequence": 6,
+              "testcase_id": "boom-pulp-gpio-meip"
+            },
+            "target_access_id": "gpio-access:gpio:0:6",
+            "gpio_tick": 418,
+            "gpio_phase": "pre",
+            "a_tick": 394,
+            "d_tick": 395,
+            "a_raw_event_id": 70,
+            "d_raw_event_id": 71
+          }
+        ],
+        "result_acceptances": {
+          "3010": {
+            "raw_event_id": 61,
+            "local_tick": 339
+          },
+          "3018": {
+            "raw_event_id": 66,
+            "local_tick": 346
+          },
+          "3020": {
+            "raw_event_id": 72,
+            "local_tick": 403
+          },
+          "3024": {
+            "raw_event_id": 74,
+            "local_tick": 407
+          },
+          "3028": {
+            "raw_event_id": 76,
+            "local_tick": 412
+          },
+          "302c": {
+            "raw_event_id": 80,
+            "local_tick": 475
+          }
+        }
+      }
+    },
+    "suppressed": {
+      "suppressed": true,
+      "pulse_start": 221,
+      "pulse_end": 285,
+      "status_reads": [
+        0
+      ],
+      "source_witness": {
+        "source_event_id": 1,
+        "source_runner_event_id": 4335,
+        "pulse_runner_event_id": 4336,
+        "producer_event_id": 4334,
+        "injection_event_id": 4303,
+        "gpio_command_sequence": 225,
+        "gpio_local_tick": 237,
+        "source_cpu_tick": 220,
+        "source_trigger": null,
+        "tracker_installed": false,
+        "authority": "observation_only",
+        "source_authority": false,
+        "trigger_boundary": "no_tracker_raw_phase_join_only"
+      },
+      "temporal_witness": null
+    }
+  },
+  "model_executed": false
+}
