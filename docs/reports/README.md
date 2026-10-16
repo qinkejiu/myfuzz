@@ -1,5 +1,7 @@
 # 当前方案的验收报告入口
 
+2026-10-17 CVW／PULP GPIO 后续双向定向门：[完整报告](cvw-pulp-gpio-bidirectional-directed-20261017.md)。固定外部 `gpio_in=0xa5` 经真实 PADIN 进入 CPU/RAM；两次独立正例的七笔 APB 和 `[0x35,0x6a,1,0xa5]` 一致（127.52 秒），旧窗口负例通过（64.46 秒）。仍无该输入的绑定来源/在线变异、独立 AHB 引脚相位证据或 P6 整行验收。DMA Slice B 已生成双接口 Wishbone 单边沿 transport，但尚无 DMA RTL 事务运行。
+
 2026-10-17 CVW→PULP GPIO 定向真实链：远端固定隔离目录 `/root/fanzehui/system-20261016` 的 `evidence/cvw-gpio-positive-after-buildfix.log` 为 `1 passed in 153.24s`，`evidence/cvw-gpio-negative-llen32.log` 为 `1 passed in 59.17s`。正例两次独立进程的原始记录在 `evidence/cvw-gpio-run-llen32/{first,fresh}.json`；实际 APB 顺序为 PADDIR/GPIOEN 全字写、PADOUT `0x35` 写/读、PADOUT `0x6a` 写/读，共六笔，CPU RAM 结果 `[0x35,0x6a,1]`，MMIO BE 均为 15。旧 `base=0` 窗口负例无 GPIO 交付。源码为 pinned CVW `2f2ddfd4...`、PULP GPIO `f82caeb7...`，派生配置见 `configs/cpus/cvw/config_extmem/config.vh`；运行使用远端 Verilator 5.051。范围限静态初始程序、桥接事务/IP 效果和独立进程定向重跑；无在线 campaign、FIFO、IRQ、独立 AHB 原始引脚相位证据或 P6 整行通过。ZipCPU DMA、Caliptra SHA256 仅静态闭包/profile；VexiiRiscv 仅生成并 lint RTL，均不计真实跨组件验收。
 
 2026-10-12 Task3 software-only refusal step accepted at the frozen Path-MRO candidate after independent exact-SHA security and source-contract reviews. Full Task3 regression: 99 passed / 18.04s; Task2 three-module compatibility: 92 passed / 52.79s. Verifier SHA 229485466093033be9f96c38bfc8dfbd757c92daf7ca93912577964b04fb255f; tests SHA 7b6527f0530869cb0c497517f06d927d5e59e668a1376ae053413630dbd3e090. Receipts and 12-file source archive are under runs/stage2-e2-native-reset-task3-software-20261012/path-mro-final-*. No native/build or positive certificate.
