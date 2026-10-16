@@ -1,0 +1,20 @@
+{
+  "build_run": false,
+  "elaboration_run": false,
+  "environment_sha256": "a713c0de882e7a59813d49f5a756d9fa122a05acf5363c48669c009033056ca8",
+  "fanzehui_cxx_wrapper_sha256": "4273bc2b00f2ac5d0affb4b364868a891f455b68785fa68ff9430c556c2ef7d6",
+  "fanzehui_verilator_sha256": "fb2cc573b1055cf096c90e1efc9966fe56bdb4b265c83590cf2a49f7a0defcdf",
+  "files": {
+    "project-source-manifest.json": "98caed27c71c690dca11489caae8fad38444732b82303b1adbbcdfa51ba1e0c2",
+    "remote-source-freeze.json": "9f2c0510e7430b8f4f11f3ef5ff058f329d586004359d88521e55557b025c130",
+    "remote-source-validation.json": "b84b73771eee6254c5764a946aba9e7558537f0dae07b4adf3e9cca5e58f9f00",
+    "run-native.sh": "011524eefcacc41b09dd7646bcadd93154a09390b14555534fd194412bf4adfd"
+  },
+  "heavy_lock_acquired": false,
+  "native_run": false,
+  "remote_base": "/root/fanzehui/cva6-full-axi-observer-20261017-attempt1",
+  "run_output_exists": false,
+  "snapshot_tar_sha256": "35cb03e1f6878d76faa804ecde3f63b516af0cd8b4c0e1d5e8d7081601bcb5c7",
+  "source_freeze_sha256": "9f2c0510e7430b8f4f11f3ef5ff058f329d586004359d88521e55557b025c130",
+  "system_ar": "not_read_or_copied; actual future manifest governs"
+}
