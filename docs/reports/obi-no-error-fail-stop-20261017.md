@@ -19,4 +19,4 @@
 
 [Verilator 原始运行归档](evidence/obi-no-error-fail-stop-20261017/verilator-native.tar)及[逐文件清单](evidence/obi-no-error-fail-stop-20261017/verilator-native.manifest.json)包含冻结 source/config、控制脚本、前后源摘要、实际等待的退出状态、完整编译命令/输出和模型 stdout/stderr。测试临时编译目录按原测试生命周期释放；本归档不包含可执行模型。实际报错输出为时间25的 `tb.dut` 适配器 fatal。根代理重新读取归档确认 build0、native1、pytest0、sourceafter0。
 
-CV32 boundary 原始记录由对应冻结 F4 门的独立归档保存；未与上述 unit 源码合并为联合 HEAD 证据。无 error 物理端口的成功协议观察仍表示 error 未观测（null），不能因 fail-stop 通过就补造成功 error=0。此报告不授予新 CPU/IP 通用接入、覆盖驱动搜索或 P6/P7/P8 完成。
+[CV32 boundary 原始记录](compiled-f4-cv32-no-error-boundary-20261017.md)由对应冻结 F4 门的独立归档保存；未与上述 unit 源码合并为联合 HEAD 证据。无 error 物理端口的成功协议观察仍表示 error 未观测（null），不能因 fail-stop 通过就补造成功 error=0。此报告不授予新 CPU/IP 通用接入、覆盖驱动搜索或 P6/P7/P8 完成。
