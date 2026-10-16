@@ -356,6 +356,8 @@ MYFUZZ_SCENARIO_RFUZZ_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integrat
 
 **当前情况（2026-10-17）：** 固定 ZipCPU `wbdmac` 已有独立生成式主设备 harness；Ibex 真实 OBI 事务配置 DMA，DMA 真实请求完成四字 RAM→RAM 搬运，原生完成脉冲经显式 pending-level latch 交付真实 Ibex 中断输入，ISR 读取状态及目的数据并写成功标记。两个新进程的完整规范化定向轨迹一致，见[RAM→RAM 报告](../../reports/ibex-zipcpu-dma-irq-isr-directed-20261017.md)。其后 RAM→真实 OpenTitan UART TX FIFO 定向链也在修正版远端门 3 passed：DMA 真实读 CPU 写入的 `0xA5` 并写 UART WDATA，串行端发出 `0xA5`，原生 IRQ 使 Ibex ISR 写成功标记；非法目标偏移、超宽 WDATA 由声明环境返回 ERR 且 UART 不发送，见[RAM→UART 报告](../../reports/ibex-zipcpu-dma-uart-fifo-directed-20261017.md)。又有[UART RX FIFO→RAM 报告](../../reports/ibex-zipcpu-dma-uart-rx-fifo-directed-20261017.md)：物理串行输入 `0x5A` 入真实 FIFO，DMA 读取 RDATA 后写 RAM，真实 Ibex ISR 读回；远端真实门 2 passed／278.74 秒，两次 fresh 完整规范化轨迹一致，非法源偏移环境 ERR 不弹出 FIFO。修正源码的 TX 回归 3 passed／287.64 秒。三条链均使用有界 host 事务调度，尚缺持续 testcase 变异、通用 ScenarioRunner 来源链、多字 FIFO 行为和认证前缀 replay，故 P8 整阶段未验收。
 
+**后续实测（2026-10-17，attempt6）：** [标准 Runner 连续 UART RX DMA](../../reports/dma-continuous-runner-20261017.md)已通过 1 passed／277.19 秒、native/worker exit0。一次 boot 连续四例，完整 JSON fresh 前缀、真实 source-bound 失败及失败 fresh 均通过，内部 300 秒预算不变；根代理独立复算全部保存事件及 426 文件源 pin。故“尚缺通用 ScenarioRunner／多例 RX”已在此限定链上取得实测增量，不能继续表述为完全没有。此证据仍为 bounded_historical_chain，FIFO origin unknown；持续变异、来源认证及全部方向统一认证前缀未完成，P8 保持未验收。
+
 **前置：** P2 的逐边路径契约、P3 的持续资源/事务身份；DMA 源码与主设备协议 profile 可并行准备。**主要文件：** 新增 `configs/peripherals/<dma>/` profile、`src/myfuzz/local_harness/` 的 DMA master session/协议模板，以及 `src/myfuzz/scenario/{router,scheduler,memory_service,ledger,irq,evidence,replay}.py` 的多主事务来源、提交顺序和证据接口。具体 DMA 候选先固定真实源码和其读写/IRQ 端口，再登记能力；源码不可执行时记录 `skipped_unavailable`。
 
 - [ ] CPU 经 F4 的真实 MMIO 配置 DMA 源、目的、长度和启动；DMA RTL 真实发出每笔读写请求，Router 按地址和声明绑定选择 RAM 或真实 IP 目标。

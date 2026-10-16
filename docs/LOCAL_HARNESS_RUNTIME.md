@@ -1,5 +1,12 @@
 # 生成式独立 Harness 的实际运行边界
 
+## 2026-10-17 最新连续 DMA 冻结证据
+
+[标准 Runner 连续 UART RX DMA](reports/dma-continuous-runner-20261017.md)实际 attempt6：native 1 passed／277.19 秒，native/worker exit0；一次启动连续处理 0x5a、0、0xa5、0xa5。四例均通过实际 FIFO 读取、DMA RAM 提交、CPU 版本读取和 IRQ/状态/完成计数检查；JSON 往返后 fresh 完整前缀相等。另有 max_source_ticks=1 的真实失败及 fresh 重放。根代理独立重算正例两份各 34,794 事件、失败两份各 200 事件，并核对每份 source_pins 与 426 文件启动预检完全一致。预算仍为 300 秒。
+
+该组合仅接受 **bounded_historical_chain**，FIFO origin 为 unknown。尚未接受覆盖驱动持续变异、通用串行源到 FIFO entry 的来源认证、全部 DMA 方向的统一认证前缀，或 P8 整体完成。下文较早的“持续 runtime 待重跑”描述保留为历史状态；最新结果以上述冻结报告为准。各独立证据也不等于当前联合 HEAD 已重新验证。
+
+
 本页逐组件/组合列出已记录的实际运行能力、命令与限制。统一阶段状态、正在运行的门禁及最新证据入口见 [当前进度](CURRENT_PROGRESS.md)；下一步验收顺序见 [实施计划](superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md)，模块入口见 [代码组织](CODE_ORGANIZATION.md)。
 
 第一阶段 P1–P5 已完成（按各自声明范围），P6–P8 未验收；准确口径见[当前进度](CURRENT_PROGRESS.md)。第二阶段 M0 实施中，[逐组合矩阵](STAGE2_ACCEPTANCE_MATRIX.md)尚未授予 L1–L3 等级。下表和报告按保存时源码身份解释。v2 CPU POST、RDATA→retired LW 与受控 entry 的2048冻结源门禁得到4／4／4证明、0 barrier和48,315事件完整 fresh 一致；后续 Runner 已变，不表示当前源码重验。最新状态见当前进度页。
