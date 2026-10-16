@@ -58,10 +58,13 @@ def cvw_gpio_program(*, gpio_base=0xCFFF0000) -> bytes:
     return b''.join(word.to_bytes(4, 'little') for word in words)
 
 
-def _artifact(profile, instance):
-    request = load_local_harness_request(dict(schema_version='local_harness.v1',
+def _artifact(profile, instance, *, physical_observations=False):
+    request = load_local_harness_request(dict(schema_version=('local_harness.v2'
+        if physical_observations else 'local_harness.v1'),
         profile_path=profile, instance_id=instance, reset_assert_ticks=8,
-        reset_release_ticks=8, max_wait_cycles=16))
+        reset_release_ticks=8, max_wait_cycles=16,
+        **({'tuning': {'raw_tick_stream': [{'sampling': 'pre_post'}]}}
+           if physical_observations else {})))
     plan = plan_local_harness(request, base_dir=ROOT)
     runtime = render_local_runtime(plan, render_local_harness(plan),
         verify_local_source_lock(plan.profile, base_dir=ROOT), base_dir=ROOT)
@@ -77,7 +80,7 @@ def make_cvw_gpio_chain(*, cache_dir: Path, gpio_base=None):
     wiring = cvw_pulp_gpio_wiring()
     base = wiring.window_base if gpio_base is None else gpio_base
     cpu_art = _artifact(wiring.cpu_profile, 'cpu')
-    gpio_art = _artifact(wiring.gpio_profile, 'gpio')
+    gpio_art = _artifact(wiring.gpio_profile, 'gpio', physical_observations=True)
     memory = PersistentMemory(regions=wiring.memory_regions,
         initialization_seed=17, max_initialized_bytes=0x10000)
     # This is an initial-image interface, not the online ISA fragment interface.
