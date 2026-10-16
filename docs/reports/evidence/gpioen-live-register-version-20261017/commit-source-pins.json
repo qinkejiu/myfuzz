@@ -1,0 +1,25 @@
+{
+  "commit": "d368c9e",
+  "files": [
+    {
+      "path": "src/myfuzz/integration/generated_register_writer.py",
+      "sha256": "d193d4794d5b8947618c4546145b9a1ecca97374f35de0571cf3c9a4d2ac0e30"
+    },
+    {
+      "path": "src/myfuzz/local_harness/gpio_session.py",
+      "sha256": "f6d6077759d8cfe1b6e0b32da59d71bb0a8c86d1349b2697090386c74b4df242"
+    },
+    {
+      "path": "src/myfuzz/local_harness/session.py",
+      "sha256": "771cf8f0214610f4b0030d8141c9dfb908b7af1e2334cc9ebce67bf5b374ea87"
+    },
+    {
+      "path": "src/myfuzz/scenario/gpio_register_version.py",
+      "sha256": "f1e35daa3a47f707def4924c354684cef2b2ded665bdd9623a3626beba153b2d"
+    },
+    {
+      "path": "tests/local_harness/test_gpio_register_version.py",
+      "sha256": "a8dfe4d67de99dfa79ce57a54cc3edbeb6df449587e1fcef56744900892e2dfe"
+    }
+  ]
+}

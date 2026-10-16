@@ -1,0 +1,12 @@
+{
+  "transport": [
+    "ssh jumpserver",
+    "ssh root@192.168.5.70"
+  ],
+  "remote_shell_command": "cd /root/fanzehui/system-20261016/project/.superpowers/gpio-version-frozen && source /root/fanzehui/system-20261016/environment.sh && flock /root/fanzehui/system-20261016/project/.superpowers/heavy-worker.lock env PYTHONPATH=src:.:/root/fanzehui/system-20261016/pythonlib MYFUZZ_GPIO_VERSION_REAL=1 MYFUZZ_GPIO_VERSION_CACHE=/root/fanzehui/system-20261016/project/.superpowers/gpio-version-cache python3 -m pytest -q tests/local_harness/test_gpio_register_version.py > /root/fanzehui/system-20261016/project/.superpowers/gpio-version-gate.log 2>&1; cat /root/fanzehui/system-20261016/project/.superpowers/gpio-version-gate.log",
+  "transport_shell_exit_code": 0,
+  "pytest_exit_code_separately_recorded": false,
+  "pytest_result": "4 passed in 125.46s",
+  "note": "Shell ends with cat; its exit is not an independent pytest exit capture. Saved pytest summary reports all four tests passing.",
+  "raw_archive_saved": false
+}
