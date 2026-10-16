@@ -11,7 +11,7 @@
       "instance_id": "gpio",
       "request": "requests/gpio.json",
       "bus_endpoint": "gpio.bus",
-      "base": 0,
+      "base": 3489595392,
       "size": 4096
     }
   ],
@@ -20,7 +20,7 @@
       "resource_id": "ram",
       "component_instance": "cpu",
       "base": 3221225472,
-      "size": 268435456,
+      "size": 268369920,
       "read": true,
       "write": true,
       "execute": true,

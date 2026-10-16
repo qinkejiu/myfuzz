@@ -49,10 +49,10 @@ _WRAPPER_PATH = 'configs/cpus/cvw/cvw_ahb_cpu_top.sv'
 _CONFIG_PATH = 'configs/cpus/cvw/config_extmem/config.vh'
 _UPSTREAM_ROOT = 'third_party/cvw_upstream_reference'
 
-_PROFILE_SHA256 = 'b3c784db4e5de83e0def8948e19c179217a42fd002403d5c9d36a438a0cfae59'
-_CLOSURE_SHA256 = 'fca21c680d48ae6647931adb430a6fe7756f563105ee5a59d486e0e7fa7c0bc9'
+_PROFILE_SHA256 = '776eb958ada3b65c588e540dd8397dafe592f943581a35ff94cf29ea19b5cb31'
+_CLOSURE_SHA256 = 'd53f8c455ed795209d75d9c8636b32346f593ee77c6a4e3b67b2775560999eb2'
 _WRAPPER_SHA256 = '792f2d6a8ff71b959253b8e36c9fcb7c728c0702500d09550915762e55ebdba8'
-_CONFIG_SHA256 = '69d7d6e05ad64dd09df8640fc5bf8b82bc401aab29d5e57de229656c9d8edf76'
+_CONFIG_SHA256 = '0b5f675eb5ea8c7a89df3696daed8c8682574d4b25a87cf530189bec4d8f0e71'
 
 #: The upstream revision the closure's non-local entries must belong to.
 _UPSTREAM_REVISION = '2f2ddfd4c3c7f5d3a655e4488831d9277673105a'
@@ -83,6 +83,8 @@ def verify_cvw_source_contract(profile, *, base_dir: Path) -> dict:
         raise ValueError('cvw-config-external-memory-disabled')
     if "localparam logic [63:0] EXT_MEM_BASE     = 64'hC0000000;" not in config_raw:
         raise ValueError('cvw-config-external-memory-base')
+    if 'localparam logic DCACHE_SUPPORTED = 0;' not in config_raw:
+        raise ValueError('cvw-config-data-cache-enabled')
     if 'DERIVED FILE - DO NOT EDIT BY HAND' not in config_raw:
         raise ValueError('cvw-config-not-derived')
     closure = json.loads(closure_raw)

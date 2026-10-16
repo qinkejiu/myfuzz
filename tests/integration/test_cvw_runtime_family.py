@@ -5,7 +5,7 @@ first non-PULP one.  Its CPU is CVW (CORE-V Wally) at its **unified** AHB-Lite
 memory master ``cpu.external_bus`` - the EBU arbitrates the IFU and the LSU onto
 that one bus, so the profile declares a single ``memory_master`` endpoint and no
 instruction/data pair - and its device is one ``pulp_gpio`` on APB3 in a 4 KiB
-window, with the CPU's own external-memory region as the only RAM resource.
+window inside the external aperture, with host RAM carved below MMIO.
 
 The four claims this file pins, each with a guard that can fail:
 
@@ -106,9 +106,9 @@ def test_the_family_requirements_come_from_its_own_declaration():
     facts = wiring_facts(family())
     assert facts['instances'] == ['cpu', 'gpio']
     assert [(row['instance_id'], row['device_id'], row['base'], row['size'])
-            for row in facts['windows']] == [('gpio', 'gpio', 0, 4096)]
+            for row in facts['windows']] == [('gpio', 'gpio', 0xCFFF0000, 4096)]
     assert [(row['component_instance'], row['base'], row['size'])
-            for row in facts['memory_regions']] == [('cpu', 0xC0000000, 0x10000000)]
+            for row in facts['memory_regions']] == [('cpu', 0xC0000000, 0x0FFF0000)]
 
 
 # ---------------------------------------------------------------------------
@@ -169,10 +169,10 @@ def test_the_declared_shape_matches_the_real_profiles():
         'component_id': 'pulp_gpio', 'instance_id': 'gpio',
         'profile': 'configs/peripherals/pulp_gpio/component_profile.json',
         'endpoint_id': 'gpio.bus', 'function': 'mmio_slave',
-        'protocol': ['apb', '3'], 'window': {'base': 0, 'size': 4096}}
+        'protocol': ['apb', '3'], 'window': {'base': 0xCFFF0000, 'size': 4096}}
     assert capabilities['memory'] == {
         'component': 'cpu',
-        'regions': [{'memory_id': 'ram', 'base': 0xC0000000, 'size': 0x10000000}]}
+        'regions': [{'memory_id': 'ram', 'base': 0xC0000000, 'size': 0x0FFF0000}]}
 
     # The registry's own literals must equal that derivation: the driver and the
     # family module are two views of one declaration, never two declarations.
@@ -477,7 +477,7 @@ def test_the_family_run_reaches_its_d1_to_d3_stage_and_names_the_missing_session
     assert check['family']['family_id'] == FAMILY_ID
     assert check['status'] == 'ok' and check['refusals'] == []
     assert check['requirements']['memory_regions'] == [
-        {'component_instance': 'cpu', 'base': 0xC0000000, 'size': 0x10000000}]
+        {'component_instance': 'cpu', 'base': 0xC0000000, 'size': 0x0FFF0000}]
     assert not (output / 'session').exists()
     assert not (output / 'fresh-verification.json').exists()
     # A named absence still marks the run incomplete: it is not a finished run.
@@ -491,3 +491,20 @@ def test_the_family_run_reaches_its_d1_to_d3_stage_and_names_the_missing_session
                for row in compiled['paths'] if row['status'] == 'unsupported'}
     assert reasons == {'F5': 'interrupt-consumer-missing',
                        'F6': 'dma-master-not-declared'}
+
+
+def test_mmio_is_reachable_and_host_ram_is_carved():
+    wiring = family_module.cvw_pulp_gpio_wiring()
+    assert wiring.window_base == 0xCFFF0000
+    region, = wiring.memory_regions
+    assert (region.base, region.size) == (0xC0000000, 0x0FFF0000)
+    assert region.base + region.size == wiring.window_base
+
+
+@pytest.mark.parametrize('base', [0, 0xC0001000, 0xD0000000])
+def test_unreachable_or_ram_overlapping_mmio_is_refused(monkeypatch, base):
+    monkeypatch.setattr(family_module, 'GPIO_WINDOW_BASE', base)
+    code = ('cvw-family-window-overlaps-memory' if base == 0xC0001000
+            else 'cvw-family-window-outside-external-memory')
+    with pytest.raises(AutoHarnessRefused, match=code):
+        family_module.cvw_pulp_gpio_wiring()

@@ -13,7 +13,7 @@ CPU + device + protocol shape of this family
   ``mmio_slave`` and protocol ``apb 3``, and its declared aperture is the
   profile's own ``address.window_size`` (4 KiB).
 * **Wiring** the two sessions ``cpu``/``gpio``, one 4 KiB MMIO window, and one
-  RAM resource that is exactly the CPU's declared external-memory region - the
+  RAM resource carved from the CPU's declared external-memory region - the
   region the derived configuration also points the reset vector at, so the boot
   fetch is a real AHB-Lite transfer the harness's memory service answers.
 
@@ -28,9 +28,8 @@ derived configuration ``configs/cpus/cvw/config_extmem/config.vh``:
 :func:`myfuzz.local_harness.auto_harness_test.wiring_facts` reads, so the family
 cannot be declared more generously than the profiles it builds, and a profile
 that stops declaring this shape is refused *by name* (``cvw-family-*``) instead
-of being adapted.  Only two facts are integration choices and are marked as
-such: the window's base address and the instance ids the shipped composition
-uses.
+of being adapted. The window, RAM carveout and instance ids are integration
+choices shared with the shipped composition.
 
 The identity discipline of the frozen template is kept verbatim: every opt-in is
 off by default, an unavailable observation is refused by name rather than
@@ -99,9 +98,10 @@ DEVICE_ENDPOINT_FUNCTION = 'mmio_slave'
 
 #: Integration choice, not a profile fact: the CPU's external-memory region is
 #: ``0xC0000000..0xCFFFFFFF`` (its own derived configuration), and the device
-#: window is placed at 0 - aligned to its own aperture, disjoint from the boot
-#: region, and the base the shipped composition declares.
-GPIO_WINDOW_BASE = 0x0
+#: window is inside that reachable aperture; host RAM ends immediately before it.
+#: D-cache is disabled in this profile; code/I-cache fills must remain in RAM.
+GPIO_WINDOW_BASE = 0xCFFF0000
+RAM_END = 0xCFFF0000
 
 #: The RAM resource id the composition declares for the CPU's own region.
 MEMORY_RESOURCE_ID = 'ram'
@@ -310,13 +310,20 @@ def cvw_pulp_gpio_wiring(*, base_dir=None) -> 'CvwPulpGpioWiring':
         _refuse('cvw-family-window-outside-address-space', '/devices/0/base',
                 {'base': GPIO_WINDOW_BASE, 'size': window_size,
                  'address_width': address_width})
-    if (GPIO_WINDOW_BASE < region_base + region_size
-            and region_base < GPIO_WINDOW_BASE + window_size):
+    if not (region_base <= GPIO_WINDOW_BASE
+            and GPIO_WINDOW_BASE + window_size <= region_base + region_size):
+        _refuse('cvw-family-window-outside-external-memory', '/devices/0/base',
+                {'base': GPIO_WINDOW_BASE, 'size': window_size,
+                 'external_base': region_base, 'external_size': region_size})
+    ram_size = RAM_END - region_base
+    if ram_size <= 0 or RAM_END > region_base + region_size:
+        _refuse('cvw-family-memory-outside-external-memory', '/memory',
+                {'base': region_base, 'end': RAM_END})
+    if GPIO_WINDOW_BASE < RAM_END and region_base < GPIO_WINDOW_BASE + window_size:
         _refuse('cvw-family-window-overlaps-memory', '/devices/0/base',
                 {'window': {'base': GPIO_WINDOW_BASE, 'size': window_size},
-                 'memory_region': {'base': region_base, 'size': region_size},
-                 'requires': 'the device window to stay outside the CPU\'s own '
-                             'external-memory region'})
+                 'memory_region': {'base': region_base, 'size': ram_size},
+                 'requires': 'a reachable device window disjoint from host RAM'})
 
     return CvwPulpGpioWiring(
         cpu_profile=CPU_PROFILE, gpio_profile=GPIO_PROFILE,
@@ -325,7 +332,7 @@ def cvw_pulp_gpio_wiring(*, base_dir=None) -> 'CvwPulpGpioWiring':
                   DEVICE_INSTANCE_ID),),
         window_size=window_size,
         memory_component=CPU_INSTANCE_ID,
-        memory_regions=(MemoryRegion(MEMORY_RESOURCE_ID, region_base, region_size),),
+        memory_regions=(MemoryRegion(MEMORY_RESOURCE_ID, region_base, ram_size),),
         cpu_component_id=CPU_COMPONENT_ID, device_component_id=DEVICE_COMPONENT_ID,
         cpu_master_endpoint=master.endpoint_id,
         cpu_master_protocol=protocol, device_protocol=tuple(endpoint.protocol),

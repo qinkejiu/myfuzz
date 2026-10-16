@@ -50,7 +50,7 @@ def test_the_derived_config_reproduces_from_its_pinned_input():
 
 #: Exactly which parameters the derivation is allowed to touch.  Kept as an
 #: explicit set rather than a count so that adding one is a deliberate edit here.
-DERIVED_PARAMETERS = {'EXT_MEM_SUPPORTED', 'EXT_MEM_BASE', 'EXT_MEM_RANGE', 'RESET_VECTOR'}
+DERIVED_PARAMETERS = {'EXT_MEM_SUPPORTED', 'EXT_MEM_BASE', 'EXT_MEM_RANGE', 'RESET_VECTOR', 'DCACHE_SUPPORTED'}
 
 
 def test_the_derivation_changes_only_the_named_parameters():
@@ -151,3 +151,42 @@ def test_the_contract_refuses_a_re_disabled_config_even_with_a_matching_hash(mon
     finally:
         DERIVED.write_text(good, encoding='utf-8')
     assert DERIVED.read_text(encoding='utf-8') == good
+
+
+def test_data_cache_is_disabled_without_changing_instruction_cache():
+    derived = DERIVED.read_text()
+    assert 'localparam logic DCACHE_SUPPORTED = 0;' in derived
+    assert 'localparam logic ICACHE_SUPPORTED = 1;' in derived
+
+
+def test_derivation_refuses_missing_or_duplicate_data_cache_line(tmp_path, monkeypatch):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('derive_cvw_config', SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    upstream = UPSTREAM.read_text()
+    monkeypatch.setattr(module, 'ROOT', tmp_path)
+    for changed in (upstream.replace('localparam logic DCACHE_SUPPORTED = 1;', ''),
+                    upstream + '\nlocalparam logic DCACHE_SUPPORTED = 1;\n'):
+        scratch = tmp_path / 'config.vh'
+        scratch.write_text(changed)
+        monkeypatch.setattr(module, 'UPSTREAM', scratch)
+        with pytest.raises(SystemExit, match='exactly one DCACHE_SUPPORTED'):
+            module.derive()
+
+
+def test_contract_refuses_data_cache_even_if_config_hash_matches(monkeypatch):
+    from myfuzz.composition.component_profile import load_component_profile
+    from myfuzz.local_harness import cvw_contract
+    good = DERIVED.read_bytes()
+    bad = good.replace(b'localparam logic DCACHE_SUPPORTED = 0;',
+                       b'localparam logic DCACHE_SUPPORTED = 1;')
+    assert bad != good
+    monkeypatch.setattr(cvw_contract, '_CONFIG_SHA256', hashlib.sha256(bad).hexdigest())
+    original = Path.read_bytes
+    def read(path):
+        return bad if path == DERIVED else original(path)
+    monkeypatch.setattr(Path, 'read_bytes', read)
+    profile = load_component_profile(json.loads(PROFILE.read_text()))
+    with pytest.raises(ValueError, match='cvw-config-data-cache-enabled'):
+        cvw_contract.verify_cvw_source_contract(profile, base_dir=ROOT)
