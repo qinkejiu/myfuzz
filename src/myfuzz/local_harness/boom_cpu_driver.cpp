@@ -24,7 +24,7 @@ int main(int argc,char**argv) {
   uint64_t cycle=0;
   bool quiescing=false;
   uint64_t external_start=0, external_end=0;
-  bool pending_external=false, external_response=false;
+  bool pending_external=false, external_response=false, external_selected=false;
   TlRequest external_request{};
   uint64_t external_data=0;
   std::ostringstream events;
@@ -42,7 +42,7 @@ int main(int argc,char**argv) {
       if(op=="END") break;
       if(op=="LOAD") {
         uint64_t address, value; command>>address>>value;
-        if(!command || address<0x80000000ULL || address>0xffffffffULL || value>255) throw std::runtime_error("invalid LOAD");
+        if(!command || cycle || address<0x80000000ULL || address>0xffffffffULL || value>255) throw std::runtime_error("invalid LOAD");
         ram.write64(uint32_t(address), value, 1);
         std::cout<<"{\"ok\":true}\n"; continue;
       }
@@ -66,7 +66,8 @@ int main(int argc,char**argv) {
       events.str(""); events.clear(); first=true;
       dut.reset=cycle<20;
       dut.TL(a_ready)=!dut.reset && !quiescing && !pending_external && ram.ready(); dut.TL(c_ready)=!dut.reset && ram.ready(); dut.TL(e_ready)=!dut.reset;
-      bool external_d=external_response && ram.empty();
+      bool external_d=external_selected || (external_response && ram.empty());
+      if(external_d) external_selected=true;
       dut.TL(d_valid)=!dut.reset && (!ram.empty() || external_d);
       dut.TL(d_bits_opcode)=0; dut.TL(d_bits_param)=0; dut.TL(d_bits_size)=0; dut.TL(d_bits_source)=0;
       dut.TL(d_bits_sink)=0; dut.TL(d_bits_denied)=0; dut.TL(d_bits_data)=0; dut.TL(d_bits_corrupt)=0;
@@ -80,7 +81,7 @@ int main(int argc,char**argv) {
       context.timeInc(1); dut.clock=1; dut.eval(); context.timeInc(1);
       if(d && external_d) {
         event()<<"{\"channel\":\"D\",\"opcode\":"<<unsigned(dut.TL(d_bits_opcode))<<",\"source\":"<<external_request.source<<",\"size\":"<<external_request.size<<",\"data\":"<<external_data<<",\"external\":true}";
-        pending_external=false; external_response=false;
+        pending_external=false; external_response=false; external_selected=false;
       }
       if(d && !external_d) {event()<<"{\"channel\":\"D\",\"opcode\":"<<ram.front().opcode<<",\"size\":"<<ram.front().size<<",\"source\":"<<ram.front().source<<",\"sink\":"<<ram.front().sink<<",\"param\":"<<ram.front().param<<",\"beat\":"<<ram.front().beat<<",\"data\":"<<ram.front_data()<<"}"; ram.accept_d();}
       if(e) {event()<<"{\"channel\":\"E\",\"sink\":"<<sink<<"}"; ram.accept_e(sink);}
@@ -88,6 +89,10 @@ int main(int argc,char**argv) {
         trace('A',ar);
         if(ar.address>=external_start && ar.address<external_end) {
           if((ar.opcode!=4 && ar.opcode!=0 && ar.opcode!=1) || ar.size>3 || uint64_t(ar.address)+(1ULL<<ar.size)>external_end) throw std::runtime_error("unsupported external request");
+          unsigned lane=ar.address & 7u;
+          unsigned lane_mask=((1u << (1u << ar.size))-1u) << lane;
+          if((ar.address & ((1u << ar.size)-1u)) || lane+(1u << ar.size)>8 || !ar.mask ||
+             (ar.opcode==1 ? (ar.mask & ~lane_mask)!=0 : ar.mask!=lane_mask)) throw std::runtime_error("invalid external alignment/mask");
           external_request=ar; pending_external=true;
         } else ram.accept_a(ar);
       }

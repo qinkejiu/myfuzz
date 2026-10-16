@@ -97,3 +97,21 @@ External ranges are restricted to the pinned legal uncached 0x4000–0x4fff
 window. `external_request` returns the epoch and sequence required to complete
 a deferred response; stale responses from earlier resets are rejected. Program
 loads must fit the 0x80000000–0xffffffff RAM window.
+
+The raw external interface preserves 64-bit TileLink lane placement: byte lane
+is `address & 7`, write bytes follow A.mask, and D.data must place a narrow read
+result in those same lanes. The native driver rejects misaligned requests and
+masks outside the natural transfer lanes. Duplicate Python response submission
+is rejected before sending a second native command. Once offered, an external
+D beat keeps its producer and payload while D.ready is low, including when C
+traffic queues a native RAM response.
+
+`myfuzz.scenario.boom_gpio_example.make_boom_gpio_chain` constructs a separate
+bounded diagnostic using the existing DataflowRouter/TransactionLedger and
+real generated PULP GPIO with physical APB samples. Its static firmware writes
+53 to PADOUT at 0x400c, fences, reads it through the high 32-bit lane, and writes
+CPU readback/success to native uncached RAM at 0x3000/0x3004. It preloads code
+only. Native driver source installs the authenticated reset trampoline at
+0x10040–0x10048. The diagnostic returns accepted CPU transactions, target
+physical samples, source-keyed router deliveries and RAM results; it does not
+provide standard runner admission. This source path has not been built or run.

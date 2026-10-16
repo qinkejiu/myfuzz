@@ -38,3 +38,10 @@ session/generator/native template hashes. Fresh native processes have distinct
 execution UUIDs. Reset/drained receipt fields require strict booleans. The
 executable's local hash supplies integrity, not signed build provenance; this
 standalone diagnostic session continues to declare generic_router_admitted=false.
+
+Independent source review follow-up: retained the selected external D producer
+through backpressure, cross-linked the complete expected executable/RTL/manager
+file set, rejected duplicate Python response submissions before native commands,
+checked raw request alignment/masks, and returned cancelled external tokens on
+reset. The new directed GPIO diagnostic is described separately in
+boom-gpio-diagnostic-report.md. No runtime verification performed.

@@ -66,6 +66,10 @@ class GeneratedBoomCpuSession:
         # not signed build provenance or generic runtime admission.
         with tempfile.TemporaryDirectory(prefix='boom-source-check-') as temporary:
             expected = generate(repo, Path(temporary))
+            expected_source_files = {
+                Path(argument).name: digest(Path(argument))
+                for argument in expected['command'] if argument.endswith('.v')}
+            expected_source_files['tl_ram.h'] = expected['manager_sha256']
         for key in ('source_revision', 'source_manifest_sha256', 'profile_sha256',
                     'manager_sha256', 'trace_verifier_sha256'):
             if self.artifact.get(key) != expected[key]:
@@ -78,6 +82,12 @@ class GeneratedBoomCpuSession:
                 raise ValueError('BOOM session implementation identity mismatch')
         if self.artifact['session_files'].get('driver.cpp') != self.artifact['driver_sha256']:
             raise ValueError('BOOM driver closure mismatch')
+        expected_file_set = {*expected_source_files, 'driver.cpp', 'obj/VBoomTile'}
+        if set(self.artifact['session_files']) != expected_file_set:
+            raise ValueError('BOOM session manifest file set mismatch')
+        for name, expected_hash in expected_source_files.items():
+            if self.artifact['session_files'][name] != expected_hash:
+                raise ValueError('BOOM session authenticated source closure mismatch')
         self.timeout = command_timeout_seconds
         self.external_range = external_range
         if external_range is not None:
@@ -104,6 +114,7 @@ class GeneratedBoomCpuSession:
         self._request_sequence = 0
         self._drained = True
         self._external_pending = None
+        self._external_response_submitted = False
         try:
             with command_deadline(time.monotonic() + self.timeout):
                 ready = self._read()
@@ -147,11 +158,14 @@ class GeneratedBoomCpuSession:
 
     def reset_local(self):
         cancelled = self.pending_responses
+        cancelled_targets = (() if self._external_pending is None else
+            ((self.execution_id, self.reset_epoch,
+              self._external_pending['request_sequence']),))
         self.close()
         self.reset_epoch += 1
         self.last_samples = ()
         self._start()
-        return {'cancelled_responses': cancelled, 'cancelled_target_requests': ()}
+        return {'cancelled_responses': cancelled, 'cancelled_target_requests': cancelled_targets}
 
     def load_program(self, data: bytes, *, address: int = 0x80000000):
         if self.ticks:
@@ -174,12 +188,16 @@ class GeneratedBoomCpuSession:
     def respond_external(self, *, source: int, size: int, request_sequence: int,
                          reset_epoch: int, data: int = 0):
         request = self._external_pending
-        if (request is None or reset_epoch != self.reset_epoch
+        if (type(source) is not int or type(size) is not int
+                or type(request_sequence) is not int or type(reset_epoch) is not int
+                or request is None or self._external_response_submitted
+                or reset_epoch != self.reset_epoch
                 or request_sequence != request['request_sequence']
                 or source != request['source'] or size != request['size']
                 or type(data) is not int or not 0 <= data < 1 << 64):
             raise ValueError('external response does not match accepted request')
         self._command('RESPOND', source, size, data)
+        self._external_response_submitted = True
 
     def step_local(self, inputs: Mapping[str, int]):
         if not isinstance(inputs, Mapping) or inputs:
@@ -199,6 +217,7 @@ class GeneratedBoomCpuSession:
         for event in payload['events']:
             if event['channel'] == 'D' and event.get('external'):
                 self._external_pending = None
+                self._external_response_submitted = False
             if event['channel'] == 'A' and self.external_range is not None:
                 lo, hi = self.external_range
                 if lo <= event['address'] < hi:
