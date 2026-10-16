@@ -46,6 +46,6 @@ def test_capability_is_identity_bound_and_reset_sequence_is_explicit():
     capability = load_ip_test_capability(DIRECTORY/'test_capability.json', profile=profile)
     assert capability.component_id == 'caliptra_sha256'
     policy = json.loads((DIRECTORY/'reset_policy.json').read_text())
-    assert policy['runtime_status'] == 'unsupported_ahb_lite_register_runtime'
+    assert policy['runtime_status'] == 'initial_shared_reset_local_accepted'
     assert policy['initial_asserted'] == {'reset_n':0,'cptra_pwrgood':0}
     assert policy['released'] == {'reset_n':1,'cptra_pwrgood':1}

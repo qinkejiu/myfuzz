@@ -55,7 +55,8 @@ class TemplateContractTests(unittest.TestCase):
         # cvw-external-bus, derived from CVW's real wallypipelinedsoc boundary).
         # 19 = the above 17 plus separate pipelined Wishbone target/master
         # DMA edge contracts. The autonomous master is not a CPU contract.
-        self.assertEqual(len(contracts), 19)
+        # 20 adds the separate full-word AHB-Lite peripheral target contract.
+        self.assertEqual(len(contracts), 20)
         ids = [(c.template_id,c.template_version,c.variant_id) for c in contracts]
         self.assertEqual(len(ids),len(set(ids)))
         for contract in contracts:

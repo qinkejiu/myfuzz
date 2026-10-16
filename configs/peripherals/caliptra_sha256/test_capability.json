@@ -1,7 +1,7 @@
 {
   "schema_version": "ip_test_capability.v3",
   "component_id": "caliptra_sha256",
-  "profile_fingerprint": "sha256:791aa84e840780692fc5026f30bfd5ab264a013ffc21d9e280b1f5689926113c",
+  "profile_fingerprint": "sha256:41ca23444147f3e181f6750202748cdc807559a07b4a55999d67fe12484e4447",
   "endpoint_capabilities": [
     {
       "endpoint_id": "sha256.bus",

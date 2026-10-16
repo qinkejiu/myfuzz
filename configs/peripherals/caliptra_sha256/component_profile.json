@@ -2,7 +2,7 @@
   "schema_version": "component_profile.v1",
   "component_id": "caliptra_sha256",
   "kind": "peripheral",
-  "description": "Unmodified Caliptra v2.1.2 sha256_ctrl, full-word aligned 32-bit AHB-Lite target. Static source/physical declaration only; dedicated AHB register-target runtime unsupported. reset_n and cptra_pwrgood are independent active-low asynchronous reset inputs and must both be asserted during initialization. Error/notification outputs are passive observations; no IRQ trigger/capture contract is granted. Wrapper ties AHB err=0/hld=0: internal register errors do not imply HRESP errors. Debug/scan input fixed zero.",
+  "description": "Unmodified Caliptra v2.1.2 sha256_ctrl, full-word aligned 32-bit AHB-Lite target. Generated full-word AHB register target with local real NAME/STATUS, write-only CTRL/BLOCK and SHA256 known-answer acceptance; CPU integration and persistent search remain unaccepted. reset_n and cptra_pwrgood are independent active-low asynchronous reset inputs and must both be asserted during initialization. Error/notification outputs are passive observations; no IRQ trigger/capture contract is granted. Wrapper ties AHB err=0/hld=0: internal register errors do not imply HRESP errors. Debug/scan input fixed zero.",
   "source": {
     "root": "third_party/caliptra_upstream_reference",
     "revision": "git:49370266d12cb0c4a8f71b3a0ff7e54ba7d4866e",
@@ -253,7 +253,7 @@
         "name": "CTRL",
         "offset": 16,
         "width": 32,
-        "access": "rw",
+        "access": "wo",
         "side_effect": "algorithm_control"
       },
       {
@@ -267,112 +267,112 @@
         "name": "BLOCK0",
         "offset": 128,
         "width": 32,
-        "access": "rw",
+        "access": "wo",
         "side_effect": "hash_block_input"
       },
       {
         "name": "BLOCK1",
         "offset": 132,
         "width": 32,
-        "access": "rw",
+        "access": "wo",
         "side_effect": "hash_block_input"
       },
       {
         "name": "BLOCK2",
         "offset": 136,
         "width": 32,
-        "access": "rw",
+        "access": "wo",
         "side_effect": "hash_block_input"
       },
       {
         "name": "BLOCK3",
         "offset": 140,
         "width": 32,
-        "access": "rw",
+        "access": "wo",
         "side_effect": "hash_block_input"
       },
       {
         "name": "BLOCK4",
         "offset": 144,
         "width": 32,
-        "access": "rw",
+        "access": "wo",
         "side_effect": "hash_block_input"
       },
       {
         "name": "BLOCK5",
         "offset": 148,
         "width": 32,
-        "access": "rw",
+        "access": "wo",
         "side_effect": "hash_block_input"
       },
       {
         "name": "BLOCK6",
         "offset": 152,
         "width": 32,
-        "access": "rw",
+        "access": "wo",
         "side_effect": "hash_block_input"
       },
       {
         "name": "BLOCK7",
         "offset": 156,
         "width": 32,
-        "access": "rw",
+        "access": "wo",
         "side_effect": "hash_block_input"
       },
       {
         "name": "BLOCK8",
         "offset": 160,
         "width": 32,
-        "access": "rw",
+        "access": "wo",
         "side_effect": "hash_block_input"
       },
       {
         "name": "BLOCK9",
         "offset": 164,
         "width": 32,
-        "access": "rw",
+        "access": "wo",
         "side_effect": "hash_block_input"
       },
       {
         "name": "BLOCK10",
         "offset": 168,
         "width": 32,
-        "access": "rw",
+        "access": "wo",
         "side_effect": "hash_block_input"
       },
       {
         "name": "BLOCK11",
         "offset": 172,
         "width": 32,
-        "access": "rw",
+        "access": "wo",
         "side_effect": "hash_block_input"
       },
       {
         "name": "BLOCK12",
         "offset": 176,
         "width": 32,
-        "access": "rw",
+        "access": "wo",
         "side_effect": "hash_block_input"
       },
       {
         "name": "BLOCK13",
         "offset": 180,
         "width": 32,
-        "access": "rw",
+        "access": "wo",
         "side_effect": "hash_block_input"
       },
       {
         "name": "BLOCK14",
         "offset": 184,
         "width": 32,
-        "access": "rw",
+        "access": "wo",
         "side_effect": "hash_block_input"
       },
       {
         "name": "BLOCK15",
         "offset": 188,
         "width": 32,
-        "access": "rw",
+        "access": "wo",
         "side_effect": "hash_block_input"
       },
       {
@@ -437,7 +437,8 @@
     "elaboration": "configs/soc/closures/caliptra_sha256.json",
     "physical_ports": "configs/peripherals/caliptra_sha256/evidence/elaborated_ports.json",
     "reset_policy": "configs/peripherals/caliptra_sha256/reset_policy.json",
-    "runtime_status": "unsupported_ahb_lite_register_runtime",
-    "register_map": "src/sha256/tb/sha256_ctrl_tb.sv and src/sha256/rtl/sha256_reg.sv; selected algorithm subset only, not full Winternitz/interrupt register coverage"
+    "runtime_status": "local_register_hash_operational",
+    "register_map": "src/sha256/tb/sha256_ctrl_tb.sv and src/sha256/rtl/sha256_reg.sv; selected algorithm subset only, not full Winternitz/interrupt register coverage",
+    "runtime_report": "docs/reports/caliptra-sha256-ahb-target-20261017.md"
   }
 }
