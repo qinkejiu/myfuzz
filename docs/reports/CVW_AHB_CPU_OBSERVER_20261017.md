@@ -1,6 +1,6 @@
 # CPU AHB observation software increment
 
-2026-10-17. Source-only implementation, independent review pending. Software controls: **51 passed in 1.30s**. No build, model, lint, elaboration or native execution occurred. Test subprocess guard permits only git; it blocked an initial attempted frontend before execution.
+2026-10-17. Source-only implementation, independent review pending. Software controls: **52 passed in 1.30s**. No build, model, lint, elaboration or native execution occurred. Test subprocess guard permits only git; it blocked an initial attempted frontend before execution.
 
 ## Implemented boundary
 
@@ -27,3 +27,5 @@ Software controls use real profile binding, source-byte contract verification, r
 Every scope begins with `ahb_prefix_unknown`: CPU/adapter reset-release ticks can accept an address before READY, which existing command samples cannot recover. This increment deliberately provides a partial measured prefix. Complete CPU protocol-prefix evidence requires a later bounded, versioned startup tap record sampled at the actual unchanged reset/release tick boundary and continuing to the first CMD. That design is the next gate, not implemented here. It must not alter CPU/adapter timing or invent an initially empty pipeline.
 
 Independent review, startup capture, and a separately scheduled new generated native/Runner fresh-prefix gate remain open. No retirement, source authority, native-reset authority, register authority, burst conformance or full CPU protocol completion follows from this software result. CVA6 remote frozen preparation was not modified.
+
+Independent review identified scope-only reset events bypassing event threshold. RED control reproduced 256 reset rows at max_events=1; the global emitter and new-scope admission now terminate at event exhaustion, including reset/control records. Software52 passed after this correction. Re-review pending; all other source pins remain unchanged.

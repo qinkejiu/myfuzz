@@ -36,6 +36,10 @@ class AhbCpuObserver:
             'authority':'observation_only'}
 
     def _emit(self,kind,**fields):
+        if kind != 'ahb_failure' and self._records >= self._limits[2]:
+            self._exhausted = True
+            self.poison('event_budget')
+            raise ValueError('ahb_event_budget')
         row=dict(schema_version=SCHEMA,kind=kind,component_id=self.component_id,
             endpoint_id=self.endpoint_id,scope=copy.deepcopy(self.scope),
             observer_record_index=self._records,
@@ -64,6 +68,8 @@ class AhbCpuObserver:
         if not all(isinstance(v,str) and v for v in (execution_id,testcase_id)) or type(reset_epoch) is not int or reset_epoch<0:
             raise ValueError('ahb_scope')
         if self._failed or self._exhausted:raise ValueError('ahb_not_active')
+        if self._records >= self._limits[2]:
+            self._exhausted=True;self.poison('event_budget');raise ValueError('ahb_event_budget')
         if self.scope is not None:self.end_scope()
         if self._scopes>=self._limits[3]:
             self._exhausted=True;self.poison('scope_budget');raise ValueError('ahb_scope_budget')

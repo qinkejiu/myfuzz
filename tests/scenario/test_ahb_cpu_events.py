@@ -119,3 +119,14 @@ def test_first_measured_ready_is_explicitly_prefix_unknown():
  o=observer();edge(o)
  assert any(e['kind']=='ahb_prefix_unknown' for e in o.events)
  assert o.contract['startup_prefix']=='unknown_before_ready_measurement'
+
+
+def test_scope_only_reset_events_consume_global_budget():
+ o=observer(max_events=1,max_scopes=256)
+ o.end_scope()
+ with pytest.raises(ValueError,match='budget'):
+  for epoch in range(1,257):
+   o.begin_scope(execution_id=str(epoch),testcase_id='case',reset_epoch=epoch)
+   o.end_scope()
+ assert len(o.events)<=3
+ with pytest.raises(ValueError):o.require_active()
