@@ -36,18 +36,19 @@ def make_cv32e40p_pulp_online_runtime(
         cpu_retirement: bool = False,
         gpio_consumption: bool = False,
         native_irq_receipts: bool = False,
-        generated_artifacts=None, compiled_inputs=None) -> IbexPulpOnlineRuntime:
+        generated_artifacts=None, compiled_inputs=None,
+        generated_execution_scope='compiled_paths') -> IbexPulpOnlineRuntime:
     """Start one real CV32E40P/PULP session; caller feeds RFuzz slots.
 
     ``cpu_retirement`` and ``native_irq_receipts`` are refused before any
     harness is rendered, because this CPU has no authenticated retirement
     profile and native parsed receipts are an Ibex RVFI observation.
     """
-    # Generated execution remains fail-closed until decoder/checker projection
-    # exists. The low-level factory alone supports supplied artifact consumption.
-    if generated_artifacts is not None or compiled_inputs is not None:
-        from myfuzz.local_harness.generated_execution_admission import require_runtime_projection
-        require_runtime_projection(artifacts=generated_artifacts, compiled_inputs=compiled_inputs)
+    if (generated_artifacts is not None or compiled_inputs is not None
+            or generated_execution_scope != 'compiled_paths'):
+        from myfuzz.local_harness.generated_execution_admission import select_execution_artifacts
+        generated_artifacts = select_execution_artifacts(artifacts=generated_artifacts,
+            compiled_inputs=compiled_inputs,scope=generated_execution_scope)
 
     _validate_cv32e40p_retirement_flags(
         cpu_retirement=cpu_retirement, native_irq_receipts=native_irq_receipts)
@@ -57,7 +58,8 @@ def make_cv32e40p_pulp_online_runtime(
     decoder = make_cv32e40p_pulp_dual_source_online_decoder(bootstrap=bootstrap)
     factory = make_cv32e40p_pulp_dual_source_factory(
         Path(cache_dir), cpu_retirement=cpu_retirement,
-        gpio_consumption=gpio_consumption, native_irq_receipts=native_irq_receipts)
+        gpio_consumption=gpio_consumption, native_irq_receipts=native_irq_receipts,
+        **({'generated_artifacts':generated_artifacts} if generated_artifacts is not None else {}))
     return make_pulp_dual_source_online_runtime(
         bootstrap=bootstrap, decoder=decoder, factory=factory, run_id=run_id,
         evidence_dir=evidence_dir, checker=checker,

@@ -829,9 +829,50 @@ def _link_or_copy(source: Path, target: Path) -> None:
         shutil.copyfile(source, target)
 
 
+def load_session_inputs(*,generated_root,base_dir,family,request,compiled):
+    """Load exact D2 objects and explicit family ownership for D3 admission.
+
+    Physical IRQ mapping follows the profile's declared endpoint/role. Other
+    fields require an exact physical-port declaration; no profile name selects
+    semantics. Missing producers continue to refuse in D3 execution admission.
+    """
+    from .generated_artifact_admission import load_generated_artifacts,GeneratedArtifactRefused
+    from myfuzz.scenario.ownership import compile_ownership
+    try:
+        artifacts=load_generated_artifacts(generated_root=generated_root,base_dir=base_dir)
+    except GeneratedArtifactRefused as error:
+        _refuse(error.code,error.pointer,error.detail)
+    declaration=_load_entry(family.wiring_declaration,
+        code='runtime-wiring-declaration-unavailable',pointer='/runtime')()
+    if not hasattr(declaration,'ownership_fields') or not hasattr(declaration,'ownership_owners'):
+        _refuse('runtime-ownership-projection-undeclared','/ownership')
+    ownership=compile_ownership(declaration.ownership_fields,declaration.ownership_owners)
+    physical={}
+    for field in declaration.ownership_fields:
+        artifact=artifacts.get(field.component_id)
+        if artifact is None:
+            _refuse('generated-runtime-instance-set-mismatch','/artifacts')
+        profile=artifact.plan.profile
+        rows=artifact.structural.abi_document['ports']
+        if profile.cpu is not None and field.port=='irq':
+            candidates={r['physical_port'] for r in rows if r['direction']=='input'
+                and r['endpoint_id']==profile.cpu.irq_entry_endpoint
+                and r['role']==profile.cpu.irq_entry_role and r['width']==field.width}
+        else:
+            candidates={r['physical_port'] for r in rows if r['direction']=='input'
+                and r['physical_port']==field.port and r['width']==field.width}
+        if len(candidates)!=1:
+            _refuse('runtime-ownership-physical-map-undeclared',
+                '/physical_port_map/'+field.component_id+'/'+field.port)
+        physical[(field.component_id,field.port)]=candidates.pop()
+    return artifacts,dict(request=request,compiled=compiled,
+        ownership=ownership,physical_port_map=physical)
+
+
 def run_live_session(*, family: RuntimeFamily, session_dir, client_binary,
                      cache_dir, run_id, budget_seconds, max_tests, search_seed,
-                     max_runs_per_batch, base_dir) -> dict:
+                     max_runs_per_batch, base_dir, generated_artifacts=None,
+                     compiled_inputs=None) -> dict:
     """Start one real family runtime and run the shared online transport.
 
     Preflight refusals (no client binary, unusable cache, invalid budget) are
@@ -871,7 +912,15 @@ def run_live_session(*, family: RuntimeFamily, session_dir, client_binary,
     run_live = _load_entry(
         'myfuzz.integration.scenario_rfuzz_live:run_scenario_rfuzz_live',
         code='session-transport-unavailable', pointer='/session')
-    runtime = builder(cache_dir=cache, run_id=run_id)
+    # D4 must consume D2/D3 from this run. Never silently reconstruct defaults
+    # after checking a different composition's generated documents.
+    from .generated_execution_admission import GeneratedExecutionRefused,require_runtime_projection
+    try:
+        require_runtime_projection(artifacts=generated_artifacts,compiled_inputs=compiled_inputs)
+        runtime = builder(cache_dir=cache,run_id=run_id,
+            generated_artifacts=generated_artifacts,compiled_inputs=compiled_inputs)
+    except GeneratedExecutionRefused as error:
+        _refuse(error.code,error.pointer,error.detail)
     executor = getattr(runtime, 'executor', None)
     if executor is None:
         _refuse('runtime-entry-has-no-executor', '/runtime',
@@ -1237,8 +1286,8 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
         request_path = _write(output / 'path_compile_request.json', request_document)
         record('path_compile_request', request_path, request_document)
         try:
-            compiled_document = compile_paths(
-                load_path_compile_request(request_document, base_dir=base))
+            typed_compile_request = load_path_compile_request(request_document,base_dir=base)
+            compiled_document = compile_paths(typed_compile_request)
         except PathCompilationError as error:
             refusal_path = _write(output / 'path-compilation-refusal.json',
                                   {'schema_version': REFUSAL_SCHEMA,
@@ -1277,7 +1326,11 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
         else:
             run_id = summary['label']
             try:
+                generated_artifacts,compiled_inputs = load_session_inputs(
+                    generated_root=output/'generated',base_dir=base,
+                    family=family,request=typed_compile_request,compiled=compiled_document)
                 live = run_live_session(
+                    generated_artifacts=generated_artifacts,compiled_inputs=compiled_inputs,
                     family=family, session_dir=output / 'session',
                     client_binary=client_binary,
                     cache_dir=cache_dir, run_id=run_id,

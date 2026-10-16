@@ -637,7 +637,8 @@ def make_ibex_pulp_online_runtime(
         classified_feedback: bool = False,
         classified_feedback_max_records: int = 4096,
         bootstrap_selector: str | None = None,
-        generated_artifacts=None, compiled_inputs=None) -> IbexPulpOnlineRuntime:
+        generated_artifacts=None, compiled_inputs=None,
+        generated_execution_scope='compiled_paths') -> IbexPulpOnlineRuntime:
     """The Ibex instance of the shared online runtime assembly.
 
     ``source_actions`` is the shipped cross-case prerequisite policy and is on
@@ -694,11 +695,11 @@ def make_ibex_pulp_online_runtime(
     is rebuilt and re-decoded before use; an unknown value is refused rather
     than silently falling back to the shipped bytes.
     """
-    # Generated execution remains fail-closed until decoder/checker projection
-    # exists. The low-level factory alone supports supplied artifact consumption.
-    if generated_artifacts is not None or compiled_inputs is not None:
-        from myfuzz.local_harness.generated_execution_admission import require_runtime_projection
-        require_runtime_projection(artifacts=generated_artifacts, compiled_inputs=compiled_inputs)
+    if (generated_artifacts is not None or compiled_inputs is not None
+            or generated_execution_scope != 'compiled_paths'):
+        from myfuzz.local_harness.generated_execution_admission import select_execution_artifacts
+        generated_artifacts = select_execution_artifacts(artifacts=generated_artifacts,
+            compiled_inputs=compiled_inputs,scope=generated_execution_scope)
 
     _validate_candidate_options(candidate_exploration, candidate_exploration_max_cases)
     if type(classified_feedback) is not bool or type(classified_feedback_max_records) is not int or not 1 <= classified_feedback_max_records <= 65536:
@@ -725,6 +726,7 @@ def make_ibex_pulp_online_runtime(
         ip_cross_case=ip_cross_case,
         **({'result_slot_byte_store': True} if result_slot_byte_store else {}))
     factory = make_ibex_pulp_dual_source_factory(Path(cache_dir),
+        **({'generated_artifacts': generated_artifacts} if generated_artifacts is not None else {}),
         cpu_retirement=cpu_retirement, gpio_consumption=gpio_consumption,
         source_actions=source_actions,
         **({'physical_observations': True} if candidate_exploration or classified_feedback else {}),

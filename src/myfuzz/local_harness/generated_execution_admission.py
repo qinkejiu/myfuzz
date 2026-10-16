@@ -58,8 +58,54 @@ def require_runtime_projection(*, artifacts, compiled_inputs):
     if admission['status'] != 'compatible':
         raise GeneratedExecutionRefused('compiled-runtime-input-refused', '/compiled_inputs', admission)
     raise GeneratedExecutionRefused('compiled-runtime-projection-undeclared', '/compiled_inputs',
-        {'admission': admission,
+        {'admission': admission, 'path_gaps':runtime_projection_gaps(compiled_inputs['compiled']),
          'missing': ['compiled bound-producer delivery mapping',
                      'compiled source/seed to online decoder mapping',
                      'compiled assertions to actual checker mapping'],
          'runtime_started': False})
+
+
+def select_execution_artifacts(*, artifacts, compiled_inputs, scope='compiled_paths'):
+    """Select an explicit execution scope, never dropping supplied D3 semantics.
+
+    loaded_artifacts is only the already-declared fixed factory's D2 object
+    consumption scope. The factory still checks topology/profile/observation
+    fingerprints; this selector grants no profile selection or D3 enforcement.
+    """
+    if scope not in ('compiled_paths','loaded_artifacts'):
+        raise GeneratedExecutionRefused('generated-runtime-scope-invalid','/execution_scope')
+    if scope == 'loaded_artifacts':
+        if compiled_inputs is not None:
+            raise GeneratedExecutionRefused('compiled-inputs-not-executed','/compiled_inputs',
+                {'requires':'compiled_paths scope; loaded_artifacts cannot ignore supplied D3 semantics'})
+        if not isinstance(artifacts,Mapping) or not artifacts:
+            raise GeneratedExecutionRefused('generated-runtime-input-required','/artifacts')
+        return artifacts
+    require_runtime_projection(artifacts=artifacts,compiled_inputs=compiled_inputs)
+
+
+def runtime_projection_gaps(compiled):
+    """Located semantic obligations missing from the fixed runtime adapter.
+
+    This inventory is a refusal explanation, never a supported-path assertion.
+    Even familiar source/expectation names need an actual execution mapping.
+    """
+    rows=[]
+    for index,path in enumerate(compiled['paths']):
+        if path['status'] != 'executable':
+            continue
+        base=f'/paths/{index}'
+        gaps=[]
+        for field,identity in (('sources','source_id'),('bound_inputs','input_id'),
+                               ('prerequisites','kind'),('assertions','expectation_id')):
+            for item_index,item in enumerate(path[field]):
+                gaps.append(dict(pointer=f'{base}/{field}/{item_index}',
+                    obligation=field,identity=item[identity],status='execution_mapping_undeclared'))
+        if path['seed'] is not None:
+            gaps.append(dict(pointer=base+'/seed',obligation='seed',
+                identity=path['seed']['kind'],status='execution_mapping_undeclared'))
+        gaps.append(dict(pointer=base+'/constraints',obligation='constraints',
+            identity=path['constraints']['policy_hash'],status='execution_mapping_undeclared'))
+        rows.append(dict(path_id=path['path_id'],flow_id=path['flow_id'],
+            runtime_admitted=False,gaps=gaps))
+    return rows
