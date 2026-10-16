@@ -1,0 +1,1 @@
+{"root_preflight": "pass", "ready_sha256": "2c2ffdd7d21252bf323a9b866a01d1e16d68b1c727664ab9a657760ff4089116", "counts": {"project-files.json": 2567, "original-source-files.json": 2567, "original-artifact-files.json": 88}, "zero_shared_inodes": true, "canonical_lock_nonblocking_probe": 0, "native_operation_unused": true}
