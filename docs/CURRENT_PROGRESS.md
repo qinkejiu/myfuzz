@@ -2,7 +2,7 @@
 
 2026-10-17 本次六 CPU／四外设系列与 F6 增量：Ibex、CVA6、CV32E40P 已有各自生成式 CPU/外设真实链；CVW→PULP GPIO 已有双向定向真实链；VexiiRiscv 固定生成 RTL 已完成双 AXI 取指及 LSU RAM 因果实测，但生成式 profile/session 尚未验收；BOOM 的固定 Chipyard 构建仍受缺失的历史 SNAPSHOT 依赖阻断。外设第四系列选 Caliptra SHA256（AHB-Lite），其生成式目标在两个新进程各完成 91 次寄存器访问，`abc`／`abd` 真实摘要正确，273 个通用协议事件、零 checker 违约，仅达局部 RTL operational，见[报告](reports/caliptra-sha256-ahb-target-20261017.md)。OpenTitan、PULP、ZipCPU 既有真实实例的能力仍按各自报告逐项判定。
 
-F6 已有[Ibex＋ZipCPU wbdmac 定向真实闭环](reports/ibex-zipcpu-dma-irq-isr-directed-20261017.md)：CPU 自写四个源字并经真实 OBI 配置 DMA，DMA 四读四写持久 RAM，原生完成脉冲经声明的 pending-level latch 到真实 CPU IRQ，ISR 保存状态、目的值与分支成功标记；两个新进程完整规范化轨迹一致。此为有界定向 RAM→RAM，缺真实 IP FIFO 方向、非法输入、持续搜索和认证前缀 replay，P8 保持未验收。P7 的 D2/D3 声明与产物链已可工作，但 D4 仍依赖具名 runtime family；同协议新 CPU/IP 只凭受信 profile 自动运行的最终门禁尚未完成。AHB-Lite 通用协议事件、checker、coverage 投影已实现；认证证据消费者的正/篡改负例通过软件门禁，真实 Caliptra 当前尚未经过该消费者或 Runner coverage。
+F6 已有[Ibex＋ZipCPU wbdmac 定向真实闭环](reports/ibex-zipcpu-dma-irq-isr-directed-20261017.md)：CPU 自写四个源字并经真实 OBI 配置 DMA，DMA 四读四写持久 RAM，原生完成脉冲经声明的 pending-level latch 到真实 CPU IRQ，ISR 保存状态、目的值与分支成功标记；两个新进程完整规范化轨迹一致。此为有界定向 RAM→RAM，缺真实 IP FIFO 方向、非法输入、持续搜索和认证前缀 replay，P8 保持未验收。P7 的 D2/D3 声明与产物链已可工作，但 D4 仍依赖具名 runtime family；同协议新 CPU/IP 只凭受信 profile 自动运行的最终门禁尚未完成。AHB-Lite 通用协议事件、checker、coverage 投影已实现；真实 Caliptra 保存的物理采样经过离线通用证据消费者复核，每个进程签发 91 条事务证书，篡改响应负例拒绝；在线 Runner/coverage 仍未接入。
 
 2026-10-13 **P6 行 3（AXI4-Lite）通用 IP 事件层增量：通用协议事件层新增第四种协议 `axi4-lite`、目标端模板契约 11→12、真实 `zipcpu_axiluart` 规划实测通过、并在真实 RTL 上投影出零违约的通用事务。** 范围是[P6 逐协议行适配清单](superpowers/plans/2026-10-13-p6-per-protocol-row-checklist.md)的行 3；**该行结论仍为"未通过"**（缺口清单见该清单）。
 
