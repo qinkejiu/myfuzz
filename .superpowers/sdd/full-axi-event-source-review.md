@@ -87,3 +87,35 @@ as a literal maximum retained allocation without that qualification.
 No high-severity finding. Resolve M1/M2 and close or explicitly constrain M3
 before treating this source increment as complete. No runtime admission,
 source/evidence certificate or full P6 completion follows from this review.
+
+## Read-only correction re-review
+
+Reviewed owner corrections first at observer90ebaf61b9cf0f446389e69583c3eb6e644b5f07e084a75429b8cf293412d30d
+and session4d63be6036519c41d21e654abb3330b50308ef9d73c490de660c34fe6cae7a2b;
+then final observerbf18e83809464520e9ef4488f536faa3f7afbc6625d56321a2b4c07bb0a28600.
+No tests/native were rerun by reviewer.
+
+M1 is resolved: outer boundary catches ordinary operational Exception, poisons
+then rethrows; BaseException cancellation semantics are preserved. Source tests
+add OSError/TypeError/AttributeError and actual malformed None/pre=None receipts,
+asserting a subsequent call cannot clock native again.
+
+M2 is resolved: _fail explicitly emits possible_effects=true. Projection trust
+is false for unknown diagnostics and true only for structurally trusted
+protocol outcomes. A subsequent low issue discovered during this readback was
+also fixed: prevalidation global-budget failure explicitly sets trust=false,
+so a malformed oversized post shape is not marked trusted before validation.
+
+M3 is resolved: a newly asserted POST offer, or changed POST offer after PRE
+acceptance, creates a next-PRE hold without projecting any transfer. An unchanged
+residual injected R/B VALID/payload after its PRE consumption is deliberately
+not treated as another offer. This preserves actual driver input lifetime and
+avoids fabricating a second response. Source controls cover ready0/1, next-PRE
+payload change, and consumed response removal.
+
+Owner reports final99passed+3subtests; this is not an independently rerun result.
+No remaining high/medium source finding in the reviewed increment. The original
+nonblocking byte-budget stop-threshold/retained-offending-record qualification
+still applies. Actual generated native journal and new-identity runtime gate
+remain separate; this review grants no native bins, protocol evidence authority
+or P6 completion.
