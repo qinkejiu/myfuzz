@@ -119,6 +119,9 @@ class IpProtocolChecker:
         self.endpoint_id = endpoint_id
         self.clock_domain = clock_domain
         self.max_wait_cycles = max_wait
+        self._sample_group = protocol_trace.get('sample_group', 'backend')
+        if self._sample_group not in ('backend', 'protocol_taps'):
+            raise ValueError('protocol-trace-sample-group-invalid')
         self._signals = dict(signals)
         self._widths = dict(widths)
         self._reset_epoch: int | None = None
@@ -162,7 +165,9 @@ class IpProtocolChecker:
             'raw_event_refs': [raw['event_id']],
             'related_request_event_refs': ([request_ref]
                                             if type(request_ref) is int else []),
-            'local_event_id': (f'{self.instance_id}|{epoch}|{self.protocol}|'
+            'local_event_id': ((f'{len(self.endpoint_id)}:{self.endpoint_id}|'
+                                if self._sample_group == 'protocol_taps' else '') +
+                               f'{self.instance_id}|{epoch}|{self.protocol}|'
                                f'{tick}|pre|protocol_violation|{code}|'
                                f'{raw["event_id"]}'),
             'clock_domain': self.clock_domain,
@@ -189,7 +194,7 @@ class IpProtocolChecker:
 
     def _read_signals(self, raw):
         outputs = raw.get('outputs')
-        backend = outputs.get('backend') if isinstance(outputs, Mapping) else None
+        backend = outputs.get(self._sample_group) if isinstance(outputs, Mapping) else None
         if not isinstance(backend, Mapping):
             raise ValueError('protocol-checker-backend-sample-required')
         values = {}

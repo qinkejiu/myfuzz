@@ -89,6 +89,9 @@ class IpProtocolEventNormalizer:
         self.endpoint_id = endpoint_id
         self.clock_domain = clock_domain
         self.max_wait_cycles = max_wait
+        self._sample_group = protocol_trace.get('sample_group', 'backend')
+        if self._sample_group not in ('backend', 'protocol_taps'):
+            raise ValueError('protocol-trace-sample-group-invalid')
         self._signals = dict(signals)
         self._reset_epoch: int | None = None
         self._tl_offer: dict[str, object] | None = None
@@ -127,7 +130,9 @@ class IpProtocolEventNormalizer:
             'role': 'protocol_transaction',
             'raw_event_refs': [event_id],
             'related_request_event_refs': list(related_request_event_refs),
-            'local_event_id': (f'{self.instance_id}|{reset_epoch}|{self.protocol}|'
+            'local_event_id': ((f'{len(self.endpoint_id)}:{self.endpoint_id}|'
+                                if self._sample_group == 'protocol_taps' else '') +
+                               f'{self.instance_id}|{reset_epoch}|{self.protocol}|'
                                f'{tick}|pre|{event_type}|{len(payload)}'),
             'clock_domain': self.clock_domain,
             'tick': tick,
@@ -144,7 +149,7 @@ class IpProtocolEventNormalizer:
 
     def _read_signals(self, raw: Mapping[str, object]) -> dict[str, int]:
         outputs = raw.get('outputs')
-        backend = outputs.get('backend') if isinstance(outputs, Mapping) else None
+        backend = outputs.get(self._sample_group) if isinstance(outputs, Mapping) else None
         if not isinstance(backend, Mapping):
             raise ValueError('protocol-event-backend-sample-required')
         values: dict[str, int] = {}

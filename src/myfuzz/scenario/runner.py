@@ -239,6 +239,7 @@ class ScenarioRunner:
         self._ip_base_event_normalizers: dict[str, object | None] = {}
         self._ip_protocol_event_normalizers: dict[str, object | None] = {}
         self._ip_protocol_checkers: dict[str, object | None] = {}
+        self._protocol_trace_sets: dict[str, object] = {}
         self._inputs: dict[str, dict[str, int]] = {component: {} for component in self.sessions}
         self._pending_bound_targets: set[str] = set()
         self._events = _EventLog(self)
@@ -2063,6 +2064,24 @@ class ScenarioRunner:
         self._ip_protocol_checkers[component] = checker
         return checker
 
+    def _protocol_trace_set(self, component, session):
+        if component in self._protocol_trace_sets:
+            return self._protocol_trace_sets[component]
+        artifact = getattr(session, 'artifact', None)
+        document = getattr(artifact, 'runtime_document', None)
+        if (not isinstance(document, dict) or 'base_protocol_traces' not in document
+                or getattr(session, '_physical_tick_samples_enabled', False) is not True):
+            return None
+        from .protocol_trace_sets import ProtocolTraceSetObserver
+        observer = ProtocolTraceSetObserver(component, artifact)
+        self._protocol_trace_sets[component] = observer
+        return observer
+
+    def protocol_trace_set_reports(self):
+        """Bounded boundary proofs and coverage from this Runner's raw journal."""
+        return {component: observer.report(self._events)
+                for component, observer in self._protocol_trace_sets.items()}
+
     def _drain_tick_samples(self, producer_event_id: int) -> None:
         """Route every real receipt phase, including indirectly clocked targets.
 
@@ -2077,6 +2096,7 @@ class ScenarioRunner:
             base_event_normalizer = self._ip_base_event_normalizer(component, session)
             protocol_event_normalizer = self._ip_protocol_event_normalizer(component, session)
             protocol_checker = self._ip_protocol_checker(component, session)
+            trace_set = self._protocol_trace_set(component, session)
             for sample in drain():
                 tick = sample.get("local_tick")
                 if (type(tick) is not int
@@ -2110,6 +2130,11 @@ class ScenarioRunner:
                             raise ValueError('raw-observation-reset-epoch-invalid')
                         raw_event.update(observation_schema_version='ip_raw_observation.v1',
                                          reset_epoch=epoch)
+                    if trace_set is not None:
+                        if type(epoch) is not int or not 0 <= epoch < 1 << 64:
+                            raise ValueError('raw-observation-reset-epoch-invalid')
+                        raw_event.update(observation_schema_version='ip_raw_observation.v1',
+                                         reset_epoch=epoch)
                     if self._ordinary_apb_access_evidence is not None and 'ordinary_apb_access_ref' in sample:
                         raw_event['ordinary_apb_access_ref'] = deepcopy(sample['ordinary_apb_access_ref'])
                     self._append_ordinary_observed_event(raw_event)
@@ -2139,6 +2164,19 @@ class ScenarioRunner:
                             self._append_ordinary_observed_event({**protocol_event,
                                 'event_id': len(self._events) + 1,
                                 'kind': protocol_event['event_type']})
+                    if trace_set is not None:
+                        for entry in trace_set.entries.values():
+                            invalid = False
+                            for finding in entry['checker'].consume_local_tick(raw_event, reset_epoch=epoch):
+                                invalid |= finding['payload']['violation_code'].endswith('_signal_out_of_range')
+                                self._append_ordinary_observed_event({**finding,
+                                    'event_id':len(self._events)+1,'kind':finding['event_type']})
+                                self.failure_status = self.failure_status or 'protocol_violation'
+                                self._status = 'failed'
+                            if not invalid:
+                                for projected in entry['normalizer'].consume_local_tick(raw_event, reset_epoch=epoch):
+                                    self._append_ordinary_observed_event({**projected,
+                                        'event_id':len(self._events)+1,'kind':projected['event_type']})
                     if type(epoch) is int:
                         self._gpio_irq_trigger_refs.pop((component, epoch, tick, phase), None)
                 self._last_sample_ticks[component] = tick

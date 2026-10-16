@@ -186,12 +186,14 @@ class IpProtocolEvidenceConsumer:
         # Retain only the bounded declared tap, header and validated case.
         # Raw journal digests still cover the original complete receipt.
         outputs = raw.get('outputs')
-        backend = outputs.get('backend') if isinstance(outputs, Mapping) else None
-        signals = self._configurations[alias]['protocol_trace']['signals']
+        trace = self._configurations[alias]['protocol_trace']
+        group = trace.get('sample_group', 'backend')
+        backend = outputs.get(group) if isinstance(outputs, Mapping) else None
+        signals = trace['signals']
         raw = {name: raw.get(name) for name in (
             'event_id', 'kind', 'component', 'local_tick', 'phase',
             'reset_epoch', 'observation_schema_version')}
-        raw['outputs'] = {'backend': ({name: backend.get(name) for name in signals.values()}
+        raw['outputs'] = {group: ({name: backend.get(name) for name in signals.values()}
                                       if isinstance(backend, Mapping) else None)}
         raw['provenance'] = {'observed_case': deepcopy(case)}
         if state['epoch'] is not None and epoch < state['epoch']:

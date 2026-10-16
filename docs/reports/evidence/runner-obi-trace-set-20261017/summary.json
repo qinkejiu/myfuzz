@@ -1,0 +1,84 @@
+{
+  "schema_version": "runner_obi_trace_set_offline_gate.v1",
+  "execution": "ScenarioRunner_saved_real_sample_session_no_new_RTL",
+  "test_result": "243 passed, 1 skipped, 67 subtests passed in 32.95s",
+  "original_raw_file": "docs/reports/evidence/ibex-raw-obi-20261017/first.json.gz",
+  "original_raw_sha256": "dfe6ef46f0d378a2b76010abb7dc6cbcb816d81a889bd453939fe9f037c36f1d",
+  "original_artifact_digest": "758f53bfa6cdc5296cf2f7aaa71bdac8d4cb491b3a09f99ca9585565dc19f55f",
+  "original_build_digest": "845b89a0e7dae1c74d0d33d078bc51a510f0a09ee58f3766acb273c4eaa7ba46",
+  "runner_journal_events": 562,
+  "runner_raw_events": 200,
+  "responses": 52,
+  "projected_local_event_ids_unique": true,
+  "certificates": {
+    "processor.data": {
+      "verified": 3,
+      "pending": 0
+    },
+    "processor.instruction": {
+      "verified": 49,
+      "pending": 2
+    }
+  },
+  "implementation_sources": [
+    {
+      "path": "src/myfuzz/scenario/runner.py",
+      "sha256": "4352f96918f0e574d3a3e29dfcb7f614b42aeeaa651fc34e1c312ec86e12f717"
+    },
+    {
+      "path": "src/myfuzz/scenario/protocol_trace_sets.py",
+      "sha256": "9ec5262eee1d8a9dd50441db71eb2d549ca7b69671972bad55c08c886ddbef0d"
+    },
+    {
+      "path": "src/myfuzz/scenario/ip_protocol_events.py",
+      "sha256": "372524f20b74b5571fac3462af6321fcde7511e813800451c14a1e2127b713f7"
+    },
+    {
+      "path": "src/myfuzz/scenario/ip_protocol_checker.py",
+      "sha256": "bed82acd47b4c07b0ede18c69788fb3f4cdb381afb6df5fe3682e8be6f9a08f9"
+    },
+    {
+      "path": "src/myfuzz/scenario/ip_protocol_evidence.py",
+      "sha256": "31cc83597bfbb79669e395481a8e88add111de2e141c3194f1bc187764b47133"
+    },
+    {
+      "path": "src/myfuzz/scenario/ip_base_coverage.py",
+      "sha256": "de3121a037cfc7e84463a171bb1b2d5499737953c821e4b737d3d9f8509a3ae0"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "docs/reports/evidence/runner-obi-trace-set-20261017/journal.json.gz",
+      "sha256": "87bd8a48a9e226506bb09cbd9489387d2c53a421866671cd1313e80f96ad98a7",
+      "uncompressed_sha256": "0070355cf3278547183d64b26d19524a4e00737bc72d3ad3d0df8d3300492835"
+    },
+    {
+      "path": "docs/reports/evidence/runner-obi-trace-set-20261017/report.json.gz",
+      "sha256": "1ccf147867d8301a565098a8458f03af14f2c3d795d33ed7ad09f92916139598",
+      "uncompressed_sha256": "c59ac339067567998a9b7da0983b5e19d4c4f017ad8c46c35f709625f12b5934"
+    },
+    {
+      "path": "docs/reports/evidence/runner-obi-trace-set-20261017/tampered-report.json.gz",
+      "sha256": "72e1f193c0ecfd4d00e0dcd2d8631b8816ad7c70c10766d839e10e96ece3ba81",
+      "uncompressed_sha256": "8783e1e7b1ed366890a343e748544bcbf37de4613fc21b9f7c3d035252fe6f9f"
+    }
+  ],
+  "not_claimed": [
+    "new RTL execution",
+    "fresh current-HEAD source/build acceptance",
+    "CPU/IP dataflow certification",
+    "authenticated scenario prefix replay",
+    "classified feedback/campaign integration"
+  ],
+  "test_sources": [
+    {
+      "path": "tests/scenario/test_runner_obi_trace_set.py",
+      "sha256": "f6a6e939597502bec6411777b3d8e3f3186598913e837c180d899a2d27f65e32"
+    },
+    {
+      "path": "tests/local_harness/test_obi_cpu_protocol_taps.py",
+      "sha256": "195585de6b937e9cd57281dfd9d9e9435ebd1e3e42dc670ddcee79e6ef442f74"
+    }
+  ],
+  "focused_followup_result": "4 passed in 7.64s"
+}

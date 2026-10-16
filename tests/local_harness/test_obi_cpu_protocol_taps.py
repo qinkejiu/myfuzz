@@ -58,7 +58,7 @@ def project(a,samples,*,tamper=False):
             raw=dict(event_id=len(journal)+1,kind='local_tick_sample',component=alias,
                 local_tick=sample['local_tick'],phase='pre',reset_epoch=0,
                 observation_schema_version='ip_raw_observation.v1',
-                outputs={'backend':copy.deepcopy(sample['pre']['protocol_taps'])})
+                outputs={'protocol_taps':copy.deepcopy(sample['pre']['protocol_taps'])})
             journal.append(raw);proof.consume(raw)
             violations.extend(checkers[alias].consume_local_tick(raw,reset_epoch=0))
             for row in normalizers[alias].consume_local_tick(raw,reset_epoch=0):
