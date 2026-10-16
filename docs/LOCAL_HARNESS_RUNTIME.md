@@ -284,3 +284,8 @@ OpenHW CV32E40P 的新增验收只覆盖固定 OBI profile 下的真实 CPU 取�
 ### 2026-10-17 后续冻结切片
 
 BOOM 已有[生成式独立 CPU/RAM 入口](../configs/cpus/boom/README.md)：两个 fresh 进程同为 598 cycles，并用 fence 后目标行的实际响应替换验证 CPU 保存值随之改变。仍未接通用 MMIO Router 或 CPU/IP。CVW 已有[真实 Caliptra SHA256 链](reports/cvw-caliptra-cpu-chain-20261017.md)，AHB data32/address34，84 条实际事务、两个消息与 fresh 比较，最终门 3 passed／100.00 秒；不授持续搜索或 IRQ 能力。[GPIOEN live authority](reports/gpioen-live-register-version-20261017.md)仅授源锁约束的寄存器版本前置状态，完整编译 F4 的断言绑定仍在修复。所有结果按各自冻结身份解释，阶段验收未提升。
+
+
+### 2026-10-17 BOOM 持久 Runner 真实链增量
+
+冻结提交 `8a3fed3` 的新持久驱动已完成 BOOM→标准 Runner/Router→PULP GPIO→CPU readback/branch→原生 RAM 门禁，覆盖先前“未接 CPU/IP”的缺口。两次 fresh 完整 20,597 事件前缀一致；改读值 53→52 导致 CPU 保存 52 和失败标志，抑制响应导致 CPU 等待。构建、主门及旧独立入口回归各自 exit0；[证据与边界](../configs/cpus/boom/evidence/persistent-runtime-20261017/README.md)。GPIO 程序只含 A/D，新持久 C/E 缓存路径补充尚待运行；IRQ、warm RAM retention、在线搜索、通用来源权威与 P6 整行仍未验收。此前 CPU/RAM 独立驱动的 C/E 证据不移作此新驱动证据。
