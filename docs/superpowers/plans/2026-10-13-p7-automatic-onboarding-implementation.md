@@ -293,3 +293,9 @@ PYTHONPATH=src python3 -m pytest -q tests/onboarding/test_p7_negative_fixtures.p
 ### 仍然空缺（不得读作已具备）
 
 **P7-E 端到端正式门禁**的**三个要件已由我本人实测达成**（见上节：CV32E40P 同协议新 CPU 端到端 200 例＋fresh replay／PULP GPIO 新 IP／`cv32e20` 名称相似旧组件负例），但**独立复核尚未进行**。**P7-D 已能一条命令跑出全部七个产物**，已在**两个**真实组合（Ibex＋双 PULP GPIO、CV32E40P＋双 PULP GPIO）上验证。P7-A／P7-C 的独立复核未完成（P7-B／P7-C 与两者的接缝已由 `tests/integration/test_p7b_to_p7c_chain.py` 钉住，但这不等于 P7-C 整体验收）。P7 的可行性上限仍由 **P6 已验收协议子集**决定（见 §8 末段）。
+
+### 2026-10-17 D2/D3/D4 接缝复核与状态更正
+
+前述 2026-10-13/14 的“一条命令端到端”结论只证明具名 runtime family 的预置装配跑通；它没有证明 D4 执行了同一调用刚生成的 D2/D3 对象，也没有证明 D3 编译的来源、约束、种子、路径和断言被实际 decoder/Runner/checker 执行。按本计划 D4/E 的定义，这些历史运行不能授予 P7 自动接入验收。
+
+[本次严格复核](../../reports/p7-d4-bounded-artifact-execution-20261017.md)已使 CLI 加载并传递精确 D2 artifact、typed D3 和实际 ownership，且在执行前拒绝无法投影的 D3。显式 `loaded_artifacts` 子集把精确 D2 对象送入现有 CV32E40P＋双 GPIO factory：真实本地隔离门 2 passed，三个进程连续执行 8 例，fresh 全量重放 4,021 事件匹配；禁用默认 artifact 重建仍可运行。默认完整 D3 范围因两个 bound producer、一个未编译 source 及逐路径语义映射缺口而拒绝。此子集只证明 D2 对象消费，不等于无适配新 CPU/IP 的 D3 自动执行，P7-D/E 正式门仍开放。

@@ -4,6 +4,8 @@
 
 F6 已有[Ibex＋ZipCPU wbdmac 定向真实闭环](reports/ibex-zipcpu-dma-irq-isr-directed-20261017.md)：CPU 自写四个源字并经真实 OBI 配置 DMA，DMA 四读四写持久 RAM，原生完成脉冲经声明的 pending-level latch 到真实 CPU IRQ，ISR 保存状态、目的值与分支成功标记；两个新进程完整规范化轨迹一致。此为有界定向 RAM→RAM，缺真实 IP FIFO 方向、非法输入、持续搜索和认证前缀 replay，P8 保持未验收。P7 的 D2/D3 声明与产物链已可工作，但 D4 仍依赖具名 runtime family；同协议新 CPU/IP 只凭受信 profile 自动运行的最终门禁尚未完成。AHB-Lite 通用协议事件、checker、coverage 投影已实现；真实 Caliptra 保存的物理采样经过离线通用证据消费者复核，每个进程签发 91 条事务证书，篡改响应负例拒绝；在线 Runner/coverage 仍未接入。
 
+P7 新增[严格产物消费与拒绝报告](reports/p7-d4-bounded-artifact-execution-20261017.md)：本地隔离真实 CV32E40P＋双 GPIO 使用本轮加载的三个 D2 artifact 跑连续 8 例，fresh 全量重放 4,021 个事件匹配；默认 D3 运行门因未声明的来源/绑定生产者及语义映射而拒绝，CLI 不再静默重建默认 artifact。此为显式 `loaded_artifacts` 子集，不授予 D3 自动运行或 P7 整阶段。通用 OBI [事件/检查器合成门](reports/obi-protocol-events-20261017.md)已实现，但现存 Ibex 真实收据没有原始 OBI 被动 tap，不能将适配后的 beat 样本当作 CPU 物理协议证据。
+
 2026-10-13 **P6 行 3（AXI4-Lite）通用 IP 事件层增量：通用协议事件层新增第四种协议 `axi4-lite`、目标端模板契约 11→12、真实 `zipcpu_axiluart` 规划实测通过、并在真实 RTL 上投影出零违约的通用事务。** 范围是[P6 逐协议行适配清单](superpowers/plans/2026-10-13-p6-per-protocol-row-checklist.md)的行 3；**该行结论仍为"未通过"**（缺口清单见该清单）。
 
 - **通用事件层（软件层）：** `scenario/ip_protocol_events.py` 新增 `_consume_axi4_lite`，投影 19 个从机侧角色（`awvalid awready awaddr awprot wvalid wready wdata wstrb bvalid bready bresp arvalid arready araddr arprot rvalid rready rdata rresp`），此前该层只有 `tl-ul`／`apb3`／`wishbone`。语义要点：请求由 **VALID 触发**（不由握手完成触发）；AW 与 W 可任意先后、写只被接纳一次；响应载荷与所应答的传输做**字段连接**；等待只在"该边沿没有推进"时计数（前置快照法）；**超时只施加于请求相位（AR/AW/W）**，已被接纳后的 B/R 等待只报观测；非 OKAY 响应码按测量值上报并另报 `protocol_error`；reset 切 epoch 取消所有在飞通道组。`scenario/ip_protocol_checker.py` 新增 `axi4lite_*` 违约检查（停滞期间载荷不得变化、VALID 未 READY 不得撤销、响应必须跟随自己被接纳的请求、单笔未完成、被保持的**请求**通道超预算）；**被保持的响应（B/R 迟迟不来）只作观测、不作违约**（AXI4-Lite 未给从机响应延迟设上限）。
