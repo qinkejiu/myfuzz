@@ -16,6 +16,17 @@ case "$vexii_work_root" in
   /root/fanzehui/*) ;;
   *) echo 'Vexii workspace must be inside /root/fanzehui' >&2; exit 2 ;;
 esac
+assert_scoped_path() {
+  case "$(realpath -m "$1")" in
+    "$vexii_work_root"/*) ;;
+    *) echo "Vexii path escapes isolated workspace: $1" >&2; exit 2 ;;
+  esac
+}
+for vexii_path in "$vexii_source_root" "$vexii_source_root/ext/SpinalHDL" \
+  "$vexii_source_root/ext/rvls" "$vexii_jdk" "$vexii_launcher" \
+  "$vexii_cache" "$vexii_user_home" "$vexii_tmp" "$vexii_logs"; do
+  assert_scoped_path "$vexii_path"
+done
 test -f "$vexii_source_root/build.sbt"
 test -x "$vexii_jdk/bin/java"
 test -f "$vexii_launcher"
@@ -39,12 +50,29 @@ export COURSIER_CACHE="$vexii_cache/coursier"
 export COURSIER_JVM_CACHE="$vexii_cache/coursier-jvm"
 export SPINALHDL_FROM_SOURCE=1
 export SPINALHDL_PATH="$vexii_source_root/ext/SpinalHDL"
-export JAVA_TOOL_OPTIONS="-Duser.home=$vexii_user_home -Djava.io.tmpdir=$vexii_tmp -Dsbt.global.base=$vexii_cache/sbt-global -Dsbt.boot.directory=$vexii_cache/sbt-boot -Dsbt.ivy.home=$vexii_cache/ivy2 -Divy.home=$vexii_cache/ivy2 -Dsbt.coursier.home=$vexii_cache/coursier -Dcoursier.cache=$vexii_cache/coursier -Djna.tmpdir=$vexii_tmp -Djava.util.prefs.userRoot=$vexii_user_home/java-prefs -Djava.util.prefs.systemRoot=$vexii_user_home/java-system-prefs -XX:ErrorFile=$vexii_logs/hs_err_pid%p.log -XX:HeapDumpPath=$vexii_logs -Xss16M -Xmx8G"
+export JAVA_TOOL_OPTIONS="-Duser.home=$vexii_user_home -Djava.io.tmpdir=$vexii_tmp -Dsbt.global.base=$vexii_cache/sbt-global -Dsbt.boot.directory=$vexii_cache/sbt-boot -Dsbt.ivy.home=$vexii_cache/ivy2 -Divy.home=$vexii_cache/ivy2 -Dsbt.coursier.home=$vexii_cache/coursier -Dcoursier.cache=$vexii_cache/coursier -Djna.tmpdir=$vexii_tmp -Djava.util.prefs.userRoot=$vexii_user_home/java-prefs -Djava.util.prefs.systemRoot=$vexii_user_home/java-system-prefs -XX:ErrorFile=$vexii_logs/hs_err_pid%p.log -XX:HeapDumpPath=$vexii_logs -XX:-UsePerfData -XX:+DisableAttachMechanism -Xss16M -Xmx8G"
+ulimit -c 0
 
 cd "$vexii_source_root"
 test "$(git rev-parse HEAD)" = 0dc189e1335d7ad0739c3298de09fcb3d2b956d4
 test "$(git -C ext/SpinalHDL rev-parse HEAD)" = 58837d37f92bea3a43dc7b0b6dee38038c85db6d
 test "$(git -C ext/rvls rev-parse HEAD)" = 847ce99fd2b28a5c0ccb1ec2683311cf97a9fefc
+for vexii_repo in "$vexii_source_root" "$vexii_source_root/ext/SpinalHDL" \
+  "$vexii_source_root/ext/rvls"; do
+  test -z "$(git -C "$vexii_repo" status --porcelain --untracked-files=no)" || {
+    echo "tracked source is modified: $vexii_repo" >&2; exit 2;
+  }
+  if git -C "$vexii_repo" ls-files --others --exclude-standard | \
+      grep -Eq '\.(scala|sbt|sc)$'; then
+    echo "untracked generator source exists: $vexii_repo" >&2
+    exit 2
+  fi
+done
+{
+  git rev-parse HEAD
+  git -C ext/SpinalHDL rev-parse HEAD
+  git -C ext/rvls rev-parse HEAD
+} > "$vexii_logs/vexii-source-commits.txt"
 
 "$vexii_jdk/bin/java" -version 2> "$vexii_logs/vexii-java-version.log"
 sha256sum "$vexii_launcher" > "$vexii_logs/vexii-sbt-launch.sha256"
