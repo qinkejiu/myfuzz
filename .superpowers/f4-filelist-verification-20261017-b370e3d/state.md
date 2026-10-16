@@ -11,3 +11,6 @@ Raw transcript, native stderr, generated artifacts, source-input hashes, build l
 ## Ibex continuous3/fresh2: RUNNING after a separate exact root GO
 
 Fixed newbase/run_gate.sh ibex, original three8-byte declared records, rounds128/maxcases3/replays2. Same frozenproject/strict layout/source/process/audit checks. Actual wrapper216271/controller216282 launched after immediate freeprobe0; no terminal receipt at initial observation. Subsequent nativePID/case/replay/terminal receipts will be appended. No CV32 continuous gate is authorized or launched yet. No P7/D4 claim.
+
+## Ibex terminal
+Actual logs/ibex.exit=0; source-after.exit=0; audit.exit=0. Three certified cases, both fresh matches=true. Controller216282 absent; canonical terminal flock-n probe0. Public report docs/reports/compiled-f4-ibex-current-20261017.md. No CV32 launch.
