@@ -4,13 +4,15 @@
 
 - **连续 UART RX DMA attempt6 已通过真实门禁：** 1 passed／277.19 秒，native 与 worker exit0；前置软件门 65 passed／70.42 秒。单次 boot 四字节、JSON 往返后的完整 fresh 前缀及 source-bound 失败 fresh 重放均通过。见[报告与原始归档](reports/dma-continuous-runner-20261017.md)。后文 attempt4/5 是历史失败状态，不是当前运行状态；能力仍是 bounded_historical_chain，FIFO 来源 unknown。
 - **F4 错误响应边界已有真实增量：** 最初 Icarus adapter 跳过和 CV32 filelist 预启动失败保留；filelist 修复后，实际生成式 CV32 首取指接受后注入 backend ERR，模型命中指定 fatal 并非零退出，控制/源检查/审计 exit0。同一适配器与 testbench 的显式 Verilator 门另为 1 passed／8.03 秒。见[原始证据与范围](reports/obi-no-error-fail-stop-20261017.md)。[Ibex 三例连续数据流与两次完整 fresh 门](reports/compiled-f4-ibex-current-20261017.md)现已实际 exit0，六个原生进程均 reaped/exit0；根代理独立复核三份各7,351条保存事件及全前缀相同。[CV32 同等连续门](reports/compiled-f4-cv32-current-20261017.md)也已实际 exit0，根代理独立复核三份各7,351条完整事件及候选切片一致，20个无物理 error pin 的错误字段保持 null。
-- **BOOM IRQ：** 历史实际 build/probe0、最终化1保留；[独立元数据恢复](reports/boom-irq-metadata-recovery-20261017.md)现已实际 exit0，2,564 源文件与84原构建文件前后及副本审计通过，原二进制未变。未重新编译或执行模型；真实 IRQ 验收门源码70fdbcb已完成因果顺序与物理来源修复，独立43项纯软件控制通过；[attempt1实际入口](reports/boom-irq-native-attempt1-20261017.md)现已终态exit1，工厂的bound producer声明不一致，发生在原生会话启动前，CPU/GPIO命令与采样均0。失败已归档，source/artifact/tools前后未变；最小修复及新元数据身份正在准备。
+- **BOOM IRQ：** 历史实际 build/probe0、最终化1保留；[独立元数据恢复](reports/boom-irq-metadata-recovery-20261017.md)现已实际 exit0，2,564 源文件与84原构建文件前后及副本审计通过，原二进制未变。未重新编译或执行模型；真实 IRQ 验收门源码70fdbcb已完成因果顺序与物理来源修复，独立43项纯软件控制通过；[attempt1实际入口](reports/boom-irq-native-attempt1-20261017.md)现已终态exit1，工厂的bound producer声明不一致，发生在原生会话启动前，CPU/GPIO命令与采样均0。失败已归档，source/artifact/tools前后未变；[最小工厂修复后的新元数据恢复](reports/boom-irq-factory-metadata-recovery-20261017.md)已实际exit0且根代理独立审计通过，二进制未变，IRQ第二次运行门尚未执行。
 - **CPU 事件：** reduced AXI 观察器已有冻结软件证据；[CVA6 full AXI 观察器](reports/CPU_FULL_AXI_OBSERVER_20261017.md)冻结 `893d255`，99 passed＋3 subtests；独立审查的异常后停止、effects 标记与 post 新 offer 保持三项均修复。后续[窄 CPU/RAM 原生门](reports/cva6-full-axi-native-20261017.md)已实际 exit0：两进程各650组真实样本、826条观察记录、2923条 Runner 事件全前缀匹配，原始样本离线逐条复投影一致。仅授有界观察，不授源权威或退休认证。
 
-- **AHB CPU 事件源码：** [CVW/AHB 观察器](reports/CVW_AHB_CPU_OBSERVER_20261017.md)8dd8ead＋预算修复da4605f，独立52项纯软件控制及审查93a7bda通过。只做观察；启动释放期间首个地址未被保存，显式 prefix_unknown，仍需实际被动 startup 捕获和新原生门。
+- **AHB CPU 事件源码：** [CVW/AHB 观察器](reports/CVW_AHB_CPU_OBSERVER_20261017.md)8dd8ead＋预算修复da4605f，独立52项纯软件控制及审查93a7bda通过。只做观察；原轨迹启动首地址缺失。后续startup捕获与真实v2 admission修复be0a21e已独立103项软件控制通过；[AHB目标严格身份](reports/AHB_REGISTER_TARGET_IDENTITY_20261017.md)998c89c已独立21项控制及既有APB38项回归通过。新13tap/startup原生门尚未执行，不能升级历史prefix_unknown。
 - **Runner 跨缓冲清空：** full AXI 引用编号修复944a888采用全生命周期记录计数，113项纯软件控制与独立审查aaf4134通过；保存的两份 CVA6 实际826记录离线重放逐条不变。
 
 - **同协议新 IP 基础：** [generic APB严格身份和被动trace/writer诊断](reports/generic-apb-session-identity-20261017.md)已补齐服务身份降级拒绝、规范wrapper/runtime/端口重投影；独立82项纯软件控制通过，审查41ce86e关闭假tap中项。无组件名字分支，但内部寄存器版本/重置生产者和新IP编译F4原生门仍未完成。
+
+- **真正不同的新IP声明：** [PULP timer的CTRL0 F4声明](reports/timer-f4-declarations-20261017.md)使用既有generic APB模板，D3导出4字节单word候选，无假引脚或默认写入；独立5项纯软件控制通过。内部存储producer与live version尚缺，当前executor仍拒绝generic F4运行。
 
 以上分别绑定冻结源码，**整个系统及 P6/P7/P8 保持未验收**。
 

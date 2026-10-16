@@ -1,0 +1,28 @@
+{
+  "scope": "independent saved metadata/archive audit, no model or constructor",
+  "source_files_equal_before_after_copy": 2567,
+  "original_files_equal_before_after": 84,
+  "tools_equal_before_after": true,
+  "historical_archive_hashes_match": {
+    "attempt2-evidence.tar.gz": "559b5faf59607120ffabb59dc1ada694da9cf365b263e967d3cac154d3fee58a",
+    "attempt2-build-closure.tar.gz": "e9a019a75fa4518cd620dc0519ce680b70d9c8c5ab5ba9c12ef1fbcc39082577",
+    "attempt2-command-tool.tar.gz": "0fa6d68c4e70195e382a01e255a84952a5e200aea29c20c96cebe2e47a1133ec"
+  },
+  "actual_original_binary_sha256": "6367b592b743f935cb2de04bc6dfc4ac54c9ec8cf5dce4eb6545b140971e6c90",
+  "final_manifest_sha256": "3f405a57322a697f0dfee4004ef15e9c3c5c849bf1fc360b0dd0d087f2bbf89d",
+  "actual_inventory_rows": 16,
+  "old_build_probe_failedstage_exits": [
+    0,
+    0,
+    1
+  ],
+  "archive_sha256": "b8562f7f5dcd7945d0cb53d21230d3349734b485092647eb4b1e54aa25da42e0",
+  "protected_source_artifacts_failed_prefix_unchanged": true,
+  "old_host_factory_sha256": "1de87df95d1f10b44dd5848cc19afd9432527cf3b088103fa67f0883db8b0e09",
+  "new_host_factory_sha256": "0af5037e8282c232c672a0251e2c8f579d4f1f6edde793bc51e20854f8f1e77e",
+  "actual_effective_input_count": 12,
+  "worker_exit": 0,
+  "native_irq_runtime_proven": false,
+  "new_cpp_build": false,
+  "source_authority": false
+}
