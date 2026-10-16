@@ -81,3 +81,13 @@ def replay_cv32e40p_pulp_online_files(*, cache_dir: Path, plan_path: Path,
 
 __all__ = ["make_cv32e40p_pulp_online_runtime",
            "replay_cv32e40p_pulp_online_files"]
+
+
+def describe_generated_execution():
+    """Actual fixed decoder facts; no D3 projection implementation is claimed."""
+    bootstrap=make_cv32e40p_pulp_dual_source_stream_bootstrap()
+    decoder=make_cv32e40p_pulp_dual_source_online_decoder(bootstrap=bootstrap)
+    return dict(schema_version='fixed_runtime_execution_declaration.v1',
+        decoder=decoder.document(),authenticated_retirement_contract=None,
+        source_projection={},bound_projection={},compiled_prerequisite_handlers={},
+        compiled_assertion_handlers={},compiled_seed_projection={})

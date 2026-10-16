@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pytest
 
 from myfuzz.local_harness.auto_harness_test import (load_composition,build_path_compile_request,
-    load_session_inputs,runtime_family)
+    load_session_inputs,runtime_family,assess_runtime_execution)
 from myfuzz.local_harness.generated_execution_admission import GeneratedExecutionRefused,require_runtime_projection
 from myfuzz.local_harness.harness_set import load_compose,generate_harness_set
 from myfuzz.scenario.compiled_paths import load_path_compile_request,compile_paths
@@ -88,6 +88,21 @@ def test_loaded_artifacts_drive_one_persistent_runtime_and_fresh_replay(tmp_path
             assert any(e.get('kind')=='mmio_delivery' and e.get('device_id')=='gpio_a' and e.get('offset')==12 and e.get('write') for e in events)
             assert any(e.get('kind')=='source_injection' and e.get('component')=='gpio_b' for e in events)
             assert all(r.get('kind')!='reset_barrier' for r in events)
+            projection=assess_runtime_execution(family=runtime_family('cv32e40p-pulp-dual-source'),
+                artifacts=artifacts,compiled_inputs=inputs,producer_events=events)
+            (evidence_dir/'execution-projection.json').write_text(json.dumps(projection,indent=2))
+            assert projection['capability_executable']==4
+            assert projection['execution_supported']==0
+            f1=next(p for p in projection['paths'] if p['flow_id']=='F1')
+            assert f1['status']=='unsupported'
+            assert any(r['code']=='authenticated-retirement-observation-missing' for r in f1['refusals'])
+            f4=next(p for p in projection['paths'] if p['flow_id']=='F4')
+            target=f4['register_targets'][0]
+            assert target['address']==0x40001004
+            assert target['diagnostic_matching_deliveries']
+            assert all(e['provenance']['observed_case'] is None for e in target['diagnostic_matching_deliveries'])
+            assert target['candidate_source_certified'] is False
+            assert any(r['code']=='compiled-register-outside-runtime-candidate-windows' for r in f4['refusals'])
             (evidence_dir/'summary.json').write_text(json.dumps(dict(
                 scope='D2_loaded_artifacts_fixed_declared_runtime_only',d3_runtime_admitted=False,
                 artifact_digests={n:a.runtime_document['artifact_digest'] for n,a in artifacts.items()},

@@ -157,7 +157,7 @@ class RuntimeFamily:
     def __init__(self, *, family_id, cpu_component_id, cpu_profile,
                  device_component_id, device_protocol, device_endpoint_function,
                  cpu_master_protocol, wiring_declaration, runtime_entry,
-                 replay_entry, note=''):
+                 replay_entry, note='', execution_declaration=None):
         self.family_id = family_id
         self.cpu_component_id = cpu_component_id
         self.cpu_profile = cpu_profile
@@ -168,6 +168,7 @@ class RuntimeFamily:
         self.wiring_declaration = wiring_declaration
         self.runtime_entry = runtime_entry
         self.replay_entry = replay_entry
+        self.execution_declaration = execution_declaration
         self.note = note
 
     def document(self) -> dict:
@@ -181,6 +182,7 @@ class RuntimeFamily:
                 'wiring_declaration': self.wiring_declaration,
                 'runtime_entry': self.runtime_entry,
                 'replay_entry': self.replay_entry,
+                'execution_declaration': self.execution_declaration,
                 'note': self.note}
 
 
@@ -201,6 +203,7 @@ RUNTIME_FAMILIES = {
     family.family_id: family for family in (
         RuntimeFamily(
             family_id='cv32e40p-pulp-dual-source',
+            execution_declaration='myfuzz.integration.cv32e40p_pulp_online:describe_generated_execution',
             cpu_component_id='cv32e40p',
             cpu_profile='configs/cpus/cv32e40p/component_profile.json',
             runtime_entry=('myfuzz.integration.cv32e40p_pulp_online'
@@ -213,6 +216,7 @@ RUNTIME_FAMILIES = {
             **_SHARED_DUAL_SOURCE),
         RuntimeFamily(
             family_id='ibex-pulp-dual-source',
+            execution_declaration='myfuzz.integration.ibex_pulp_online:describe_generated_execution',
             cpu_component_id='ibex_obi_local',
             cpu_profile='configs/cpus/ibex_obi_local/component_profile.json',
             runtime_entry=('myfuzz.integration.ibex_pulp_online'
@@ -869,6 +873,18 @@ def load_session_inputs(*,generated_root,base_dir,family,request,compiled):
         ownership=ownership,physical_port_map=physical)
 
 
+def assess_runtime_execution(*,family,artifacts,compiled_inputs,producer_events=()):
+    """Report execution downgrades against an explicitly named runtime contract."""
+    from .compiled_execution_projection import assess_compiled_execution
+    declaration=None
+    if family.execution_declaration is not None:
+        describe=_load_entry(family.execution_declaration,
+            code='runtime-execution-declaration-unavailable',pointer='/runtime')
+        declaration=describe()
+    return assess_compiled_execution(artifacts=artifacts,compiled_inputs=compiled_inputs,
+        runtime_declaration=declaration,producer_events=producer_events)
+
+
 def run_live_session(*, family: RuntimeFamily, session_dir, client_binary,
                      cache_dir, run_id, budget_seconds, max_tests, search_seed,
                      max_runs_per_batch, base_dir, generated_artifacts=None,
@@ -1072,6 +1088,7 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
             'runtime_family': family_stage,
             'harness_set': _empty_stage(),
             'path_compilation': _empty_stage(),
+            'execution_projection': _empty_stage(),
             'session': _empty_stage(),
             'fresh_verification': _empty_stage(),
             'capability_report': _empty_stage(),
@@ -1329,6 +1346,14 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
                 generated_artifacts,compiled_inputs = load_session_inputs(
                     generated_root=output/'generated',base_dir=base,
                     family=family,request=typed_compile_request,compiled=compiled_document)
+                projection=assess_runtime_execution(family=family,
+                    artifacts=generated_artifacts,compiled_inputs=compiled_inputs)
+                projection_path=_write(output/'execution_projection.v1.json',projection)
+                record('execution_projection',projection_path,projection)
+                summary['stages']['execution_projection'].update(status=OK,
+                    execution_status=projection['status'],runtime_admitted=False,
+                    capability_executable=projection['capability_executable'],
+                    execution_supported=projection['execution_supported'])
                 live = run_live_session(
                     generated_artifacts=generated_artifacts,compiled_inputs=compiled_inputs,
                     family=family, session_dir=output / 'session',

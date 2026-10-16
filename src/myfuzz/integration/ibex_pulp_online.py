@@ -776,3 +776,13 @@ def make_ibex_pulp_online_runtime(
                 error.add_note('candidate assembly cleanup failed: ' + str(cleanup))
             raise
     return runtime
+
+
+def describe_generated_execution():
+    """Default fixed decoder facts; optional RVFI is not selected implicitly."""
+    bootstrap=make_ibex_pulp_dual_source_stream_bootstrap()
+    decoder=make_ibex_pulp_dual_source_online_decoder(bootstrap=bootstrap)
+    return dict(schema_version='fixed_runtime_execution_declaration.v1',
+        decoder=decoder.document(),authenticated_retirement_contract=None,
+        source_projection={},bound_projection={},compiled_prerequisite_handlers={},
+        compiled_assertion_handlers={},compiled_seed_projection={})
