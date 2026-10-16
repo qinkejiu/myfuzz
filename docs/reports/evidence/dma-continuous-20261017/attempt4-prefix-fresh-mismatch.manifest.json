@@ -1,0 +1,59 @@
+{
+  "schema_version": "dma_continuous_attempt_evidence.v1",
+  "attempt": 4,
+  "source_commit": "9eeff26",
+  "scope": "original four-byte success and fresh-prefix mismatch, not accepted gate",
+  "worker_exit": 1,
+  "native_exit": 1,
+  "focused_exit": 0,
+  "focused_result": "60 passed in 71.07s",
+  "native_result": "1 failed in 218.49s",
+  "native_failure": "fresh replay differs from full finalized original prefix",
+  "preserves_primary_result": true,
+  "fresh_raw_not_saved_by_original_gate": true,
+  "archive_sha256": "863806c7aea00b6f8646beb63f0a5840e8734103247558dd6c480b4923d9d972",
+  "files": {
+    "attempt4/native.exit": {
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    "attempt4/focused.exit": {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "attempt4/worker.sh": {
+      "bytes": 1841,
+      "sha256": "bca672fbaccaddce67194cf81ae1383da2bb6e9605d8ca9040ddba2952cb7b2f"
+    },
+    "attempt4/state": {
+      "bytes": 9,
+      "sha256": "161069badc0cc23058b13d7c068e45205f4333aa15fd78db9d68f5c9f1ae8983"
+    },
+    "attempt4/worker.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "attempt4/worker.exit": {
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    "attempt4/focused.log": {
+      "bytes": 110,
+      "sha256": "e4ef194584bae4eff73890d2c6717b1a0eab61867d208bea43214b3b5b9a974b"
+    },
+    "attempt4/evidence/positive.json.gz": {
+      "bytes": 11304184,
+      "sha256": "fb44d211a11d3d34d966ccd5a480c3c0518a227831e67833240aa4cc131dd735"
+    },
+    "attempt4/worker.pid": {
+      "bytes": 7,
+      "sha256": "229b418e3d1c6b67baff5f8e9f356aefe5f92fae79834a652df7371989f06ad0"
+    },
+    "attempt4/native.log": {
+      "bytes": 7022,
+      "sha256": "748039643e1ceb3cad274cfd07ab6ec09b00a3106c0601e0821683afda131533"
+    }
+  },
+  "source_overlay_sha256": "c0a793edc7d4e8c518571498f984b749839c4a0dc56ffee3d22fd5b7aa2aca12",
+  "original_source_overlay_location": "preserved original-attempt4.tar locally and remote attempt4/host-overlay.tar.gz; not included in this compact archive"
+}
