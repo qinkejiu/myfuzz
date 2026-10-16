@@ -104,9 +104,18 @@ def main() -> None:
     if (not forged['tampered'] or forged['verified_certificates']
             or forged['diagnostics'].get('projection_mismatch', 0) < 1):
         raise ValueError('forged AHB response was not rejected')
+    root = Path(__file__).resolve().parents[1]
+    auditor_sources = (
+        'scripts/verify_caliptra_ahb_protocol_evidence.py',
+        'src/myfuzz/scenario/ip_protocol_evidence.py',
+        'src/myfuzz/scenario/ip_protocol_events.py',
+        'src/myfuzz/scenario/ip_protocol_checker.py',
+    )
     print(json.dumps({'schema_version': 'caliptra_ahb_protocol_audit.v1',
                       'scope': 'offline_real_raw_samples_to_protocol_certificates',
                       'artifact_digest': artifact['artifact_digest'],
+                      'auditor_source_sha256': {
+                          name: _sha256(root / name) for name in auditor_sources},
                       'runs': results, 'forged_response': forged,
                       'online_runner_integrated': False},
                      sort_keys=True, indent=2))
