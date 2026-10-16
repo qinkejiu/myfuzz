@@ -249,3 +249,31 @@ def test_prevalidation_budget_failure_does_not_claim_trusted_shape():
  with pytest.raises(ValueError,match='budget'):o.observe(sample)
  assert o.events[-1]['category']=='unsupported'
  assert o.events[-1]['trusted_projection'] is False
+
+
+def test_runner_journal_drain_preserves_global_raw_reference_namespace():
+ from types import SimpleNamespace
+ from myfuzz.scenario.runner import ScenarioRunner
+ from myfuzz.scenario.ownership import compile_ownership
+ from myfuzz.scenario.event_journal import EventJournal
+ o=observer();o.begin_scope(execution_id='issued',testcase_id='case',reset_epoch=0)
+ cpu=SimpleNamespace(runtime_events=o.events)
+ runner=ScenarioRunner(sessions={'cpu':cpu},ownership=compile_ownership((),()),bindings=())
+ runner._events._records=EventJournal(chunk_size=2)
+ o.observe(edge(**ar(araddr=0x100)))
+ runner._append_external_events('cpu',0)
+ assert o.events==[]
+ o.observe(edge(2,rvalid=1,rready=1,rlast=1,rdata=42))
+ runner._append_external_events('cpu',0)
+ count=len(runner._events);runner._append_external_events('cpu',0)
+ assert len(runner._events)==count
+ raw=[e for e in runner._events if e['kind']=='full_axi_raw']
+ complete=next(e for e in runner._events if e['kind']=='full_axi_read_beat')
+ assert raw[1]['raw_event_ref']>raw[0]['raw_event_ref']
+ assert complete['request_refs']==[raw[0]['raw_event_ref']]
+ assert complete['raw_event_refs']==[raw[1]['raw_event_ref']]
+ o.begin_scope(execution_id='issued',testcase_id='next',reset_epoch=1)
+ o.observe(edge(**ar(araddr=0x200)))
+ runner._append_external_events('cpu',0)
+ raw=[e for e in runner._events if e['kind']=='full_axi_raw']
+ assert len(set(e['raw_event_ref'] for e in raw))==3

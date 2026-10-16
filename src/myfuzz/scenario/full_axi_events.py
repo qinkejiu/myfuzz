@@ -23,6 +23,9 @@ class BoundedFullAxiObserver:
         self.events=[]
         self.scope=None
         self._edges=self._bytes=self._scopes=0
+        # Runner may drain this list in place into its EventJournal.
+        # References identify the lifetime stream, not current buffer offsets.
+        self._record_count=0
         self._budget_exhausted=False
         self.contract={
             'schema_version':SCHEMA,'variant':'packed64_id4_user64_single_master.v1',
@@ -65,6 +68,7 @@ class BoundedFullAxiObserver:
                'authority':'observation_only','runtime_accepted':False,
                'semantic_accepted':False,**copy.deepcopy(fields)}
         self.events.append(event)
+        self._record_count+=1
         return event
 
     def end_scope(self):
@@ -143,7 +147,7 @@ class BoundedFullAxiObserver:
 
     def observe(self,sample):
         self.require_active()
-        ref=len(self.events)+1
+        ref=self._record_count+1
         self._emit('full_axi_raw',raw_event_ref=ref,raw_sample=sample)
         self._edges+=1
         try:self._bytes+=len(json.dumps(sample,sort_keys=True,allow_nan=False).encode())
