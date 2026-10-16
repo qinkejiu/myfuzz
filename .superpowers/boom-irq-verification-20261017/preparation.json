@@ -1,0 +1,33 @@
+{
+  "stage": "prepared_not_launched",
+  "owned_pins_checked": 13,
+  "source_files": 2426,
+  "shared_source_file_inodes": [],
+  "imports": {
+    "myfuzz.local_harness.boom_irq_contract": {
+      "path": "src/myfuzz/local_harness/boom_irq_contract.py",
+      "sha256": "7f8e349e0f21de4ba349fc072442fd26590d3f80cc988f2bbda0cf7e6e4ae435"
+    },
+    "myfuzz.local_harness.boom_irq_generation": {
+      "path": "src/myfuzz/local_harness/boom_irq_generation.py",
+      "sha256": "6ccb1a107330d3ad4c9b54b89d46444eb301a74e9691d92df16c506f7f7ad89e"
+    },
+    "myfuzz.local_harness.boom_irq_cpu_session": {
+      "path": "src/myfuzz/local_harness/boom_irq_cpu_session.py",
+      "sha256": "872d1cca743023c396af2755d63bf618ed87db041efc2d770ceda82241a6f7ae"
+    },
+    "myfuzz.local_harness.boom_irq_scenario_session": {
+      "path": "src/myfuzz/local_harness/boom_irq_scenario_session.py",
+      "sha256": "b945a9002ce39118df38ebd81d6e9a1514f861b147f2809ba94a82c906e267db"
+    },
+    "myfuzz.scenario.boom_gpio_irq_runner": {
+      "path": "src/myfuzz/scenario/boom_gpio_irq_runner.py",
+      "sha256": "1de87df95d1f10b44dd5848cc19afd9432527cf3b088103fa67f0883db8b0e09"
+    }
+  },
+  "artifact_empty": true,
+  "program_sha256": "acecf7cb717ea5fee1791e14313a8b66d94b96ac2c4b63a6c53645892f28ae39",
+  "baseline_snapshot": "/root/fanzehui/boom-verification-20261017/project",
+  "copy_method": "cp -a, independent destination; owned frozen overlay only",
+  "no_native_build_elaboration_probe_execution": true
+}
