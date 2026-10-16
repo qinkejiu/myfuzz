@@ -1,0 +1,20 @@
+    PID    PPID STAT     ELAPSED COMMAND
+terminal
+0
+{
+  "metadata_only_recovery_audit_pass": true,
+  "runtime_verified": false,
+  "source_authority": false,
+  "new_cpp_build": false,
+  "native_model_executed": false,
+  "historical_build_exit": 0,
+  "historical_probe_exit": 0,
+  "historical_failed_stage_exit": 1,
+  "copied_source_files": 2567,
+  "original_artifact_file_count": 84,
+  "shared_source_inodes": [],
+  "shared_artifact_inodes": [],
+  "binary_sha256": "6367b592b743f935cb2de04bc6dfc4ac54c9ec8cf5dce4eb6545b140971e6c90",
+  "final_manifest_sha256": "3f405a57322a697f0dfee4004ef15e9c3c5c849bf1fc360b0dd0d087f2bbf89d",
+  "worker_exit": 0
+}

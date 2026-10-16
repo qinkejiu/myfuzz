@@ -1,0 +1,1 @@
+{"root_live_preflight": "pass", "ready_sha256": "20ad6eb738b67db8640f7e21299259fbc04f017f948960eddfa306e1dee0d211", "source_files": 2567, "protected_counts": {"old_metadata": 88, "old_finalized_project": 2564, "failed_runtime_project": 2566}, "old_failed_prefix_unchanged": true, "metadata_operation_unused": true, "model_executed": false}
