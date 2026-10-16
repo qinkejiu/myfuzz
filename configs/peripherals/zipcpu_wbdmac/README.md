@@ -1,4 +1,4 @@
-# ZipCPU wbdmac: static source/profile slice
+# ZipCPU wbdmac: source, transport and directed RAM session
 
 The actual checkout is `third_party/soc-zipcpu`, commit
 `42606d2d6ef55df313772232977621b2d72f0159`. The proposed
@@ -34,11 +34,31 @@ completion and new acceptance on a completion edge before ticking. Held STB with
 STALL low represents another acceptance, never a replay. Generic command-cache
 replay returns the original receipt without advancing another edge.
 
-Generation and host C++ guard/stub transport tests establish this infrastructure,
-not DMA RTL execution. No autonomous DMA session, RAM service, CPU configuration,
-real transfer, IRQ delivery or fresh RTL transfer replay has been tested. The
-source-lock runtime status remains runtime_unverified. Slice C must connect the
-real sampled master requests to ledger-backed frozen memory effects and responses.
+## Slice C directed real RTL session
+
+`GeneratedWishboneDmaSession` connects accepted real master requests to a
+ledger-backed `MemoryService`. It holds STALL while a request is outstanding,
+records every measured edge, and uses only observed master write data for RAM
+commits. Register access pulses STB once and waits for the actual delayed ACK;
+its clocks use the same autonomous session. Invalid resources yield ERR without
+a RAM effect. Quiescence stops new admissions; reset restarts the real process,
+cancels queued responses, and preserves already committed memory effects.
+
+The gated test (`MYFUZZ_DMA_REAL=1`) actually builds the generated driver with
+unmodified pinned wbdmac. Two fresh executions each measured 34 edges, four RAM
+reads, four RAM writes and one native completion pulse at edge 34, matching the
+final write response. Complete normalized edge traces match. Source words were
+host-preloaded and registers host-configured: no CPU configuration or ISR is
+proven. Source-lock runtime status remains runtime_unverified because this
+bounded directed test does not establish generic runtime/campaign admission.
+
+The environment responds on the next edge except that an actual write burst
+tail (post-edge STB low) receives one extra settling edge. This is explicit in
+session identity. The pinned RTL's registered ACK predictors are timing
+sensitive: a uniform one-edge response copied all four words but omitted IRQ;
+a uniform two-edge response ended a write burst prematurely. Those environments
+are not covered by this directed success result. General latency robustness
+needs separate RTL investigation; the source was not modified.
 
 Control address is a two-bit word index. CPU byte offsets 0/4/8/12 correspond
 to control/total-word-count/source-byte-address/destination-byte-address.
@@ -56,7 +76,7 @@ to increment both addresses; bit15 stays zero for immediate start, and all
 but may be ignored. An interrupt can mean final acknowledged write OR bus error;
 it is an observed native output, not automatically successful completion.
 
-Next steps are actual transport validation, a persistent DMA
-session and ledger-backed memory service, then genuine CPU configuration and
-four-word DMA transfer with stalls, native IRQ, error/old-key/reset controls,
-and fresh replay. No DMA transfer or IRQ has been simulated in this slice.
+Next steps are CPU configuration through the actual target API, shared-resource
+scheduler integration, native IRQ delivery and CPU ISR/readback, real error /
+old-key / pending-reset controls, and latency-sensitivity investigation. No FIFO
+transfer, CPU chain, online campaign or full P8 completion is claimed.

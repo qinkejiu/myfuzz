@@ -1,0 +1,97 @@
+{
+  "evidence_kind": "directed_real_rtl_two_fresh_processes",
+  "source_sha256": "a948bab4a155ddc42be1d9b2ee588c1b8b9c9ab587d9e5125e24870c2169aacd",
+  "host_configured": true,
+  "cpu_chain_proven": false,
+  "normalized_full_edge_traces_equal": true,
+  "runs": [
+    {
+      "run": 0,
+      "full_receipts_sha256": "6a3fa14eed5e1adcac0f6a78bbaba9ef75d466fd7fbb3a0db8e163f7c380ae79",
+      "build_digest": "5cab66a3addc95dcf8974f8362cf67204686fdb642be67e416712fe7f4087b85",
+      "artifact_digest": "c6018a602eb597ea52bf49821c3711067bc3ba44ac327e3510a4687e13779bae",
+      "local_edges": 34,
+      "master_reads": [
+        4096,
+        4100,
+        4104,
+        4108
+      ],
+      "master_writes": [
+        {
+          "address": 8192,
+          "value": 305419896
+        },
+        {
+          "address": 8196,
+          "value": 2309737967
+        },
+        {
+          "address": 8200,
+          "value": 195939070
+        },
+        {
+          "address": 8204,
+          "value": 4027431518
+        }
+      ],
+      "native_irq_ticks": [
+        34
+      ],
+      "environment": {
+        "max_outstanding": 1,
+        "response_delay_edges": 1,
+        "write_burst_tail_extra_delay_edges": 1,
+        "control_edge_bound": 32,
+        "max_events": 10000,
+        "address_shift": 2,
+        "byte_enable": 15,
+        "source_component": "dma"
+      }
+    },
+    {
+      "run": 1,
+      "full_receipts_sha256": "bbae3e8c730dc2fedba353dfb7c39337da62539f1082f2b204035dfe1b89971b",
+      "build_digest": "5cab66a3addc95dcf8974f8362cf67204686fdb642be67e416712fe7f4087b85",
+      "artifact_digest": "c6018a602eb597ea52bf49821c3711067bc3ba44ac327e3510a4687e13779bae",
+      "local_edges": 34,
+      "master_reads": [
+        4096,
+        4100,
+        4104,
+        4108
+      ],
+      "master_writes": [
+        {
+          "address": 8192,
+          "value": 305419896
+        },
+        {
+          "address": 8196,
+          "value": 2309737967
+        },
+        {
+          "address": 8200,
+          "value": 195939070
+        },
+        {
+          "address": 8204,
+          "value": 4027431518
+        }
+      ],
+      "native_irq_ticks": [
+        34
+      ],
+      "environment": {
+        "max_outstanding": 1,
+        "response_delay_edges": 1,
+        "write_burst_tail_extra_delay_edges": 1,
+        "control_edge_bound": 32,
+        "max_events": 10000,
+        "address_shift": 2,
+        "byte_enable": 15,
+        "source_component": "dma"
+      }
+    }
+  ]
+}
