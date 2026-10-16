@@ -272,3 +272,8 @@ Ibex、CVA6、CV32E40P 的既有范围仍按各自冻结报告判定。六 CPU �
 - [AHB CPU 观察器](../../reports/CVW_AHB_CPU_OBSERVER_20261017.md)源码与严格会话身份、13物理role tap、一次drain、全局事件预算已实现且52项纯软件控制通过。旧CVW采样缺13role；当前启动首地址缺口明确 prefix_unknown，尚未新跑原生门，不授完整前缀。
 
 本补记不升级 P6/P7/P8 整阶段状态。
+
+
+### 2026-10-17 BOOM IRQ 最新实际终态
+
+[BOOM GPIO→MEIP→trap/ISR→qualified MRET→前景RAM门](../../reports/boom-irq-native-attempt3-20261017.md)已实际exit0；两份完整fresh文档仅规范化具名身份/PID后相等，IRQ抑制负例符合预期。根代理独立校验403归档文件、原始传输与因果引用；9个模型进程均reaped0。实际步数6024/6024/6016均在共享6512上限内。覆盖此前“无IRQ链通过”的历史状态，但只接受固定有界链，不授退休/源权威、通用IRQ或整行P6/P7/P8。
