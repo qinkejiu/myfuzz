@@ -13,6 +13,7 @@ from pathlib import Path
 
 from myfuzz.scenario.ip_protocol_evidence import IpProtocolEvidenceConsumer
 from myfuzz.scenario.ip_protocol_events import IpProtocolEventNormalizer
+from myfuzz.scenario.ip_base_coverage import IpBaseCoverageConsumer
 
 
 def _sha256(path: Path) -> str:
@@ -34,6 +35,10 @@ def audit_run(saved: dict, artifact: dict, *, corrupt_response=False) -> dict:
     normalizer = IpProtocolEventNormalizer(**configuration['sha'])
     consumer = IpProtocolEvidenceConsumer(configuration,
         runtime_contract_sha256=artifact['artifact_digest'])
+    coverage = IpBaseCoverageConsumer(
+        component_id=artifact['plan']['component_id'],
+        instance_id=artifact['plan']['instance_id'],
+        endpoint_protocols={artifact['base_protocol_trace']['endpoint_id']: 'ahb-lite'})
     next_id = 1
     projected = []
     tampered = False
@@ -47,6 +52,7 @@ def audit_run(saved: dict, artifact: dict, *, corrupt_response=False) -> dict:
                        'case_id': 'caliptra-directed', 'case_index': 0}},
                    'outputs': sample['pre']}
             consumer.consume(raw)
+            coverage.consume((raw,), start_cursor=coverage.cursor)
             next_id += 1
             for event in normalizer.consume_local_tick(raw, reset_epoch=0):
                 projected.append(event)
@@ -58,16 +64,24 @@ def audit_run(saved: dict, artifact: dict, *, corrupt_response=False) -> dict:
                     observed['payload']['value'] ^= 1
                     tampered = True
                 consumer.consume(observed)
+                coverage.consume((observed,), start_cursor=coverage.cursor)
                 next_id += 1
     if _projected_facts(projected) != _projected_facts(saved['protocol_events']):
         raise ValueError('saved protocol projections differ from raw AHB samples')
     report = consumer.report()
+    coverage_snapshot = coverage.snapshot()
     return {'accesses': len(saved['accesses']),
             'projected_events': len(projected),
             'verified_certificates': report['counts']['verified'],
             'pending': report['counts']['pending'],
             'diagnostics': report['diagnostics'],
             'journal_integrity': report['journal_integrity'],
+            'base_coverage': {
+                'cursor': coverage_snapshot['cursor'],
+                'counts': coverage_snapshot['counts'],
+                'diagnostics': coverage_snapshot['diagnostics'],
+                'pending_count': coverage_snapshot['pending_count'],
+                'feature_capacity': coverage_snapshot['feature_capacity']},
             'tampered': tampered}
 
 
@@ -95,9 +109,18 @@ def main() -> None:
                     index['normalized_events_per_process'].values())
                 or result['verified_certificates'] != result['accesses']
                 or result['pending'] != 0 or result['diagnostics']
+                or result['base_coverage']['pending_count'] != 0
+                or result['base_coverage']['diagnostics']
+                or sum(result['base_coverage']['counts'].get(
+                    'transaction:sha256.bus:' + direction, 0)
+                    for direction in ('read', 'write')) != result['accesses']
+                or result['base_coverage']['counts'].get(
+                    'response:sha256.bus:ok') != result['accesses']
                 or not result['journal_integrity']):
             raise ValueError('real AHB transaction evidence incomplete: ' + name)
         results[name] = result
+    if results['first']['base_coverage'] != results['fresh']['base_coverage']:
+        raise ValueError('fresh AHB base coverage differs')
     forged = audit_run(
         json.loads((args.evidence_dir / 'first.json').read_text()),
         artifact, corrupt_response=True)
@@ -110,6 +133,7 @@ def main() -> None:
         'src/myfuzz/scenario/ip_protocol_evidence.py',
         'src/myfuzz/scenario/ip_protocol_events.py',
         'src/myfuzz/scenario/ip_protocol_checker.py',
+        'src/myfuzz/scenario/ip_base_coverage.py',
     )
     print(json.dumps({'schema_version': 'caliptra_ahb_protocol_audit.v1',
                       'scope': 'offline_real_raw_samples_to_protocol_certificates',

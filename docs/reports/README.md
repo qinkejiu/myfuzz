@@ -6,7 +6,7 @@
 
 2026-10-17 VexiiRiscv：[受限双 AXI 生成式 CPU/RAM 报告](vexiiriscv-generated-harness-20261017.md)。远端真实门禁 9 passed；两次 fresh 进程各完成 55 边沿、11 次 fetch、1 次 LSU 读和 2 次写响应，读响应替换的因果对照改变结果；仅生成式 CPU/RAM 定向等级。
 
-2026-10-17 Caliptra SHA256：[生成式 AHB-Lite target 真实 RTL 报告](caliptra-sha256-ahb-target-20261017.md)。两个独立进程各完成 91 次 AHB 寄存器访问，`abc`／`abd` 的真实摘要匹配参考值；每次 273 个通用协议事件、checker 零违约。保存的真实物理采样经离线通用证据消费者复核，每进程 91 条认证事务，篡改响应被拒；在线 Runner/coverage、CPU／IRQ、持续搜索和认证前缀 replay 仍未接入。
+2026-10-17 Caliptra SHA256：[生成式 AHB-Lite target 真实 RTL 报告](caliptra-sha256-ahb-target-20261017.md)。两个独立进程各完成 91 次 AHB 寄存器访问，`abc`／`abd` 的真实摘要匹配参考值；每次 273 个通用协议事件、checker 零违约。保存的真实物理采样经离线通用证据消费者复核，每进程 91 条认证事务，篡改响应被拒；离线通用基础覆盖各记录 57 次读、34 次写及 91 次成功响应，fresh 快照一致。在线 Runner/coverage guidance、CPU／IRQ、持续搜索和认证前缀 replay 仍未接入。
 
 2026-10-17 Ibex＋ZipCPU `wbdmac`：[CPU 配置、真实 DMA 搬运和 ISR 定向闭环报告](ibex-zipcpu-dma-irq-isr-directed-20261017.md)。两组全新 Ibex／DMA 进程各观察 CPU 自写源字、真实 OBI 配置、DMA 四读四写、原生 IRQ 经过显式挂起锁存、CPU 真实 ISR 保存状态和目的值，完整规范化轨迹一致；范围限 RAM→RAM 定向链。
 

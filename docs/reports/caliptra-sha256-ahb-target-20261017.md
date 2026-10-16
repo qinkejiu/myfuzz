@@ -41,6 +41,15 @@ the first projected response value yields zero certificates and one
 This retrospective proof does not mean the live Runner or coverage path was
 exercised.
 
+The same hashed real samples were later fed to the generic finite
+`IpBaseCoverageConsumer` in the offline auditor. Each fresh process produces
+637 journal positions, 91 requests/accepts/responses, 57 read and 34 write
+features, 91 successful response features and 91 one-edge latency features;
+pending and diagnostics are zero. The two base-coverage snapshots match
+exactly. See `configs/peripherals/caliptra_sha256/evidence/protocol-coverage-audit-20261017.json`.
+This is retrospective base coverage over the directed access sequence, not
+online Runner coverage guidance or a new real RTL execution.
+
 ## Actual evidence
 
 ```bash
