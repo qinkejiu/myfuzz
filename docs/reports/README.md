@@ -701,3 +701,5 @@ Task3 unbound dependency source RED有效：`dispatch-source-dependency-red.stdo
 - [连续 UART RX DMA：单次启动四例、完整 fresh 与受控失败重放](dma-continuous-runner-20261017.md)（实际 attempt6 通过；限定历史链，未授全系统验收）。
 
 - [无 error 引脚 OBI 的实际适配器与生成式 CV32 fail-stop 边界](obi-no-error-fail-stop-20261017.md)（实际错误响应终止；连续 F4 成功门另验）。
+
+- [BOOM IRQ 元数据恢复实测与独立审计](boom-irq-metadata-recovery-20261017.md)（复用历史已构建二进制；尚无 IRQ runtime 通过）。
