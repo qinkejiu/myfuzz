@@ -64,7 +64,7 @@ profile parsing. They do not establish execution of any ISR.
 are source-only preparation; not copied/launched remotely. Parent must allocate
 an exact heavy window and arrange an independent complete snapshot under
 `/root/fanzehui`. Script uses prescribed environment and canonical nonblocking
-lock. Builder refuses overwriting baseline artifacts and writes actual
+lock. Builder requires new/empty output and writes actual
 `build.exit`, `probe-describe.exit`, stdout/stderr. Its first real build may
 reject a generated scope/name/width or Verilator configuration: resolve using
 actual generated registry/source, never guessed members or constant values.
@@ -76,3 +76,27 @@ normal coherent checker; missing IRQ, changed status, SRET/DRET and reset/epoch
 controls rejected. No IRQ gate result or runtime admission is claimed. Native
 verification harness and detailed negative runtime controls still need assembly
 when the new generated probe contract has been confirmed.
+
+## Review correction: historical output preservation
+
+Independent source review identified that d326c5c only rejected the persistent
+`session-artifact.json` marker; one-shot `artifact.json`, existing IRQ artifacts
+and other historical contents could still be overwritten by generation.
+
+The builder now rejects every nonempty output directory, ordinary file and
+directory symlink before resolving the output or opening a lock. It checks
+again under the canonical lock, and refuses a lock path inside the output.
+No cleanup, overwrite, or reuse is attempted. New or empty directories remain
+allowed. This changes new IRQ source identity only; baseline BOOM files remain
+unchanged. Prepared source pins were regenerated, so d326c5c pins are superseded.
+
+Six precise filesystem tests initially failed, then passed after the fix.
+Native/build and generation entry points are instrumented to fail if reached
+for invalid outputs. Missing lock parents prove rejection occurs before lock
+opening; historical bytes remain unchanged. Additional tests confirm new/empty
+directories reach only mocked generation and that content appearing at lock
+acquisition is rejected. No actual native/build or canonical lock was used.
+
+Final combined software command above: actual exit0, **40 passed in10.93s**.
+Independent reviewer inspected the correction and reported no new substantive
+issue before the final freeze. Native IRQ acceptance remains unverified.

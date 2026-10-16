@@ -23,7 +23,9 @@ python -m myfuzz.local_harness.boom_irq_generation \
 Use the target's prescribed `environment.sh`/Python library environment. Remote
 operations must follow `agent.md` through the SSH transit. The builder takes the
 canonical lock nonblocking, writes actual build/probe-describe exit files, and
-will not overwrite an output containing a baseline `session-artifact.json`.
+requires a new or empty output directory. Any existing artifact or other content,
+regular file, or directory symlink is rejected before lock acquisition and
+generation; directory emptiness is checked again under the canonical lock.
 No command above has been run for this variant.
 
 `make_boom_gpio_irq_runner` / `make_boom_gpio_irq_genome` use the ordinary Runner,

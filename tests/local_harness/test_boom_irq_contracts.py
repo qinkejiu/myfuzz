@@ -126,3 +126,56 @@ def test_irq_generation_authenticates_sources_without_build(tmp_path, monkeypatc
     assert set(artifact['auxiliary_hashes']) == set(generation.AUXILIARY)
     assert artifact['driver_sha256'] == generation.digest(tmp_path/'artifact/driver.cpp')
     assert 'boom_irq_scenario_session.py' in artifact['implementation_source_hashes']
+
+
+@pytest.mark.parametrize('name', ['artifact.json','session-artifact.json',
+                                  'irq-session-artifact.json','driver.cpp','unrelated.txt'])
+def test_builder_preserves_every_nonempty_output_before_lock_or_generation(tmp_path,monkeypatch,name):
+    from myfuzz.local_harness import boom_irq_generation as generation
+    output=tmp_path/'output'; output.mkdir()
+    sentinel=output/name; sentinel.write_bytes(b'historical-evidence\x00')
+    monkeypatch.setattr(generation,'generate_irq',lambda *a:pytest.fail('generation touched nonempty output'))
+    monkeypatch.setattr(generation.subprocess,'run',lambda *a,**k:pytest.fail('native/build invoked'))
+    with pytest.raises(ValueError,match='empty'):
+        generation.build_boom_irq_session(ROOT,output,heavy_lock=tmp_path/'missing-parent/lock')
+    assert sentinel.read_bytes() == b'historical-evidence\x00'
+    assert list(output.iterdir()) == [sentinel]
+    assert not (tmp_path/'missing-parent').exists()
+
+
+def test_builder_rejects_output_file_and_directory_symlink(tmp_path,monkeypatch):
+    from myfuzz.local_harness import boom_irq_generation as generation
+    monkeypatch.setattr(generation,'generate_irq',lambda *a:pytest.fail('generation invoked'))
+    ordinary=tmp_path/'file'; ordinary.write_text('history')
+    empty=tmp_path/'empty'; empty.mkdir()
+    link=tmp_path/'link'; link.symlink_to(empty,target_is_directory=True)
+    for output in (ordinary,link):
+        with pytest.raises(ValueError,match='empty'):
+            generation.build_boom_irq_session(ROOT,output,heavy_lock=tmp_path/'missing-parent/lock')
+    assert ordinary.read_text() == 'history' and list(empty.iterdir()) == []
+
+
+@pytest.mark.parametrize('already_exists',[False,True])
+def test_builder_allows_new_or_empty_directory_to_reach_generation_only(tmp_path,monkeypatch,already_exists):
+    from myfuzz.local_harness import boom_irq_generation as generation
+    output=tmp_path/'output'
+    if already_exists: output.mkdir()
+    class ReachedGeneration(Exception): pass
+    def stop(repo,destination):
+        assert destination == output
+        raise ReachedGeneration
+    monkeypatch.setattr(generation,'generate_irq',stop)
+    monkeypatch.setattr(generation.subprocess,'run',lambda *a,**k:pytest.fail('native/build invoked'))
+    with pytest.raises(ReachedGeneration):
+        generation.build_boom_irq_session(ROOT,output,heavy_lock=tmp_path/'test-only.lock')
+    assert not output.exists() or list(output.iterdir()) == []
+
+
+def test_builder_rechecks_output_after_lock_acquisition(tmp_path,monkeypatch):
+    from myfuzz.local_harness import boom_irq_generation as generation
+    output=tmp_path/'output'; output.mkdir()
+    monkeypatch.setattr(generation.fcntl,'flock',lambda *a:(output/'concurrent.json').write_text('preserve'))
+    monkeypatch.setattr(generation,'generate_irq',lambda *a:pytest.fail('generation touched concurrently occupied output'))
+    with pytest.raises(ValueError,match='empty'):
+        generation.build_boom_irq_session(ROOT,output,heavy_lock=tmp_path/'test-only.lock')
+    assert (output/'concurrent.json').read_text() == 'preserve'

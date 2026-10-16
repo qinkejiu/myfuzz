@@ -59,12 +59,21 @@ def generate_irq(repo: Path, output: Path):
     return artifact
 
 
+def _require_empty_output(output: Path):
+    # Check before resolve so an empty-directory symlink is rejected too.
+    if (output.is_symlink() or output.exists()
+            and (not output.is_dir() or any(output.iterdir()))):
+        raise ValueError('IRQ output must be a new or empty directory')
+
+
 def build_boom_irq_session(repo: Path, output: Path, *, heavy_lock: Path):
+    _require_empty_output(output)
     output = output.resolve()
-    if (output/'session-artifact.json').exists():
-        raise ValueError('IRQ output must not replace a baseline BOOM artifact')
+    if heavy_lock.resolve().is_relative_to(output):
+        raise ValueError('IRQ lock must be outside the empty output directory')
     with heavy_lock.open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        _require_empty_output(output)
         artifact = generate_irq(repo, output)
         with (output/'build.log').open('w') as log:
             result = subprocess.run(artifact['command'], stdout=log, stderr=subprocess.STDOUT, check=False)
