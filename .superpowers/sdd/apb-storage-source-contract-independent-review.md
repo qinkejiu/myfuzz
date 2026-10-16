@@ -1,0 +1,7 @@
+# Independent review: closed APB storage source contract
+
+Root reviewed implementation 2dbcc2d against the generic APB storage producer design, actual two pinned timer RTL files and the pure negative controls. Spec compliance and code quality are approved for this documentary source-contract increment; no high/medium blocker found.
+
+The actual top selects timer0 with address bit4 clear, while the child truncates its register selector to bits3:2. The combined CTRL0 predicate is therefore bits4:2 == 1, including low-bit and upper-bit aliases. The implementation preserves all512 raw aliases separately from host alignment. Actual CTRL storage has reset/write/hold writers; COUNT changes do not write CTRL. Exact source closure, parameters, reset and register facts select the contract independently of component_id. Revalidation rereads source bytes; canonical JSON preserves bool/int distinctions and rejects caller expression/authority changes.
+
+Independent command: `PYTHONPATH=src:. PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q tests/local_harness/test_apb_storage_source_contract.py`; actual exit0,51 passed in0.41s. This is software evidence only. No subprocess/frontend/model/build/native operation was performed. Prospective hierarchy remains unverified and all live/reset/version/source authority flags remain false. Generation, producer eligibility and continuous F4 remain separate open work.
