@@ -2,7 +2,7 @@
 
 2026-10-17 P7 D4：[精确 D2 产物消费、严格 D3 拒绝与真实 CV32E40P 双 GPIO 子集报告](p7-d4-bounded-artifact-execution-20261017.md)。本地隔离真实门 2 passed，八例连续会话及 4,021 事件 fresh 全量重放匹配；编译路径语义映射缺失，自动 D3 执行仍拒绝。
 
-2026-10-17 OBI CPU 事件：[通用协议事件、检查器和证据合成门报告](obi-protocol-events-20261017.md)。224 passed、67 subtests；真实 Ibex 保存收据缺原始 OBI 引脚 tap，故本条仅证明软件协议层，不授真实 CPU 物理事件等级。
+2026-10-17 OBI CPU 事件：[通用协议事件、检查器和证据合成门报告](obi-protocol-events-20261017.md)先通过 224 passed、67 subtests；随后[Ibex 原始 OBI 被动 tap 真实门](ibex-raw-obi-protocol-20261017.md)通过 2 passed，两次 fresh 各由 100 个原始边沿样本认证 52 条事务，篡改响应被拒。Runner 多端点接入及 CPU/IP 事务关联仍待实现。
 
 2026-10-17 VexiiRiscv：[受限双 AXI 生成式 CPU/RAM 报告](vexiiriscv-generated-harness-20261017.md)。远端真实门禁 9 passed；两次 fresh 进程各完成 55 边沿、11 次 fetch、1 次 LSU 读和 2 次写响应，读响应替换的因果对照改变结果；仅生成式 CPU/RAM 定向等级。
 

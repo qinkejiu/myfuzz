@@ -237,6 +237,8 @@ F6 DMA 已有真实 ZipCPU `wbdmac` 主设备 harness 与持久 RAM→RAM 四字
 
 VexiiRiscv 固定生成 RTL 的双 AXI 定向 RAM 运行已实测，随后受限双 AXI 生成式 profile、driver 和 session 也完成独立门禁：两次 fresh 进程各在 55 个实测边沿完成 11 次 fetch、1 次 LSU 读、2 次写响应，RAM 得 `[53,54]`；替换唯一读响应的对照得到 `[53,1]`，原始样本及构建身份相同、执行 ID 不同。该能力仅为生成式 CPU/RAM 定向，不含 CPU/IP、IRQ、证据消费者/coverage、认证前缀 replay 或在线变异；见 [生成式 VexiiRiscv 报告](reports/vexiiriscv-generated-harness-20261017.md)。
 
+Ibex OBI CPU runtime 现额外导出两端点、合计 15 个真实 CPU 侧被动 tap，与 adapter beat 样本分组保存。远端真实门的两次 fresh 进程各取 100 个原始边沿样本，经通用 OBI 事件/检查器/证据消费者认证 52 条事务（指令 49、数据 3），checker 零违约；采样末端 2 个请求仍在飞。篡改指令响应后，该端点证书被拒；见[原始 OBI 协议报告](reports/ibex-raw-obi-protocol-20261017.md)。该离线投影尚未接入 Runner 多端点路径或跨 CPU/IP 事务关联。
+
 ZipCPU `wbdmac` 已在真实生成式 session 中完成两次独立四字 RAM→RAM 传输：每次四读四写、四笔目的 RAM 提交、第 34 边沿真实 IRQ，完整轨迹归一化进程 UUID 后一致。这一局部运行没有 CPU 配置或消费 IRQ；实测环境对写 burst 尾 ACK 使用一边沿额外延迟，任意延迟稳健性未证。详见 [真实 DMA RAM 报告](reports/zipcpu-wbdmac-real-ram-20261017.md)。
 
 后续 Ibex＋`wbdmac` 定向闭环已补齐上述 CPU 端缺口：CPU 真实 OBI 写入四个源字和四笔 DMA 配置，DMA 真实搬运四字，native IRQ 在 DMA 边沿 92 发出并经显式 pending-level latch 于 CPU tick 76～79 交付，真实 `irq_taken_pre` 在 tick 79 出现，ISR 读取真实 DMA 状态和目的 RAM 值并写成功标记。两组全新 Ibex／DMA 进程的规范化完整轨迹一致；见[定向闭环报告](reports/ibex-zipcpu-dma-irq-isr-directed-20261017.md)。这是有界 host 事务调度的 RAM→RAM 场景，不含含真实 IP FIFO 的方向、在线搜索或认证前缀 replay。
