@@ -1,0 +1,44 @@
+{
+  "source_only_audit": true,
+  "new_native_run": false,
+  "remote_root": "/root/fanzehui/cvw-caliptra-chain-20261017",
+  "historical_inputs": {
+    "first.json": {
+      "original_sha256": "915bac7a714e9a1993dfcbe4ffb4402e687f33b67d7c26ce3d1025888284df19",
+      "original_bytes": 3311887,
+      "gzip_sha256": "4c28eea18443372b0224561931fed4ddbc5c49eaa9ff01cb0c2fdb87bdc939de"
+    },
+    "fresh.json": {
+      "original_sha256": "575ce1567aacfe2808bb4f11812a13bf7d2f9ee3432ab0f2b742c99cfc51422f",
+      "original_bytes": 3311887,
+      "gzip_sha256": "31db5c0615d58eb7377860e2b59ac63a2492553972579047648f7e8f01d6437d"
+    },
+    "artifact-aadf.json": {
+      "original_sha256": "d54c9b3a30e54268c2818c0f57f0fa5273a4b973f36ac134bad4bdd7eab92b56",
+      "original_bytes": 101995,
+      "gzip_sha256": "2e2006e7eb879ce5dad52412b70716d3fe2f98a2929acd6a48d5cf105e2b10ee"
+    }
+  },
+  "current_source_sha256": {
+    "src/myfuzz/local_harness/runtime_renderer.py": "521956a288c60c36816137c080659871f51bcac95640ca65c76af8a14666686f",
+    "src/myfuzz/local_harness/native_session.py": "d0d2df8ee6ef5b86a1d0eb743f0c4fa3bc5e51dde016184311069547d3c072b1",
+    "src/myfuzz/local_harness/ahb_lite_session.py": "2bf3199d56002db7f099b6b7f8a67ed4869826210debc4078740d85ddd5a3fa2",
+    "src/myfuzz/local_harness/driver_renderer.py": "d6e70baaed5a41fc3e12a780b2b388177997d5ad61808830ce0f5afd121469dd",
+    "src/myfuzz/protocols/rtl/ahb_lite_memory_target.sv": "c577139848a9e11b3df7ecd62152a2126ced6b26c7935309382e14ec76e8c2a8",
+    "configs/cpus/cvw/component_profile.json": "c60ddb291a62784591e2c221663f84d5ae97c1e663426e0aef883d594b76ab2a"
+  },
+  "historical_cpu_samples_per_run": 1248,
+  "historical_accepted_backend_requests": 261,
+  "historical_backend_writes": 51,
+  "historical_backend_responses": 261,
+  "historical_pending_responses": 0,
+  "historical_ahb_roles_exposed": 0,
+  "historical_physical_exports": [
+    "HCLK",
+    "HREADY",
+    "HRESETn"
+  ],
+  "historical_whole_document_difference": [
+    "executions"
+  ]
+}
