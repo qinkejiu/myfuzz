@@ -5,8 +5,10 @@ Produced from a detached worktree snapshot at source commit
 gate-test key fix) under
 `flock -w 14400 /home/qinkejiu/myfuzz/.superpowers/heavy-worker.lock`.
 Other agents' uncommitted changes in the main worktree were not part of the
-snapshot. The PULP GPIO submodule was populated from the local object store, not
-from the network.
+snapshot. The PULP GPIO submodule in that snapshot was checked out at the pinned
+commit `f82caeb7f7d89427f05e9af5ed31e0675efe0d83`; the derived source contract
+re-hashed its `rtl/apb_gpio.sv` bytes before the run, and the GPIO artifact
+digest in `summary.json` binds the exact file set used.
 
 ## Files
 
