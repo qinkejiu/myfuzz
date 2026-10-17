@@ -85,7 +85,11 @@ result is claimed here.
     the full fresh replay, writes/records `fresh-verification.json`,
     `compiled_receipt_join.v1.json`, the compiled prefix/replay artifacts and
     the authenticated bundle copy, and refuses a nonzero client return code.
-  - `scripts/auto_harness_test.py --executor` passes the selection through.
+  - `scripts/auto_harness_test.py --executor` passes the selection through,
+    and `--rounds-per-case` (default 128, 1..4096) is threaded through
+    `run_compiled_session` into the compiled runtime; out-of-range values and a
+    non-default value without a compiled executor are named refusals before any
+    stage.
 
 ## Design deviation the root session must review
 
@@ -120,8 +124,9 @@ All commands: `cd /home/qinkejiu/myfuzz && PYTHONPATH=src python3 -m pytest -q`.
 
 | command | result |
 |---|---|
-| `pytest -q tests/integration/test_compiled_online_decoder.py` | **20 passed, 0 failed** in 30.28 s |
-| `pytest -q tests/integration/test_compiled_online_decoder.py tests/integration/test_auto_harness_test.py` | **44 passed, 0 failed** in 136.70 s |
+| `pytest -q tests/integration/test_compiled_online_decoder.py` | **21 passed, 0 failed** in 31.62 s |
+| `pytest -q tests/integration/test_auto_harness_test.py` | **33 passed, 0 failed** in 136.24 s |
+| `pytest -q tests/integration/test_compiled_online_decoder.py tests/integration/test_auto_harness_test.py` | **54 passed, 0 failed** in 161.95 s |
 | `pytest -q tests/integration/test_compiled_f4.py tests/integration/test_compiled_f4_storage_producer.py tests/integration/test_compiled_candidate_layout.py` | **104 passed, 1 skipped** in 176.22 s (rerun after the wire change) (the skip is the existing `MYFUZZ_COMPILED_F4_REAL=1` native gate, intentionally not run) |
 | `pytest -q tests/integration/test_compiled_execution_files.py tests/integration/test_compiled_execution_projection.py tests/integration/test_compiled_artifact_admission.py tests/integration/test_compiled_f4_layout_replay_audit.py` | **77 passed, 0 failed** in 116.58 s (rerun after the digest fix) |
 | `python3 scripts/auto_harness_test.py --cpu configs/cpus/ibex_obi_local/component_profile.json --ip configs/peripherals/pulp_timer/component_profile.json --ip-capability configs/scenarios/compiled-f4-obi-apb-timer/test_capability.json --compose configs/scenarios/compiled-f4-obi-apb-timer/compose.json --output <new> --executor compiled-f4-rfuzz --skip-session` | exit 0; `status=complete`; `executor.status=ok`, name `compiled-f4-rfuzz`, `family_fallback=false`; session/fresh `not_requested` |
@@ -138,10 +143,13 @@ control, two different execution UUIDs producing the same normalized replay
 hash while the raw event hash differs, and the no-component-name-branch parse
 guard, that one and eight cycle tests parse while nine are refused, that an
 eight-cycle test executes every record with one aggregate receipt/coverage
-vector, and that an eight-cycle test over `max_cases` refuses before any
-submit. The four CLI tests cover: no client ⇒ named absence (no family
-fallback), unknown executor ⇒ named refusal, executor + runtime ⇒ named
-refusal, and `--executor … --skip-session` ⇒ exit 0 with the selection visible.
+vector, that an eight-cycle test over `max_cases` refuses before any submit,
+and that `--rounds-per-case` reaches the compiled session while 0/4097/bool/
+non-int values refuse and a non-default value without a compiled executor
+refuses. The CLI tests cover: no client ⇒ named absence (no family fallback),
+unknown executor ⇒ named refusal, executor + runtime ⇒ named refusal,
+`--executor … --skip-session` ⇒ exit 0 with the selection visible, and
+`--rounds-per-case 32` accepted on the compiled route.
 
 
 ## Follow-up after the first real-gate attempt (`2a9e84b`, before RTL)
@@ -204,6 +212,25 @@ budget is sized `max_tests * 8 + 8` so a test can carry its full sequence;
 `max_tests` still counts wire tests. Coverage is the union of the actual commit
 predicates of every certificate in the test.
 
+
+## Per-case rounds budget (`--rounds-per-case`)
+
+The compiled route accepts an explicit `--rounds-per-case` (default 128,
+allowed 1..4096). It is threaded through `run_compiled_session` into
+`run_compiled_f4_rfuzz_session` and `CompiledF4Runtime(rounds_per_case=...)`;
+the decoder/executor read the runtime's `rounds`, so every candidate case in a
+test uses the declared value. Validation happens before any stage:
+out-of-range (including `bool` and non-int) refuses `rounds-per-case-invalid`
+at `/rounds-per-case`, and a non-default value without a compiled executor
+refuses `rounds-per-case-requires-a-compiled-executor`. The value is never
+inferred from timing.
+
+The real gate uses `--rounds-per-case 32`: the native client's eight-record
+test then drives 8 candidate cases at 32 rounds each, which fits the wall
+budget; if 32 rounds is too short for the case to commit, 48/64 remain inside
+the declared 1..4096 range. A too-short value is not a pass: it fails the real
+gate's own receipt/verification artifacts.
+
 ## Real gate (NOT run here; for the root session)
 
 ```
@@ -214,7 +241,8 @@ PYTHONPATH=src python3 scripts/auto_harness_test.py \
   --compose configs/scenarios/compiled-f4-obi-apb-timer-cve2/compose.json \
   --executor compiled-f4-rfuzz \
   --client-binary runs/rfuzz_client_native_build/target/debug/kfuzz \
-  --budget-seconds 60 --max-tests 200 --output runs/p7-i4-<utc>/ \
+  --budget-seconds 60 --max-tests 200 --rounds-per-case 32 \
+  --output runs/p7-i4-<utc>/ \
   --cache-dir .superpowers/cache-p7-i4-<utc>
 ```
 

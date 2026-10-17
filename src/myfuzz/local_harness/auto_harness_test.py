@@ -106,6 +106,13 @@ DEFAULT_CACHE_DIR = '.superpowers/cache/local-harness'
 #: The single heavy-worker lock every real-RTL run in this repository takes.
 HEAVY_WORKER_LOCK = '.superpowers/sdd/stage2-heavy-worker.lock'
 
+#: Compiled-route per-case local advance rounds.  The gate may shorten them to
+#: keep a full 8-record test inside the wall budget; the value is explicit and
+#: never inferred from timing.
+DEFAULT_ROUNDS_PER_CASE = 128
+MIN_ROUNDS_PER_CASE = 1
+MAX_ROUNDS_PER_CASE = 4096
+
 #: Stage verdicts.
 OK = 'ok'
 REFUSED = 'refused'
@@ -1021,7 +1028,8 @@ def load_compiled_session_inputs(*,generated_root,base_dir,request,compiled):
 
 def run_compiled_session(*,artifacts,compiled_inputs,base_dir,cache_dir,run_id,
                          output_dir,session_dir,client_binary,budget_seconds,
-                         max_tests,search_seed,max_runs_per_batch):
+                         max_tests,search_seed,max_runs_per_batch,
+                         rounds_per_case=DEFAULT_ROUNDS_PER_CASE):
     """Start one compiled F4 RFuzz session and its full fresh prefix replay."""
     from myfuzz.integration.compiled_rfuzz import run_compiled_f4_rfuzz_session
     return run_compiled_f4_rfuzz_session(
@@ -1029,7 +1037,8 @@ def run_compiled_session(*,artifacts,compiled_inputs,base_dir,cache_dir,run_id,
         cache_dir=cache_dir,run_id=run_id,session_dir=session_dir,
         output_dir=output_dir,client_binary=client_binary,
         budget_seconds=budget_seconds,max_tests=max_tests,
-        search_seed=search_seed,max_runs_per_batch=max_runs_per_batch)
+        search_seed=search_seed,max_runs_per_batch=max_runs_per_batch,
+        rounds_per_case=rounds_per_case)
 
 
 def _compiled_session_preflight(*,client_binary,cache_dir,base_dir,
@@ -1249,7 +1258,8 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
                           build_cache=None, budget_seconds=60.0, max_tests=200,
                           search_seed=None, max_runs_per_batch=1,
                           skip_session=False, label=None,
-                          ip_capabilities=(), executor=None) -> dict:
+                          ip_capabilities=(), executor=None,
+                          rounds_per_case=DEFAULT_ROUNDS_PER_CASE) -> dict:
     """Run every requested P7 stage and return the machine-readable summary.
 
     The returned summary is also written to ``<output>/run-summary.json`` and
@@ -1261,7 +1271,9 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
     ``executor`` selects the code-owned compiled route instead of a runtime
     family.  It is never combined with ``runtime`` and never falls back to a
     family: the selected executor, the one executable D3 F4 target and the
-    client binary are all required explicitly.
+    client binary are all required explicitly.  ``rounds_per_case`` is the
+    compiled route's per-case local advance count (default 128, 1..4096); a
+    non-default value is refused unless a compiled executor is selected.
     """
     base = Path(base_dir).resolve()
     output = Path(output)
@@ -1287,6 +1299,7 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
         'started_utc': _utc_now(),
         'runtime_family': family_stage,
         'executor': executor_stage,
+        'rounds_per_case': rounds_per_case,
         'stages': {
             # The driver is a stage like any other: its verdict is the run's own,
             # a named ``refuse('driver', ...)`` updates it, and ``finish()``
@@ -1397,6 +1410,24 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
         return summary
 
     try:
+        # -- compiled-route budget: explicit, bounded, never inferred -------
+        if (type(rounds_per_case) is not int
+                or not MIN_ROUNDS_PER_CASE <= rounds_per_case
+                <= MAX_ROUNDS_PER_CASE):
+            refuse('driver', 'rounds-per-case-invalid', '/rounds-per-case',
+                   {'observed': rounds_per_case,
+                    'allowed': f'{MIN_ROUNDS_PER_CASE}..{MAX_ROUNDS_PER_CASE}'})
+            return finish()
+        if (executor is None
+                and rounds_per_case != DEFAULT_ROUNDS_PER_CASE):
+            refuse('driver', 'rounds-per-case-requires-a-compiled-executor',
+                   '/rounds-per-case',
+                   {'observed': rounds_per_case,
+                    'requires': ('--rounds-per-case is a compiled-route budget; '
+                                 'the family route keeps '
+                                 f'{DEFAULT_ROUNDS_PER_CASE}')})
+            return finish()
+
         # -- executor selection: a closed set, never a family fallback ------
         if executor is not None:
             if runtime is not None:
@@ -1422,7 +1453,8 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
                 status=OK, name=executor,
                 detail={'entry': COMPILED_EXECUTORS[executor]['entry'],
                         'requires': COMPILED_EXECUTORS[executor]['requires'],
-                        'family_fallback': False})
+                        'family_fallback': False,
+                        'rounds_per_case': rounds_per_case})
 
         # -- D1: the declaration review is the first refusal point ----------
         review_paths = [cpu, *ips]
@@ -1654,7 +1686,8 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
                         session_dir=output / 'session', client_binary=client,
                         budget_seconds=budget_seconds, max_tests=max_tests,
                         search_seed=search_seed,
-                        max_runs_per_batch=max_runs_per_batch)
+                        max_runs_per_batch=max_runs_per_batch,
+                        rounds_per_case=rounds_per_case)
                 if outcome['live'].client_returncode != 0:
                     raise ValueError(
                         'compiled-rfuzz-client-returncode:'
@@ -1747,6 +1780,7 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
                     detail={'entry': COMPILED_EXECUTORS[executor]['entry'],
                             'requires': COMPILED_EXECUTORS[executor]['requires'],
                             'family_fallback': False,
+                            'rounds_per_case': rounds_per_case,
                             'receipt_join': outcome['join']['status'],
                             'fresh_replay': verification['matches']})
         elif family is None:

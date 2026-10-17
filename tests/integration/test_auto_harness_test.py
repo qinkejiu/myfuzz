@@ -33,6 +33,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -729,3 +730,134 @@ def test_the_cli_passes_the_executor_through_for_a_software_only_run(tmp_path):
     executable = [row for row in compiled['paths']
                   if row['flow_id'] == 'F4' and row['status'] == 'executable']
     assert len(executable) == 1
+
+
+# ---------------------------------------------------------------------------
+# compiled-route rounds-per-case budget
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize('value', [0, 4097, True, '32', None])
+def test_rounds_per_case_outside_1_to_4096_is_refused_before_any_stage(
+        tmp_path, value):
+    from myfuzz.local_harness.auto_harness_test import run_auto_harness_test
+    output = tmp_path / 'rounds-invalid'
+    summary = run_auto_harness_test(
+        cpu=ROOT / TIMER_CPU, ips=[ROOT / TIMER_IP],
+        ip_capabilities=[ROOT / TIMER_CAPABILITY],
+        compose=ROOT / TIMER_COMPOSE, output=output, base_dir=ROOT,
+        executor='compiled-f4-rfuzz', rounds_per_case=value)
+    assert summary['status'] == 'refused'
+    assert any(row.get('code') == 'rounds-per-case-invalid'
+               for row in summary['refusals']), summary['refusals']
+    # The refusal happens before D1, so no declaration document was written.
+    assert not (output / 'declaration-review.json').exists()
+
+
+def test_a_non_default_rounds_per_case_requires_the_compiled_executor(tmp_path):
+    from myfuzz.local_harness.auto_harness_test import run_auto_harness_test
+    output = tmp_path / 'rounds-family'
+    summary = run_auto_harness_test(
+        cpu=ROOT / TIMER_CPU, ips=[ROOT / TIMER_IP],
+        ip_capabilities=[ROOT / TIMER_CAPABILITY],
+        compose=ROOT / TIMER_COMPOSE, output=output, base_dir=ROOT,
+        rounds_per_case=32)
+    assert summary['status'] == 'refused'
+    assert any(row.get('code') ==
+               'rounds-per-case-requires-a-compiled-executor'
+               for row in summary['refusals']), summary['refusals']
+    assert not (output / 'declaration-review.json').exists()
+
+
+def test_rounds_per_case_reaches_the_compiled_session(monkeypatch, tmp_path):
+    from myfuzz.local_harness import auto_harness_test as driver
+    from myfuzz.local_harness import compiled_execution_projection as projection
+
+    output = tmp_path / 'rounds-pass-through'
+    client = tmp_path / 'kfuzz'
+    client.write_bytes(b'')
+    cache = tmp_path / 'cache'
+    cache.mkdir()
+    captured: dict = {}
+
+    monkeypatch.setattr(
+        driver, 'load_compiled_session_inputs',
+        lambda **kwargs: ({}, {'request': None,
+                               'compiled': {'paths': []},
+                               'ownership': None,
+                               'physical_port_map': {}}))
+    monkeypatch.setattr(driver, '_compiled_session_preflight',
+                        lambda **kwargs: (client, cache))
+    monkeypatch.setattr(
+        projection, 'assess_compiled_f4_support',
+        lambda **kwargs: {'schema_version': 'compiled_F4_support.v1',
+                          'status': 'supported_requires_actual_startup',
+                          'execution_supported': 1})
+
+    def fake_session(**kwargs):
+        captured.update(kwargs)
+        session = Path(kwargs['session_dir'])
+        session.mkdir(parents=True)
+        (session / 'report.json').write_text(json.dumps({
+            'tests': 1, 'statuses': {'certified': 1},
+            'execution_status': 'complete', 'elapsed_seconds': 0.1,
+            'effective_search_seconds': 0.1}), encoding='utf-8')
+        return {
+            'live': SimpleNamespace(
+                tests=1, completed_feedback_exchanges=1,
+                statuses={'certified': 1}, client_returncode=0,
+                effective_search_seconds=0.1),
+            'verification': {'schema_version': 'fresh_verification.v1',
+                             'matches': True, 'first_difference': None,
+                             'verification_scope': 'full'},
+            'join': {'schema_version': 'compiled_receipt_join.v1',
+                     'status': 'ok', 'path_id': 'F4:ram.image',
+                     'source_id': 's', 'rows': 1}}
+
+    monkeypatch.setattr(driver, 'run_compiled_session', fake_session)
+
+    def fake_bundle(*, session_dir, bundle_dir):
+        bundle_dir.mkdir(parents=True, exist_ok=True)
+        (bundle_dir / 'bundle-manifest.json').write_text('{}\n',
+                                                          encoding='utf-8')
+        return {'schema_version': 'x'}
+
+    monkeypatch.setattr(driver, 'write_authenticated_bundle', fake_bundle)
+    summary = driver.run_auto_harness_test(
+        cpu=ROOT / TIMER_CPU, ips=[ROOT / TIMER_IP],
+        ip_capabilities=[ROOT / TIMER_CAPABILITY],
+        compose=ROOT / TIMER_COMPOSE, output=output, base_dir=ROOT,
+        executor='compiled-f4-rfuzz', client_binary=client, cache_dir=cache,
+        budget_seconds=1, max_tests=2, rounds_per_case=32)
+    assert captured['rounds_per_case'] == 32
+    assert summary['rounds_per_case'] == 32
+    assert summary['executor']['detail']['rounds_per_case'] == 32
+
+
+def test_the_compiled_session_wrapper_forwards_rounds_per_case(monkeypatch):
+    from myfuzz.integration import compiled_rfuzz as integration
+    from myfuzz.local_harness import auto_harness_test as driver
+
+    captured: dict = {}
+
+    def fake(**kwargs):
+        captured.update(kwargs)
+        return 'sentinel'
+
+    monkeypatch.setattr(integration, 'run_compiled_f4_rfuzz_session', fake)
+    result = driver.run_compiled_session(
+        artifacts={}, compiled_inputs={}, base_dir=ROOT, cache_dir=ROOT,
+        run_id='x', output_dir=ROOT, session_dir=ROOT, client_binary=ROOT,
+        budget_seconds=1, max_tests=1, search_seed=None,
+        max_runs_per_batch=1, rounds_per_case=32)
+    assert result == 'sentinel'
+    assert captured['rounds_per_case'] == 32
+
+
+def test_the_cli_accepts_rounds_per_case_for_the_compiled_route(tmp_path):
+    output = tmp_path / 'compiled-rounds'
+    result, payload = run_cli(
+        *compiled_arguments(output, '--executor', 'compiled-f4-rfuzz',
+                            '--skip-session', '--rounds-per-case', '32'))
+    assert result.returncode == 0, result.stderr[-4000:]
+    assert payload['rounds_per_case'] == 32
+    assert payload['executor']['status'] == 'ok'

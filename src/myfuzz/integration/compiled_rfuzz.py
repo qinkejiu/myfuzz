@@ -775,6 +775,8 @@ def run_compiled_f4_rfuzz_session(*, artifacts, compiled_inputs, base_dir,
     """
     from myfuzz.integration.scenario_rfuzz_live import run_scenario_rfuzz_live
 
+    if type(rounds_per_case) is not int or not 1 <= rounds_per_case <= 4096:
+        raise ValueError('compiled-rfuzz-rounds-per-case-invalid')
     output = Path(output_dir)
     session = Path(session_dir)
     cache = Path(cache_dir)

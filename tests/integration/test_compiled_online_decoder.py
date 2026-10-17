@@ -554,3 +554,15 @@ def test_an_eight_cycle_test_over_max_cases_refuses_before_any_submit(gpio):
 def test_the_compiled_executor_overrides_the_one_cycle_wire_parser():
     assert (CompiledRfuzzExecutor.process_owned_pair
             is not ScenarioRfuzzExecutor.process_owned_pair)
+
+
+def test_the_compiled_session_helper_refuses_rounds_outside_1_to_4096(tmp_path):
+    from myfuzz.integration.compiled_rfuzz import run_compiled_f4_rfuzz_session
+    with pytest.raises(ValueError,
+                       match='compiled-rfuzz-rounds-per-case-invalid'):
+        run_compiled_f4_rfuzz_session(
+            artifacts=None, compiled_inputs=None, base_dir=ROOT,
+            cache_dir=tmp_path, run_id='rounds', session_dir=tmp_path / 's',
+            output_dir=tmp_path / 'o', client_binary=ROOT / 'kfuzz',
+            budget_seconds=1, max_tests=1, search_seed=None,
+            max_runs_per_batch=1, rounds_per_case=0)

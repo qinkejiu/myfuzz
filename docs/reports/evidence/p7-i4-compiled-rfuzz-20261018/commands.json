@@ -5,25 +5,25 @@
       "command": "PYTHONPATH=src python3 -m pytest -q tests/integration/test_compiled_online_decoder.py",
       "counts": {
         "failed": 0,
-        "passed": 20,
+        "passed": 21,
         "skipped": 0
       },
       "cwd": "/home/qinkejiu/myfuzz",
       "id": "new-decoder-and-bridge",
       "result": "passed",
-      "seconds": 30.28
+      "seconds": 31.62
     },
     {
       "command": "PYTHONPATH=src python3 -m pytest -q tests/integration/test_compiled_online_decoder.py tests/integration/test_auto_harness_test.py",
       "counts": {
         "failed": 0,
-        "passed": 44,
+        "passed": 54,
         "skipped": 0
       },
       "cwd": "/home/qinkejiu/myfuzz",
       "id": "new-plus-auto-harness",
       "result": "passed",
-      "seconds": 136.7
+      "seconds": 161.95
     },
     {
       "command": "PYTHONPATH=src python3 -m pytest -q tests/integration/test_compiled_f4.py tests/integration/test_compiled_f4_storage_producer.py tests/integration/test_compiled_candidate_layout.py",
@@ -56,6 +56,18 @@
       "exit_code": 0,
       "id": "cli-software-only-executor",
       "result": "complete"
+    },
+    {
+      "command": "PYTHONPATH=src python3 -m pytest -q tests/integration/test_auto_harness_test.py",
+      "counts": {
+        "failed": 0,
+        "passed": 33,
+        "skipped": 0
+      },
+      "cwd": "/home/qinkejiu/myfuzz",
+      "id": "auto-harness-full",
+      "result": "passed",
+      "seconds": 136.24
     }
   ],
   "executor": "compiled-f4-rfuzz",
@@ -104,8 +116,32 @@
       "fresh-verification.json matches=true and verification_scope=full",
       "no fabricated Bug confirmed"
     ],
-    "command": "PYTHONPATH=src python3 scripts/auto_harness_test.py --cpu configs/cpus/cv32e20/component_profile.json --ip configs/peripherals/pulp_timer/component_profile.json --ip-capability configs/scenarios/compiled-f4-obi-apb-timer-cve2/test_capability.json --compose configs/scenarios/compiled-f4-obi-apb-timer-cve2/compose.json --executor compiled-f4-rfuzz --client-binary runs/rfuzz_client_native_build/target/debug/kfuzz --budget-seconds 60 --max-tests 200 --output runs/p7-i4-<utc>/ --cache-dir .superpowers/cache-p7-i4-<utc>",
+    "command": "PYTHONPATH=src python3 scripts/auto_harness_test.py --cpu configs/cpus/cv32e20/component_profile.json --ip configs/peripherals/pulp_timer/component_profile.json --ip-capability configs/scenarios/compiled-f4-obi-apb-timer-cve2/test_capability.json --compose configs/scenarios/compiled-f4-obi-apb-timer-cve2/compose.json --executor compiled-f4-rfuzz --client-binary runs/rfuzz_client_native_build/target/debug/kfuzz --budget-seconds 60 --max-tests 200 --rounds-per-case 32 --output runs/p7-i4-<utc>/ --cache-dir .superpowers/cache-p7-i4-<utc>",
     "status": "not_run"
+  },
+  "rounds_per_case": {
+    "bounds": [
+      1,
+      4096
+    ],
+    "default": 128,
+    "flag": "--rounds-per-case",
+    "flow": "CLI -> run_auto_harness_test -> run_compiled_session -> run_compiled_f4_rfuzz_session -> CompiledF4Runtime(rounds_per_case=...)",
+    "gate_value": 32,
+    "note": "the gate uses 32; if a case does not commit at 32 rounds the gate fails and 48/64 remain inside the declared range",
+    "refusals": [
+      "rounds-per-case-invalid",
+      "rounds-per-case-requires-a-compiled-executor",
+      "compiled-rfuzz-rounds-per-case-invalid"
+    ],
+    "tests": [
+      "test_rounds_per_case_outside_1_to_4096_is_refused_before_any_stage",
+      "test_a_non_default_rounds_per_case_requires_the_compiled_executor",
+      "test_rounds_per_case_reaches_the_compiled_session",
+      "test_the_compiled_session_wrapper_forwards_rounds_per_case",
+      "test_the_cli_accepts_rounds_per_case_for_the_compiled_route",
+      "test_the_compiled_session_helper_refuses_rounds_outside_1_to_4096"
+    ]
   },
   "schema_version": "p7_i4_pure_software_handoff.v1",
   "status": "pure_software_only_real_gate_not_run",
