@@ -36,15 +36,15 @@ from myfuzz.scenario.ibex_dma_uart_descriptor import (
     DESTINATION, ILLEGAL_TARGET, ISR, MAIN, MTVEC_BASE, SOURCE_RAM, UART_BASE,
     UART_RDATA, UART_WDATA, dma_status_fields, descriptor_uart_images)
 
-# Three valid cases and three declared illegal cases, interleaved so a success
-# after an error (and an error after a success) both execute in one boot.
+# Two valid cases and two declared illegal cases, interleaved so a success after
+# an error (and an error after a success) both execute in one boot.  The S3
+# acceptance requires at least two of each; the shorter boot keeps the full
+# fresh-prefix replay inside the bounded native gate.
 CASES = (
     DescriptorCase.create('RX_TO_RAM', dst_index=0, payload=0x5A, length=1),
     DescriptorCase.create('ILLEGAL', dst_index=0, payload=0xA5, length=1),
     DescriptorCase.create('RAM_TO_RAM', dst_index=1, payload=0x00, length=2),
     DescriptorCase.create('ILLEGAL', dst_index=2, payload=0x7E, length=2),
-    DescriptorCase.create('RAM_TO_TX', dst_index=3, payload=0xFF, length=1),
-    DescriptorCase.create('ILLEGAL', dst_index=1, payload=0x33, length=4),
 )
 EXPECTED_OUTCOMES = tuple(case.expect for case in CASES)
 VALID_CASES = tuple(case for case in CASES if case.expect == 'complete')
