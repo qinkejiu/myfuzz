@@ -89,3 +89,15 @@ python3 /root/fanzehui/myfuzz/operations/p6-native-online-c924aac-20261018-attem
 Success requires positive3 CPU/IP/CPU packets plus full fresh, controlled response corruption1 packet plus controlled full fresh, two actual model processes per run (eight total) reaped0, exact same original process/nonce/epoch across cases and distinct fresh identities. Preserve all plan/events/raw receipts and actual readback→CPU response→joint RAM/GPIO joins; per-runner failure namespaces and original primary error remain authoritative on failure.
 
 Only after independent evidence audit may the result be called this bounded directed gate passed. It does not complete18-cell campaigns, RFuzz searched, authenticated retirement/source authority, four feedback hit classes, throughput/P8 or P7. No actual command/exit/model count is claimed by this plan.
+
+## 7. Local Pico Git metadata inspection (filesystem only)
+
+After the tool-status correction, independently inspected the local `third_party/picorv32_upstream_reference/.git` filesystem/config/refs using standard-library reads/lstat and plain file hashes. No Git executable, project import, model, build or test was invoked; no metadata was changed.
+
+- `.git` is an embedded directory, not a worktree pointer. It has29 regular files totalling287,634 bytes and17 directories including its root. All regular files have nlink1; no symlinks or special files were observed.
+- Empty directories are `branches`, `objects/info` and `refs/tags`. Preserve them explicitly. `objects/` and `refs/` both exist, unlike the failed remote Ibex metadata layout.
+- No `.promisor` pack, alternates, commondir/gitdir pointer, partialclone/promisor/worktree/alternate/extensions config token or external config include was found. Actual config contains only normal core settings, origin URL/fetch and main branch tracking. The remote URL is documentary provenance, not permission to fetch.
+- This is a **shallow** source checkout: `.git/shallow` contains exactly `ef203c2b0a3fb793280f5114941416c425c5b461`. HEAD is `ref: refs/heads/main`; the actual loose ref contains the same selected revision. A shallow boundary is distinct from promisor/lazy external object storage and is preserved, not silently removed.
+- HEAD SHA256 `28d25bf82af4c0e2b72f50959b2beb859e3e60b9630a5e8c603dad4ddb2b6e80`; shallow/loose-main-ref bytes each SHA256 `f7bb154b9816ed9fe06cbf857323a3c90c7a705e9c62247afebd31f4c123798d`; config SHA256 `944102eeb7d237ec4dc827a40176e8ebbc9d4b6e0fb3e6adfc0a83ac123e01dc`; packed-refs SHA256 `5dca083a1dd1ab25583256f233aa60f5c85686cdf102c7806c5bb1d530b859ea`.
+
+Filesystem findings permit preparing an independent byte copy without first rewriting/promisor-materializing this Pico metadata. They do **not** prove pack connectivity or that every pinned blob is present: those require root-approved exact Git source-verification/preparation operations against the copied tree. Preserve full `.git` files/modes and all17 directories, freeze source before/after and copy without hardlinks; do not assume the PULP/root Git metadata shares Pico's clean layout. No remote copy or connectivity command was performed by this inspection.
