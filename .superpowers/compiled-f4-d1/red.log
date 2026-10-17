@@ -1,0 +1,749 @@
+FFFFFFFFFFFFFFFFFFFFFFFFFFFF                                             [100%]
+=================================== FAILURES ===================================
+____ test_registered_generic_timer_is_admitted_by_closed_producer_selection ____
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+
+    def test_registered_generic_timer_is_admitted_by_closed_producer_selection(timer_generated):
+        from myfuzz.integration.compiled_f4 import admit_f4
+        artifacts, inputs = timer_generated
+        with patch('subprocess.Popen', side_effect=AssertionError('pure source admission')):
+>           path = admit_f4(artifacts=artifacts, compiled_inputs=inputs, base_dir=ROOT)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           TypeError: admit_f4() got an unexpected keyword argument 'base_dir'
+
+tests/integration/test_compiled_f4_storage_producer.py:90: TypeError
+_______________ test_gpio_causal_row_preserves_existing_producer _______________
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+gpio_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cv32e...cenario.ownership.OwnershipMap object at 0x77c08de29640>, 'physical_port_map': {('peripheral', 'gpio_in'): 'gpio_in'}})
+
+    def test_gpio_causal_row_preserves_existing_producer(timer_generated, gpio_generated):
+        from myfuzz.integration.compiled_f4 import admit_f4
+        artifacts, inputs = gpio_generated
+        timer_artifacts, timer_inputs = timer_generated
+        with patch('subprocess.Popen', side_effect=AssertionError('pure admission')):
+            path = admit_f4(artifacts=artifacts, compiled_inputs=inputs)
+>           binding = selector().select_storage_producer(artifacts=artifacts, compiled_inputs=inputs)
+                      ^^^^^^^^^^
+
+tests/integration/test_compiled_f4_storage_producer.py:141: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def selector():
+>       from myfuzz.integration import compiled_storage_producer as module
+E       ImportError: cannot import name 'compiled_storage_producer' from 'myfuzz.integration' (/home/qinkejiu/myfuzz/src/myfuzz/integration/__init__.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:60: ImportError
+_____________ test_generic_producer_is_not_reported_as_executable ______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77c08e3c0140>
+
+    def test_generic_producer_is_not_reported_as_executable(monkeypatch):
+        """D1 selection is real, but the generic commit/raw join is D2: fail closed."""
+        from myfuzz.integration import compiled_f4
+        from myfuzz.local_harness.compiled_execution_projection import assess_compiled_f4_support
+        import inspect
+>       assert 'generic-commit-consumer-unsupported' in inspect.getsource(compiled_f4)
+E       assert 'generic-commit-consumer-unsupported' in '"""Execute the selected compiled F4 through generated OBI/APB RTL.\n\nThis adapter admits one RV32I instruction image...dit_sink(deepcopy(envelope))\n            if cleanup_error is not None and primary_error is None:raise cleanup_error\n'
+E        +  where '"""Execute the selected compiled F4 through generated OBI/APB RTL.\n\nThis adapter admits one RV32I instruction image...dit_sink(deepcopy(envelope))\n            if cleanup_error is not None and primary_error is None:raise cleanup_error\n' = <function getsource at 0x77c090996b60>(<module 'myfuzz.integration.compiled_f4' from '/home/qinkejiu/myfuzz/src/myfuzz/integration/compiled_f4.py'>)
+E        +    where <function getsource at 0x77c090996b60> = <module 'inspect' from '/usr/lib/python3.12/inspect.py'>.getsource
+
+tests/integration/test_compiled_f4_storage_producer.py:165: AssertionError
+______________ test_unknown_protocol_or_template_variant_refused _______________
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+
+    def test_unknown_protocol_or_template_variant_refused(timer_generated):
+        artifacts, inputs = timer_generated
+        artifact = artifacts['peripheral']
+        document = deepcopy(artifact.runtime_document)
+        document['kind'] = 'wishbone_register_observe'
+        forged = replace(artifact, runtime_document=document)
+        with pytest.raises(ValueError, match='compiled-F4-producer'):
+>           selector().select_storage_producer(artifacts={**artifacts, 'peripheral': forged},
+            ^^^^^^^^^^
+                compiled_inputs=inputs, base_dir=ROOT)
+
+tests/integration/test_compiled_f4_storage_producer.py:177: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def selector():
+>       from myfuzz.integration import compiled_storage_producer as module
+E       ImportError: cannot import name 'compiled_storage_producer' from 'myfuzz.integration' (/home/qinkejiu/myfuzz/src/myfuzz/integration/__init__.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:60: ImportError
+___________ test_cross_protocol_target_and_component_rename_refused ____________
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+gpio_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cv32e...cenario.ownership.OwnershipMap object at 0x77c08de29640>, 'physical_port_map': {('peripheral', 'gpio_in'): 'gpio_in'}})
+
+    def test_cross_protocol_target_and_component_rename_refused(timer_generated, gpio_generated):
+        timer_artifacts, timer_inputs = timer_generated
+        gpio_artifacts, gpio_inputs = gpio_generated
+        from myfuzz.integration.compiled_f4 import admit_f4
+        # A pinned GPIO artifact cannot fill the timer declaration slot.
+        with pytest.raises(ValueError, match='compiled-runtime-input-refused'):
+>           admit_f4(artifacts={**timer_artifacts, 'peripheral': gpio_artifacts['peripheral']},
+                     compiled_inputs=timer_inputs, base_dir=ROOT)
+E           TypeError: admit_f4() got an unexpected keyword argument 'base_dir'
+
+tests/integration/test_compiled_f4_storage_producer.py:196: TypeError
+_______ test_wrong_register_offset_width_mask_or_address_refused[offset] _______
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+mutation = 'offset'
+
+    @pytest.mark.parametrize('mutation', ('offset', 'width', 'mask', 'register', 'address'))
+    def test_wrong_register_offset_width_mask_or_address_refused(timer_generated, mutation):
+        artifacts, inputs = timer_generated
+        def mutate(path):
+            source, mirror = sync_mirror(path, 'peripheral.TIMER0_CTRL.value.mmio')
+            access = source['register_access']
+            if mutation == 'offset':
+                access['register_offset'] = 8; access['address'] += 4
+                source['range'] = [access['address']] * 2
+            elif mutation == 'width':
+                source['width'] = 16; access['width_bytes'] = 2
+            elif mutation == 'mask':
+                source['mask'] = 0xffff; access['value_mask'] = 0xffff
+            elif mutation == 'register':
+                source['register'] = 'TIMER1_CTRL'; access['register'] = 'TIMER1_CTRL'
+            else:
+                access['address'] += 4; source['range'] = [access['address']] * 2
+            sync_mirror(path, source['source_id'])
+        doctored_inputs = doctored(inputs, mutate)
+        with pytest.raises(ValueError, match='compiled-F4-producer'):
+>           selector().select_storage_producer(artifacts=artifacts, compiled_inputs=doctored_inputs,
+            ^^^^^^^^^^
+                base_dir=ROOT)
+
+tests/integration/test_compiled_f4_storage_producer.py:226: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def selector():
+>       from myfuzz.integration import compiled_storage_producer as module
+E       ImportError: cannot import name 'compiled_storage_producer' from 'myfuzz.integration' (/home/qinkejiu/myfuzz/src/myfuzz/integration/__init__.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:60: ImportError
+_______ test_wrong_register_offset_width_mask_or_address_refused[width] ________
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+mutation = 'width'
+
+    @pytest.mark.parametrize('mutation', ('offset', 'width', 'mask', 'register', 'address'))
+    def test_wrong_register_offset_width_mask_or_address_refused(timer_generated, mutation):
+        artifacts, inputs = timer_generated
+        def mutate(path):
+            source, mirror = sync_mirror(path, 'peripheral.TIMER0_CTRL.value.mmio')
+            access = source['register_access']
+            if mutation == 'offset':
+                access['register_offset'] = 8; access['address'] += 4
+                source['range'] = [access['address']] * 2
+            elif mutation == 'width':
+                source['width'] = 16; access['width_bytes'] = 2
+            elif mutation == 'mask':
+                source['mask'] = 0xffff; access['value_mask'] = 0xffff
+            elif mutation == 'register':
+                source['register'] = 'TIMER1_CTRL'; access['register'] = 'TIMER1_CTRL'
+            else:
+                access['address'] += 4; source['range'] = [access['address']] * 2
+            sync_mirror(path, source['source_id'])
+        doctored_inputs = doctored(inputs, mutate)
+        with pytest.raises(ValueError, match='compiled-F4-producer'):
+>           selector().select_storage_producer(artifacts=artifacts, compiled_inputs=doctored_inputs,
+            ^^^^^^^^^^
+                base_dir=ROOT)
+
+tests/integration/test_compiled_f4_storage_producer.py:226: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def selector():
+>       from myfuzz.integration import compiled_storage_producer as module
+E       ImportError: cannot import name 'compiled_storage_producer' from 'myfuzz.integration' (/home/qinkejiu/myfuzz/src/myfuzz/integration/__init__.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:60: ImportError
+________ test_wrong_register_offset_width_mask_or_address_refused[mask] ________
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+mutation = 'mask'
+
+    @pytest.mark.parametrize('mutation', ('offset', 'width', 'mask', 'register', 'address'))
+    def test_wrong_register_offset_width_mask_or_address_refused(timer_generated, mutation):
+        artifacts, inputs = timer_generated
+        def mutate(path):
+            source, mirror = sync_mirror(path, 'peripheral.TIMER0_CTRL.value.mmio')
+            access = source['register_access']
+            if mutation == 'offset':
+                access['register_offset'] = 8; access['address'] += 4
+                source['range'] = [access['address']] * 2
+            elif mutation == 'width':
+                source['width'] = 16; access['width_bytes'] = 2
+            elif mutation == 'mask':
+                source['mask'] = 0xffff; access['value_mask'] = 0xffff
+            elif mutation == 'register':
+                source['register'] = 'TIMER1_CTRL'; access['register'] = 'TIMER1_CTRL'
+            else:
+                access['address'] += 4; source['range'] = [access['address']] * 2
+            sync_mirror(path, source['source_id'])
+        doctored_inputs = doctored(inputs, mutate)
+        with pytest.raises(ValueError, match='compiled-F4-producer'):
+>           selector().select_storage_producer(artifacts=artifacts, compiled_inputs=doctored_inputs,
+            ^^^^^^^^^^
+                base_dir=ROOT)
+
+tests/integration/test_compiled_f4_storage_producer.py:226: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def selector():
+>       from myfuzz.integration import compiled_storage_producer as module
+E       ImportError: cannot import name 'compiled_storage_producer' from 'myfuzz.integration' (/home/qinkejiu/myfuzz/src/myfuzz/integration/__init__.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:60: ImportError
+______ test_wrong_register_offset_width_mask_or_address_refused[register] ______
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+mutation = 'register'
+
+    @pytest.mark.parametrize('mutation', ('offset', 'width', 'mask', 'register', 'address'))
+    def test_wrong_register_offset_width_mask_or_address_refused(timer_generated, mutation):
+        artifacts, inputs = timer_generated
+        def mutate(path):
+            source, mirror = sync_mirror(path, 'peripheral.TIMER0_CTRL.value.mmio')
+            access = source['register_access']
+            if mutation == 'offset':
+                access['register_offset'] = 8; access['address'] += 4
+                source['range'] = [access['address']] * 2
+            elif mutation == 'width':
+                source['width'] = 16; access['width_bytes'] = 2
+            elif mutation == 'mask':
+                source['mask'] = 0xffff; access['value_mask'] = 0xffff
+            elif mutation == 'register':
+                source['register'] = 'TIMER1_CTRL'; access['register'] = 'TIMER1_CTRL'
+            else:
+                access['address'] += 4; source['range'] = [access['address']] * 2
+            sync_mirror(path, source['source_id'])
+        doctored_inputs = doctored(inputs, mutate)
+        with pytest.raises(ValueError, match='compiled-F4-producer'):
+>           selector().select_storage_producer(artifacts=artifacts, compiled_inputs=doctored_inputs,
+            ^^^^^^^^^^
+                base_dir=ROOT)
+
+tests/integration/test_compiled_f4_storage_producer.py:226: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def selector():
+>       from myfuzz.integration import compiled_storage_producer as module
+E       ImportError: cannot import name 'compiled_storage_producer' from 'myfuzz.integration' (/home/qinkejiu/myfuzz/src/myfuzz/integration/__init__.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:60: ImportError
+______ test_wrong_register_offset_width_mask_or_address_refused[address] _______
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+mutation = 'address'
+
+    @pytest.mark.parametrize('mutation', ('offset', 'width', 'mask', 'register', 'address'))
+    def test_wrong_register_offset_width_mask_or_address_refused(timer_generated, mutation):
+        artifacts, inputs = timer_generated
+        def mutate(path):
+            source, mirror = sync_mirror(path, 'peripheral.TIMER0_CTRL.value.mmio')
+            access = source['register_access']
+            if mutation == 'offset':
+                access['register_offset'] = 8; access['address'] += 4
+                source['range'] = [access['address']] * 2
+            elif mutation == 'width':
+                source['width'] = 16; access['width_bytes'] = 2
+            elif mutation == 'mask':
+                source['mask'] = 0xffff; access['value_mask'] = 0xffff
+            elif mutation == 'register':
+                source['register'] = 'TIMER1_CTRL'; access['register'] = 'TIMER1_CTRL'
+            else:
+                access['address'] += 4; source['range'] = [access['address']] * 2
+            sync_mirror(path, source['source_id'])
+        doctored_inputs = doctored(inputs, mutate)
+        with pytest.raises(ValueError, match='compiled-F4-producer'):
+>           selector().select_storage_producer(artifacts=artifacts, compiled_inputs=doctored_inputs,
+            ^^^^^^^^^^
+                base_dir=ROOT)
+
+tests/integration/test_compiled_f4_storage_producer.py:226: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def selector():
+>       from myfuzz.integration import compiled_storage_producer as module
+E       ImportError: cannot import name 'compiled_storage_producer' from 'myfuzz.integration' (/home/qinkejiu/myfuzz/src/myfuzz/integration/__init__.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:60: ImportError
+_____ test_missing_or_tampered_source_probe_identity_refused[outer_digest] _____
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+mutation = 'outer_digest'
+
+    @pytest.mark.parametrize('mutation', ('outer_digest', 'contract_digest', 'contract',
+                                          'probe_digest', 'missing_observation'))
+    def test_missing_or_tampered_source_probe_identity_refused(timer_generated, mutation):
+        artifacts, inputs = timer_generated
+        artifact = artifacts['peripheral']
+        document = deepcopy(artifact.runtime_document)
+        observation = document.get('storage_observation')
+        if mutation == 'missing_observation':
+            document.pop('storage_observation')
+        elif mutation == 'outer_digest':
+            observation['digest'] = '0' * 64
+        elif mutation == 'probe_digest':
+            observation['ports'][0]['expression'] = '1\'b0'
+        elif mutation == 'contract_digest':
+            observation['source_contract']['digest'] = '0' * 64
+        else:
+            observation['source_contract']['register']['name'] = 'TIMER1_CTRL'
+        with pytest.raises(ValueError, match='compiled-F4-producer'):
+>           selector().select_storage_producer(
+            ^^^^^^^^^^
+                artifacts={**artifacts, 'peripheral': replace(artifact, runtime_document=document)},
+                compiled_inputs=inputs, base_dir=ROOT)
+
+tests/integration/test_compiled_f4_storage_producer.py:248: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def selector():
+>       from myfuzz.integration import compiled_storage_producer as module
+E       ImportError: cannot import name 'compiled_storage_producer' from 'myfuzz.integration' (/home/qinkejiu/myfuzz/src/myfuzz/integration/__init__.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:60: ImportError
+___ test_missing_or_tampered_source_probe_identity_refused[contract_digest] ____
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+mutation = 'contract_digest'
+
+    @pytest.mark.parametrize('mutation', ('outer_digest', 'contract_digest', 'contract',
+                                          'probe_digest', 'missing_observation'))
+    def test_missing_or_tampered_source_probe_identity_refused(timer_generated, mutation):
+        artifacts, inputs = timer_generated
+        artifact = artifacts['peripheral']
+        document = deepcopy(artifact.runtime_document)
+        observation = document.get('storage_observation')
+        if mutation == 'missing_observation':
+            document.pop('storage_observation')
+        elif mutation == 'outer_digest':
+            observation['digest'] = '0' * 64
+        elif mutation == 'probe_digest':
+            observation['ports'][0]['expression'] = '1\'b0'
+        elif mutation == 'contract_digest':
+            observation['source_contract']['digest'] = '0' * 64
+        else:
+            observation['source_contract']['register']['name'] = 'TIMER1_CTRL'
+        with pytest.raises(ValueError, match='compiled-F4-producer'):
+>           selector().select_storage_producer(
+            ^^^^^^^^^^
+                artifacts={**artifacts, 'peripheral': replace(artifact, runtime_document=document)},
+                compiled_inputs=inputs, base_dir=ROOT)
+
+tests/integration/test_compiled_f4_storage_producer.py:248: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def selector():
+>       from myfuzz.integration import compiled_storage_producer as module
+E       ImportError: cannot import name 'compiled_storage_producer' from 'myfuzz.integration' (/home/qinkejiu/myfuzz/src/myfuzz/integration/__init__.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:60: ImportError
+_______ test_missing_or_tampered_source_probe_identity_refused[contract] _______
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+mutation = 'contract'
+
+    @pytest.mark.parametrize('mutation', ('outer_digest', 'contract_digest', 'contract',
+                                          'probe_digest', 'missing_observation'))
+    def test_missing_or_tampered_source_probe_identity_refused(timer_generated, mutation):
+        artifacts, inputs = timer_generated
+        artifact = artifacts['peripheral']
+        document = deepcopy(artifact.runtime_document)
+        observation = document.get('storage_observation')
+        if mutation == 'missing_observation':
+            document.pop('storage_observation')
+        elif mutation == 'outer_digest':
+            observation['digest'] = '0' * 64
+        elif mutation == 'probe_digest':
+            observation['ports'][0]['expression'] = '1\'b0'
+        elif mutation == 'contract_digest':
+            observation['source_contract']['digest'] = '0' * 64
+        else:
+            observation['source_contract']['register']['name'] = 'TIMER1_CTRL'
+        with pytest.raises(ValueError, match='compiled-F4-producer'):
+>           selector().select_storage_producer(
+            ^^^^^^^^^^
+                artifacts={**artifacts, 'peripheral': replace(artifact, runtime_document=document)},
+                compiled_inputs=inputs, base_dir=ROOT)
+
+tests/integration/test_compiled_f4_storage_producer.py:248: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def selector():
+>       from myfuzz.integration import compiled_storage_producer as module
+E       ImportError: cannot import name 'compiled_storage_producer' from 'myfuzz.integration' (/home/qinkejiu/myfuzz/src/myfuzz/integration/__init__.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:60: ImportError
+_____ test_missing_or_tampered_source_probe_identity_refused[probe_digest] _____
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+mutation = 'probe_digest'
+
+    @pytest.mark.parametrize('mutation', ('outer_digest', 'contract_digest', 'contract',
+                                          'probe_digest', 'missing_observation'))
+    def test_missing_or_tampered_source_probe_identity_refused(timer_generated, mutation):
+        artifacts, inputs = timer_generated
+        artifact = artifacts['peripheral']
+        document = deepcopy(artifact.runtime_document)
+        observation = document.get('storage_observation')
+        if mutation == 'missing_observation':
+            document.pop('storage_observation')
+        elif mutation == 'outer_digest':
+            observation['digest'] = '0' * 64
+        elif mutation == 'probe_digest':
+            observation['ports'][0]['expression'] = '1\'b0'
+        elif mutation == 'contract_digest':
+            observation['source_contract']['digest'] = '0' * 64
+        else:
+            observation['source_contract']['register']['name'] = 'TIMER1_CTRL'
+        with pytest.raises(ValueError, match='compiled-F4-producer'):
+>           selector().select_storage_producer(
+            ^^^^^^^^^^
+                artifacts={**artifacts, 'peripheral': replace(artifact, runtime_document=document)},
+                compiled_inputs=inputs, base_dir=ROOT)
+
+tests/integration/test_compiled_f4_storage_producer.py:248: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def selector():
+>       from myfuzz.integration import compiled_storage_producer as module
+E       ImportError: cannot import name 'compiled_storage_producer' from 'myfuzz.integration' (/home/qinkejiu/myfuzz/src/myfuzz/integration/__init__.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:60: ImportError
+_ test_missing_or_tampered_source_probe_identity_refused[missing_observation] __
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+mutation = 'missing_observation'
+
+    @pytest.mark.parametrize('mutation', ('outer_digest', 'contract_digest', 'contract',
+                                          'probe_digest', 'missing_observation'))
+    def test_missing_or_tampered_source_probe_identity_refused(timer_generated, mutation):
+        artifacts, inputs = timer_generated
+        artifact = artifacts['peripheral']
+        document = deepcopy(artifact.runtime_document)
+        observation = document.get('storage_observation')
+        if mutation == 'missing_observation':
+            document.pop('storage_observation')
+        elif mutation == 'outer_digest':
+            observation['digest'] = '0' * 64
+        elif mutation == 'probe_digest':
+            observation['ports'][0]['expression'] = '1\'b0'
+        elif mutation == 'contract_digest':
+            observation['source_contract']['digest'] = '0' * 64
+        else:
+            observation['source_contract']['register']['name'] = 'TIMER1_CTRL'
+        with pytest.raises(ValueError, match='compiled-F4-producer'):
+>           selector().select_storage_producer(
+            ^^^^^^^^^^
+                artifacts={**artifacts, 'peripheral': replace(artifact, runtime_document=document)},
+                compiled_inputs=inputs, base_dir=ROOT)
+
+tests/integration/test_compiled_f4_storage_producer.py:248: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def selector():
+>       from myfuzz.integration import compiled_storage_producer as module
+E       ImportError: cannot import name 'compiled_storage_producer' from 'myfuzz.integration' (/home/qinkejiu/myfuzz/src/myfuzz/integration/__init__.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:60: ImportError
+__________ test_registered_contract_requires_trusted_source_directory __________
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+
+    def test_registered_contract_requires_trusted_source_directory(timer_generated):
+        artifacts, inputs = timer_generated
+        with pytest.raises(ValueError, match='compiled-F4-producer-source-inputs-required'):
+>           selector().select_storage_producer(artifacts=artifacts, compiled_inputs=inputs)
+            ^^^^^^^^^^
+
+tests/integration/test_compiled_f4_storage_producer.py:256: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def selector():
+>       from myfuzz.integration import compiled_storage_producer as module
+E       ImportError: cannot import name 'compiled_storage_producer' from 'myfuzz.integration' (/home/qinkejiu/myfuzz/src/myfuzz/integration/__init__.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:60: ImportError
+_ test_caller_supplied_producer_factory_or_method_refused[GeneratedApb3RegisterSession] _
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77c08de888f0>
+name = 'GeneratedApb3RegisterSession'
+
+    @pytest.mark.parametrize('name', ('GeneratedApb3RegisterSession',
+                                     'ApbStorageRegisterVersionAuthority',
+                                     'check_writer_observation', 'verify_apb_register_trace',
+                                     'select_apb_storage_source_contract'))
+    def test_caller_supplied_producer_factory_or_method_refused(timer_generated, monkeypatch, name):
+        artifacts, inputs = timer_generated
+>       module = selector()
+                 ^^^^^^^^^^
+
+tests/integration/test_compiled_f4_storage_producer.py:265: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def selector():
+>       from myfuzz.integration import compiled_storage_producer as module
+E       ImportError: cannot import name 'compiled_storage_producer' from 'myfuzz.integration' (/home/qinkejiu/myfuzz/src/myfuzz/integration/__init__.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:60: ImportError
+_ test_caller_supplied_producer_factory_or_method_refused[ApbStorageRegisterVersionAuthority] _
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77c08ded46e0>
+name = 'ApbStorageRegisterVersionAuthority'
+
+    @pytest.mark.parametrize('name', ('GeneratedApb3RegisterSession',
+                                     'ApbStorageRegisterVersionAuthority',
+                                     'check_writer_observation', 'verify_apb_register_trace',
+                                     'select_apb_storage_source_contract'))
+    def test_caller_supplied_producer_factory_or_method_refused(timer_generated, monkeypatch, name):
+        artifacts, inputs = timer_generated
+>       module = selector()
+                 ^^^^^^^^^^
+
+tests/integration/test_compiled_f4_storage_producer.py:265: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def selector():
+>       from myfuzz.integration import compiled_storage_producer as module
+E       ImportError: cannot import name 'compiled_storage_producer' from 'myfuzz.integration' (/home/qinkejiu/myfuzz/src/myfuzz/integration/__init__.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:60: ImportError
+_ test_caller_supplied_producer_factory_or_method_refused[check_writer_observation] _
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77c08ded4aa0>
+name = 'check_writer_observation'
+
+    @pytest.mark.parametrize('name', ('GeneratedApb3RegisterSession',
+                                     'ApbStorageRegisterVersionAuthority',
+                                     'check_writer_observation', 'verify_apb_register_trace',
+                                     'select_apb_storage_source_contract'))
+    def test_caller_supplied_producer_factory_or_method_refused(timer_generated, monkeypatch, name):
+        artifacts, inputs = timer_generated
+>       module = selector()
+                 ^^^^^^^^^^
+
+tests/integration/test_compiled_f4_storage_producer.py:265: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def selector():
+>       from myfuzz.integration import compiled_storage_producer as module
+E       ImportError: cannot import name 'compiled_storage_producer' from 'myfuzz.integration' (/home/qinkejiu/myfuzz/src/myfuzz/integration/__init__.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:60: ImportError
+_ test_caller_supplied_producer_factory_or_method_refused[verify_apb_register_trace] _
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77c08ded7170>
+name = 'verify_apb_register_trace'
+
+    @pytest.mark.parametrize('name', ('GeneratedApb3RegisterSession',
+                                     'ApbStorageRegisterVersionAuthority',
+                                     'check_writer_observation', 'verify_apb_register_trace',
+                                     'select_apb_storage_source_contract'))
+    def test_caller_supplied_producer_factory_or_method_refused(timer_generated, monkeypatch, name):
+        artifacts, inputs = timer_generated
+>       module = selector()
+                 ^^^^^^^^^^
+
+tests/integration/test_compiled_f4_storage_producer.py:265: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def selector():
+>       from myfuzz.integration import compiled_storage_producer as module
+E       ImportError: cannot import name 'compiled_storage_producer' from 'myfuzz.integration' (/home/qinkejiu/myfuzz/src/myfuzz/integration/__init__.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:60: ImportError
+_ test_caller_supplied_producer_factory_or_method_refused[select_apb_storage_source_contract] _
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77c08de8bb30>
+name = 'select_apb_storage_source_contract'
+
+    @pytest.mark.parametrize('name', ('GeneratedApb3RegisterSession',
+                                     'ApbStorageRegisterVersionAuthority',
+                                     'check_writer_observation', 'verify_apb_register_trace',
+                                     'select_apb_storage_source_contract'))
+    def test_caller_supplied_producer_factory_or_method_refused(timer_generated, monkeypatch, name):
+        artifacts, inputs = timer_generated
+>       module = selector()
+                 ^^^^^^^^^^
+
+tests/integration/test_compiled_f4_storage_producer.py:265: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def selector():
+>       from myfuzz.integration import compiled_storage_producer as module
+E       ImportError: cannot import name 'compiled_storage_producer' from 'myfuzz.integration' (/home/qinkejiu/myfuzz/src/myfuzz/integration/__init__.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:60: ImportError
+____________________ test_caller_metadata_is_not_a_binding _____________________
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+
+    def test_caller_metadata_is_not_a_binding(timer_generated):
+        artifacts, inputs = timer_generated
+>       module = selector()
+                 ^^^^^^^^^^
+
+tests/integration/test_compiled_f4_storage_producer.py:279: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def selector():
+>       from myfuzz.integration import compiled_storage_producer as module
+E       ImportError: cannot import name 'compiled_storage_producer' from 'myfuzz.integration' (/home/qinkejiu/myfuzz/src/myfuzz/integration/__init__.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:60: ImportError
+___________ test_stale_foreign_or_tampered_binding_refused[tampered] ___________
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+gpio_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cv32e...cenario.ownership.OwnershipMap object at 0x77c08de29640>, 'physical_port_map': {('peripheral', 'gpio_in'): 'gpio_in'}})
+mutation = 'tampered'
+
+    @pytest.mark.parametrize('mutation', ('tampered', 'stale', 'foreign', 'component'))
+    def test_stale_foreign_or_tampered_binding_refused(timer_generated, gpio_generated, mutation):
+>       module = selector()
+                 ^^^^^^^^^^
+
+tests/integration/test_compiled_f4_storage_producer.py:292: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def selector():
+>       from myfuzz.integration import compiled_storage_producer as module
+E       ImportError: cannot import name 'compiled_storage_producer' from 'myfuzz.integration' (/home/qinkejiu/myfuzz/src/myfuzz/integration/__init__.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:60: ImportError
+____________ test_stale_foreign_or_tampered_binding_refused[stale] _____________
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+gpio_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cv32e...cenario.ownership.OwnershipMap object at 0x77c08de29640>, 'physical_port_map': {('peripheral', 'gpio_in'): 'gpio_in'}})
+mutation = 'stale'
+
+    @pytest.mark.parametrize('mutation', ('tampered', 'stale', 'foreign', 'component'))
+    def test_stale_foreign_or_tampered_binding_refused(timer_generated, gpio_generated, mutation):
+>       module = selector()
+                 ^^^^^^^^^^
+
+tests/integration/test_compiled_f4_storage_producer.py:292: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def selector():
+>       from myfuzz.integration import compiled_storage_producer as module
+E       ImportError: cannot import name 'compiled_storage_producer' from 'myfuzz.integration' (/home/qinkejiu/myfuzz/src/myfuzz/integration/__init__.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:60: ImportError
+___________ test_stale_foreign_or_tampered_binding_refused[foreign] ____________
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+gpio_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cv32e...cenario.ownership.OwnershipMap object at 0x77c08de29640>, 'physical_port_map': {('peripheral', 'gpio_in'): 'gpio_in'}})
+mutation = 'foreign'
+
+    @pytest.mark.parametrize('mutation', ('tampered', 'stale', 'foreign', 'component'))
+    def test_stale_foreign_or_tampered_binding_refused(timer_generated, gpio_generated, mutation):
+>       module = selector()
+                 ^^^^^^^^^^
+
+tests/integration/test_compiled_f4_storage_producer.py:292: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def selector():
+>       from myfuzz.integration import compiled_storage_producer as module
+E       ImportError: cannot import name 'compiled_storage_producer' from 'myfuzz.integration' (/home/qinkejiu/myfuzz/src/myfuzz/integration/__init__.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:60: ImportError
+__________ test_stale_foreign_or_tampered_binding_refused[component] ___________
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+gpio_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cv32e...cenario.ownership.OwnershipMap object at 0x77c08de29640>, 'physical_port_map': {('peripheral', 'gpio_in'): 'gpio_in'}})
+mutation = 'component'
+
+    @pytest.mark.parametrize('mutation', ('tampered', 'stale', 'foreign', 'component'))
+    def test_stale_foreign_or_tampered_binding_refused(timer_generated, gpio_generated, mutation):
+>       module = selector()
+                 ^^^^^^^^^^
+
+tests/integration/test_compiled_f4_storage_producer.py:292: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def selector():
+>       from myfuzz.integration import compiled_storage_producer as module
+E       ImportError: cannot import name 'compiled_storage_producer' from 'myfuzz.integration' (/home/qinkejiu/myfuzz/src/myfuzz/integration/__init__.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:60: ImportError
+_______________ test_binding_enters_checker_and_prefix_identity ________________
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+
+    def test_binding_enters_checker_and_prefix_identity(timer_generated):
+        from myfuzz.integration.compiled_f4 import CompiledF4Runtime
+        artifacts, inputs = timer_generated
+>       binding = selector().select_storage_producer(artifacts=artifacts, compiled_inputs=inputs,
+                  ^^^^^^^^^^
+            base_dir=ROOT)
+
+tests/integration/test_compiled_f4_storage_producer.py:338: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def selector():
+>       from myfuzz.integration import compiled_storage_producer as module
+E       ImportError: cannot import name 'compiled_storage_producer' from 'myfuzz.integration' (/home/qinkejiu/myfuzz/src/myfuzz/integration/__init__.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:60: ImportError
+______________ test_stability_rebuilds_binding_and_refuses_drift _______________
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x77c090682930>, 'physical_port_map': {}})
+
+    def test_stability_rebuilds_binding_and_refuses_drift(timer_generated):
+        from myfuzz.integration import compiled_f4
+        artifacts, inputs = timer_generated
+>       module = selector()
+                 ^^^^^^^^^^
+
+tests/integration/test_compiled_f4_storage_producer.py:350: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def selector():
+>       from myfuzz.integration import compiled_storage_producer as module
+E       ImportError: cannot import name 'compiled_storage_producer' from 'myfuzz.integration' (/home/qinkejiu/myfuzz/src/myfuzz/integration/__init__.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:60: ImportError
+=========================== short test summary info ============================
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_registered_generic_timer_is_admitted_by_closed_producer_selection
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_gpio_causal_row_preserves_existing_producer
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_generic_producer_is_not_reported_as_executable
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_unknown_protocol_or_template_variant_refused
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_cross_protocol_target_and_component_rename_refused
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_wrong_register_offset_width_mask_or_address_refused[offset]
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_wrong_register_offset_width_mask_or_address_refused[width]
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_wrong_register_offset_width_mask_or_address_refused[mask]
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_wrong_register_offset_width_mask_or_address_refused[register]
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_wrong_register_offset_width_mask_or_address_refused[address]
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_missing_or_tampered_source_probe_identity_refused[outer_digest]
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_missing_or_tampered_source_probe_identity_refused[contract_digest]
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_missing_or_tampered_source_probe_identity_refused[contract]
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_missing_or_tampered_source_probe_identity_refused[probe_digest]
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_missing_or_tampered_source_probe_identity_refused[missing_observation]
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_registered_contract_requires_trusted_source_directory
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_caller_supplied_producer_factory_or_method_refused[GeneratedApb3RegisterSession]
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_caller_supplied_producer_factory_or_method_refused[ApbStorageRegisterVersionAuthority]
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_caller_supplied_producer_factory_or_method_refused[check_writer_observation]
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_caller_supplied_producer_factory_or_method_refused[verify_apb_register_trace]
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_caller_supplied_producer_factory_or_method_refused[select_apb_storage_source_contract]
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_caller_metadata_is_not_a_binding
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_stale_foreign_or_tampered_binding_refused[tampered]
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_stale_foreign_or_tampered_binding_refused[stale]
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_stale_foreign_or_tampered_binding_refused[foreign]
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_stale_foreign_or_tampered_binding_refused[component]
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_binding_enters_checker_and_prefix_identity
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_stability_rebuilds_binding_and_refuses_drift
+28 failed in 27.59s

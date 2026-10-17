@@ -22,6 +22,8 @@ from myfuzz.scenario.runner import ScenarioRunner
 from myfuzz.scenario.session_runtime import ScenarioSession, OnlineCase, OnlineInstruction
 from myfuzz.scenario.batch import BatchAdvance, BatchSourceEvent
 from .compiled_candidate_layout import compile_candidate_layout, CandidateLayout, LAYOUT_SCHEMA
+from .compiled_storage_producer import (
+    ROW_GPIO_CAUSAL, build_storage_producer, select_storage_producer)
 from .generated_register_writer import declare_writer, check_writer_observation
 
 
@@ -114,7 +116,7 @@ def _private_admission_snapshot(artifacts, inputs, base_dir):
     private_inputs=deepcopy(inputs,memo)
     if _input_identity(private_inputs,private_artifacts)!=issued_identity:
         raise ValueError('compiled-F4-private-reconstruction-mismatch')
-    admit_f4(artifacts=private_artifacts,compiled_inputs=private_inputs)
+    _admit_f4(artifacts=private_artifacts,compiled_inputs=private_inputs,base_dir=base_dir)
     return private_artifacts,private_inputs
 
 
@@ -330,8 +332,13 @@ def check_f4_exact_hops(*, events, declaration, image, stream, traces, address, 
                for edge in declared_edges])
 
 
-def admit_f4(*, artifacts, compiled_inputs):
+def admit_f4(*, artifacts, compiled_inputs, base_dir=None):
     """Pure exact D2/D3/ownership admission before constructing any process."""
+    return _admit_f4(artifacts=artifacts,compiled_inputs=compiled_inputs,base_dir=base_dir)[0]
+
+
+def _admit_f4(*, artifacts, compiled_inputs, base_dir=None):
+    """Admission plus the immutable producer binding rebuilt from source inputs."""
     if not isinstance(compiled_inputs, dict) or set(compiled_inputs)!={'request','compiled','ownership','physical_port_map'}:
         raise GeneratedExecutionRefused('compiled-runtime-input-required','/compiled_inputs')
     admission=admit_compiled_artifacts(artifacts=artifacts, **compiled_inputs)
@@ -370,14 +377,9 @@ def admit_f4(*, artifacts, compiled_inputs):
     for source in path['sources']:
         if source['kind']=='external_pin' and source['component']!=access['target_component']:
             raise ValueError('compiled-F4-external-pin-shape-unsupported')
-    target=artifacts[access['target_component']]
-    from myfuzz.local_harness.pulp_gpio_probe_contract import pulp_gpio_observation_contract
-    from myfuzz.local_harness.native_physical_observation import verify_native_physical_observation
-    if (target.runtime_document['kind']!='apb_gpio' or access['register']!='GPIOEN'
-            or target.runtime_document.get('gpio_observation_contract')!=pulp_gpio_observation_contract()
-            or verify_native_physical_observation(target) is not True):
-        raise ValueError('compiled-F4-register-authority-unsupported')
-    expected_pre=[dict(kind='ip_register_version',subject=dict(component=access['target_component'],register='GPIOEN',reset_epoch=0))]
+    # Closed producer selection replaces the former GPIO/GPIOEN hard limit.
+    binding=select_storage_producer(artifacts=artifacts,compiled_inputs=compiled_inputs,base_dir=base_dir)
+    expected_pre=[binding.document()['prerequisite']['expected']]
     if [dict(kind=p['kind'],subject=p['subject']) for p in path['prerequisites']]!=expected_pre:
         raise ValueError('compiled-F4-prerequisite-unsupported')
     if (path['seed'] is not None or path['termination_observation']['kind']!='consumption'
@@ -404,7 +406,7 @@ def admit_f4(*, artifacts, compiled_inputs):
         raise ValueError('compiled-F4-deliveries-unsupported')
     if any(o['kind']=='bound' for o in compiled_inputs['ownership'].document()['owners']):
         raise ValueError('compiled-F4-physical-binding-unsupported')
-    return deepcopy(path)
+    return deepcopy(path),binding
 
 
 class CompiledF4Runtime:
@@ -412,7 +414,8 @@ class CompiledF4Runtime:
     @host_source_discovery_scope()
     def __init__(self, *, artifacts, compiled_inputs, base_dir, cache_dir,
                  run_id='compiled-f4', rounds_per_case=128, max_cases=64):
-        self.path=admit_f4(artifacts=artifacts,compiled_inputs=compiled_inputs)
+        self.path=admit_f4(artifacts=artifacts,compiled_inputs=compiled_inputs,
+            base_dir=Path(base_dir))
         self.layout=compile_candidate_layout(self.path)
         self._replay_identities=[]
         if any(type(v) is not int or not 1<=v<=65536 for v in (rounds_per_case,max_cases)):
@@ -422,6 +425,12 @@ class CompiledF4Runtime:
         self.artifacts,self.inputs=_private_admission_snapshot(artifacts,compiled_inputs,Path(base_dir))
         compiled_inputs=self.inputs;artifacts=self.artifacts
         self.base_dir=Path(base_dir);self.cache_dir=Path(cache_dir);self.run_id=run_id
+        self.producer_binding=select_storage_producer(artifacts=artifacts,
+            compiled_inputs=compiled_inputs,base_dir=self.base_dir)
+        if self.producer_binding.row!=ROW_GPIO_CAUSAL:
+            # D1 selects and admits the registered APB storage producer, but its
+            # generic commit/raw consumer is the separately owned D2 increment.
+            raise ValueError('compiled-F4-generic-commit-consumer-unsupported')
         self.rounds=rounds_per_case;self.max_cases=max_cases;self.records=[];self.finished=False
         self.closure=_closure(base_dir);self.compiled_digest=_digest(compiled_inputs['compiled'])
         request=compiled_inputs['request'];self.cpu_id=request.cpu.instance_id
@@ -445,11 +454,10 @@ class CompiledF4Runtime:
         memory=PersistentMemory(regions=tuple(MemoryRegion(r.resource_id,r.base,r.size,
             readable=r.read,writable=r.write) for r in resources), initialization_seed=0,
             max_initialized_bytes=sum(r.size for r in resources))
-        from myfuzz.local_harness.gpio_session import GeneratedPulpGpioSession
         from myfuzz.local_harness.cpu_session import GeneratedCve2Session
-        from myfuzz.scenario.gpio_register_version import GpioRegisterVersionAuthority
-        target=GeneratedPulpGpioSession(artifacts[self.target_id],base_dir=self.base_dir,cache_dir=self.cache_dir)
-        self.authority=GpioRegisterVersionAuthority(target,max_writes=max_cases+8)
+        target,self.authority=build_storage_producer(self.producer_binding,
+            artifact=self.artifacts[self.target_id],base_dir=self.base_dir,
+            cache_dir=self.cache_dir,max_cases=max_cases)
         windows=tuple(DeviceWindow(w.device_id,w.base,w.size,target) for w in request.wiring.windows)
         if any(w.target_instance!=self.target_id for w in request.wiring.windows):
             raise ValueError('compiled-F4-router-target-unsupported')
@@ -495,7 +503,8 @@ class CompiledF4Runtime:
     def online_identity_configuration(self):
         return dict(schema_version='compiled_F4_checker.v1',path_id=self.path['path_id'],
             compiled_sha256=self.compiled_digest,assertions=self.path['assertions'],
-            candidate_layout=_layout_document(self.layout),cpu_error_policy=deepcopy(self.error_policy))
+            candidate_layout=_layout_document(self.layout),cpu_error_policy=deepcopy(self.error_policy),
+            producer_binding=self.producer_binding.document())
 
     def _check_receipt(self, receipt):
         if receipt.violations:
@@ -555,8 +564,12 @@ class CompiledF4Runtime:
             raise ValueError('compiled-F4-error-policy-identity-changed')
         if compile_candidate_layout(self.path)!=self.layout:
             raise ValueError('compiled-F4-layout-identity-changed')
-        if admit_f4(artifacts=self.artifacts,compiled_inputs=self.inputs)!=self.path:
+        path,binding=_admit_f4(artifacts=self.artifacts,compiled_inputs=self.inputs,
+            base_dir=self.base_dir)
+        if path!=self.path:
             raise ValueError('compiled-F4-admission-changed')
+        if binding!=self.producer_binding:
+            raise ValueError('compiled-F4-producer-binding-changed')
         if (_closure(self.base_dir)!=self.closure or _digest(self.inputs['compiled'])!=self.compiled_digest
                 or _difference(compile_paths(self.inputs['request']),self.inputs['compiled']) is not None):
             raise ValueError('compiled-F4-source-identity-changed')
@@ -641,6 +654,7 @@ class CompiledF4Runtime:
             artifact_digests={n:a.runtime_document['artifact_digest'] for n,a in self.artifacts.items()},
             rounds_per_case=self.rounds,max_cases=self.max_cases,records=deepcopy(self.records),
             candidate_layout=_layout_document(self.layout),cpu_error_policy=deepcopy(self.error_policy),
+            producer_binding=self.producer_binding.document(),
             online_plan=json.loads(self.session.encode_plan()),
             semantic_hash=self.trace.semantic_sha256,feedback=self.feedback())
 

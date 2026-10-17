@@ -143,14 +143,30 @@ def assess_compiled_execution(*,artifacts,compiled_inputs,runtime_declaration,
     return report
 
 
-def assess_compiled_f4_support(*,artifacts,compiled_inputs):
+def assess_compiled_f4_support(*,artifacts,compiled_inputs,base_dir=None):
     """Inspect the installed executor without granting live execution authority."""
     from myfuzz.integration.compiled_f4 import admit_f4
+    from myfuzz.integration.compiled_storage_producer import (
+        ROW_GPIO_CAUSAL,select_storage_producer)
     try:
-        selected=admit_f4(artifacts=artifacts,compiled_inputs=compiled_inputs)
+        selected=admit_f4(artifacts=artifacts,compiled_inputs=compiled_inputs,base_dir=base_dir)
+        binding=select_storage_producer(artifacts=artifacts,compiled_inputs=compiled_inputs,
+            base_dir=base_dir)
     except ValueError as error:
         return dict(schema_version='compiled_F4_support.v1',execution_supported=0,
             runtime_admitted=False,status='unsupported',reason=str(error))
+    if binding.row!=ROW_GPIO_CAUSAL:
+        # D1 admits the registered producer row; its generic commit/raw consumer
+        # is D2, so the installed executor cannot run this target yet.
+        return dict(schema_version='compiled_F4_support.v1',execution_supported=0,
+            runtime_admitted=False,status='unsupported',
+            reason='compiled-F4-generic-commit-consumer-unsupported',
+            executor='compiled_f4_obi_apb',path_id=selected['path_id'],
+            producer_binding=binding.document(),
+            support_scope='closed_producer_selected_commit_consumer_pending_D2',
+            unsupported_paths=[dict(path_id=p['path_id'],flow_id=p['flow_id'],
+                reason='compiled-executor-flow-unsupported') for p in compiled_inputs['compiled']['paths']
+                if p['path_id']!=selected['path_id']])
     return dict(schema_version='compiled_F4_support.v1',execution_supported=1,
         runtime_admitted=False,status='supported_requires_actual_startup',
         executor='compiled_f4_obi_apb',path_id=selected['path_id'],

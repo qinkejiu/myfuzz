@@ -162,7 +162,7 @@ def prepare_compiled_execution_files(*, base_dir, compose_path, capability_paths
         if key in physical:raise ValueError('compiled-files-duplicate-physical-map')
         physical[key]=row['physical_port']
     inputs=dict(request=request,compiled=compiled,ownership=ownership,physical_port_map=physical)
-    support=assess_compiled_f4_support(artifacts=artifacts,compiled_inputs=inputs)
+    support=assess_compiled_f4_support(artifacts=artifacts,compiled_inputs=inputs,base_dir=base)
     _save_new(generated.parent/'path_compile_request.json',document)
     _save_new(generated.parent/'compiled_paths.json',compiled)
     _save_new(generated.parent/'capability_selection.json',sidecars)
