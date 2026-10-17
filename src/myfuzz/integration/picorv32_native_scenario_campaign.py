@@ -534,26 +534,16 @@ class PicoNativeGpioBoundProvider(IbexTwoGpioBoundProvider):
 
     @classmethod
     def _targets(cls, direction):
-        """The direction's search targets, each with an honest upstream source set.
+        """The direction's search targets: its anchor plus one per observed bit.
 
-        The three per-bit families are not interchangeable decoration: every
-        observation is a function of exactly one declared side, and the
-        dependency graph below declares that, so the guided hint really can
-        choose between the CPU program byte and the external pin byte instead
-        of driving one side forever.
-
-        * ``gpio0.pin_sync_bit_*`` - the device's synchronized external pin
-          word, a function of the external byte only;
-        * ``gpio0.padout_pin_bit_*`` - the pin word after round 1, a function of
-          the CPU's program byte only (round 1 always stores ``A``);
-        * ``cpu.device_answer_bit_*`` - the PADIN read answer, a function of the
-          external byte only.
+        The anchor is the first target of the dependency path and the bit
+        targets are the ones a mutated genome can newly satisfy, so the RFuzz
+        client admits mutated inputs to its corpus instead of keeping only the
+        seed.  Both declared sources feed the same path; the hint's per-source
+        use/gain accounting is what lets them compete -- see the report's
+        note on why a per-target single-source graph was *not* kept.
         """
         return ((cls._anchor_target(direction),)
-                + tuple(CoverageTarget(f'gpio0.pin_sync_bit_{bit}',
-                                       GPIO_COMPONENT, 'gpio_in_sync',
-                                       1 << bit, 1 << bit)
-                        for bit in range(TARGET_BITS))
                 + tuple(CoverageTarget(f'gpio0.padout_pin_bit_{bit}',
                                        GPIO_COMPONENT, 'gpio_out',
                                        1 << bit, 1 << bit)
@@ -562,22 +552,6 @@ class PicoNativeGpioBoundProvider(IbexTwoGpioBoundProvider):
                                        CPU_COMPONENT, 'data_rsp_rdata',
                                        1 << bit, 1 << bit)
                         for bit in range(TARGET_BITS)))
-
-    @classmethod
-    def _rules(cls, direction):
-        """One dependency rule per target, naming that target's real producers."""
-        rules = [DependencyRule(cls._anchor_target(direction).target_id,
-                                (CPU_SOURCE_ID, IP_SOURCE_ID), 'DATA_BINDING')]
-        rules.extend(DependencyRule(f'gpio0.pin_sync_bit_{bit}',
-                                    (IP_SOURCE_ID,), 'DATA_BINDING')
-                     for bit in range(TARGET_BITS))
-        rules.extend(DependencyRule(f'gpio0.padout_pin_bit_{bit}',
-                                    (CPU_SOURCE_ID,), 'DATA_BINDING')
-                     for bit in range(TARGET_BITS))
-        rules.extend(DependencyRule(f'cpu.device_answer_bit_{bit}',
-                                    (IP_SOURCE_ID,), 'DATA_BINDING')
-                     for bit in range(TARGET_BITS))
-        return tuple(rules)
 
     @staticmethod
     def _program_image(seed):
@@ -650,14 +624,16 @@ class PicoNativeGpioBoundProvider(IbexTwoGpioBoundProvider):
         seed = GenomeCodec.decode(genome_path.read_bytes())
         self._require_pinned_seed(seed, direction, genome_path)
         targets = self._targets(direction)
+        target = targets[0]
         factory = self._factory()
         runner = factory()
-        graph = DependencyGraph(sources=self._sources(direction),
-                                rules=self._rules(direction))
+        graph = DependencyGraph(
+            sources=self._sources(direction),
+            rules=(DependencyRule(target.target_id,
+                                  (CPU_SOURCE_ID, IP_SOURCE_ID), 'DATA_BINDING'),))
         decoder = GenomeRecordDecoder(
             graph=graph, ownership=runner.ownership,
-            templates=tuple(DecoderTemplate(target.target_id, seed)
-                            for target in targets),
+            templates=(DecoderTemplate(target.target_id, seed),),
             source_bindings=self._source_bindings())
         return factory, decoder, targets, seed
 

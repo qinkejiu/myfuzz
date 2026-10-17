@@ -56,29 +56,37 @@ CPU 方向触发链（真实事件序）：`mmio_acceptance(PADOUT=A)` → `sour
 `data_rsp_consumed(rdata=B)` → `memory_write(0x100,A^B)` → 第二轮同构。IP 方向仅把
 `source_injection` 提前到 `START`（首个 CPU device 访问之前），checker 强制该序。
 
-## 3. 单格 gate 预演（20s）与一个真实缺陷
+## 3. 单格 gate 预演（20s）：源选择的两次实测与最终取舍
 
-在旧树、20s、全新 build 的 `dependency_guided` 单格预演中（`.superpowers/r5-smoke/cell-cpu.log`、
-`cell-ip.log`）：
+在旧树、20s、全新 build 的 `dependency_guided` 单格预演（`.superpowers/r5-smoke/cell-cpu.log`、
+`cell-ip.log`）中：`testcases=9`、`valid=9`、`completed_chains=9`、
+`post_seed_completed_chains=7`、`post_seed_effective_genotypes=7`、corpus 2 条、
+replay `matched=2/2`、`error=null`。但 `applied_source_uses` 只有 `cpu.padout_byte`，
+`gpio0.pin_byte` 为 **0**。原因是**重访/缓冲粒度**：一次 mutation hint 覆盖一整个 buffer
+（实测每 buffer 8 个 case：row3 的 8/8/8 与本轮 receipts 的 buffer 1/2 各 8 例一致），
+而 20s 只有 1 个 post-seed buffer，所以只看到一个源。
 
-* `testcases=9`、`valid=9`、`completed_chains=9`、`post_seed_completed_chains=7`、
-  `post_seed_effective_genotypes=7`、corpus 2 条、replay `matched=2/2`、`error=null`；
-* **发现并修复的真实缺陷**：`applied_source_uses` 只有 `cpu.padout_byte`，`gpio0.pin_byte`
-  为 **0**。根因不是 RTL，而是搜索：`scenario_rfuzz.mutation_hint` 把同一条 path 的两个源
-  评分打平时按 `source_index` 破平，恒选 index 0；CPU 源又因 `gpio_out` 位覆盖获得增益，
-  而 pin 源从未被选、增益为 0，于是被长期饿死。gate 的 per-direction 源覆盖（
-  `dependency_guided__*` 的 `declared == executed`）会因此失败。
-* **修法（不碰共享代码）**：把 graph 改成"每个 coverage target 一条诚实单源规则"：
-  `gpio0.pin_sync_bit_*`/`cpu.device_answer_bit_*` 只依赖 pin 源，
-  `gpio0.padout_pin_bit_*` 只依赖 CPU 源（第一轮固定写 A），anchor 双源。
-  这样 seed 后第一个变异 hint 会先选 pin 源（anchor 已命中，pin 侧未命中 target 的
-  template 序号更小），pin 侧 8 个未命中位耗尽后评分才转向 CPU 源。这是设计上的可执行性，
-  不是已测结论：本轮外部源码仍在变动，冻结树上的 60s 单格回执尚未取得，报告不声称
-  "两源已在同一格内实测"。campaign 后由审计测试从 `receipts.jsonl` 的
-  `applied_sources`/`applied_source_ids` 逐条重算，不能靠本段文字代替。
+随后我试过把 graph 改成"每个 target 一条诚实单源规则"（pin 位只依赖 pin 源、padout 位只
+依赖 CPU 源）。这在当前树上实测**失败并被否决**：`.superpowers/r5-smoke/cell20-cpu-new.log`
+显示 20s 内 17 例、2 个 buffer，`applied_source_uses = {cpu:0, pin:16}` —— hint 在
+`pin_sync_bit_7` 这类"未命中且 mutation 一直没抽到该 bit"的 target 上保持 64 分，
+template 序号又小于 CPU 侧，于是整格都在选 pin；单源 graph 反而制造了新的饿死。
+该实验的 20s 回执留在 `.superpowers/r5-smoke/cell-dependency_guided-CPU_TO_IP_TO_CPU/`。
 
-20s 的 9 例口径：effective 20.0s（wall 43.6s）→ 每例有效约 2.2s，因此 `--seconds 60`
-预期约 27 例（远大于 gate 的 `testcases > 9`）。50/150s 只是更大余量，不是 gate 变更。
+**最终保留的形态与行 2/行 3 相同**：一条 `DATA_BINDING` path、两个源、anchor + 每 bit
+coverage target。hint 的分数含每 `(template,path,source)` 的 `32/(uses+1)` 与
+`16*gains/(uses+1)`；同一 path 上两个源互相竞争，一个源连续被选时 uses 惩罚使其分数下降，
+另一个源（uses=0）最终胜出。上界：若一个源已用 u 次、gain 取最大 16 个 target，
+其分数 `8+(32+256)/(u+1)` 在 u>8 时低于另一源的 40 分，即最迟约两个 buffer 后必须换源。
+20s 只有一个 post-seed buffer，故未观察到换源；60s（按 8 例/buffer 约 3-4 个 buffer）
+才足以观察，150s 更宽裕。**这条"何时换源"是机制推断＋row3 的 3-buffer 实测，
+本轮没有冻结树上的 60s 回执，不能当作已验证。**
+
+时长口径：20s 单格的 effective 20.0s（wall 43.6s），9 例 → 每例有效约 2.2s；
+`--seconds 60` 预期约 27 例（>9 例门槛），`--seconds 150` 约 67 例。gate 的
+`post_seed_mutation_batches >= 2` 需要至少 2 个 post-seed buffer（第三个 buffer 起）；
+按实测 8 例/buffer，60s 的 27 例约有 3-4 个 buffer，满足。50/150s 只是余量，
+不改 gate、不虚报。
 
 ## 4. 18 格 campaign：尚未运行（等源码冻结）
 
