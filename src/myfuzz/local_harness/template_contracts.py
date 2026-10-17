@@ -314,7 +314,8 @@ def list_template_contracts() -> tuple[ProtocolTemplateContract, ...]:
 # cannot truthfully use the declarative single-beat AXI contract above.
 _GENERATED_EXECUTOR_KINDS = frozenset((
     'obi_cpu', 'native_memory_cpu', 'rvx_memory_cpu', 'wishbone_cpu',
-    'axi4_lite_cpu', 'axi4_cpu', 'reduced_dual_axi_cpu', 'cva6_packed_axi4_cpu', 'axi4_lite_uart',
+    'axi4_lite_cpu', 'axi4_cpu', 'reduced_dual_axi_cpu', 'reduced_dual_axi_irq_cpu',
+    'cva6_packed_axi4_cpu', 'axi4_lite_uart',
     'ahb_lite_cpu', 'wishbone_dma',
     'wishbone_register_observe', 'wishbone_timer', 'wishbone_uart',
     'tlul_register_observe', 'tlul_gpio', 'tlul_timer', 'tlul_spi_host',

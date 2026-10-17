@@ -256,6 +256,19 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         # AHB-Lite CPU (CVW) declares no interrupt entry, so nothing outside the
         # harness drives it; the program it runs comes from the beat memory face.
         allowed_inputs = set()
+    elif kind == 'reduced_dual_axi_irq_cpu':
+        # The derived reduced-AXI profile exposes exactly one physical input:
+        # the core's real machine-external interrupt pin.  Every other physical
+        # port of this family is a backend beat field, so any second export is
+        # an unmapped input and is refused below by construction.
+        cpu = artifact.plan.profile.cpu
+        irq = [row for row in exports if row['endpoint_id'] == cpu.irq_entry_endpoint
+               and row['role'] == cpu.irq_entry_role and row['direction'] == 'input'
+               and row['width'] == 1]
+        if len(exports) != 1 or len(irq) != 1:
+            raise ValueError('driver-reduced-axi-irq-field')
+        fields['irq_external'] = irq[0]['runtime_name']
+        allowed_inputs = {irq[0]['runtime_name']}
     elif kind == 'cva6_packed_axi4_cpu':
         cpu = artifact.plan.profile.cpu
         irq = [row for row in exports if row['endpoint_id'] == cpu.irq_entry_endpoint
@@ -332,8 +345,9 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
 
     max_wait = document['effective_max_wait_cycles']
     max_samples = (1 if kind in ('obi_cpu', 'native_memory_cpu', 'rvx_memory_cpu',
-                                'wishbone_cpu', 'wishbone_dma', 'axi4_lite_cpu', 'axi4_cpu', 'reduced_dual_axi_cpu', 'ahb_lite_cpu',
-                                'cva6_packed_axi4_cpu')
+                                'wishbone_cpu', 'wishbone_dma', 'axi4_lite_cpu', 'axi4_cpu',
+                                'reduced_dual_axi_cpu', 'reduced_dual_axi_irq_cpu',
+                                'ahb_lite_cpu', 'cva6_packed_axi4_cpu')
                    else 2 * max_wait + 5)
     # Conservative serialized upper bound, before issuing any command effects.
     maxima_backend = {row['name']: (1 << row['width']) - 1 for row in backend}
@@ -437,6 +451,18 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
       tick(dut, &samples);
 '''
         operation_check = 'command.operation != "STEP_REDUCED_AXI"'
+    elif kind == 'reduced_dual_axi_irq_cpu':
+        # Field 0 is the core's real external interrupt pin; the remaining
+        # fields are the identical reduced AXI response inputs.
+        names = (fields['irq_external'], *REDUCED_AXI_STEP_PORTS)
+        assignments = '\n'.join(f'      dut.{name} = command.fields[{index}];'
+                                for index, name in enumerate(names))
+        dispatch = assignments + '''
+      dut.eval();
+      pre_backend = backend_snapshot(dut);
+      tick(dut, &samples);
+'''
+        operation_check = 'command.operation != "STEP_REDUCED_AXI_IRQ"'
     elif kind == 'axi4_cpu':
         assignments = '\n'.join(f'      dut.{name} = command.fields[{index}];'
                                 for index, name in enumerate(AXI_STEP_PORTS))

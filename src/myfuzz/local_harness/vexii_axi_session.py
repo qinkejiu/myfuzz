@@ -124,9 +124,17 @@ class GeneratedReducedAxiCpuSession(GeneratedLocalSession):
                                prefix+'_rdata': read['data'], prefix+'_rlast': 1})
         return values
 
-    def step_local(self, inputs: Mapping[str, int]):
+    def _step_operation(self) -> str:
+        return 'STEP_REDUCED_AXI'
+
+    def _step_inputs(self, inputs: Mapping[str, int]) -> tuple[int, ...]:
+        """Return the declared leading step fields for this runtime kind."""
         if not isinstance(inputs, Mapping) or inputs:
             raise ValueError('reduced AXI RAM session accepts no external inputs')
+        return ()
+
+    def step_local(self, inputs: Mapping[str, int]):
+        leading = self._step_inputs(inputs)
         if self._axi_observer.scope is None:
             self._axi_observer.begin_scope(execution_id=self._execution,
                 testcase_id=self._case_id, reset_epoch=self.reset_epoch)
@@ -135,7 +143,8 @@ class GeneratedReducedAxiCpuSession(GeneratedLocalSession):
         except ValueError as exc:
             raise ProtocolEnvironmentError(str(exc)) from exc
         values = self._ready_inputs()
-        receipt = self.command('STEP_REDUCED_AXI', tuple(values[name] for name in STEP_PORTS))
+        receipt = self.command(self._step_operation(),
+                               leading + tuple(values[name] for name in STEP_PORTS))
         if receipt.status == 'error':
             raise ProtocolEnvironmentError(f'{receipt.error_code}: {receipt.error_detail}')
         payload = receipt.payload
@@ -222,3 +231,63 @@ class GeneratedReducedAxiCpuSession(GeneratedLocalSession):
         self.memory.advance_step()
         return {**observed, 'driver_samples': copy.deepcopy(self.last_samples),
                 'physical_observations': copy.deepcopy(payload['observations']['physical'])}
+
+
+class GeneratedReducedAxiIrqCpuSession(GeneratedReducedAxiCpuSession):
+    """The derived profile's real machine-external interrupt input.
+
+    The extra leading step field is the core's own ``int_m_external`` pin. The
+    session drives the level the caller supplies and records its transitions; it
+    never decides that an interrupt is pending, and it never claims one was
+    taken. Whether the core traps, which vector it fetches and whether ``mret``
+    returns are facts the caller must observe on the real RTL.
+    """
+    artifact_kind = 'reduced_dual_axi_irq_cpu'
+
+    def __init__(self, artifact: LocalRuntimeArtifact, **kwargs):
+        super().__init__(artifact, **kwargs)
+        cpu = artifact.plan.profile.cpu
+        exports = artifact.runtime_document.get('physical_exports')
+        if (cpu is None or cpu.irq_entry_endpoint is None
+                or not isinstance(exports, list) or len(exports) != 1):
+            raise ValueError('reduced AXI IRQ session requires one physical IRQ export')
+        row = exports[0]
+        if (row.get('endpoint_id') != cpu.irq_entry_endpoint
+                or row.get('role') != cpu.irq_entry_role
+                or row.get('direction') != 'input' or row.get('width') != 1):
+            raise ValueError('reduced AXI IRQ session IRQ export mismatch')
+        self.irq_runtime_name = row['runtime_name']
+        self.irq_entry = {'endpoint_id': cpu.irq_entry_endpoint,
+                          'role': cpu.irq_entry_role,
+                          'polarity': cpu.irq_entry_polarity,
+                          'semantics': cpu.irq_semantics,
+                          'runtime_name': self.irq_runtime_name,
+                          'physical_port': row['physical_port']}
+        self.irq_edges: list[dict[str, int]] = []
+        self.irq_level = 0
+
+    def _clear(self):
+        super()._clear()
+        self.irq_level = 0
+        if 'irq_edges' in self.__dict__:
+            self.irq_edges.clear()
+
+    def identity_document(self):
+        return {**super().identity_document(),
+                'cpu_irq_entry_schema_version': 'generated_reduced_dual_axi_irq.v1',
+                'irq_entry': copy.deepcopy(self.irq_entry),
+                'irq_input_policy': 'caller_drives_level_and_observes_core_behaviour'}
+
+    def _step_operation(self) -> str:
+        return 'STEP_REDUCED_AXI_IRQ'
+
+    def _step_inputs(self, inputs: Mapping[str, int]) -> tuple[int, ...]:
+        if not isinstance(inputs, Mapping) or set(inputs) != {'irq'}:
+            raise ValueError('reduced AXI IRQ session requires exactly one irq input')
+        value = inputs['irq']
+        if type(value) is not int or value not in (0, 1):
+            raise ValueError('reduced AXI IRQ input must be an integer bit')
+        if value != self.irq_level:
+            self.irq_edges.append({'local_tick': self.local_ticks, 'level': value})
+            self.irq_level = value
+        return (value,)

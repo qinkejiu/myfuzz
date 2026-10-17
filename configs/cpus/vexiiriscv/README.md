@@ -26,5 +26,16 @@ response substitution refusal are recorded in the [CPU/IP report](../../../docs/
 For actual commands, physical evidence and boundaries see
 [generated harness report](../../../docs/reports/vexiiriscv-generated-harness-20261017.md).
 The existing direct C++ AXI smoke evidence is independent and is not used as
-proof of this generated harness. Broader CPU/IP composition, interrupt delivery,
-continuous search and authenticated evidence-prefix replay remain pending.
+proof of this generated harness.
+
+This baseline profile keeps every external interrupt input and `rdtime` fixed at
+zero. The opt-in derived profile
+[`configs/cpus/vexiiriscv_irq`](../vexiiriscv_irq/README.md) selects the same
+generated RTL bytes and declares the core's real `int_m_external` pin as a
+machine-external interrupt entry; it is validated as an exact declared delta of
+this profile. Its fixed-instance CPU→PULP GPIO APB→real IRQ→ISR→RAM row and two
+fresh runs are recorded in the
+[CPU/IP IRQ report](../../../docs/reports/vexiiriscv-cpu-ip-irq-20261018.md).
+Broader CPU/IP composition, interrupt-controller RTL, continuous search and
+authenticated evidence-prefix replay remain pending.
+

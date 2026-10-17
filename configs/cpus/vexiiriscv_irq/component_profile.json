@@ -1,0 +1,391 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "vexiiriscv_irq",
+  "kind": "cpu",
+  "description": "Opt-in derived profile of the pinned generated VexiiRiscv: the real machine-external interrupt input is an environment-owned interrupt entry instead of constant zero. Same generated RTL and reduced single-beat AXI4 contract; timer/software interrupt inputs and rdtime remain constant zero. Interrupt behaviour requires measured runtime acceptance.",
+  "source": {
+    "root": ".",
+    "revision": "sha256:5e73d0523bbe106f4d489971315b7320c1e2e9eccbee60bc679a5bad7d5ce977",
+    "top_module": "VexiiRiscv",
+    "top_port_selection": "all",
+    "files": [
+      "configs/cpus/vexiiriscv/generated/VexiiRiscv.v"
+    ],
+    "include_roots": [],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "parameters": [],
+      "warning_policy": "recorded-nonfatal"
+    }
+  },
+  "clocks": [
+    {
+      "port": "clk",
+      "domain": "core",
+      "frequency_hz": 50000000
+    }
+  ],
+  "resets": [
+    {
+      "port": "reset",
+      "domain": "sys_rst",
+      "polarity": "active_high",
+      "synchronous": false,
+      "release": "Generated reset is asynchronous assertion in posedge clk or posedge reset blocks; harness releases before measured edges."
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "processor.memory.i",
+      "function": "instruction_memory_master",
+      "protocol": [
+        "axi4",
+        "1"
+      ],
+      "fields": [
+        {
+          "role": "arvalid",
+          "aliases": [
+            "FetchCachelessAxi4Plugin_logic_bridge_axi_ar_valid"
+          ]
+        },
+        {
+          "role": "arready",
+          "aliases": [
+            "FetchCachelessAxi4Plugin_logic_bridge_axi_ar_ready"
+          ]
+        },
+        {
+          "role": "araddr",
+          "aliases": [
+            "FetchCachelessAxi4Plugin_logic_bridge_axi_ar_payload_addr"
+          ]
+        },
+        {
+          "role": "arid",
+          "aliases": [
+            "FetchCachelessAxi4Plugin_logic_bridge_axi_ar_payload_id"
+          ]
+        },
+        {
+          "role": "arsize",
+          "aliases": [
+            "FetchCachelessAxi4Plugin_logic_bridge_axi_ar_payload_size"
+          ]
+        },
+        {
+          "role": "arcache",
+          "aliases": [
+            "FetchCachelessAxi4Plugin_logic_bridge_axi_ar_payload_cache"
+          ]
+        },
+        {
+          "role": "arprot",
+          "aliases": [
+            "FetchCachelessAxi4Plugin_logic_bridge_axi_ar_payload_prot"
+          ]
+        },
+        {
+          "role": "rvalid",
+          "aliases": [
+            "FetchCachelessAxi4Plugin_logic_bridge_axi_r_valid"
+          ]
+        },
+        {
+          "role": "rready",
+          "aliases": [
+            "FetchCachelessAxi4Plugin_logic_bridge_axi_r_ready"
+          ]
+        },
+        {
+          "role": "rdata",
+          "aliases": [
+            "FetchCachelessAxi4Plugin_logic_bridge_axi_r_payload_data"
+          ]
+        },
+        {
+          "role": "rid",
+          "aliases": [
+            "FetchCachelessAxi4Plugin_logic_bridge_axi_r_payload_id"
+          ]
+        },
+        {
+          "role": "rresp",
+          "aliases": [
+            "FetchCachelessAxi4Plugin_logic_bridge_axi_r_payload_resp"
+          ]
+        },
+        {
+          "role": "rlast",
+          "aliases": [
+            "FetchCachelessAxi4Plugin_logic_bridge_axi_r_payload_last"
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "processor.memory.d",
+      "function": "data_memory_master",
+      "protocol": [
+        "axi4",
+        "1"
+      ],
+      "fields": [
+        {
+          "role": "awvalid",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_aw_valid"
+          ]
+        },
+        {
+          "role": "awready",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_aw_ready"
+          ]
+        },
+        {
+          "role": "awaddr",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_aw_payload_addr"
+          ]
+        },
+        {
+          "role": "awid",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_aw_payload_id"
+          ]
+        },
+        {
+          "role": "awsize",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_aw_payload_size"
+          ]
+        },
+        {
+          "role": "awcache",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_aw_payload_cache"
+          ]
+        },
+        {
+          "role": "awprot",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_aw_payload_prot"
+          ]
+        },
+        {
+          "role": "wvalid",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_w_valid"
+          ]
+        },
+        {
+          "role": "wready",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_w_ready"
+          ]
+        },
+        {
+          "role": "wdata",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_w_payload_data"
+          ]
+        },
+        {
+          "role": "wstrb",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_w_payload_strb"
+          ]
+        },
+        {
+          "role": "wlast",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_w_payload_last"
+          ]
+        },
+        {
+          "role": "bvalid",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_b_valid"
+          ]
+        },
+        {
+          "role": "bready",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_b_ready"
+          ]
+        },
+        {
+          "role": "bid",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_b_payload_id"
+          ]
+        },
+        {
+          "role": "bresp",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_b_payload_resp"
+          ]
+        },
+        {
+          "role": "arvalid",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_ar_valid"
+          ]
+        },
+        {
+          "role": "arready",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_ar_ready"
+          ]
+        },
+        {
+          "role": "araddr",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_ar_payload_addr"
+          ]
+        },
+        {
+          "role": "arid",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_ar_payload_id"
+          ]
+        },
+        {
+          "role": "arsize",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_ar_payload_size"
+          ]
+        },
+        {
+          "role": "arcache",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_ar_payload_cache"
+          ]
+        },
+        {
+          "role": "arprot",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_ar_payload_prot"
+          ]
+        },
+        {
+          "role": "rvalid",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_r_valid"
+          ]
+        },
+        {
+          "role": "rready",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_r_ready"
+          ]
+        },
+        {
+          "role": "rdata",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_r_payload_data"
+          ]
+        },
+        {
+          "role": "rid",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_r_payload_id"
+          ]
+        },
+        {
+          "role": "rresp",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_r_payload_resp"
+          ]
+        },
+        {
+          "role": "rlast",
+          "aliases": [
+            "LsuCachelessAxi4Plugin_logic_axi_r_payload_last"
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "processor.interrupts",
+      "function": "interrupt_entry",
+      "fields": [
+        {
+          "role": "external",
+          "aliases": [
+            "PrivilegedPlugin_logic_harts_0_int_m_external"
+          ],
+          "direction": "input",
+          "width": 1
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "address_width": 32,
+    "data_width": 32,
+    "id_width": 1,
+    "bursts": false,
+    "byte_enable": true,
+    "error_response": true,
+    "max_outstanding": 1,
+    "single_beat_reduced_axi": true
+  },
+  "port_actions": [
+    {
+      "port": "PrivilegedPlugin_logic_rdtime",
+      "action": "constant",
+      "value": 0,
+      "reason": "Initial RAM slice fixes rdtime and interrupt inputs inactive."
+    },
+    {
+      "port": "PrivilegedPlugin_logic_harts_0_int_m_timer",
+      "action": "constant",
+      "value": 0,
+      "reason": "Initial RAM slice fixes rdtime and interrupt inputs inactive."
+    },
+    {
+      "port": "PrivilegedPlugin_logic_harts_0_int_m_software",
+      "action": "constant",
+      "value": 0,
+      "reason": "Initial RAM slice fixes rdtime and interrupt inputs inactive."
+    }
+  ],
+  "cpu": {
+    "family": "vexiiriscv",
+    "xlen": 32,
+    "extensions": [
+      "I"
+    ],
+    "reset_vector": 2147483648,
+    "master_endpoints": [
+      "processor.memory.i",
+      "processor.memory.d"
+    ],
+    "boot_address_required": false,
+    "irq_entry_endpoint": "processor.interrupts",
+    "irq_entry_role": "external",
+    "irq_entry_polarity": "active_high",
+    "irq_semantics": "machine_external"
+  },
+  "evidence": {
+    "semantics": [
+      "Generated manifest pins upstream generator and dependency revisions. Cacheless AXI configuration omits burst metadata; one-beat transfers only."
+    ],
+    "unknown": [
+      "Generated local RAM execution requires independent acceptance."
+    ],
+    "derived_profile": {
+      "baseline_component_id": "vexiiriscv",
+      "delta": [
+        "remove-constant-external-interrupt-input",
+        "add-interrupt-entry-endpoint",
+        "declare-machine-external-irq-entry"
+      ],
+      "unmeasured": [
+        "The derived profile is a declaration only. Trap entry, ISR execution, mret return and IRQ deassertion remain runtime acceptance items of the fixed-instance scenario."
+      ]
+    }
+  }
+}

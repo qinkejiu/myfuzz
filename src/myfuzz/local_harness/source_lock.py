@@ -48,6 +48,12 @@ def verify_local_source_lock(profile: ComponentProfile, *, base_dir: Path,
     if profile.component_id == 'vexiiriscv':
         from .vexii_source_contract import verify_vexii_source_contract
         return verify_vexii_source_contract(profile, base_dir=base_dir)
+    if profile.component_id == 'vexiiriscv_irq':
+        # A declared, validated delta of the pinned baseline profile over the
+        # same generated RTL bytes.  The baseline closure is re-verified here,
+        # so this variant cannot outlive or diverge from its baseline pin.
+        from .vexii_irq_contract import verify_vexii_irq_source_contract
+        return verify_vexii_irq_source_contract(profile, base_dir=base_dir)
     if profile.component_id == 'cvw':
         # CORE-V Wally is a local component (root ".", content pin) whose typed top
         # is repository-authored, so its upstream half cannot be a git-pinned lock

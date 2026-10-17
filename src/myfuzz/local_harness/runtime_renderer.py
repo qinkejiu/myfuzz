@@ -494,7 +494,9 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw):
             prefix = 'i' if endpoint.function == 'instruction_memory_master' else 'd'
             select_template_contract(endpoint, c, template_id='cpu.axi4-reduced',
                 template_version='1', variant_id='fetch-single' if prefix == 'i' else 'data-single')
-        kind = 'reduced_dual_axi_cpu'
+        kind = ('reduced_dual_axi_irq_cpu'
+                if plan.profile.cpu.irq_entry_endpoint is not None
+                else 'reduced_dual_axi_cpu')
         boot = _obi_boot_contract(plan.profile.cpu, 32, endpoints)
         adapters = []
 
@@ -679,6 +681,10 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw):
                 and row['direction'] == 'output' and row['width'] == 8 or
                 kind == 'tlul_spi_device' and row['endpoint_id'] == 'spi_device.pins' or
                 kind in ('obi_cpu', 'cva6_packed_axi4_cpu')
+                and row['direction'] == 'input' and row['width'] == 1
+                and row['endpoint_id'] == plan.profile.cpu.irq_entry_endpoint
+                and row['role'] == plan.profile.cpu.irq_entry_role or
+                kind == 'reduced_dual_axi_irq_cpu'
                 and row['direction'] == 'input' and row['width'] == 1
                 and row['endpoint_id'] == plan.profile.cpu.irq_entry_endpoint
                 and row['role'] == plan.profile.cpu.irq_entry_role or
@@ -877,7 +883,7 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw):
                          '  ) u_adapter_reg (\n    '
                          + ',\n    '.join(f'.{p}({v})' for p, v in pairs.items())
                          + '\n  );')
-    elif kind == 'reduced_dual_axi_cpu':
+    elif kind in ('reduced_dual_axi_cpu', 'reduced_dual_axi_irq_cpu'):
         for endpoint in sorted(endpoints, key=lambda e: e.function):
             prefix = 'i' if endpoint.function == 'instruction_memory_master' else 'd'
             shape = REDUCED_AXI_SHAPES[prefix]
