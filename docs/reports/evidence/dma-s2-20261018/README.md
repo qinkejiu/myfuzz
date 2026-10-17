@@ -1,11 +1,11 @@
 # P8 S2 evidence: external serial descriptor, three directions, multi-word FIFO
 
-## Status: five real gate attempts failed, all fixed, re-queued
+## Status: six real gate attempts failed, all fixed, re-queued
 
-This directory contains **software-only** evidence plus five failure records
+This directory contains **software-only** evidence plus six failure records
 (`real-gate-attempt-8dd3e70.md`, `real-gate-attempt-90652e9.md`,
 `real-gate-attempt-457d411.md`, `real-gate-attempt-73eb811.md`,
-`real-gate-attempt-c0b7ab8.md`).
+`real-gate-attempt-c0b7ab8.md`, `real-gate-attempt-e5c4689.md`).
 
 - Attempt 1 (`8dd3e70`) failed on the real UART push-depth sampling semantics:
   the push strobe tick carries the pre-push occupancy (0..n-1) and the +1
@@ -29,6 +29,12 @@ This directory contains **software-only** evidence plus five failure records
   poll rounds after COMPLETED until `isr_counter_load + 8` retires (also
   capturing MRET and the main-loop return when visible); a missing retirement is
   a hard failure, and a wrong/duplicate COMPLETED value still fails at once.
+- Attempt 6 (`e5c4689`) passed the first five fixes and failed in a later case
+  with five CPU pops: the previous case's fourth access was nested-only, and its
+  late top-level `uart_rdata_access` landed in the next case slice and was
+  counted again. The boot now keeps a cross-case `settled_access_ids` set and
+  filters late copies (count stays 4/4+len); a CPU pop without a real access id
+  fails immediately.
 
 Both fixes keep the assertions and never count host events. The gate is
 re-queued on a frozen snapshot; no passing native evidence exists yet and no
@@ -53,14 +59,15 @@ at least two multi-word cases) and an equal fresh full-prefix replay.
 | --- | --- |
 | `descriptor-program.json` | recomputed fixed firmware layout, direction control words, declared windows and the six declared DMA programs (software only) |
 | `generate_software_evidence.py` | read-only generator for `descriptor-program.json` |
-| `software-descriptor-unit.txt` | `66 passed` for `tests/integration/test_dma_uart_descriptor.py` |
-| `software-focused-gate.txt` | `86 passed, 4 skipped` for the design §6.2 list plus both new files |
+| `software-descriptor-unit.txt` | `68 passed` for `tests/integration/test_dma_uart_descriptor.py` |
+| `software-focused-gate.txt` | `88 passed, 4 skipped` for the design §6.2 list plus both new files |
 | `software-search-regression.txt` | `30 passed` for the unchanged S1b search software tests |
 | `real-gate-attempt-8dd3e70.md` | failure 1: real push depths 0..4, root cause, fix and re-queue |
 | `real-gate-attempt-90652e9.md` | failure 2: nested-only CPU pop (mmio delivery 18849), root cause, fix and re-queue |
 | `real-gate-attempt-457d411.md` | failure 3: real read→commit→write order, root cause, fix and re-queue |
 | `real-gate-attempt-73eb811.md` | failure 4: real source_start→external order, root cause, fix and re-queue |
 | `real-gate-attempt-c0b7ab8.md` | failure 5: case sealed before the ISR store retirement, root cause, fix and re-queue |
+| `real-gate-attempt-e5c4689.md` | failure 6: late CPU access crossing the case boundary, root cause, fix and re-queue |
 | `manifest.json` | digests, claims, deviations, failure attempt and the queued gate description |
 
 ## What is *not* claimed

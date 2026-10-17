@@ -642,7 +642,7 @@ def _synthetic_rows(case, case_index=1, *, commit_before_write=False):
         # uart_rdata_access external event and the nested target_uart_access of
         # the CPU mmio_delivery.  On a step boundary the top-level copy can be
         # absent, so both shapes are real CPU-pop sources.
-        access = dict(access_id=f'cpu-access-{pop_index}',
+        access = dict(access_id=f'cpu-access-{case_index}-{pop_index}',
             source_transaction={'channel_id': 'data'},
             raw_offset=firmware.UART_RDATA_OFFSET, status='observed',
             read_value=byte, read_capture={
@@ -1146,6 +1146,77 @@ def test_certifier_locks_the_real_irq_take_order_and_joins(mutate, message):
         certify_descriptor_case(extract_case_witnesses(rows), case, case_index=1)
 
 
+def _shift_event_ids(rows, delta):
+    for row in rows:
+        if type(row.get('event_id')) is int:
+            row['event_id'] += delta
+    return rows
+
+
+def _late_access_fact(case, access_id):
+    return dict(kind='uart_rdata_access', access_id=access_id,
+        source_transaction={'channel_id': 'data'},
+        raw_offset=firmware.UART_RDATA_OFFSET, status='observed',
+        read_value=case.payload,
+        read_capture={'pre': _fifo(1, case.payload, phase='pre'),
+                      'post': _fifo(0, 0, phase='post')})
+
+
+def _first_case_evidence():
+    first = DescriptorCase.create('RX_TO_RAM', dst_index=0, payload=0x5A, length=1)
+    rows = _remove_last_top_level_pop(_synthetic_rows(first, case_index=1))
+    witnesses = extract_case_witnesses(rows)
+    evidence = certify_descriptor_case(witnesses, first, case_index=1)
+    assert len(evidence['cpu_pop_access_ids']) == 4
+    return first, evidence, max(row['event_id'] for row in rows)
+
+
+def test_late_top_level_access_is_deduped_across_the_next_case():
+    # The fourth access of case 1 is nested-only; its top-level external event
+    # is journaled only after case 1 was sealed and lands in case 2's slice.
+    first, first_evidence, first_last = _first_case_evidence()
+    late_id = first_evidence['cpu_pop_access_ids'][-1]
+    second = DescriptorCase.create('RX_TO_RAM', dst_index=0, payload=0x11, length=1)
+    rows = _shift_event_ids(_synthetic_rows(second, case_index=2), first_last + 10)
+    late = _late_access_fact(first, late_id)
+    late['event_id'] = max(row['event_id'] for row in rows) + 1
+    rows.append(late)
+    witnesses = extract_case_witnesses(rows)
+    assert len(witnesses.cpu_pops) == 5
+    with pytest.raises(RuntimeError, match='CPU must pop exactly'):
+        certify_descriptor_case(witnesses, second, case_index=2)
+    evidence = certify_descriptor_case(witnesses, second, case_index=2,
+        settled_access_ids=frozenset(first_evidence['cpu_pop_access_ids']))
+    assert len(evidence['cpu_pop_access_ids']) == 4
+    assert evidence['settled_cpu_access_ids'] == [late_id]
+    assert [pop['source'] for pop in evidence['fifo']['pops']
+            if pop['kind'] == 'cpu'] == ['top_level'] * 4
+
+
+def test_late_nested_delivery_is_deduped_across_the_next_case():
+    first, first_evidence, first_last = _first_case_evidence()
+    late_id = first_evidence['cpu_pop_access_ids'][-1]
+    second = DescriptorCase.create('RX_TO_RAM', dst_index=0, payload=0x11, length=1)
+    rows = _shift_event_ids(_synthetic_rows(second, case_index=2), first_last + 10)
+    late = dict(event_id=max(row['event_id'] for row in rows) + 1,
+        kind='mmio_delivery', device_id='uart',
+        offset=firmware.UART_RDATA_OFFSET, write=False,
+        read_value=first.payload,
+        target_uart_access=dict(_late_access_fact(first, late_id),
+            kind='uart_rdata_access'))
+    rows.append(late)
+    witnesses = extract_case_witnesses(rows)
+    assert len(witnesses.cpu_pops) == 5
+    with pytest.raises(RuntimeError, match='CPU must pop exactly'):
+        certify_descriptor_case(witnesses, second, case_index=2)
+    evidence = certify_descriptor_case(witnesses, second, case_index=2,
+        settled_access_ids=frozenset(first_evidence['cpu_pop_access_ids']))
+    assert len(evidence['cpu_pop_access_ids']) == 4
+    assert evidence['settled_cpu_access_ids'] == [late_id]
+    assert [pop['read_value'] for pop in evidence['fifo']['pops']
+            if pop['kind'] == 'cpu'] == [0, 0, 0, 0x11]
+
+
 def test_witness_extraction_never_reclassifies_a_dma_pop_as_cpu():
     rows = [{'event_id': 1, 'kind': 'uart_rdata_access',
              'source_transaction': None, 'read_value': 0x5A},
@@ -1325,9 +1396,12 @@ def fake_boot(monkeypatch):
     _FakeRecorder.instances = []
     monkeypatch.setattr(runtime, 'ScenarioBatchRecorder', _FakeRecorder)
     monkeypatch.setattr(runtime, 'certify_descriptor_case',
-        lambda witnesses, case, *, case_index, tx_captures=(), action_ids=None:
+        lambda witnesses, case, *, case_index, tx_captures=(), action_ids=None,
+               settled_access_ids=None:
             dict(counter=case_index, direction=case.direction,
                  payload=case.payload, completed=True,
+                 cpu_pop_access_ids=[f'fake-access-{case_index}-{index}'
+                                     for index in range(4)],
                  tx_captures=list(tx_captures)))
     return monkeypatch
 

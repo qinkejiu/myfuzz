@@ -626,7 +626,7 @@ def _assert_no_host_writes(writes):
 
 
 def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
-                            action_ids=None):
+                            action_ids=None, settled_access_ids=None):
     """Join one real journal slice into a completed descriptor case.
 
     The expected program is derived from the declared case, never read back from
@@ -643,6 +643,10 @@ def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
     if len(ids) != case.source_count or len(set(ids)) != len(ids):
         raise ValueError('case action ids must be unique and cover the serial stream')
     tx_captures = tuple(tx_captures)
+    settled = (frozenset() if settled_access_ids is None
+               else frozenset(settled_access_ids))
+    if any(not isinstance(item, str) or not item for item in settled):
+        raise ValueError('settled CPU access ids must be nonempty strings')
     accepted_ids = tuple(event.get('action_id') for event in witnesses.frames)
     if accepted_ids != ids:
         raise RuntimeError('case needs one matched native serial frame per descriptor/payload byte')
@@ -668,24 +672,45 @@ def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
     push_depths = tuple(item['depth_after'] for item in push_chain)
     if any(type(depth) is not int or depth < 1 for depth in push_depths):
         raise RuntimeError('UART RX FIFO push lacks a real post-push depth')
+    # A routed CPU RDATA external event can be journaled after the case that
+    # caused it was sealed, so its access_id may reappear at the start of the next
+    # case.  The boot supplies every id already counted in an earlier case and
+    # those late copies are excluded; the per-case count stays 4 / 4+len.
+    def pop_access_id(event):
+        access_id = event.get('access_id')
+        if not isinstance(access_id, str) or not access_id:
+            raise RuntimeError('CPU RDATA pop lacks a real access id')
+        return access_id
+
     cpu_consumed = DESCRIPTOR_WORDS + (0 if case.direction == 'RX_TO_RAM' else case.length)
-    if len(witnesses.cpu_pops) != cpu_consumed:
-        top_level = sum(1 for event in witnesses.cpu_pops
+    settled_pops = tuple(event for event in witnesses.cpu_pops
+                         if pop_access_id(event) in settled)
+    cpu_pops = tuple(event for event in witnesses.cpu_pops
+                     if pop_access_id(event) not in settled)
+    if len(cpu_pops) != cpu_consumed:
+        top_level = sum(1 for event in cpu_pops
                         if event.get('_pop_source') == 'top_level')
         raise RuntimeError('CPU must pop exactly the descriptor and drained payload '
             f'bytes ({cpu_consumed} pops; top_level={top_level}, '
-            f'nested={len(witnesses.cpu_pops) - top_level})')
+            f'nested={len(cpu_pops) - top_level}, '
+            f'settled={len(settled_pops)})')
     descriptor = case.source_bytes[:DESCRIPTOR_WORDS]
     drained = case.source_bytes[DESCRIPTOR_WORDS:]
-    cpu_values = tuple(event.get('read_value') for event in witnesses.cpu_pops)
+    cpu_values = tuple(event.get('read_value') for event in cpu_pops)
     if cpu_values != descriptor + (drained if case.direction != 'RX_TO_RAM' else ()):
         raise RuntimeError('CPU RDATA pops differ from the decoded descriptor stream')
     cpu_fifo = tuple(_cpu_pop_fifo(event, value, 'descriptor')
-                     for event, value in zip(witnesses.cpu_pops, cpu_values))
+                     for event, value in zip(cpu_pops, cpu_values))
     if any(fifo['pre_depth'] < 1 for fifo in cpu_fifo):
         raise RuntimeError('CPU RDATA pop observed an empty real FIFO')
-    if tuple(event.get('read_value') for event in witnesses.uart_rdata_mmio) \
-            != cpu_values:
+
+    def delivery_access_id(delivery):
+        nested = delivery.get('target_uart_access')
+        return nested.get('access_id') if isinstance(nested, dict) else None
+
+    deliveries = tuple(event for event in witnesses.uart_rdata_mmio
+                       if delivery_access_id(event) not in settled)
+    if tuple(event.get('read_value') for event in deliveries) != cpu_values:
         raise RuntimeError('routed CPU RDATA deliveries differ from the real pops')
     nonempty_status = [event for event in witnesses.uart_status_mmio
                        if type(event.get('read_value')) is int
@@ -694,7 +719,7 @@ def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
         raise RuntimeError('CPU never observed a real UART nonempty STATUS')
     if any(event.get('write') is not False for event in witnesses.uart_status_mmio):
         raise RuntimeError('UART STATUS delivery is not a read')
-    first_pop = _event_id(witnesses.cpu_pops[0].get('event_id'), 'CPU RDATA pop')
+    first_pop = _event_id(cpu_pops[0].get('event_id'), 'CPU RDATA pop')
     if nonempty_status[0].get('event_id') >= first_pop:
         raise RuntimeError('CPU STATUS observation does not precede the real FIFO pop')
 
@@ -946,6 +971,8 @@ def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
         beats=beat_rows, beat_count=2 * len(beat_rows),
         ram_commits=list(ram_commits),
         cpu_source_versions=[list(version) for version in cpu_source_versions],
+        cpu_pop_access_ids=[fifo['access_id'] for fifo in cpu_fifo],
+        settled_cpu_access_ids=[pop_access_id(event) for event in settled_pops],
         fifo=dict(pushes=len(witnesses.tick_pushes),
             push_depths=list(push_depths), push_chain=[dict(item)
                 for item in push_chain], pops=fifo_pops,
@@ -1012,6 +1039,10 @@ class DescriptorBoot:
         self.case_start = 0
         self.case_failure: dict | None = None
         self.booted = False
+        # CPU routed access ids already counted in an earlier case.  A late
+        # top-level uart_rdata_access can land in the next case slice with the
+        # same access id, so cross-case dedupe is required.
+        self.settled_access_ids: set[str] = set()
 
     def boot(self) -> None:
         """Wait for the real CPU UART CTRL request before the first waveform."""
@@ -1139,7 +1170,9 @@ class DescriptorBoot:
         captures = tuple(uart.peer.captured[tx_before:])
         rows = runner.events_since(start)
         evidence = certify_descriptor_case(extract_case_witnesses(rows), case,
-            case_index=case_index, tx_captures=captures, action_ids=action_ids)
+            case_index=case_index, tx_captures=captures, action_ids=action_ids,
+            settled_access_ids=self.settled_access_ids)
+        self.settled_access_ids.update(evidence['cpu_pop_access_ids'])
         evidence.update(_case_boundaries(commands=recorder.commands, rows=rows,
             command_start=command_start, command_end=len(recorder.commands),
             event_start=start, event_end=runner.event_count,
@@ -1385,6 +1418,7 @@ def _replay_descriptor_cases(reference, *, cache_dir, budget=None, factory=None)
         uart = runner.sessions['uart']
         captured = tuple(uart.peer.captured)
         capture_cursor = 0
+        settled_access_ids: set[str] = set()
         cases = []
         for position, (expected_case, spec) in enumerate(zip(reference.cases, specs), 1):
             first = expected_case['source_start_command']
@@ -1403,7 +1437,9 @@ def _replay_descriptor_cases(reference, *, cache_dir, budget=None, factory=None)
             capture_cursor += tx_length
             case = certify_descriptor_case(extract_case_witnesses(rows), spec,
                 case_index=position, tx_captures=tx_captures,
-                action_ids=tuple(expected_case['action_ids']))
+                action_ids=tuple(expected_case['action_ids']),
+                settled_access_ids=settled_access_ids)
+            settled_access_ids.update(case['cpu_pop_access_ids'])
             case.update(_case_boundaries(commands=reference.plan.commands, rows=rows,
                 command_start=first,
                 command_end=(following if following is not None

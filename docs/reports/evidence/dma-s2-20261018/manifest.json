@@ -2,6 +2,7 @@
  "claims": {
   "case_seal": "the case continues past the COMPLETED write until the ISR counter store retires (isr_counter_load+8); wrong/duplicate COMPLETED still fails",
   "cpu_pop_sources": "top-level uart_rdata_access and nested mmio_delivery.target_uart_access are deduplicated by real access_id; count remains 4+len",
+  "cross_case_access_ids": "boot-level settled_access_ids excludes late CPU pop copies that cross a case boundary; count remains 4/4+len",
   "fifo_origin": "unknown",
   "firmware_expectations": "none; the ISR compares no expected value",
   "host_writes": "refused; every guarded store is CPU or DMA",
@@ -27,7 +28,7 @@
   "tx_drain_bound": "320*len + 320 ticks (one idle-frame alignment margin)"
  },
  "files": {
-  "README.md": "991b85d287ec33e75bcdef27fdfb0fb7b6210122313ac7384ec62ccc8b620c3b",
+  "README.md": "24165c80a346a8767cd09acaf91710e0c2bff9694ba2b8b022f9c470eb638c8f",
   "descriptor-program.json": "db0a4daf48bd188a9f6a7c3fb712f0988abd8cf19e5f06e764db474765e778c1",
   "generate_software_evidence.py": "2584f527f3b8e06ec2e3e2e8b1a065145a1adb6a0b000a7d50d3208c66672efb",
   "real-gate-attempt-457d411.md": "f4f1788fe14e4d8e47ad74d12f7b09dc2cdcea306982af2620aeb767a9752166",
@@ -35,9 +36,10 @@
   "real-gate-attempt-8dd3e70.md": "ba94dc515aa32732863a215bc023eb5d142b8c05553550f70c293caf31bdaa23",
   "real-gate-attempt-90652e9.md": "ed87f18684b4c9b080cee8932f7695601332095c81a4cf698b0320d95d59bcd1",
   "real-gate-attempt-c0b7ab8.md": "bd8cd7d1261281d08f334f3e6406854b5b3fdd4d4f47f4d43d20f63c2e8cc99b",
-  "software-descriptor-unit.txt": "59c1a0d30dde7d3e8ecfb915eabcc7dc1a6749a28c80349822c4cd680c11ca9f",
-  "software-focused-gate.txt": "aefafe6f0b3d4447b9d26abaab29481b04166e232d518557c380062f7d8a0a94",
-  "software-search-regression.txt": "392cd684f887f010c68e3b3774018d1cc6f6f9dbd8863488679a219f05f56fa7"
+  "real-gate-attempt-e5c4689.md": "7adce7567aa7232551329766ba8af7b5fd068dd8ebfa3a79e817762f9008bf3f",
+  "software-descriptor-unit.txt": "2e3a00fccfe97cf5ec7145ebc7427852f1d1a9c1806adf35eff06d0a5ad3d383",
+  "software-focused-gate.txt": "d3d7778ff6963aac3413acad26517774d2edce5565b8222d1dba46554b10efe0",
+  "software-search-regression.txt": "28c20e18b3d7f196fcb37ef8b88bd267b1e96208eae7914f039ae615484d1dd6"
  },
  "increment": "P8 S2 external serial descriptor firmware + three directions + multi-word FIFO",
  "real_gate": {
@@ -102,6 +104,15 @@
    "record_values": "0x1045c retire 22912, 0x10460 retire 22928, COMPLETED write 22934, 0x10464 retirement missing at seal",
    "result": "failed",
    "snapshot": "c0b7ab8"
+  },
+  {
+   "failure": "RuntimeError: CPU must pop exactly ... (4 pops; top_level=4, nested=1)",
+   "first_case": "later case command_count=11279 case_start=23086",
+   "fix": "boot-level settled_access_ids dedupe late CPU access copies across cases; count stays 4/4+len",
+   "record": "real-gate-attempt-e5c4689.md",
+   "record_values": "previous case fourth access nested-only; its late top-level uart_rdata_access landed in the next slice and was counted again",
+   "result": "failed",
+   "snapshot": "e5c4689"
   }
  ],
  "schema_version": "dma_s2_evidence_manifest.v1",
@@ -110,20 +121,20 @@
    "command": "the same focused list plus test_dma_uart_rx_boot_object.py and test_dma_uart_rx_uart_schedule.py",
    "failed": 0,
    "note": "re-run after the push-depth fix",
-   "passed": 107,
+   "passed": 109,
    "skipped": 3
   },
   "descriptor_unit": {
    "command": "PYTHONPATH=src python3 -m pytest -q tests/integration/test_dma_uart_descriptor.py",
    "failed": 0,
-   "passed": 66,
+   "passed": 68,
    "skipped": 0
   },
   "focused": {
    "command": "design section 6.2 list (9 files) + tests/integration/test_dma_uart_descriptor.py + tests/integration/test_dma_uart_descriptor_real.py",
    "failed": 0,
    "note": "the 4 skips are the three pre-existing explicit-native gates plus the new queued descriptor gate",
-   "passed": 86,
+   "passed": 88,
    "skipped": 4
   },
   "search_regression": {
@@ -136,8 +147,8 @@
  "status": {
   "p8_passed": false,
   "real_rtl_evidence_present": false,
-  "real_rtl_gate": "five_attempts_failed_fixed_requeued",
-  "reason": "attempt 1 (8dd3e70) push depth; attempt 2 (90652e9) nested CPU pop; attempt 3 (457d411) RAM commit order; attempt 4 (73eb811) IRQ take order; attempt 5 (c0b7ab8) case sealed before the COMPLETED store retirement; all fixed and the gate re-queued on a frozen snapshot",
+  "real_rtl_gate": "six_attempts_failed_fixed_requeued",
+  "reason": "attempts: 1 push depth, 2 nested CPU pop, 3 RAM commit order, 4 IRQ take order, 5 case sealed before store retirement, 6 late top-level CPU access crossing the case boundary; all fixed and the gate is re-queued on a frozen snapshot",
   "uncovered": [
    "S3 invalid descriptors + real CPU error ISR",
    "S4 source admission, typed normalizer and certified prefix replay"
