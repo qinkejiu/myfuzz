@@ -1,0 +1,4 @@
+$ PYTHONPATH=src python3 -m pytest tests/scenario/test_ahb_manager_domain.py -q
+
+....................................                                     [100%]
+36 passed in 0.94s

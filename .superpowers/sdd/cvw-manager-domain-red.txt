@@ -1,0 +1,15 @@
+$ PYTHONPATH=src python3 -m pytest tests/scenario/test_ahb_manager_domain.py::test_historical_external_ready_interpretation_reproduces_failure -q
+
+.                                                                        [100%]
+1 passed in 0.26s
+
+# Baseline before implementation (same saved bytes, unmapped NEW measured domain):
+$ PYTHONPATH=src python3 -m pytest tests/scenario/test_ahb_manager_domain.py -q   # before the fix
+...
+FAILED tests/scenario/test_ahb_manager_domain.py::test_saved_all_sixteen_edges_use_measured_manager_and_bus_reset
+>       self._fail('address_hold',ref,trusted=True)
+E       ValueError: ahb_address_hold
+src/myfuzz/scenario/ahb_cpu_events.py:184: ValueError
+(1 passed: the legacy external-ready interpretation reproduced the failure.
+ The new measured-domain GREEN failed because the observer still interpreted
+ HREADYEXT as manager ready; it had no measured manager_ready/bus_reset_n rows.)
