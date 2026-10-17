@@ -126,3 +126,7 @@ bootstrap已将x1设为GPIO_BASE；CPUsource仅写x10，IPsource为NOP，所有t
 每例128轮执行后，必须实际观察下一未填slot地址等于旧cursor+32，并且CPU pending_responses=0、Router pending_targets为空、GPIO pending_responses=0及pending_events=0；满足后才commit decoder和case计数。若未达到，保存phase/期待地址/实际offered地址/四类pending/local_ticks到runtime.boundary_failure，永久terminal并尝试原finalize，不额外加CPU时钟、不合成完成、不允许下例输入。原ScenarioSession已保存的尝试case和真实事件保持；decoder未commit不能被解释为没有发生前例物理效果。decode前守卫拒绝本身不改变候选/RTL，且仍保留此前已执行前缀。
 
 这一守卫只证明单outstanding环境已到达下一个真实未接受取指边界，不能代替实际MMIO/CPU来源逐边认证、全fresh或吞吐验收。128轮可能诚实失败，未提高边界；本修正仍仅源码审查，未运行测试/模型。
+
+### Stage B 边界前检拒绝的永久停止补正
+
+906e652 的 before_input guard 在执行try外，虽不提交新输入，但失败后runtime仍可finish/再调用，未满足永久停止约定。现仅为该边界前检加独立catch，调用原 `_fail(primary)` 设置terminal并finalize后重新抛出原异常；后面的纯decode拒绝仍在执行try外，可以换候选重试。边界失败后的实际旧前缀/失败观测保持，不增加时钟/输入，未运行测试或模型。

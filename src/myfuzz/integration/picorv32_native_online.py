@@ -80,7 +80,11 @@ class PicoNativeOnlineRuntime:
         # Refuse before decode/admission: an IP input must never change pins
         # while the previous packet is still reading them. The marker names an
         # actual offered fetch, and single-outstanding service must be drained.
-        self._require_packet_boundary(self.decoder.instruction_cursor, phase='before_input')
+        try:
+            self._require_packet_boundary(self.decoder.instruction_cursor, phase='before_input')
+        except BaseException as primary:
+            self._fail(primary)
+            raise
         # Pure decode refusal has no effects; the caller may supply another
         # candidate. Any exception once submit starts permanently stops this
         # runtime, preserving the original attempted plan and actual prefix.
