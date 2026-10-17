@@ -1391,7 +1391,7 @@ def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
                          for beat in beat_rows)
     depths = [pop['post_depth'] for pop in fifo_pops]
     status_fields = dma_status_fields(status)
-    return dict(schema_version=CASE_SCHEMA, case_index=case_index,
+    evidence = dict(schema_version=CASE_SCHEMA, case_index=case_index,
         spec=case.to_document(), direction=case.direction,
         descriptor=dict(case.descriptor), source_bytes=list(case.source_bytes),
         action_ids=list(ids), frame_ids=list(frame_ids),
