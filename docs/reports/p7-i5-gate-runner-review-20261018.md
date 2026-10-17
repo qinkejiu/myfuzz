@@ -22,3 +22,7 @@ No other High/Medium findings in the reviewed scope. Approval pending M1 and fro
 ## Remaining operation requirements
 
 Resolve M1, freeze the final script and source/tool/dependency closure, and perform a new independent copy. Root must review the new-workspace README and established canonical lock before one explicit operation. Retain actual child terminal receipts, raw tests, fresh/join data and maps; independent full evidence audit precedes any P7 I5/formal P7 statement.
+
+## M1 frozen re-review: closed at 8af55a3
+
+Read-only diff `0e91754..8af55a3` confirms the only runner change is the two-line explicit present-and-null check immediately after matches/full, raising `fresh-first-difference-not-explicitly-null` for missing or non-null values. Existing digest/identity/join checks are unchanged. M1 is closed by source inspection. Final source-review decision: no open High/Medium findings; suitable for root's frozen preparation and separately authorized operation, with all tool/transitive-closure and independent-evidence requirements above retained. No tests or execution were performed for this re-review.
