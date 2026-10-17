@@ -1,0 +1,48 @@
+{
+ "all_prefixes": true,
+ "corpus_entries": 8,
+ "decisions_equal": true,
+ "kind": "dma-continuous-s1b-uniform-saved-audit",
+ "ok": true,
+ "parent_kinds": [
+  "seed",
+  "spec",
+  "spec",
+  "spec",
+  "spec",
+  "spec",
+  "spec",
+  "spec"
+ ],
+ "plan_values": [
+  90,
+  78,
+  16,
+  3,
+  0,
+  80,
+  92,
+  1
+ ],
+ "spec_values": [
+  90,
+  78,
+  16,
+  3,
+  0,
+  80,
+  92,
+  1
+ ],
+ "stats": {
+  "completed_chains": 8,
+  "distinct_effective_specs": 7,
+  "effective_search_seconds": 52.43335553399993,
+  "feedback_influenced": false,
+  "new_features_total": 42,
+  "post_seed_cases": 7,
+  "post_seed_completed_chains": 7,
+  "search_status": "ok",
+  "search_wall_seconds": 72.32151669999985
+ }
+}

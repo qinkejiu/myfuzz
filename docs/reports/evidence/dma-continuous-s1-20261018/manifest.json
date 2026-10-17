@@ -1,0 +1,70 @@
+{
+ "audits": {
+  "attempt6_comparison": "attempt6-comparison.json",
+  "search_bundle": "search-audit.json",
+  "uniform_control": "uniform-audit.json"
+ },
+ "authorized_source_head": "fd9fb93e90aac3e20654bfbbd50aa9ec249ffd6c",
+ "continuous": {
+  "command": "MYFUZZ_DMA_CONTINUOUS_REAL=1 MYFUZZ_DMA_CONTINUOUS_CACHE=.superpowers/cache/local-harness MYFUZZ_DMA_CONTINUOUS_EVIDENCE=docs/reports/evidence/dma-continuous-s1-20261018/continuous PYTHONPATH=src timeout 900 python3 -m pytest -xq tests/integration/test_dma_uart_rx_runtime.py::test_continuous_native_uart_dma_prefix_and_failure",
+  "exit": 0,
+  "files": {
+   "failure-fresh.json.gz": "5c6f1a3d371478b10beef9027cf89ec452acf594ac01097a10049fec1d9f09d8",
+   "failure.json.gz": "71b9d6e7780644c5c06d02ad2816481aa460313f79b2976ba523074ba7064efc",
+   "fresh.json.gz": "a6972c7059a0332234d452958952a1c7627d547d25d8bcf9055223a49cd704e5",
+   "positive.json.gz": "6ef08d16f1a23b115e54e8430967348106b68c928d17ed35acb3fd071f7f7444"
+  },
+  "result": "1 passed in 173.26s"
+ },
+ "host_logs": {
+  "continuous": ".superpowers/p8-s1-20261018/live-continuous.log",
+  "search_guided": ".superpowers/p8-s1-20261018/live-search-guided.log",
+  "search_uniform": ".superpowers/p8-s1-20261018/live-search-uniform.log"
+ },
+ "implementation_commit": "349106fd5fa7efb56e237bdb4318fc1bc62f4e37",
+ "omitted_redundant": {
+  "files": {
+   "search/positive.json.gz": "08d3a7d47f0b8bb0130b12867a0904e5ae541cd1323bde39167712fa8b2ab23c",
+   "search/uniform/positive.json.gz": "94d2ed8fb047bac91df0c7c0e9d03156920d0a7b4ed91690fb9d2f74c939e883"
+  },
+  "note": "positive.json.gz is the same document as search.json.gz[\"result\"] (verified equal); the digests pin the omitted copies, which remain on disk in this directory."
+ },
+ "saved_source_pins_equal_working_tree": true,
+ "schema_version": "dma_continuous_s1_evidence.v1",
+ "search_guided": {
+  "command": "MYFUZZ_DMA_SEARCH_REAL=1 MYFUZZ_DMA_SEARCH_CACHE=.superpowers/cache/local-harness MYFUZZ_DMA_SEARCH_EVIDENCE=docs/reports/evidence/dma-continuous-s1-20261018/search MYFUZZ_DMA_SEARCH_SECONDS=120 MYFUZZ_DMA_SEARCH_SEED=5a17c0de0badf00d0e0d010203040506 PYTHONPATH=src timeout 1800 python3 -m pytest -xq tests/integration/test_dma_uart_rx_search_real.py",
+  "exit": 0,
+  "files": {
+   "decisions.jsonl": "71d14fe16fbf7822c4b7b4975a5147d8c85e5a2f397933ccad58d9250dc89220",
+   "failure-fresh.json.gz": "b1cb43262da87a327f8f8cac061be1ce2794469f97d3344795803f3b4132a7a0",
+   "failure.json.gz": "4d712e48ab853745a10258008820cb73f676cbf732cc8b726fd8a8eaaa92f0d1",
+   "fresh.json.gz": "7b0150fa19b870002661cf0f034715f63c2391c45600b063b520d577f0026c89",
+   "positive.json.gz": "08d3a7d47f0b8bb0130b12867a0904e5ae541cd1323bde39167712fa8b2ab23c",
+   "search.json.gz": "24286e2a0ab237f0cccce94b18b10fd5a7bcf8e34b60c250e621b8d1edc2d947",
+   "source_pins.json": "4ae1ebe0038987728d1d87efc136a058743eed4f5b25d2fc57b50c5a1736dbec",
+   "stats.json": "a1ed0c4633e2c2d67bc993b51028490135df4d53c1ea3b319ad249f02d82d0aa"
+  },
+  "result": "1 passed, 1 skipped in 237.00s"
+ },
+ "search_uniform": {
+  "command": "MYFUZZ_DMA_SEARCH_UNIFORM=1 (same env) pytest -xq tests/integration/test_dma_uart_rx_search_real.py::test_uniform_control_arm_is_saved_beside_guided",
+  "exit": 0,
+  "files": {
+   "decisions.jsonl": "2fad61ff497cb5684ab7103bf42fd895e55dd6f2a8829b57b3622193938f607e",
+   "guided-stats.json": "a1ed0c4633e2c2d67bc993b51028490135df4d53c1ea3b319ad249f02d82d0aa",
+   "positive.json.gz": "94d2ed8fb047bac91df0c7c0e9d03156920d0a7b4ed91690fb9d2f74c939e883",
+   "search.json.gz": "2563c44814de703dbf7ed2d7502a7399536540238f8abc6c1a7a1c27695e39dd",
+   "source_pins.json": "4ae1ebe0038987728d1d87efc136a058743eed4f5b25d2fc57b50c5a1736dbec",
+   "stats.json": "ac4626027e4e4ce280439b0efeebb8f43c8ce0919b7223c70442dbbf25e37188"
+  },
+  "result": "1 passed in 105.07s"
+ },
+ "source_head_at_gate": "7e08913bb2d48cdb15b78f894e6f1ea0a0019f16",
+ "source_pin_scope": "src/myfuzz/**/*.py as saved by the gate (ContinuousRxResult.source_pins)",
+ "source_pins_count": 453,
+ "source_pins_sha256": "b2a49ffff22835a32263ca75793646286213a909e0cf2214e41a659b91246ad9",
+ "src_change_note": "d24da4d (P6 campaign fix) landed after the freeze GO and touched only that module; the DMA path imports no picorv32 module (checked via sys.modules) and the gate re-read and re-hashed every src/myfuzz file at start and end without SourceDrift.",
+ "src_changed_since_authorized": [
+  "src/myfuzz/integration/picorv32_wb_scenario_campaign.py"
+ ]
+}

@@ -1,0 +1,132 @@
+{
+ "kind": "dma-continuous-s1a-attempt6-comparison",
+ "new_fresh_pair": {
+  "cases_equal": true,
+  "distinct_execution_ids": true,
+  "identities_equal": true,
+  "local_ticks_equal": true,
+  "normalized_events_equal": true,
+  "plan_equal": true
+ },
+ "ok": true,
+ "runs": {
+  "fresh": {
+   "baseline": {
+    "case_index": 4,
+    "cases": 4,
+    "commands": 4774,
+    "events": 34794,
+    "execution_ids": {
+     "cpu": "a5b1864d630e477489dd7975477565d1",
+     "dma": "e4114de5f4784a708557befaf8fc751a",
+     "runner": "57db9ef79af240fd92ffc1890ceb78b3",
+     "uart": "f392c49e117841b6a009e22ca60f0827"
+    },
+    "local_ticks": {
+     "cpu": 1314,
+     "dma": 1394,
+     "uart": 4790
+    },
+    "phase": "complete"
+   },
+   "baseline_case_case_fields_equal": true,
+   "commands_equal": true,
+   "differing_event_paths": [
+    "/*/artifact_digest",
+    "/*/reset_outcome/artifact_digest"
+   ],
+   "label": "fresh",
+   "local_ticks_equal": true,
+   "new": {
+    "case_index": 4,
+    "cases": 4,
+    "commands": 4774,
+    "events": 34794,
+    "execution_ids": {
+     "cpu": "0929420d90364dd9b523311557d9e7c6",
+     "dma": "53aaa630a8924920860b5b9fc1f0ff93",
+     "runner": "6547ebc8bc4a4012b71e7d3625f8a66f",
+     "uart": "0568b268ad57458888b76e398182f7b1"
+    },
+    "local_ticks": {
+     "cpu": 1314,
+     "dma": 1394,
+     "uart": 4790
+    },
+    "phase": "complete"
+   },
+   "new_boundary_fields_present": true,
+   "new_prefix_digests": [
+    "700b5c69676c66f00e758e59abb36f56917baf7ca61a8fbe91c3beeaeb0dc02a",
+    "259518cbe3a3f8124818463a81748d6aa0c37554524abf43e4f7a878cf030836",
+    "81151b2a133b5bee9931621b70ef9b74b8f54f278ad1a83784aafb732a6c1bd2",
+    "b373ed64ca0aca7eed6056389d8ce2afe2f2cd4e5f05c42cde02f1e72b4dde40"
+   ],
+   "normalized_events_equal": false,
+   "significant_event_differences": [],
+   "tolerated_artifact_identity_paths": [
+    "/*/artifact_digest",
+    "/*/reset_outcome/artifact_digest"
+   ]
+  },
+  "positive": {
+   "baseline": {
+    "case_index": 4,
+    "cases": 4,
+    "commands": 4774,
+    "events": 34794,
+    "execution_ids": {
+     "cpu": "62394bb64b224d69b8049e2f8c088c57",
+     "dma": "03277277e2884672864ce615af02d608",
+     "runner": "8f0fa1fc1c9e4f078d276323ebeec202",
+     "uart": "96edb586b5b64eaca41dcc29cc0626b4"
+    },
+    "local_ticks": {
+     "cpu": 1314,
+     "dma": 1394,
+     "uart": 4790
+    },
+    "phase": "complete"
+   },
+   "baseline_case_case_fields_equal": true,
+   "commands_equal": true,
+   "differing_event_paths": [
+    "/*/artifact_digest",
+    "/*/reset_outcome/artifact_digest"
+   ],
+   "label": "positive",
+   "local_ticks_equal": true,
+   "new": {
+    "case_index": 4,
+    "cases": 4,
+    "commands": 4774,
+    "events": 34794,
+    "execution_ids": {
+     "cpu": "5a67e658e3a946d4acc2aad9ffde5cb4",
+     "dma": "3646647a536d4989a228d472cbf66f76",
+     "runner": "d5eb5f74415341d89bdf44e94aadc919",
+     "uart": "e6195f55b99440e0a8ed517e102a87b6"
+    },
+    "local_ticks": {
+     "cpu": 1314,
+     "dma": 1394,
+     "uart": 4790
+    },
+    "phase": "complete"
+   },
+   "new_boundary_fields_present": true,
+   "new_prefix_digests": [
+    "700b5c69676c66f00e758e59abb36f56917baf7ca61a8fbe91c3beeaeb0dc02a",
+    "259518cbe3a3f8124818463a81748d6aa0c37554524abf43e4f7a878cf030836",
+    "81151b2a133b5bee9931621b70ef9b74b8f54f278ad1a83784aafb732a6c1bd2",
+    "b373ed64ca0aca7eed6056389d8ce2afe2f2cd4e5f05c42cde02f1e72b4dde40"
+   ],
+   "normalized_events_equal": false,
+   "significant_event_differences": [],
+   "tolerated_artifact_identity_paths": [
+    "/*/artifact_digest",
+    "/*/reset_outcome/artifact_digest"
+   ]
+  }
+ }
+}

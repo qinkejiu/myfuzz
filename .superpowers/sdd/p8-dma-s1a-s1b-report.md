@@ -11,8 +11,9 @@
 | S1a 源码（`_ContinuousRxBoot` + 每例前缀边界字段 + 薄封装 + replay 重建边界） | 已实现，纯软件全绿 |
 | S1b 源码（`dma_chain_feedback` + `dma_uart_rx_search`：spec/feedback/corpus/mutator/decision/guided+uniform/§2.8 判据） | 已实现，纯软件全绿 |
 | 纯软件门 | **66 passed, 3 skipped**（原 9 文件基线 20 passed/3 skipped；新增 4 个测试文件） |
-| S1a 真实连续门 | 见 §3（状态与结果） |
-| S1b 真实搜索门 | 见 §4（状态与结果） |
+| 证据 + 离线审计 | `docs/reports/evidence/dma-continuous-s1-20261018/`（manifest 逐文件 SHA256；三份审计 `ok=true`） |
+| S1a 真实连续门 | **1 passed / 173.26s**（live tree HEAD `7e08913`，heavy lock 排队约 126 分钟；源码绑定见 §3） |
+| S1b 真实搜索门 | **guided 1 passed / 237.00s；uniform 1 passed / 105.07s**（live tree，同锁串行）见 §4.4 |
 | 证据审计脚本（离线、只读保存数据） | `docs/reports/evidence/dma-continuous-s1-20261018/audit_attempt6_comparison.py`、`audit_search_bundle.py` |
 
 ## 1. 变更文件
@@ -78,14 +79,35 @@ PYTHONPATH=src timeout 900 python3 -m pytest -xq \
   tests/integration/test_dma_uart_rx_runtime.py::test_continuous_native_uart_dma_prefix_and_failure
 ```
 
-结果：**待源码冻结后由 root 排队执行**（本代理已排队但被并发源码变更与快照完整性阻塞，见下）。
+冻结后执行（live tree `/home/qinkejiu/myfuzz`，`flock -w 14400`，排队约 126 分钟后取得锁）：
 
-已完成的真实观察（不是门禁通过）：
-- 重构**前**在 live tree 跑同一命令（attempt A），4 例全部完成：`commands=4774`、`events=34794`、`ticks={cpu:1314,dma:1394,uart:4790}`，与 attempt6 逐字段相等；失败原因只是 `SourceDrift`（并发代理在运行中新增/修改了 `src/myfuzz/integration/picorv32_wb_scenario_campaign.py`、`src/myfuzz/scenario/picorv32_wb_two_gpio_example.py`，与本增量无关）。
-- attempt A 与 attempt6 的归一事件逐事件比较：**34794 条中只有 1 条不同**，差异路径只有 `artifact_digest` / `reset_outcome/artifact_digest`（CPU harness 构建输入自 attempt6 后被其它增量改动，属构建身份，不是 tick/data/IRQ/事务差异）；`plan.commands`、`local_ticks`、逐例 case（baseline 18 字段）全部相等。
-- 重构**后**尝试在 frozen snapshot（`src/configs/tests/third_party/scripts/schemas` 字节复制）中跑同一门：在 1.31s 内失败于 `scripts/verify_soc_sources.py` 的 source closure（`git cat-file` 在 `.git` 元数据不完整的子模块副本上失败），**不是** S1a 逻辑失败；日志保留在 `.superpowers/p8-s1-20261018/after-native.log`，该快照已废弃、不再重试。
+```
+1 passed in 173.26s (0:02:53)   exit=0
+```
 
-结论：S1a 的真实门**尚未**在本增量上取得 1 passed；在冻结树上重跑前，本报告不宣称 S1a 真实回归通过。
+保存证据：`docs/reports/evidence/dma-continuous-s1-20261018/continuous/{positive,fresh,failure,failure-fresh}.json.gz`；日志 `.superpowers/p8-s1-20261018/live-continuous.log`。
+
+源码绑定（诚实记录）：授权冻结 HEAD 为 `fd9fb93`；门实际运行在 `7e08913`（HEAD）的 live tree 上。二者之间 `src/` 只有一个文件不同：`src/myfuzz/integration/picorv32_wb_scenario_campaign.py`（`d24da4d` 的 P6 campaign 修复）。该模块**不在** DMA 路径的 import 闭包内（`sys.modules` 中无任何 `picorv32` 模块），且门在开始/结束各自重算并校验全部 `src/myfuzz/**/*.py` 摘要（453 文件，无 `SourceDrift`）。证据里保存的 `source_pins` 与当前工作树逐文件相等，见 `manifest.json` 的 `source_pins_sha256=b2a49fff…`、`src_changed_since_authorized`。
+
+逐字段结果（离线审计 `attempt6-comparison.json`，`ok=true`）：
+
+| 项 | positive | fresh | attempt6 positive | 判据 |
+| --- | --- | --- | --- | --- |
+| events | 34,794 | 34,794 | 34,794 | 相等 |
+| plan commands | 4,774 | 4,774 | 4,774 | 逐条相等 |
+| local_ticks | 1314/1394/4790 | 1314/1394/4790 | 1314/1394/4790 | 相等 |
+| 逐例 case（attempt6 的 18 字段） | 4 例 | 4 例 | 4 例 | 全等（新增 8 字段除外） |
+| 归一事件 | — | — | — | 仅 `artifact_digest` / `reset_outcome/artifact_digest` 2 条路径不同（构建身份），**significant 差异 0** |
+| 新字段 | 存在 | 存在 | 无 | 逐例 `command_start/end`、`event_start/end`、`ticks_before/after`、`prefix_sha256`、`fifo_depth_after` |
+| positive↔fresh | — | — | — | `cases`、`plan`、`ticks`、`identities` 相等；4 个 execution UUID 互异；归一事件相等 |
+
+逐例边界链（positive）：`commands 16→1204→2394→3584→4774`、`events 185→8839→17496→26145→34794`、`ticks` 单调递增、`fifo_depth_after=0`、4 个 `prefix_sha256` 互异。受控失败仍为 `phase=source, case_index=1`、18 commands、200 events、ticks 16/16/5，`failure-fresh` 的 `error`/`budget` 与原失败相等。
+
+保留的历史失败（不重标）：
+- 重构**前** live tree 同一命令（attempt A）4 例完成、数值与 attempt6 全等，唯一失败是 `SourceDrift`（并发代理在运行中改 `src/myfuzz`，与本增量无关）。A 的 positive 与 attempt6 归一事件比较：34,794 条中仅 1 条不同且只差 `artifact_digest`。
+- 重构**后**在缺 `third_party` git 元数据的 snapshot 中跑同一门曾在 1.31s 失败于 `scripts/verify_soc_sources.py` 的 source closure（非 S1a 逻辑）；日志保留 `.superpowers/p8-s1-20261018/after-native.log`，该快照已删除、不再重试（按 root 指示改用 live tree）。
+
+结论：**S1a 真实回归门通过**（1 passed），且命令流/事件/tick/逐例 case 与 attempt6 逐字段一致；唯一差异是 CPU harness 构建身份摘要（`artifact_digest`），属并发增量后的合法构建身份变化，不是 S1a 行为变化。
 
 ## 4. S1b：搜索骨架
 
@@ -139,9 +161,22 @@ PYTHONPATH=src timeout 1800 python3 -m pytest -xq \
   tests/integration/test_dma_uart_rx_search_real.py
 ```
 
-结果：**待源码冻结后由 root 排队执行**（同一并发源码变更/快照完整性问题阻塞，同 §3）。
+结果（live tree，同 `flock` 一次持锁串行跑两臂）：
 
-门禁测试本身要求（`test_dma_uart_rx_search_real.py`）：`search_status='ok'`、`post_seed_cases>=2`、`distinct_effective_specs>=2`、`post_seed_completed_chains>=1`、`feedback_influenced=True`、`effective_search_seconds<=search_wall_seconds`、全部 case `completed_chain` 且有 `prefix_sha256`、plan 与逐例 spec 一致、`recompute_decisions` 与保存决策相等、重载 bundle 后 `_assert_real_search` 通过、完整 fresh 前缀 replay（`fresh.cases == positive.cases`、ticks/plan 相等）、真实受控失败保存 + fresh 失败重放（`error/budget` 相等）。uniform 对照臂在 `MYFUZZ_DMA_SEARCH_UNIFORM=1` 时保存到 `.../uniform/`。
+| 臂 | pytest | stats（保存值/审计复算值一致） |
+| --- | --- | --- |
+| guided（120s 预算，seed `5a17c0de…`） | **1 passed, 1 skipped in 237.00s** | `search_status=ok`、`post_seed_cases=7`、`distinct_effective_specs=7`、`feedback_influenced=true`、`post_seed_completed_chains=7`、`completed_chains=8`、`new_features_total=43`、`effective_search_seconds=52.23`、`search_wall_seconds=72.35` |
+| uniform（同预算/live 对照，未跑 fresh replay） | **1 passed in 105.07s** | `search_status=ok`、`post_seed_cases=7`、`distinct_effective_specs=7`、`feedback_influenced=false`、`post_seed_completed_chains=7`、`completed_chains=8`、`new_features_total=42`、`effective_search_seconds=52.43` |
+
+两臂的实际搜索行为不同（不是同一序列换个标签）：guided 8 例字节 `[90,78,87,79,63,98,97,80]`，父代全部来自语料（`corpus-1`，energy 26/5/6），算子全部被 yield 加权收敛到 `byte_addsub`；uniform 8 例字节 `[90,78,16,3,0,80,92,1]`，父代全部是 `spec`（energy=0），算子混合 `byte_addsub/byte_interesting/descriptor_field`。两者都 8 例全部 `completed_chain`、7 个互异非 seed 字节。
+
+离线审计（不启动模型，只读保存数据）：
+
+- `search-audit.json`（guided）：`ok=true`、`findings=[]`；`decisions_equal=true`（用保存的逐例反馈复算决策流）；8 个 case 的 `prefix_sha256` **全部**能从保存的 plan 命令 + 事件切片 + tick 边界重算相等；**完整 fresh 前缀 replay**：`cases`/`plan`/`local_ticks`/`identities`/归一事件全部相等，4 个 execution UUID 互异；语料 8 项、无淘汰、全部有 prefix；按 spec 来源期望（`expected_from_host` 未触发）、无 host 写数据；失败保存 `phase=source/case_index=1`、18 commands、`error`/`budget` 与 fresh 失败重放相等。
+- `uniform-audit.json`：`ok=true`；`recompute_decisions` 相等；父代 `[seed, spec×7]`（无 corpus 父代，`feedback_influenced=false`）；plan 值 == spec 值；语料 8 项均有 prefix。
+- `attempt6-comparison.json`：见 §3。
+
+门禁测试本身（`test_dma_uart_rx_search_real.py`）同时断言：`search_status='ok'`、`post_seed_cases>=2`、`distinct_effective_specs>=2`、`post_seed_completed_chains>=1`、`feedback_influenced=True`、`effective_search_seconds<=search_wall_seconds`、全部 case `completed_chain` 且有 `prefix_sha256`、plan 与逐例 spec 一致、`recompute_decisions` 与保存决策相等、重载 bundle 后 `_assert_real_search` 通过、完整 fresh 前缀 replay、真实受控失败保存 + fresh 失败重放。
 
 ## 5. 明确未做 / 限制
 
@@ -151,7 +186,7 @@ PYTHONPATH=src timeout 1800 python3 -m pytest -xq \
 4. **只变异串行 8-bit 字节**：不读固件期望值，不改 DMA 配置/程序；host 不写数据（硬判据 `host_wrote_data`）。
 5. **单 boot 内的失败隔离有限**：post-RTL 失败即封存并 fresh 重放，不能在同一 boot 继续下一例。
 6. **值覆盖桶**（`payload_*`）是 S1b 唯一的新颖性来源之一，报告与代码都声明它是值覆盖，不是因果/覆盖证明；`feedback_influenced` 因此可复算但不等于"搜索有效"。
-7. **真实门未通过**（§3/§4）：在冻结树上重跑前，S1a/S1b 只能声明"纯软件通过、真实门待跑"。
+7. **真实门已通过**（§3/§4）但**只覆盖单 boot 串行 8-bit 字节**：8 例/52 秒有效搜索是当前吞吐下的实测规模，不构成"持续搜索质量"或 P8 通过；S1c 抽稀前 commands/例仍约 1.2k。
 8. 未改 `third_party/`、`agent.md`、未跟踪 DMA 证据、`contracts.py`、DMA/UART RTL。
 
 ## 6. 复现命令
@@ -179,3 +214,12 @@ PYTHONPATH=src python3 docs/reports/evidence/dma-continuous-s1-20261018/audit_se
 ```
 
 所有长 RTL 运行必须 `flock -w 3600 /home/qinkejiu/myfuzz/.superpowers/heavy-worker.lock <command>`，且不许把外层 `timeout` 当内部 `ResourceBudget`。
+
+## 7. 证据索引
+
+- `docs/reports/evidence/dma-continuous-s1-20261018/manifest.json`：每条门的命令/结果/退出码、逐文件 SHA256、源码绑定（`authorized_source_head=fd9fb93`、`source_head_at_gate=7e08913`、`src_changed_since_authorized`、`source_pins_sha256`）。
+- `continuous/{positive,fresh,failure,failure-fresh}.json.gz`。
+- `search/{search.json.gz,fresh.json.gz,failure.json.gz,failure-fresh.json.gz,decisions.jsonl,stats.json,source_pins.json}`；`search/uniform/{search.json.gz,decisions.jsonl,stats.json,source_pins.json,guided-stats.json}`。
+- 两臂的 `positive.json.gz` 与 `search.json.gz` 的 `result` 字段逐字节相同（已验证），故未重复入库；其 SHA256 记在 `manifest.json` 的 `omitted_redundant`，原文件仍在工作树中。
+- `attempt6-comparison.json`、`search-audit.json`、`uniform-audit.json`：离线审计结果。
+- 主机日志（不入库，路径记录在 manifest）：`.superpowers/p8-s1-20261018/live-{continuous,search-guided,search-uniform}.log`。
