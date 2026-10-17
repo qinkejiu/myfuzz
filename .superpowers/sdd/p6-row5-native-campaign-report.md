@@ -1,7 +1,8 @@
 # P6 行 5（PicoRV32 native Ready/Valid Memory × 真实 PULP APB3 GPIO）campaign 实施报告
 
 日期：2026-10-17。范围：`docs/superpowers/plans/2026-10-13-p6-per-protocol-row-checklist.md` 行 5
-（`ready-valid-memory/1`）的"第二步完整框架复用"证据。当前 HEAD `0a4a81b`。
+（`ready-valid-memory/1`）的"第二步完整框架复用"证据。实现基线 `0a4a81b`；本行提交
+`63d4cdb`（fixture/provider/seeds/checker/tests）与 `ac5f564`（源竞争路径修正＋本报告）。
 
 > **状态：源码／测试／seed／checker 已实现并提交；18 格 campaign 尚未运行。**
 > 这是协调决定：P7/P8 代理仍在修改 `src/myfuzz`，任何 host-source 变更都会让 campaign 的
