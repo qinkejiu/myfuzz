@@ -24,3 +24,16 @@
 ## 文档增量同步完成
 
 11份具名文档/审计报告已复制到 `/root/fanzehui/myfuzz/evidence/docs-followup-dd9684a-20261018/contents/`。独立bundle的SHA256为 `7745cdc45429f5a99593a7e52c4b2a8e0558d0596c7069e9e9a2d5d5c7f3bd40`；远程解包前逐文件验证大小/哈希、拒绝链接及越界路径。`copy-receipt.json`记录实际manifest本地HEAD46d2798。目录名dd9684a只是此次操作标签，不代表整个bundle绑定该提交。project与旧system原件未覆盖。此次同步是文档副本，不是独立native重跑。后续新增报告仍以本地为准。
+
+## 5051054逐文件只读比较
+
+对该提交中src/scripts/configs/tests的2488个tracked普通文件与远程project实际字节比较，2186相同、302缺失或不同。范围含配置下历史证据，不是302项生产逻辑变更；第三方/工具及后续本地改动不在此比较范围。分布：
+
+|范围|缺失|不同|
+|---|---:|---:|
+|src|59|38|
+|scripts|8|1|
+|configs|77|5|
+|tests|100|14|
+
+完整路径及预期/实际哈希记录于 `.superpowers/remote-myfuzz-20261018/5051054-source-comparison.json`；读取未修改远程源码。不能只同步docs就称远程代码等于当前本地快照。

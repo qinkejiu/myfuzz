@@ -1,0 +1,1681 @@
+{
+  "scope": "tracked src/scripts/configs/tests only; excludes thirdparty/toolclosure and later followup changes",
+  "reference_commit": "50510545767b1caa7b6e3957b062478b9dbd5f0b",
+  "matched": 2186,
+  "total": 2488,
+  "differences": [
+    {
+      "path": "configs/cpus/boom/README.md",
+      "status": "different",
+      "expected": {
+        "bytes": 8310,
+        "sha256": "43945cf55bb872b745b5a18fc1f6f92a8351cf633f7123aeb6f84925c6bf43bf"
+      },
+      "actual": {
+        "bytes": 8266,
+        "sha256": "428fc30e9bed1acdc117250322be12d541801515091bf6066ad0b6402e32f2ba"
+      }
+    },
+    {
+      "path": "configs/cpus/boom/evidence/generated-runtime-20261017/artifact.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom/evidence/generated-runtime-20261017/build.log",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom/evidence/generated-runtime-20261017/driver.cpp",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom/evidence/generated-runtime-20261017/fault_read.exit",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom/evidence/generated-runtime-20261017/fault_read.jsonl",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom/evidence/generated-runtime-20261017/fault_read.stderr",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom/evidence/generated-runtime-20261017/fresh1.exit",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom/evidence/generated-runtime-20261017/fresh1.jsonl",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom/evidence/generated-runtime-20261017/fresh1.stderr",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom/evidence/generated-runtime-20261017/fresh2.exit",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom/evidence/generated-runtime-20261017/fresh2.jsonl",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom/evidence/generated-runtime-20261017/fresh2.stderr",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom/evidence/generated-runtime-20261017/gate.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom/evidence/generated-runtime-20261017/manifest.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom/evidence/persistent-coherent-20261017/README.md",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom/evidence/persistent-coherent-20261017/evidence-manifest.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom/evidence/persistent-coherent-20261017/evidence.tar.gz",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom/evidence/persistent-coherent-20261017/gate.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom/evidence/persistent-runtime-20261017/README.md",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom/evidence/persistent-runtime-20261017/evidence-manifest.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom/evidence/persistent-runtime-20261017/evidence.tar.gz",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom/evidence/persistent-runtime-20261017/gate.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom/evidence/persistent-runtime-20261017/host-discovery-profile.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom/evidence/persistent-runtime-20261017/native-artifact.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom/evidence/persistent-runtime-20261017/native-summary.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom/generated/README.md",
+      "status": "different",
+      "expected": {
+        "bytes": 1894,
+        "sha256": "9c06f0ae695c527e0d2a7965e7cbc3e14343dfc7e55c9a0f184ce54a73b06217"
+      },
+      "actual": {
+        "bytes": 1849,
+        "sha256": "9a787bacbf0cb5014420b8787051ac9cc01389392a65cb48cfe2e924dc7ae003"
+      }
+    },
+    {
+      "path": "configs/cpus/boom/generation_evidence_20261017.md",
+      "status": "different",
+      "expected": {
+        "bytes": 12074,
+        "sha256": "3131bdc2ce1346234fd4e5b6bfb1fadc3b8f9d7dd91dcf32d622f4e88bc4f37c"
+      },
+      "actual": {
+        "bytes": 11232,
+        "sha256": "9ed6790cadcc5708410d7409e46d9a6650972f57ba40b8e8a314b233338a7927"
+      }
+    },
+    {
+      "path": "configs/cpus/boom_irq/README.md",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom_irq/component_profile.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom_irq/interface_description.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom_irq/passive_probes.vlt",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/boom_irq/probe_contract.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/cvw/component_profile.json",
+      "status": "different",
+      "expected": {
+        "bytes": 39462,
+        "sha256": "a04865cd0d851b3077dce10aff5a46db807cc27f2af963a5b0e953de53f3d4c4"
+      },
+      "actual": {
+        "bytes": 39095,
+        "sha256": "c60ddb291a62784591e2c221663f84d5ae97c1e663426e0aef883d594b76ab2a"
+      }
+    },
+    {
+      "path": "configs/cpus/vexiiriscv/README.md",
+      "status": "different",
+      "expected": {
+        "bytes": 2522,
+        "sha256": "3168bd21816bb96ca06405f52f2e0795a2fdcdbd0a2388f01b473fd23597d1ff"
+      },
+      "actual": {
+        "bytes": 1749,
+        "sha256": "584e7973ebecf95f3e95cef596ebd6a3c03b5f875f376d8fa8596c0c018d83ad"
+      }
+    },
+    {
+      "path": "configs/cpus/vexiiriscv/evidence/mmio-artifact-20261017.json.gz",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/vexiiriscv/evidence/mmio-fault-20261017.json.gz",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/vexiiriscv/evidence/mmio-first-20261017.json.gz",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/vexiiriscv/evidence/mmio-fresh-20261017.json.gz",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/vexiiriscv/evidence/mmio-runtime-20261017.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/vexiiriscv_irq/README.md",
+      "status": "missing"
+    },
+    {
+      "path": "configs/cpus/vexiiriscv_irq/component_profile.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/peripherals/caliptra_sha256/evidence/cpu-chain-20261017.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenario/pico_native_gpio_campaign_baseline.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenario/pico_native_gpio_campaign_seed.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenario/pico_native_gpio_independent_ip_seed.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenario/pico_native_gpio_reverse_seed.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenario/pico_wb_two_gpio_campaign_baseline.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenario/pico_wb_two_gpio_campaign_seed.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenario/pico_wb_two_gpio_independent_cpu_seed.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenario/pico_wb_two_gpio_independent_ip_seed.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenario/pico_wb_two_gpio_reverse_seed.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb-ibex/README.md",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb-ibex/compose.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb-ibex/example_records.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb-ibex/execution_supplement.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb-ibex/requests/peripheral.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb-ibex/requests/processor.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb-ibex/test_capability.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb-timer-cve2/README.md",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb-timer-cve2/compose.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb-timer-cve2/example_records.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb-timer-cve2/execution_supplement.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb-timer-cve2/path_compile_request.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb-timer-cve2/requests/peripheral.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb-timer-cve2/requests/processor.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb-timer-cve2/test_capability.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb-timer/README.md",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb-timer/compose.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb-timer/example_records.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb-timer/execution_supplement.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb-timer/path_compile_request.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb-timer/requests/peripheral.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb-timer/requests/processor.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb-timer/test_capability.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb/README.md",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb/compose.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb/example_records.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb/execution_supplement.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb/requests/peripheral.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb/requests/processor.json",
+      "status": "missing"
+    },
+    {
+      "path": "configs/scenarios/compiled-f4-obi-apb/test_capability.json",
+      "status": "missing"
+    },
+    {
+      "path": "scripts/auto_harness_test.py",
+      "status": "different",
+      "expected": {
+        "bytes": 9421,
+        "sha256": "4d4152f832e2935bb79c514339a2ac61366e0c4da4c3209a4fcf514546a255b1"
+      },
+      "actual": {
+        "bytes": 6794,
+        "sha256": "b8eedba2bb11e2f039c78ba23298246370d1a3c3826537933c964ec1f9e232a5"
+      }
+    },
+    {
+      "path": "scripts/check_compiled_obi_no_error_boundary.py",
+      "status": "missing"
+    },
+    {
+      "path": "scripts/cvw_ahb_gate_control.py",
+      "status": "missing"
+    },
+    {
+      "path": "scripts/run_compiled_dataflow.py",
+      "status": "missing"
+    },
+    {
+      "path": "scripts/run_vexiiriscv_irq_fixed_row.py",
+      "status": "missing"
+    },
+    {
+      "path": "scripts/verify_apb_storage_probe.py",
+      "status": "missing"
+    },
+    {
+      "path": "scripts/verify_caliptra_ahb_protocol_evidence.py",
+      "status": "missing"
+    },
+    {
+      "path": "scripts/verify_cva6_full_axi_observer.py",
+      "status": "missing"
+    },
+    {
+      "path": "scripts/verify_cvw_ahb_startup.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/integration/compiled_candidate_layout.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/integration/compiled_execution_files.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/integration/compiled_f4.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/integration/compiled_rfuzz.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/integration/compiled_storage_producer.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/integration/cv32e40p_pulp_online.py",
+      "status": "different",
+      "expected": {
+        "bytes": 4805,
+        "sha256": "861ddfd5c810bdce0f533cbe29ddf9259f328ba3840a34ff344a4fef30eacf69"
+      },
+      "actual": {
+        "bytes": 4736,
+        "sha256": "72048923d43773bce7058c5507f811fffa73ef6e1fba0d89a9719de912f0f61b"
+      }
+    },
+    {
+      "path": "src/myfuzz/integration/cvw_directed_session.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/integration/cvw_pulp_online.py",
+      "status": "different",
+      "expected": {
+        "bytes": 30812,
+        "sha256": "8873a83e22cc57cdc908589dc7a1882ddf938f91a9faf77ef6c229ecd9d53393"
+      },
+      "actual": {
+        "bytes": 28539,
+        "sha256": "af51f4fe18235129193b7088e88b34ce30d51425af13699d2b6d037266d61da0"
+      }
+    },
+    {
+      "path": "src/myfuzz/integration/dma_prefix_replay.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/integration/dma_uart_descriptor_runtime.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/integration/dma_uart_rx_runtime.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/integration/dma_uart_rx_search.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/integration/generated_register_writer.py",
+      "status": "different",
+      "expected": {
+        "bytes": 10479,
+        "sha256": "27bd5228052ac5adefb9f89407ee0426be935e4e9bb71b70a335696cb0ccab4c"
+      },
+      "actual": {
+        "bytes": 9424,
+        "sha256": "9a9929e9a6a863faab5e55455f108410ad7607d7642f2ff9d7478e1e81be3ff4"
+      }
+    },
+    {
+      "path": "src/myfuzz/integration/generated_storage_consumer.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/integration/picorv32_native_scenario_campaign.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/integration/picorv32_wb_scenario_campaign.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/integration/scenario_rfuzz_live.py",
+      "status": "different",
+      "expected": {
+        "bytes": 87743,
+        "sha256": "b515004c70d85f7e7b2c26ab7a1649c96fa872938844254d7d05eb02deb656f0"
+      },
+      "actual": {
+        "bytes": 87111,
+        "sha256": "44f264a53722736a448eebcc01ca70bf792e6d7648710bdf4c151ae0552b8f9a"
+      }
+    },
+    {
+      "path": "src/myfuzz/local_harness/ahb_lite_session.py",
+      "status": "different",
+      "expected": {
+        "bytes": 20611,
+        "sha256": "5a10b22d7e562ac04bab6ae9f03194ab61301cd9354c87a787291621b1379c8f"
+      },
+      "actual": {
+        "bytes": 10215,
+        "sha256": "2bf3199d56002db7f099b6b7f8a67ed4869826210debc4078740d85ddd5a3fa2"
+      }
+    },
+    {
+      "path": "src/myfuzz/local_harness/ahb_manager_domain.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/local_harness/ahb_startup.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/local_harness/apb3_register_session.py",
+      "status": "different",
+      "expected": {
+        "bytes": 26094,
+        "sha256": "4abd50281982ab1094c6e37b509dc192cdfe54b6b0200589193b52d7a68b485f"
+      },
+      "actual": {
+        "bytes": 14545,
+        "sha256": "0fbba3871a4a69c34459267003f612e37504352e41e13948d27d7e342b671d46"
+      }
+    },
+    {
+      "path": "src/myfuzz/local_harness/apb3_register_template.py",
+      "status": "different",
+      "expected": {
+        "bytes": 6016,
+        "sha256": "3d664e5d4c3c1f57a964b512b6dbbc0c13d5dd5c33e9fe511b45955ba972e153"
+      },
+      "actual": {
+        "bytes": 5863,
+        "sha256": "2513b0326f8c46d31fc6ac0611cd7b66808a4a2aff4395bef6bcc6c137c5ccd4"
+      }
+    },
+    {
+      "path": "src/myfuzz/local_harness/apb_storage_probe_contract.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/local_harness/apb_storage_probe_verification.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/local_harness/apb_storage_source_contract.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/local_harness/apb_storage_startup.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/local_harness/auto_harness_test.py",
+      "status": "different",
+      "expected": {
+        "bytes": 119729,
+        "sha256": "69e83d41f310bc032899440c2620948034e61e2d907ec6d83c80a3be19de5bd6"
+      },
+      "actual": {
+        "bytes": 77317,
+        "sha256": "04d9191098e6a9edb4867af7b1135395090dfe35133fdb1c7451ee88654b1a07"
+      }
+    },
+    {
+      "path": "src/myfuzz/local_harness/boom_cpu_driver.cpp",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/local_harness/boom_cpu_session.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/local_harness/boom_irq_contract.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/local_harness/boom_irq_cpu_driver.cpp",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/local_harness/boom_irq_cpu_session.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/local_harness/boom_irq_generation.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/local_harness/boom_irq_probes.h",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/local_harness/boom_irq_recovery.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/local_harness/boom_irq_scenario_session.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/local_harness/boom_scenario_session.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/local_harness/build.py",
+      "status": "different",
+      "expected": {
+        "bytes": 30993,
+        "sha256": "4e75fd190e29a72de5acb0801b94d87bcbea09f9fafa32b67f6fa76169738e18"
+      },
+      "actual": {
+        "bytes": 29701,
+        "sha256": "79e76e0cd85017d396aa10ec55b99e46cec93d35b1215f75e5f644fc31b7062d"
+      }
+    },
+    {
+      "path": "src/myfuzz/local_harness/compiled_execution_projection.py",
+      "status": "different",
+      "expected": {
+        "bytes": 13160,
+        "sha256": "3b298d0ece35dc897ae122f31407062b25a8c5b052d9a245e112a30e2ca83793"
+      },
+      "actual": {
+        "bytes": 9376,
+        "sha256": "376531b2d4a2f8e8b58a063816b7d566942a62f91aa287ad3afa3281adb5829f"
+      }
+    },
+    {
+      "path": "src/myfuzz/local_harness/cva6_axi4_session.py",
+      "status": "different",
+      "expected": {
+        "bytes": 20193,
+        "sha256": "4d63be6036519c41d21e654abb3330b50308ef9d73c490de660c34fe6cae7a2b"
+      },
+      "actual": {
+        "bytes": 18291,
+        "sha256": "f514a2e1e61d8fe42a57b23229afd55019c5eae10601d5f807ec972228697ef8"
+      }
+    },
+    {
+      "path": "src/myfuzz/local_harness/cvw_contract.py",
+      "status": "different",
+      "expected": {
+        "bytes": 10912,
+        "sha256": "119ef7de160311656e262970020f174858105b2530844ddbc58231d693ec268c"
+      },
+      "actual": {
+        "bytes": 10912,
+        "sha256": "236e604ad916aa8ebdf8b7229b453802e52bd2e37e7cf0881a560c29b7409f3b"
+      }
+    },
+    {
+      "path": "src/myfuzz/local_harness/driver_renderer.py",
+      "status": "different",
+      "expected": {
+        "bytes": 61754,
+        "sha256": "dd5b9ee5e5cc5ac90ed6ad635205e0f9cfc598d07f372214f7679a39f5b03d77"
+      },
+      "actual": {
+        "bytes": 55348,
+        "sha256": "d6e70baaed5a41fc3e12a780b2b388177997d5ad61808830ce0f5afd121469dd"
+      }
+    },
+    {
+      "path": "src/myfuzz/local_harness/generated_execution_admission.py",
+      "status": "different",
+      "expected": {
+        "bytes": 7433,
+        "sha256": "fcc2dfebd7338a89e64b3add779d28b5a3564637031349dc056b37e7cde65ddc"
+      },
+      "actual": {
+        "bytes": 6123,
+        "sha256": "0ddc4cfbdc87a0268978964b310e90cfd4ec8036bcd174a3d62178a7ab00d0f4"
+      }
+    },
+    {
+      "path": "src/myfuzz/local_harness/gpio_session.py",
+      "status": "different",
+      "expected": {
+        "bytes": 26984,
+        "sha256": "794ac575d155d7983ed6698aac91472ec1f8a2676f8ef6e91ae10ed7ff30a440"
+      },
+      "actual": {
+        "bytes": 26155,
+        "sha256": "210998baa7841cce70bdfd589ec34ae5e4fdb40a4bde09100fc4050c1f56dc1b"
+      }
+    },
+    {
+      "path": "src/myfuzz/local_harness/harness_set.py",
+      "status": "different",
+      "expected": {
+        "bytes": 25123,
+        "sha256": "8df1a9d6684be7b2b1b11bc555db80cc252fdbb3e6d939fb7a77a5bd42ade4d6"
+      },
+      "actual": {
+        "bytes": 20473,
+        "sha256": "83f8f9f6cb6a9627c05f0696c83fe1e00b01b04b2eb3babc1677c11279e1bac5"
+      }
+    },
+    {
+      "path": "src/myfuzz/local_harness/native_physical_observation.py",
+      "status": "different",
+      "expected": {
+        "bytes": 15309,
+        "sha256": "689e466a45fe64b19c78a8e472b0f13aa725511de2dff2280bc2a2e82ce8bc2e"
+      },
+      "actual": {
+        "bytes": 11515,
+        "sha256": "c5aeb16ab7a86b885f2f514341bb2b10db3d1600e90ae984cdae708c2fa42002"
+      }
+    },
+    {
+      "path": "src/myfuzz/local_harness/native_reset_observation.py",
+      "status": "different",
+      "expected": {
+        "bytes": 22012,
+        "sha256": "ac8a90fcc7832e752d34106b30709871820dded26cc6dc2d61f372b91437a1c7"
+      },
+      "actual": {
+        "bytes": 21606,
+        "sha256": "c5164480b1f11fa20f7f690eb1c7162cefffd906feb0e55dcc2c6aaf88ba9a43"
+      }
+    },
+    {
+      "path": "src/myfuzz/local_harness/native_reset_producer_contract.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/local_harness/native_session.py",
+      "status": "different",
+      "expected": {
+        "bytes": 9826,
+        "sha256": "fc4d3b87c18102523268c934e0e79bc1154223b01a81b4f6f5162c44f7f788bd"
+      },
+      "actual": {
+        "bytes": 9614,
+        "sha256": "d0d2df8ee6ef5b86a1d0eb743f0c4fa3bc5e51dde016184311069547d3c072b1"
+      }
+    },
+    {
+      "path": "src/myfuzz/local_harness/opentitan_uart_session.py",
+      "status": "different",
+      "expected": {
+        "bytes": 42949,
+        "sha256": "ddd0318805775fd47218e70395dc17d5519003865fa21d05675f1c57a4eb2c64"
+      },
+      "actual": {
+        "bytes": 38060,
+        "sha256": "0f7700d9395bf8adf1df97f10a3c425b012716a4e8ed84f22232d76ceb8315f9"
+      }
+    },
+    {
+      "path": "src/myfuzz/local_harness/rtl/local_driver_v1.h",
+      "status": "different",
+      "expected": {
+        "bytes": 19524,
+        "sha256": "1e72a2d2a8fce550c87e37cdf28bb3bb23a9954d150a89392fe75375fe9bbb8e"
+      },
+      "actual": {
+        "bytes": 18442,
+        "sha256": "68599b75c70505fe6963bdd65ef9bd5b52241ca5cca0c974e2382973179f7b2c"
+      }
+    },
+    {
+      "path": "src/myfuzz/local_harness/runtime_renderer.py",
+      "status": "different",
+      "expected": {
+        "bytes": 90527,
+        "sha256": "b445dbf167247bd6407f5dc131a5103ed3f176cb8f7d0d927786c0071b4815a7"
+      },
+      "actual": {
+        "bytes": 85671,
+        "sha256": "efaedeb4a3d41ee227d77827672e150c268a90db5ad481c58e7360a0ae49c76b"
+      }
+    },
+    {
+      "path": "src/myfuzz/local_harness/session.py",
+      "status": "different",
+      "expected": {
+        "bytes": 38154,
+        "sha256": "799be860be4a72e94a6c71fe6cc3bfb1d59d87735ef9f427b78b301de99188aa"
+      },
+      "actual": {
+        "bytes": 30089,
+        "sha256": "42214cd510d2b4bca6e3ddb6f0449817b263f44903f8e7a3dc83134040df6799"
+      }
+    },
+    {
+      "path": "src/myfuzz/local_harness/source_lock.py",
+      "status": "different",
+      "expected": {
+        "bytes": 12024,
+        "sha256": "2ddf4186fcc099827a809a84ebd147381c2f8a52a2fb24525366d573c6b9b5b2"
+      },
+      "actual": {
+        "bytes": 11594,
+        "sha256": "6523d9fbec1b2f18dab9a88c3744fb936872e012abc14a359f0887516cd6c71b"
+      }
+    },
+    {
+      "path": "src/myfuzz/local_harness/template_contracts.py",
+      "status": "different",
+      "expected": {
+        "bytes": 37830,
+        "sha256": "34a74ae2fbff14b69bca50ec4770afe897652c51e77fdcd832543e0cd58c5637"
+      },
+      "actual": {
+        "bytes": 37798,
+        "sha256": "4930c04092ce694ce35c4fd979f2fc7932e6dda0bda4233bad63bdc1524dc21a"
+      }
+    },
+    {
+      "path": "src/myfuzz/local_harness/tuning.py",
+      "status": "different",
+      "expected": {
+        "bytes": 15996,
+        "sha256": "5732b4d499fef54cd239e4e0c0b11f7e08ef39581c32747d2b8425dd45c78a0a"
+      },
+      "actual": {
+        "bytes": 15586,
+        "sha256": "d3df23e34a70e26effd1e7fb28cdfcb24efa04d7988aaab1c14ce42bc7fd8210"
+      }
+    },
+    {
+      "path": "src/myfuzz/local_harness/vexii_axi_fields.py",
+      "status": "different",
+      "expected": {
+        "bytes": 1109,
+        "sha256": "c3b179c20475bf591118327425ba2d66555d2f6ac9ebfb497b4e5c01149105e9"
+      },
+      "actual": {
+        "bytes": 803,
+        "sha256": "a3a85883b4081c42768eb474f1c8c63ae042a2f1ff6b0c58518d158128f4f4a9"
+      }
+    },
+    {
+      "path": "src/myfuzz/local_harness/vexii_axi_session.py",
+      "status": "different",
+      "expected": {
+        "bytes": 15225,
+        "sha256": "9dd5eb2b57ebabf7dc08ea7659bc6b2e01add763d01b6dcc9deab07fe7145213"
+      },
+      "actual": {
+        "bytes": 8842,
+        "sha256": "734ae18194522995eb8ca5b4c00e3d6614a40535df8eca7ad1587a1fce68d0f3"
+      }
+    },
+    {
+      "path": "src/myfuzz/local_harness/vexii_irq_contract.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/local_harness/wishbone_dma_scenario_session.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/local_harness/wishbone_dma_session.py",
+      "status": "different",
+      "expected": {
+        "bytes": 18248,
+        "sha256": "2d13f1dd3bc8c8ec6577feb6dccb7ef0e045d98ea712b7b664937b33ff4d2790"
+      },
+      "actual": {
+        "bytes": 15586,
+        "sha256": "1710d2c65a1947fab01e46779460cdbe4c9eeb97bd40a4957399b0154b36f64c"
+      }
+    },
+    {
+      "path": "src/myfuzz/scenario/ahb_cpu_events.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/apb_storage_register_version.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/boom_coherent_verification.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/boom_gpio_example.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/boom_gpio_irq_runner.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/boom_gpio_irq_verification.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/boom_gpio_runner.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/boom_gpio_verification.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/coherent_event_stream.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/coherent_protocol_events.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/compiled_online_decoder.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/compiled_ownership.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/compiled_paths.py",
+      "status": "different",
+      "expected": {
+        "bytes": 139357,
+        "sha256": "4c77f436d970938f31716bff465ab31aecb64c8c2ec9b55d4b46e79e99099c6b"
+      },
+      "actual": {
+        "bytes": 134035,
+        "sha256": "3036f07e45b6663e829ccd468e011cbbe4b6998b33da20b16e298859d4b4b245"
+      }
+    },
+    {
+      "path": "src/myfuzz/scenario/contracts.py",
+      "status": "different",
+      "expected": {
+        "bytes": 61109,
+        "sha256": "9b4338123df915cedfc065d433e0d7beacc44512c927cfff356dae24e2d8b915"
+      },
+      "actual": {
+        "bytes": 57510,
+        "sha256": "bff8d1c19bbb33e24d26ff25f1d5187c59e13e660f4dfe151b7fc930e9f062fd"
+      }
+    },
+    {
+      "path": "src/myfuzz/scenario/cv32e40p_pulp_dual_source.py",
+      "status": "different",
+      "expected": {
+        "bytes": 5000,
+        "sha256": "ab272b1345cdb0ab31f7669d152c0b062ffce2d559ed8d55a4d17f263519783e"
+      },
+      "actual": {
+        "bytes": 4939,
+        "sha256": "72e35703435d28126a7b0518948c89ee8914fb68e19507d2f0e6161735f04ef6"
+      }
+    },
+    {
+      "path": "src/myfuzz/scenario/cvw_caliptra_example.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/cvw_session.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/dma_chain_feedback.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/dma_runtime_paths.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/full_axi_events.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/gpio_register_version.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/ibex_dma_runner.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/ibex_dma_uart_descriptor.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/ibex_dma_uart_rx_continuous.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/ibex_pulp_dual_source.py",
+      "status": "different",
+      "expected": {
+        "bytes": 117916,
+        "sha256": "2d1735b71beb9ab992bdf4dbdb1495c828af67bec9c779f517a0edd04e1a0905"
+      },
+      "actual": {
+        "bytes": 117399,
+        "sha256": "ff0ef2b2b7fc5c2a1e2b83c70e8b33469c71d4d799b5e7beca415771d1422a9b"
+      }
+    },
+    {
+      "path": "src/myfuzz/scenario/ip_base_coverage.py",
+      "status": "different",
+      "expected": {
+        "bytes": 17356,
+        "sha256": "979b985a60105c03cc969d874915e3c4f590554915c6edd60fab5987cba79486"
+      },
+      "actual": {
+        "bytes": 17152,
+        "sha256": "de3121a037cfc7e84463a171bb1b2d5499737953c821e4b737d3d9f8509a3ae0"
+      }
+    },
+    {
+      "path": "src/myfuzz/scenario/ip_protocol_events.py",
+      "status": "different",
+      "expected": {
+        "bytes": 58091,
+        "sha256": "ccf702bc9d8a0ed676ec1ea363f430bcc6507670973f445aab441bbf112f48fb"
+      },
+      "actual": {
+        "bytes": 57758,
+        "sha256": "372524f20b74b5571fac3462af6321fcde7511e813800451c14a1e2127b713f7"
+      }
+    },
+    {
+      "path": "src/myfuzz/scenario/ip_protocol_evidence.py",
+      "status": "different",
+      "expected": {
+        "bytes": 17491,
+        "sha256": "fc4305a447304276a555913b8ea6d1bd28025f8144e0f82086083eb0d9ee2133"
+      },
+      "actual": {
+        "bytes": 17397,
+        "sha256": "31cc83597bfbb79669e395481a8e88add111de2e141c3194f1bc187764b47133"
+      }
+    },
+    {
+      "path": "src/myfuzz/scenario/picorv32_native_cpu_example.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/picorv32_wb_two_gpio_example.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/reduced_axi_events.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/replay_normalize.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/runner.py",
+      "status": "different",
+      "expected": {
+        "bytes": 186850,
+        "sha256": "2e716a0e60fa52e8d0baea15134ed55c70965f5571a34cc627df3a28d8b9982d"
+      },
+      "actual": {
+        "bytes": 185035,
+        "sha256": "eb21c14fa5827c9d978ac33a3ece469316a32f5a57aa6796822ca8b57c3498fd"
+      }
+    },
+    {
+      "path": "src/myfuzz/scenario/uart_consumption.py",
+      "status": "different",
+      "expected": {
+        "bytes": 39607,
+        "sha256": "3832ce3a1e8446753f66a3451930a4c61a67bb10582b0a42ae22e245c9efdb82"
+      },
+      "actual": {
+        "bytes": 37668,
+        "sha256": "3d852f28bd5ae0028efd54819679abba1355f622d453d2bbb3d7ca68067cc8a4"
+      }
+    },
+    {
+      "path": "src/myfuzz/scenario/uart_fifo_authority.py",
+      "status": "missing"
+    },
+    {
+      "path": "src/myfuzz/scenario/vexii_pulp_gpio_fixed.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/composition/test_caliptra_sha256_profile.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/composition/test_zipcpu_wbdmac_profile.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/non_ibex_non_gpio_controlled_error_process.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_auto_harness_test.py",
+      "status": "different",
+      "expected": {
+        "bytes": 42565,
+        "sha256": "996e06d2519b9c6e5ccdb4dce23bebbc7cb3a481dbc9ac40f6a61a8a6eb44fd4"
+      },
+      "actual": {
+        "bytes": 28097,
+        "sha256": "7c49810d34f62e3acd6767a0fbc86659cc87ddd9c9f3b6dc2db3c8163f2ab641"
+      }
+    },
+    {
+      "path": "tests/integration/test_axil_campaign_saved_run_audit.py",
+      "status": "different",
+      "expected": {
+        "bytes": 29297,
+        "sha256": "92812e8e7ee332d8e6ab095750938105ac2d41cabc0a37672fd4b479bbc5c6b1"
+      },
+      "actual": {
+        "bytes": 29292,
+        "sha256": "f615333bf327a33ca940222ceebd2429b8420404086fd93c09cc61353b4b9e3d"
+      }
+    },
+    {
+      "path": "tests/integration/test_compiled_artifact_admission.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_compiled_candidate_layout.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_compiled_execution_files.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_compiled_execution_projection.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_compiled_f4.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_compiled_f4_layout_replay_audit.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_compiled_f4_no_error.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_compiled_f4_storage_producer.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_compiled_filelist_sources.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_compiled_online_decoder.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_cva6_campaign_saved_run_audit.py",
+      "status": "different",
+      "expected": {
+        "bytes": 21912,
+        "sha256": "b3261eb4651cdf3ff9825e9cd42de22a00140b77f80dcc395dd01e4248b36dc4"
+      },
+      "actual": {
+        "bytes": 21907,
+        "sha256": "649a78578a153a2597d6e65658e8e67162f231d3b8863e92c924eb64ac892a5d"
+      }
+    },
+    {
+      "path": "tests/integration/test_cvw_ahb_runtime_generation.py",
+      "status": "different",
+      "expected": {
+        "bytes": 15685,
+        "sha256": "7dac5592ca602be60f4f094931d8c3b79323ad2eb384b78ba363d05ee6fba920"
+      },
+      "actual": {
+        "bytes": 14347,
+        "sha256": "7a254ddd8a38de3d47e7d5d01044b5d6c0efe947a4d11b25221096b0ee962bd7"
+      }
+    },
+    {
+      "path": "tests/integration/test_cvw_cpu_caliptra_chain_real.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_cvw_derived_config.py",
+      "status": "different",
+      "expected": {
+        "bytes": 10310,
+        "sha256": "f9846032fc597f599f3f028b5253a13a3b28764b512438e1f4e09a8309a65090"
+      },
+      "actual": {
+        "bytes": 10123,
+        "sha256": "67f5cdb870975c174859f6f5ee79ce31cab16f177e9dad2d6da1050d8e830705"
+      }
+    },
+    {
+      "path": "tests/integration/test_cvw_runtime_family.py",
+      "status": "different",
+      "expected": {
+        "bytes": 34668,
+        "sha256": "720033e1f62753e31eab33b86e730aeb409400139aa3dc48f70bd91b2355ca49"
+      },
+      "actual": {
+        "bytes": 25492,
+        "sha256": "52eded0aa9e44d4b313f656709b3c01b50e6854f8726ce65cd8ecc7ce7dc2db1"
+      }
+    },
+    {
+      "path": "tests/integration/test_cvw_session_assembly.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_cvw_unified_master.py",
+      "status": "different",
+      "expected": {
+        "bytes": 15133,
+        "sha256": "45b796771047459ab4e0ef704f25bd7dceec7929d4af3f64f48c2def505f7b06"
+      },
+      "actual": {
+        "bytes": 7930,
+        "sha256": "bdb5483847b5d2ee6ffe01d815b3ebdf8c02eca5f43b76f9ecf3e8f94515d690"
+      }
+    },
+    {
+      "path": "tests/integration/test_dma_error_isr.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_dma_error_isr_real.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_dma_prefix_replay.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_dma_prefix_replay_real.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_dma_source_authority.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_dma_uart_descriptor.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_dma_uart_descriptor_real.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_dma_uart_rx_boot_contract.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_dma_uart_rx_boot_object.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_dma_uart_rx_cursor.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_dma_uart_rx_discovery_scope.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_dma_uart_rx_failure_document.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_dma_uart_rx_replay_state_edges.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_dma_uart_rx_runtime.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_dma_uart_rx_search.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_dma_uart_rx_search_real.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_dma_uart_rx_uart_schedule.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_generated_artifact_admission.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_generated_dual_runtime_loaded_real.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_generated_factory_consumption.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_generated_register_writer.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_generated_runtime_scope.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_ibex_dma_chain_real.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_ibex_dma_runner_real.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_ibex_dma_uart_fifo_real.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_ibex_dma_uart_rx_fifo_real.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_ibex_dma_uart_rx_runner_real.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_non_ibex_non_gpio_controlled_error_real.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_picorv32_native_campaign_saved_run_audit.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_scenario_picorv32_native_campaign.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_scenario_picorv32_wb_campaign.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/integration/test_timer_f4_declarations.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/ahb_domain_support.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_ahb_cpu_contract.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_ahb_cpu_observer.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_ahb_register_identity.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_ahb_register_target.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_ahb_startup.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_apb_storage_probe_generation.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_apb_storage_probe_verification.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_apb_storage_source_contract.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_apb_storage_startup.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_apb_storage_startup_host.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_boom_irq_contracts.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_boom_irq_factory_binding.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_boom_irq_recovery.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_boom_irq_verification.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_boom_session_regressions.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_cva6_full_axi_gate.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_cva6_full_axi_observer.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_cvw_ahb_gate.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_cvw_ahb_gate_control.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_generic_apb_identity.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_generic_apb_trace_verification.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_gpio_register_version.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_harness_set.py",
+      "status": "different",
+      "expected": {
+        "bytes": 13408,
+        "sha256": "6c9217dfa82abfbde5f2b10522e96dc0b2a0a3025132ece922551a19b6be203f"
+      },
+      "actual": {
+        "bytes": 12061,
+        "sha256": "5202b9e5af9e1badd5e47ba6028f35ce05472309b5f14493618735925f5bd32e"
+      }
+    },
+    {
+      "path": "tests/local_harness/test_native_reset_producer_contract.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_obi_cpu_protocol_taps.py",
+      "status": "different",
+      "expected": {
+        "bytes": 7254,
+        "sha256": "195585de6b937e9cd57281dfd9d9e9435ebd1e3e42dc670ddcee79e6ef442f74"
+      },
+      "actual": {
+        "bytes": 6495,
+        "sha256": "0f4e3314c2b0975466ad83d478b3dc4d05eb778c58d523744b5133e1ad748f9b"
+      }
+    },
+    {
+      "path": "tests/local_harness/test_opentitan_uart_master_target_access.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_template_contracts.py",
+      "status": "different",
+      "expected": {
+        "bytes": 22723,
+        "sha256": "e0a084657f6b529c4fbafd3a05c33c3e38b48daccea8038ce8cd2f8f46582fb6"
+      },
+      "actual": {
+        "bytes": 22496,
+        "sha256": "2a095e46872ac4c5a9e6b8177597deb404653714ebcf3270cbfa935ce7e2dd1b"
+      }
+    },
+    {
+      "path": "tests/local_harness/test_vexii_generated_cpu.py",
+      "status": "different",
+      "expected": {
+        "bytes": 15831,
+        "sha256": "0352266f70a84f93f8e715ee95b8091b82eb53ee45a22f9752a067472b18dc54"
+      },
+      "actual": {
+        "bytes": 8950,
+        "sha256": "b4c143d846886a572280a91275904bf85bc92c084519f5c7afd614bea6535728"
+      }
+    },
+    {
+      "path": "tests/local_harness/test_vexii_irq_contracts.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_wishbone_dma_error_recovery.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_wishbone_dma_scenario_session.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_wishbone_dma_session.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/local_harness/test_wishbone_dma_transport.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/native/apb_storage_probe_tb.cpp",
+      "status": "missing"
+    },
+    {
+      "path": "tests/protocols/test_additional_protocol_catalog.py",
+      "status": "different",
+      "expected": {
+        "bytes": 25197,
+        "sha256": "34c751dd01aab7d54f9196c5c9c18379f5d9c4dad2aaff074d02df2bc4f09221"
+      },
+      "actual": {
+        "bytes": 25154,
+        "sha256": "ccaf1be19684a25b00ade22e53730a3b6bdfeabab25338bb96b52855c403451d"
+      }
+    },
+    {
+      "path": "tests/protocols/test_obi_fail_stop_verilator_control.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/protocols/test_obi_processor_memory_adapter_rtl.py",
+      "status": "different",
+      "expected": {
+        "bytes": 10572,
+        "sha256": "3c8aa3aa243edcb8e28754635ca76342c2c75c52232bc3430c29ced54b48f1ff"
+      },
+      "actual": {
+        "bytes": 8689,
+        "sha256": "4732abb82bbf89cbab5d796e7a7feb885284f91b8c184a71aa02879b3d290bcc"
+      }
+    },
+    {
+      "path": "tests/scenario/test_ahb_cpu_events.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/scenario/test_ahb_manager_domain.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/scenario/test_apb_storage_register_version.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/scenario/test_apb_storage_startup_issuer.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/scenario/test_coherent_event_stream.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/scenario/test_coherent_protocol_events.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/scenario/test_compiled_ownership.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/scenario/test_compiled_paths.py",
+      "status": "different",
+      "expected": {
+        "bytes": 49543,
+        "sha256": "72c5278bdeca92f4cc42869235fc1e4548d134268ce41fbe395657f3630bbc6a"
+      },
+      "actual": {
+        "bytes": 49147,
+        "sha256": "b36ffd7fb3e219be63593166188962a8442029d99419d4035560688d4598f3bb"
+      }
+    },
+    {
+      "path": "tests/scenario/test_dma_chain_feedback.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/scenario/test_dma_runtime_paths.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/scenario/test_full_axi_events.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/scenario/test_ibex_dma_example.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/scenario/test_ip_protocol_events_ahb_lite.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/scenario/test_ip_protocol_evidence_ahb_lite.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/scenario/test_ip_protocol_obi.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/scenario/test_obi_no_error_observation.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/scenario/test_reduced_axi_events.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/scenario/test_register_source_access.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/scenario/test_replay_normalize.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/scenario/test_runner_obi_trace_set.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/scenario/test_uart_consumption_dma_master.py",
+      "status": "missing"
+    },
+    {
+      "path": "tests/scenario/test_vexii_pulp_gpio_fixed.py",
+      "status": "missing"
+    }
+  ],
+  "read_only": true
+}

@@ -717,3 +717,7 @@ Task3 unbound dependency source RED有效：`dispatch-source-dependency-red.stdo
 - [P6 下一步接入计划](p6-next-implementation-20261018.md)：真实共享机制、逐协议缺口和BOOM资产边界。
 - [P8 S1c UART批处理计划](p8-s1c-batching-plan-20261018.md)：先归因测量，5×尚未达到。
 - [新远程工作集核对](remote-myfuzz-readiness-20261018.md)：HEAD/脏源码及旧环境路径残留。
+
+- [P7 I5验收采集脚本](p7-i5-gate-runner-source-20261018.md)及[独立源码审查](p7-i5-gate-runner-review-20261018.md)：未执行，M1已修复。
+- [P8标量测量脚本](p8-s1c-scalar-measurement-source-20261018.md)及[独立源码审查](p8-s1c-scalar-measurement-review-20261018.md)：未测量、不授5×。
+- [CV32闭环接纳独立审查](p6-cv32-closed-loop-admission-review-20261018.md)：提前拒绝不适用证据。
