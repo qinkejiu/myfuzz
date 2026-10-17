@@ -31,6 +31,7 @@
 - aggregate HRESP/HRDATA 未导出；其它 slave 上下文仍 `unvalidated`；不声称 reset 同步器延迟。
 - 既有 source freeze 因源字节变化失效，不可复用。
 - `tests/integration/test_cvw_ahb_runtime_generation.py` 中 `test_the_built_harness_drives_real_ahb_traffic_from_the_core` 仍直接发 STEP_MEMORY，未先 READ_AHB_STARTUP；它在 AHB startup v2 后是**既存 stale 测试**，本轮未修（修它需要一次原生构建验证）。
+- `tests/local_harness/test_ahb_lite_session.py` 在本 checkout 中 `real_plan` 于 elaboration 前即报 `content-hash-mismatch:cvw`（CVW 子模块工作树与 profile pin 不一致，属既存环境；profile 的 source 列表/bytes 未被本轮改动）。随后 `-k ahb` 的整组回归出现该文件 8 failed，均非本次源码结论；根代理误将该文件选入一次 adjacent 跑，未把它当证据。
 - **代理越界已如实记录**：整文件运行上述 integration 模块触发了 Verilator-gated 用例；随后又把 `test_ahb_lite_session.py` 的五个构造用例当纯测试，实际再次触发 elaboration。两次结果均**不作证据**，无残留进程，生成缓存已删除。详见 `.superpowers/sdd/cvw-manager-domain-report.md` 第 7 节。
 
 ## 2. APB A2 启动采样主机消费
