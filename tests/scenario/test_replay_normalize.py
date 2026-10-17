@@ -30,7 +30,7 @@ def test_declared_rule_table_is_complete_and_disjoint_from_retained_fields():
     assert {rule.name for rule in NORMALIZER_RULES} == {
         'execution_value', 'execution_id_value', 'state_edge_endpoint',
         'ledger_writer', 'ledger_writers', 'ledger_pending_before',
-        'ledger_pending_after', 'ledger_uncertain'}
+        'ledger_pending_after', 'ledger_uncertain', 'provenance_unknown_writers'}
     overlap = set(RETAINED_FIELDS) & set(FIELD_RULES)
     # Writer references are retained except for their leading execution token.
     assert overlap <= {'writer_event_id', 'writer_event_ids'}
@@ -96,6 +96,23 @@ def test_ledger_transaction_prefix_is_rewritten_and_suffix_retained():
     embedded = {'kind': 'memory_write',
                 'writer_event_id': 'prefix ' + _ledger(IDS['uart'])}
     assert normalize_execution_identities([embedded], IDS) == [embedded]
+
+
+def test_provenance_unknown_writer_list_rewrites_only_the_execution_token():
+    record = {'kind': 'memory_read', 'provenance': {
+        'unknown_writer_ids': [_ledger(IDS['dma']), _ledger(IDS['uart'])],
+        'resource': {'writer_event_ids': [_ledger(IDS['runner'])]}}}
+    normalized = normalize_execution_identities([record], IDS)
+    unknown = normalized[0]['provenance']['unknown_writer_ids']
+    assert unknown[0].startswith("TransactionKey(execution_id='execution:dma', ")
+    assert unknown[1].startswith("TransactionKey(execution_id='execution:uart', ")
+    assert unknown[0].endswith("testcase_id='case', source_sequence=7)")
+    # Non-transaction strings and payload bytes survive a fresh comparison.
+    payload = {'kind': 'memory_read', 'provenance': {
+        'unknown_writer_ids': ['initial-image', 'payload-' + IDS['dma']]}}
+    normalized_payload = normalize_execution_identities([payload], IDS)
+    assert normalized_payload[0]['provenance']['unknown_writer_ids'] == [
+        'initial-image', 'payload-' + IDS['dma']]
 
 
 @pytest.mark.parametrize('field', RETAINED_FIELDS)

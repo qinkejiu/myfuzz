@@ -84,6 +84,12 @@ NORMALIZER_RULES = (
                    'transaction_execution_prefix'),
     NormalizerRule('ledger_uncertain', 'field', ('uncertain_transactions',),
                    'transaction_execution_prefix'),
+    # Source-provenance diagnostics carry the same ledger transaction key in a
+    # list of unresolved writer references; only its leading execution token is
+    # process-local and may be rewritten.
+    NormalizerRule('provenance_unknown_writers', 'field',
+                   ('unknown_writer_ids',),
+                   'transaction_execution_prefix'),
 )
 RULES_BY_NAME = MappingProxyType({rule.name: rule for rule in NORMALIZER_RULES})
 #: One value-level rule lookup used by the walker: ``field -> rule``.
