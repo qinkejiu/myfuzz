@@ -642,3 +642,90 @@ def test_a_driver_exception_can_never_report_complete(tmp_path, monkeypatch):
     assert driver_stage['status'] == 'refused'
     assert driver_stage['code'] == 'synthetic-driver-refusal'
     assert driver_stage['pointer'] == '/harness_set'
+
+
+# ---------------------------------------------------------------------------
+# the code-owned compiled executor route (no family fallback)
+# ---------------------------------------------------------------------------
+
+TIMER_COMPOSE = 'configs/scenarios/compiled-f4-obi-apb-timer/compose.json'
+TIMER_CAPABILITY = ('configs/scenarios/compiled-f4-obi-apb-timer/'
+                    'test_capability.json')
+TIMER_CPU = 'configs/cpus/ibex_obi_local/component_profile.json'
+TIMER_IP = 'configs/peripherals/pulp_timer/component_profile.json'
+
+
+def compiled_arguments(output: Path, *extra: object):
+    return ['--cpu', TIMER_CPU, '--ip', TIMER_IP,
+            '--ip-capability', TIMER_CAPABILITY,
+            '--compose', TIMER_COMPOSE, '--output', output, *extra]
+
+
+def test_the_executor_option_requires_a_client_binary_not_a_family(tmp_path):
+    """A named compiled executor without a client is an absence, not a family."""
+    output = tmp_path / 'compiled-no-client'
+    result, payload = run_cli(
+        *compiled_arguments(output, '--executor', 'compiled-f4-rfuzz'))
+
+    assert result.returncode != 0, result.stdout
+    assert payload['status'] == 'refused'
+    assert payload['executor']['status'] == 'refused'
+    assert payload['executor']['code'] == 'client-binary-required'
+    assert payload['executor']['family_fallback'] is False
+    assert payload['runtime_family']['status'] == 'not_requested'
+    assert payload['stages']['session']['status'] == 'absent'
+    assert payload['stages']['session']['code'] == 'client-binary-required'
+    assert payload['stages']['fresh_verification']['status'] == 'absent'
+    assert not (output / 'session').exists()
+    assert not (output / 'fresh-verification.json').exists()
+    # D1..D3 and the report are still the real compiled-target documents.
+    compiled = read(output / 'compiled_paths.v1.json')
+    assert compiled['schema_version'] == 'compiled_paths.v1'
+    executable = [row for row in compiled['paths']
+                  if row['flow_id'] == 'F4' and row['status'] == 'executable']
+    assert len(executable) == 1
+    assert read(output / 'capability-report.json')['schema_version'] == (
+        'capability_report.v1')
+
+
+def test_an_unknown_executor_is_refused_by_name_without_running_a_stage(tmp_path):
+    output = tmp_path / 'unknown-executor'
+    result, payload = run_cli(
+        *compiled_arguments(output, '--executor', 'compiled-not-real'))
+    assert result.returncode != 0, result.stdout
+    assert payload['executor']['status'] == 'refused'
+    assert payload['executor']['code'] == 'compiled-executor-unknown'
+    assert payload['executor']['known'] == ['compiled-f4-rfuzz']
+    assert payload['refusals'][0]['code'] == 'compiled-executor-unknown'
+    assert not (output / 'compiled_paths.v1.json').exists()
+    assert (output / '.incomplete').exists()
+
+
+def test_an_executor_and_a_runtime_family_are_mutually_exclusive(tmp_path):
+    output = tmp_path / 'both-routes'
+    result, payload = run_cli(
+        *compiled_arguments(output, '--executor', 'compiled-f4-rfuzz',
+                            '--runtime', 'ibex-pulp-dual-source'))
+    assert result.returncode != 0, result.stdout
+    assert payload['executor']['status'] == 'refused'
+    assert payload['executor']['code'] == (
+        'executor-and-runtime-mutually-exclusive')
+    assert not (output / 'compiled_paths.v1.json').exists()
+
+
+def test_the_cli_passes_the_executor_through_for_a_software_only_run(tmp_path):
+    output = tmp_path / 'compiled-software'
+    result, payload = run_cli(
+        *compiled_arguments(output, '--executor', 'compiled-f4-rfuzz',
+                            '--skip-session'))
+    assert result.returncode == 0, result.stderr[-4000:]
+    assert payload['executor']['requested'] == 'compiled-f4-rfuzz'
+    assert payload['executor']['status'] == 'ok'
+    assert payload['executor']['detail']['session'] == 'not_requested'
+    assert payload['stages']['session']['status'] == 'not_requested'
+    assert payload['stages']['fresh_verification']['status'] == (
+        'not_requested')
+    compiled = read(output / 'compiled_paths.v1.json')
+    executable = [row for row in compiled['paths']
+                  if row['flow_id'] == 'F4' and row['status'] == 'executable']
+    assert len(executable) == 1

@@ -263,6 +263,20 @@ def known_family_ids() -> list:
     return sorted(RUNTIME_FAMILIES)
 
 
+#: The closed set of code-owned compiled executors this driver may start
+#: instead of a runtime family.  Every entry consumes the compiled D3 target
+#: itself; none of them borrows a family's decoder, ownership or wiring claim.
+COMPILED_EXECUTORS = {
+    'compiled-f4-rfuzz': {
+        'entry': ('myfuzz.integration.compiled_rfuzz:'
+                  'run_compiled_f4_rfuzz_session'),
+        'requires': ['one executable D3 F4 target', 'the RFuzz client binary',
+                     'an existing shared build cache'],
+        'family_fallback': False,
+    },
+}
+
+
 def runtime_family(family_id) -> RuntimeFamily:
     """Resolve an explicitly-named family, or refuse naming the known ones."""
     if family_id is None or (isinstance(family_id, str)
@@ -946,6 +960,113 @@ def load_session_inputs(*,generated_root,base_dir,family,request,compiled):
         ownership=compiled_ownership.ownership,physical_port_map=physical)
 
 
+def load_compiled_session_inputs(*,generated_root,base_dir,request,compiled):
+    """Family-free inputs for the compiled route.
+
+    The compiled route names no runtime family, so it must not borrow a
+    family's ownership table.  Every external pin source of the one executable
+    F4 path becomes one owned input exactly as D3 declares it; the CPU MMIO
+    stream source is CPU-driven and is not an independent environment input.
+    A fixed/literal wiring input is refused here instead of being silently
+    dropped from the ownership map.
+    """
+    from .generated_artifact_admission import load_generated_artifacts,GeneratedArtifactRefused
+    from myfuzz.scenario.ownership import InputField,InputOwner,compile_ownership
+    try:
+        artifacts=load_generated_artifacts(generated_root=generated_root,base_dir=base_dir)
+    except GeneratedArtifactRefused as error:
+        _refuse(error.code,error.pointer,error.detail)
+    fixed=_wiring_fixed_inputs(generated_root)
+    if fixed:
+        _refuse('compiled-rfuzz-fixed-input-unsupported','/wiring/fixed_inputs',
+                {'rows':fixed,'requires':'the compiled RFuzz route has no '
+                 'declared owner for a fixed/literal wiring input'})
+    paths=[row for row in compiled.get('paths',())
+           if row.get('flow_id')=='F4' and row.get('status')=='executable']
+    if len(paths)!=1:
+        _refuse('compiled-f4-target-required','/compiled_paths',
+                {'executable_f4_paths':[row['path_id'] for row in paths],
+                 'requires':'exactly one executable F4 path; the compiled '
+                            'executor is selected only for a compiled F4 target'})
+    path=paths[0]
+    fields=[];owners=[]
+    for source in path.get('sources',()):
+        if source.get('kind')!='external_pin':
+            continue
+        component=source.get('component');port=source.get('port')
+        width=source.get('width');bit=source.get('bit_offset')
+        if (not isinstance(component,str) or not component
+                or not isinstance(port,str) or not port
+                or type(width) is not int or width<1
+                or type(bit) is not int or bit<0):
+            _refuse('compiled-rfuzz-pin-contract-invalid','/sources',
+                    {'source':source})
+        fields.append(dict(component_id=component,port=port,width=width))
+        owners.append(dict(component_id=component,port=port,bit_offset=bit,
+            width=width,kind='source',producer_ref=source['source_id']))
+    ownership=compile_ownership(
+        tuple(InputField(**row) for row in fields),
+        tuple(InputOwner(**row) for row in owners))
+    document={'schema_version':'compiled_rfuzz_ownership.v1',
+        'basis':('D3 external_pin sources of the one executable F4 path; no '
+                 'runtime family ownership claim is read'),
+        'path_id':path['path_id'],'fields':fields,'owners':owners,
+        'physical_port_map':[{'component_id':row['component_id'],
+            'port':row['port'],'physical_port':row['port']} for row in fields]}
+    _write(Path(generated_root).parent/'compiled_ownership.v1.json',document)
+    physical={(row['component_id'],row['port']):row['port'] for row in fields}
+    return artifacts,dict(request=request,compiled=compiled,
+        ownership=ownership,physical_port_map=physical)
+
+
+def run_compiled_session(*,artifacts,compiled_inputs,base_dir,cache_dir,run_id,
+                         output_dir,session_dir,client_binary,budget_seconds,
+                         max_tests,search_seed,max_runs_per_batch):
+    """Start one compiled F4 RFuzz session and its full fresh prefix replay."""
+    from myfuzz.integration.compiled_rfuzz import run_compiled_f4_rfuzz_session
+    return run_compiled_f4_rfuzz_session(
+        artifacts=artifacts,compiled_inputs=compiled_inputs,base_dir=base_dir,
+        cache_dir=cache_dir,run_id=run_id,session_dir=session_dir,
+        output_dir=output_dir,client_binary=client_binary,
+        budget_seconds=budget_seconds,max_tests=max_tests,
+        search_seed=search_seed,max_runs_per_batch=max_runs_per_batch)
+
+
+def _compiled_session_preflight(*,client_binary,cache_dir,base_dir,
+                                budget_seconds,max_tests,search_seed,
+                                max_runs_per_batch):
+    """Name every preflight refusal before a compiled runtime is started."""
+    if client_binary is None:
+        _refuse('client-binary-required','/client-binary',
+                {'requires':'the RFuzz client binary; no session can be '
+                            'started without it'})
+    client=_resolve(Path.cwd(),client_binary)
+    if not client.is_file():
+        _refuse('client-binary-missing','/client-binary',{'path':str(client)})
+    if type(budget_seconds) not in (int,float) or not 0<budget_seconds<=3600:
+        _refuse('budget-seconds-invalid','/budget-seconds',
+                {'observed':budget_seconds,'allowed':'0 < seconds <= 3600'})
+    if type(max_tests) is not int or not 1<=max_tests<=100000:
+        _refuse('max-tests-invalid','/max-tests',
+                {'observed':max_tests,'allowed':'1 <= tests <= 100000'})
+    if type(max_runs_per_batch) is not int or not 1<=max_runs_per_batch<=8:
+        _refuse('max-runs-per-batch-invalid','/max-runs-per-batch',
+                {'observed':max_runs_per_batch,'allowed':'1..8'})
+    if search_seed is not None and (type(search_seed) is not int
+                                    or not 0<=search_seed<2**64):
+        _refuse('search-seed-invalid','/search-seed',{'observed':search_seed})
+    cache=(_resolve(Path.cwd(),cache_dir) if cache_dir is not None
+           else Path(base_dir)/DEFAULT_CACHE_DIR)
+    if not cache.exists():
+        _refuse('build-cache-missing','/cache-dir',
+                {'path':str(cache),'requires':'an existing shared build cache; a '
+                 'session is not started when its harnesses would have to be built '
+                 'from cold inside the run budget'})
+    if not cache.is_dir():
+        _refuse('build-cache-invalid','/cache-dir',{'path':str(cache)})
+    return client,cache
+
+
 def assess_runtime_execution(*,family,artifacts,compiled_inputs,producer_events=()):
     """Report execution downgrades against an explicitly named runtime contract."""
     from .compiled_execution_projection import assess_compiled_execution
@@ -1128,7 +1249,7 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
                           build_cache=None, budget_seconds=60.0, max_tests=200,
                           search_seed=None, max_runs_per_batch=1,
                           skip_session=False, label=None,
-                          ip_capabilities=()) -> dict:
+                          ip_capabilities=(), executor=None) -> dict:
     """Run every requested P7 stage and return the machine-readable summary.
 
     The returned summary is also written to ``<output>/run-summary.json`` and
@@ -1136,6 +1257,11 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
     is the process exit code: ``0`` only when every requested stage completed,
     ``1`` when any stage refused or is absent, ``2`` when a fresh replay really
     ran and reported a difference.
+
+    ``executor`` selects the code-owned compiled route instead of a runtime
+    family.  It is never combined with ``runtime`` and never falls back to a
+    family: the selected executor, the one executable D3 F4 target and the
+    client binary are all required explicitly.
     """
     base = Path(base_dir).resolve()
     output = Path(output)
@@ -1147,6 +1273,10 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
     family_stage = {'requested': runtime, 'family': None, 'status':
                     NOT_REQUESTED, 'code': None, 'pointer': None,
                     'detail': None, 'known': known_family_ids()}
+    executor_stage = {'requested': executor, 'name': None, 'status':
+                      NOT_REQUESTED, 'family_fallback': False, 'code': None,
+                      'pointer': None, 'detail': None,
+                      'known': sorted(COMPILED_EXECUTORS)}
     summary = {
         'schema_version': AUTO_HARNESS_SCHEMA,
         'status': RUN_REFUSED,
@@ -1156,6 +1286,7 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
         'output': str(output),
         'started_utc': _utc_now(),
         'runtime_family': family_stage,
+        'executor': executor_stage,
         'stages': {
             # The driver is a stage like any other: its verdict is the run's own,
             # a named ``refuse('driver', ...)`` updates it, and ``finish()``
@@ -1266,6 +1397,33 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
         return summary
 
     try:
+        # -- executor selection: a closed set, never a family fallback ------
+        if executor is not None:
+            if runtime is not None:
+                executor_stage.update(
+                    status=REFUSED, code='executor-and-runtime-mutually-exclusive',
+                    pointer='/executor')
+                refuse('driver', 'executor-and-runtime-mutually-exclusive',
+                       '/executor',
+                       {'executor': executor, 'runtime': runtime,
+                        'requires': 'one explicit execution route: a compiled '
+                                    'executor or a runtime family, never both '
+                                    'and never an implicit fallback'})
+                return finish()
+            if executor not in COMPILED_EXECUTORS:
+                executor_stage.update(status=REFUSED,
+                                      code='compiled-executor-unknown',
+                                      pointer='/executor')
+                refuse('driver', 'compiled-executor-unknown', '/executor',
+                       {'requested': executor,
+                        'known': sorted(COMPILED_EXECUTORS)})
+                return finish()
+            executor_stage.update(
+                status=OK, name=executor,
+                detail={'entry': COMPILED_EXECUTORS[executor]['entry'],
+                        'requires': COMPILED_EXECUTORS[executor]['requires'],
+                        'family_fallback': False})
+
         # -- D1: the declaration review is the first refusal point ----------
         review_paths = [cpu, *ips]
         try:
@@ -1434,6 +1592,163 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
         if skip_session:
             summary['stages']['session'].update(status=NOT_REQUESTED)
             summary['stages']['fresh_verification'].update(status=NOT_REQUESTED)
+            if executor is not None:
+                executor_stage['detail'] = {
+                    **(executor_stage.get('detail') or {}),
+                    'session': 'not_requested'}
+        elif executor is not None and client_binary is None:
+            executor_stage.update(status=REFUSED,
+                                  code='client-binary-required',
+                                  pointer='/client-binary')
+            absent('session', 'client-binary-required', '/client-binary',
+                   'the compiled executor was named without a client binary, '
+                   'so no session was started; no family is used as a fallback')
+            absent('fresh_verification', 'fresh-replay-requires-a-session',
+                   '/session', 'no session ran, so there was no compiled prefix '
+                               'to replay')
+        elif executor is not None:
+            # -- compiled route: one D3 F4 target, one client, no family -----
+            run_id = summary['label']
+            try:
+                client, cache = _compiled_session_preflight(
+                    client_binary=client_binary, cache_dir=cache_dir,
+                    base_dir=base, budget_seconds=budget_seconds,
+                    max_tests=max_tests, search_seed=search_seed,
+                    max_runs_per_batch=max_runs_per_batch)
+                generated_artifacts, compiled_inputs = load_compiled_session_inputs(
+                    generated_root=output / 'generated', base_dir=base,
+                    request=typed_compile_request, compiled=compiled_document)
+                ownership_path = output / 'compiled_ownership.v1.json'
+                if ownership_path.is_file():
+                    record('compiled_ownership', ownership_path)
+                from .compiled_execution_projection import assess_compiled_f4_support
+                support = assess_compiled_f4_support(
+                    artifacts=generated_artifacts,
+                    compiled_inputs=compiled_inputs, base_dir=base)
+                projection = dict(support,
+                                  capability_executable=sum(
+                                      1 for row in compiled_document['paths']
+                                      if row.get('status') == 'executable'),
+                                  execution_supported=support.get(
+                                      'execution_supported', 0),
+                                  runtime_admitted=False, executor=executor,
+                                  family=None, family_fallback=False)
+                projection_path = _write(
+                    output / 'execution_projection.v1.json', projection)
+                record('execution_projection', projection_path, projection)
+                summary['stages']['execution_projection'].update(
+                    status=OK, execution_status=projection['status'],
+                    runtime_admitted=False,
+                    capability_executable=projection['capability_executable'],
+                    execution_supported=projection['execution_supported'])
+                if projection['execution_supported'] != 1:
+                    _refuse('compiled-f4-target-unsupported', '/compiled_paths',
+                            {'support': support,
+                             'requires': 'the admitted compiled F4 executor '
+                                         'supports this target'})
+                with _heavy_worker_lock(base):
+                    outcome = run_compiled_session(
+                        artifacts=generated_artifacts,
+                        compiled_inputs=compiled_inputs, base_dir=base,
+                        cache_dir=cache, run_id=run_id, output_dir=output,
+                        session_dir=output / 'session', client_binary=client,
+                        budget_seconds=budget_seconds, max_tests=max_tests,
+                        search_seed=search_seed,
+                        max_runs_per_batch=max_runs_per_batch)
+                if outcome['live'].client_returncode != 0:
+                    raise ValueError(
+                        'compiled-rfuzz-client-returncode:'
+                        f"{outcome['live'].client_returncode}")
+            except AutoHarnessRefused as error:
+                executor_stage.update(status=REFUSED, code=error.code,
+                                      pointer=error.pointer)
+                refusal_path = _write(output / 'session-refusal.json',
+                                      {'schema_version': REFUSAL_SCHEMA,
+                                       'stage': 'session', 'code': error.code,
+                                       'pointer': error.pointer,
+                                       'detail': error.detail})
+                record('session_refusal', refusal_path)
+                refuse('session', error.code, error.pointer, error.detail)
+                absent('fresh_verification', 'fresh-replay-requires-a-session',
+                       '/session', 'the session did not run, so nothing was replayed')
+            except Exception as error:
+                traceback.print_exc()
+                executor_stage.update(status=REFUSED,
+                                      code='compiled-session-failed',
+                                      pointer='/session')
+                detail = {'error': f'{type(error).__name__}: {error}',
+                          'session_dir': _display(base, output / 'session'),
+                          'partial_evidence': (output / 'session').exists()}
+                refusal_path = _write(output / 'session-refusal.json',
+                                      {'schema_version': REFUSAL_SCHEMA,
+                                       'stage': 'session',
+                                       'code': 'compiled-session-failed',
+                                       'pointer': '/session', 'detail': detail})
+                record('session_refusal', refusal_path)
+                refuse('session', 'compiled-session-failed', '/session', detail)
+                absent('fresh_verification', 'fresh-replay-requires-a-session',
+                       '/session', 'the compiled session did not complete, so '
+                                   'nothing was replayed')
+            else:
+                session_dir = output / 'session'
+                report = json.loads((session_dir / 'report.json').read_text(
+                    encoding='utf-8'))
+                llive = outcome['live']
+                summary['stages']['session'].update(
+                    status=OK, directory=_display(base, session_dir),
+                    tests=report.get('tests'),
+                    execution_status=report.get('execution_status'),
+                    statuses=report.get('statuses'),
+                    elapsed_seconds=report.get('elapsed_seconds'),
+                    effective_search_seconds=report.get(
+                        'effective_search_seconds'),
+                    receipts=outcome['join']['rows'],
+                    transport={'tests': llive.tests,
+                               'completed_feedback_exchanges':
+                                   llive.completed_feedback_exchanges,
+                               'statuses': dict(llive.statuses),
+                               'client_returncode': llive.client_returncode,
+                               'effective_search_seconds':
+                                   llive.effective_search_seconds})
+                record('session_report', session_dir / 'report.json', report)
+                verification = outcome['verification']
+                fresh_path = _write(output / 'fresh-verification.json',
+                                    verification)
+                record('fresh_verification', fresh_path, verification)
+                summary['stages']['fresh_verification'].update(
+                    status=OK, document=_display(base, fresh_path),
+                    matches=verification['matches'],
+                    first_difference=verification['first_difference'],
+                    verification_scope=verification['verification_scope'])
+                summary['fresh_replay'] = {
+                    'matches': verification['matches'],
+                    'first_difference': verification['first_difference'],
+                    'verification_scope': verification['verification_scope']}
+                bundle_dir = output / 'bundle'
+                bundle = write_authenticated_bundle(session_dir=session_dir,
+                                                    bundle_dir=bundle_dir)
+                record('bundle', bundle_dir / 'bundle-manifest.json', bundle)
+                join_path = output / 'compiled_receipt_join.v1.json'
+                if join_path.is_file():
+                    record('compiled_receipt_join', join_path,
+                           {'schema_version': outcome['join']['schema_version']})
+                for name, key in (('compiled_f4_prefix.json',
+                                   'compiled_f4_prefix'),
+                                  ('compiled_f4_replay.json',
+                                   'compiled_f4_replay')):
+                    artifact = output / name
+                    if artifact.is_file():
+                        record(key, artifact)
+                executor_stage.update(
+                    status=OK, name=executor,
+                    path_id=outcome['join']['path_id'],
+                    source_id=outcome['join']['source_id'],
+                    receipts=outcome['join']['rows'],
+                    detail={'entry': COMPILED_EXECUTORS[executor]['entry'],
+                            'requires': COMPILED_EXECUTORS[executor]['requires'],
+                            'family_fallback': False,
+                            'receipt_join': outcome['join']['status'],
+                            'fresh_replay': verification['matches']})
         elif family is None:
             absent('session', 'runtime-family-required', '/runtime',
                    'no runtime family was named, so no session was started; '

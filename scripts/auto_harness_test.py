@@ -20,6 +20,14 @@ MMIO windows and memory regions, read from its wiring declaration) before
 anything is generated.  A mismatch is refused with a ``code`` and a JSON
 ``pointer``, never adapted.
 
+``--executor compiled-f4-rfuzz`` selects the code-owned compiled route instead
+of a family.  It is accepted only when exactly one executable D3 F4 target and
+``--client-binary`` are both named; it cannot be combined with ``--runtime`` and
+it never falls back to a family.  That route writes the usual stages plus
+``compiled_f4_prefix.json``, ``compiled_f4_replay.json``,
+``compiled_receipt_join.v1.json`` and the same ``fresh-verification.json`` from
+``CompiledF4Runtime.replay`` on fresh native processes.
+
 Exit codes
 ----------
 
@@ -83,6 +91,13 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument('--runtime', default=None,
                         help='the runtime family that will start the RTL; the '
                              'composition is validated against it before generation')
+    parser.add_argument('--executor', default=None,
+                        help='a code-owned compiled executor instead of a runtime '
+                             'family (currently compiled-f4-rfuzz). It is selected '
+                             'only when exactly one executable compiled F4 target '
+                             'and --client-binary are both named; it never falls '
+                             'back to a runtime family and cannot be combined with '
+                             '--runtime')
     parser.add_argument('--client-binary', type=Path, default=None,
                         help='the RFuzz client binary used by the live session')
     parser.add_argument('--cache-dir', type=Path, default=None,
@@ -115,7 +130,7 @@ def run(args: argparse.Namespace) -> int:
         search_seed=args.search_seed,
         max_runs_per_batch=args.max_runs_per_batch,
         skip_session=args.skip_session, label=args.label,
-        ip_capabilities=list(args.ip_capability))
+        ip_capabilities=list(args.ip_capability), executor=args.executor)
     print(json.dumps(summary, sort_keys=True, ensure_ascii=False,
                      default=str))
     return summary['exit_code']
