@@ -20,9 +20,10 @@ from .dependency import DependencyRule
 from .genome import MemoryImage, ScenarioGenome
 from .memory import MemoryRegion, PersistentMemory
 from .online_case_decoder import OnlineCaseDecoder, OnlineDependencyGraph, OnlineDependencySource, OnlineSource
+from .session_runtime import OnlineInstruction
 from .picorv32_native_cpu_example import (ROOT, CPU_PROFILE, GPIO_PROFILE,
     GPIO_BASE, GPIO_WINDOW, GPIO_COMPONENT, GPIO_INPUT, PADDIR, GPIOEN, PADIN,
-    PADOUT, DeferredNativeMemorySession, gpio_ownership, _lui, _addi, _sw)
+    PADOUT, DeferredNativeMemorySession, gpio_ownership, _lui, _addi, _sw, _lw)
 from .router import DataflowRouter, DeviceWindow
 from .runner import ScenarioRunner
 from .runtime_path_contract import RuntimeNode, RuntimeEdgeContract, RuntimePathContract
@@ -32,6 +33,8 @@ INSTRUCTION_START = 0x200
 INSTRUCTION_END = 0xe00
 CPU_TICKS_PER_CASE = 128
 SCHEDULE = ('cpu', GPIO_COMPONENT)
+PACKET_BYTES = 32
+PACKET_COUNT = (INSTRUCTION_END - INSTRUCTION_START) // PACKET_BYTES
 
 
 @dataclass(frozen=True)
@@ -42,23 +45,70 @@ class NativeOnlineBootstrap:
 
     @property
     def instruction_count(self):
-        return (self.instruction_end - self.instruction_start) // 4
+        return PACKET_COUNT + 1
+
+    @property
+    def instruction_slots(self):
+        return (*range(self.instruction_start, self.instruction_end, PACKET_BYTES),
+                self.instruction_end)
 
 
 def make_picorv32_native_online_bootstrap():
     # Actual CPU stores configure PADDIR/GPIOEN; no target-side setup writes.
     words = [_lui(1, GPIO_BASE >> 12), _addi(2, 0, -1),
-             _sw(2, 1, PADDIR), _sw(2, 1, GPIOEN)]
+             _sw(2, 1, PADDIR), _sw(2, 1, GPIOEN), _addi(10, 0, 0)]
     pc = len(words) * 4
     offset = INSTRUCTION_START - pc
     words.append(((offset >> 20) & 1) << 31 | ((offset >> 1) & 0x3ff) << 21
                  | ((offset >> 11) & 1) << 20 | ((offset >> 12) & 0xff) << 12 | 0x6f)
     encode = lambda seq: b''.join(word.to_bytes(4, 'little') for word in seq).hex()
+    # Every packet has one source slot and seven immutable instructions. Both
+    # source choices therefore reach a real PADIN load/CPU RAM store/derived
+    # PADOUT store, rather than making an IP case only execute a NOP forever.
+    # Registers1/11 are fixed support; x10 is the CPU source/derived byte.
+    tail = [_lui(1, GPIO_BASE >> 12), _sw(10, 1, PADOUT), _lw(11, 1, PADIN),
+            _sw(11, 0, 0x100), (1 << 20) | (11 << 15) | (4 << 12) | (10 << 7) | 0x13,
+            _sw(10, 1, PADOUT), 0x13]
     images = (MemoryImage('native.online.bootstrap', 'cpu', 0, encode(words)),
-              MemoryImage('native.online.end', 'cpu', INSTRUCTION_END, encode([0x6f])))
+              *(MemoryImage(f'native.online.tail.{index}', 'cpu', address + 4, encode(tail))
+                for index, address in enumerate(range(INSTRUCTION_START, INSTRUCTION_END, PACKET_BYTES))))
     return NativeOnlineBootstrap(ScenarioGenome('native-pulp-online',
         'MULTI_COMPONENT_CHAIN', 'native-pulp-online', SCHEDULE,
         2 * CPU_TICKS_PER_CASE, (), initial_images=images))
+
+
+class NativePacketDecoder(OnlineCaseDecoder):
+    """One source word per immutable32-byte CPU packet; no mutable support."""
+
+    def _decode_case(self, raw, *, coverage_hints=None):
+        if (self.instruction_cursor >= self.instruction_end
+                or (self.instruction_cursor - self.instruction_start) % PACKET_BYTES):
+            raise ValueError('native online packet reservation exhausted')
+        return super()._decode_case(raw, coverage_hints=coverage_hints)
+
+    def _materialize_case(self, case_id, selected, entropy):
+        if selected.kind != 'instruction':
+            return super()._materialize_case(case_id, selected, entropy)
+        value = entropy[0]
+        source = OnlineInstruction(f'{case_id}:{selected.source_id}', 'cpu',
+            self.instruction_cursor, _addi(10, 0, value).to_bytes(4, 'little').hex())
+        return source, (), None
+
+    def commit(self, case):
+        cursor = self.instruction_cursor
+        super().commit(case)
+        # Only the single source word is reserved/submitted; immutable tails
+        # are initial images, so never admit them through instruction input.
+        if self.instruction_cursor != cursor + 4:
+            raise ValueError('native online packet requires exactly one source word')
+        self.instruction_cursor += PACKET_BYTES - 4
+
+    def document(self):
+        return {**super().document(), 'native_packet_policy': {
+            'schema_version': 'native_online_packet.v1', 'stride_bytes': PACKET_BYTES,
+            'source_words': 1, 'immutable_tail_words': 7,
+            'cpu_source': 'ADDI x10,x0,u8', 'result_address': 0x100,
+            'generic_contiguous_decoder_reconstruction_supported': False}}
 
 
 def make_picorv32_native_online_decoder():
@@ -70,21 +120,23 @@ def make_picorv32_native_online_decoder():
     rules = (DependencyRule('native.gpio.cpu_write', (cpu_id,), 'PERSISTENT_STATE_RULE'),
              DependencyRule(cpu_path, ('native.gpio.cpu_write',), 'DATA_BINDING'),
              DependencyRule('native.gpio.pin', (pin_id,), 'ENV_PRECONDITION'),
-             DependencyRule(pin_path, ('native.gpio.pin',), 'DATA_BINDING'))
+             DependencyRule('native.cpu.pin_read', ('native.gpio.pin',), 'DATA_BINDING'),
+             DependencyRule(pin_path, ('native.cpu.pin_read',), 'PERSISTENT_STATE_RULE'))
     graph = OnlineDependencyGraph(sources=sources, rules=rules)
     nodes = (RuntimeNode(cpu_id, 'cpu', 'logical'),
         RuntimeNode(pin_id, GPIO_COMPONENT, 'physical', GPIO_INPUT, 0, 8),
         RuntimeNode('native.gpio.cpu_write', GPIO_COMPONENT, 'state'),
         RuntimeNode(cpu_path, 'cpu', 'logical'),
         RuntimeNode('native.gpio.pin', GPIO_COMPONENT, 'physical', GPIO_INPUT, 0, 8),
-        RuntimeNode(pin_path, 'cpu', 'logical'))
+        RuntimeNode('native.cpu.pin_read', 'cpu', 'logical'),
+        RuntimeNode(pin_path, GPIO_COMPONENT, 'state'))
     edges = tuple(RuntimeEdgeContract(index, 0, 'mmio_route',
         initiator_component='cpu', device_id=GPIO_COMPONENT,
-        base=GPIO_BASE, size=GPIO_WINDOW) for index in (0, 1, 3))
+        base=GPIO_BASE, size=GPIO_WINDOW) for index in (0, 1, 3, 4))
     graph_hash = hashlib.sha256(json.dumps(graph.edge_document(), sort_keys=True,
         separators=(',', ':'), ensure_ascii=False, allow_nan=False).encode()).hexdigest()
     contract = RuntimePathContract(graph_hash, nodes, edges)
-    return OnlineCaseDecoder(sources=(
+    return NativePacketDecoder(sources=(
         OnlineSource(cpu_id, 'instruction', 'cpu', 'CPU_TO_IP_TO_CPU', cpu_path),
         OnlineSource(pin_id, 'source', GPIO_COMPONENT, 'IP_TO_CPU_TO_IP', pin_path,
                      port=GPIO_INPUT, width=8)), ownership=gpio_ownership(),

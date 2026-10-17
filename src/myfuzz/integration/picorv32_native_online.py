@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from myfuzz.scenario.picorv32_native_online import (
-    ROOT, SCHEDULE, make_picorv32_native_online_bootstrap,
+    ROOT, SCHEDULE, PACKET_COUNT, make_picorv32_native_online_bootstrap,
     make_picorv32_native_online_decoder, make_picorv32_native_online_factory)
 from myfuzz.scenario.session_runtime import ScenarioSession, replay_online_session
 
@@ -90,22 +90,23 @@ class PicoNativeOnlineRuntime:
 
 
 def make_picorv32_native_online_runtime(*, cache_dir: Path, base_dir: Path = ROOT,
-                                       max_cases: int = 256):
+                                       max_cases: int = PACKET_COUNT):
     """Construct only; begin explicitly starts/builds real hardware.
 
     No per-case pair.runner(), reset, memory replacement or direct GPIO ACCESS
-    occurs here. Each case schedules at most128 actual CPU ticks plus128 GPIO
-    ticks. Native REQUEST/RESPONSE timeout1024 remains enforced by actual RTL.
+    occurs here. Each case schedules128 CPU and128 GPIO operations; CPU
+    operations each advance one tick. Queued GPIO accesses retain their actual
+    multi-tick accounting. Native timeout1024 remains enforced by actual RTL.
     """
-    if type(max_cases) is not int or not 1 <= max_cases <= 256:
-        raise ValueError('native online max_cases must be within1..256')
+    if type(max_cases) is not int or not 1 <= max_cases <= PACKET_COUNT:
+        raise ValueError(f'native online max_cases must be within1..{PACKET_COUNT}')
     bootstrap = make_picorv32_native_online_bootstrap()
     decoder = make_picorv32_native_online_decoder()
     factory = make_picorv32_native_online_factory(cache_dir=cache_dir, base_dir=base_dir)
     runner = factory()
     session = ScenarioSession(bootstrap.template, runner)
-    session.declare_instruction_slots('cpu', bootstrap.instruction_start,
-                                      bootstrap.instruction_count)
+    for address in bootstrap.instruction_slots:
+        session.declare_instruction_slots('cpu', address, 1)
     session.configure_runtime_paths(decoder.graph, decoder.runtime_contract,
         decoder.runtime_paths, source_ownership=decoder.ownership)
     return PicoNativeOnlineRuntime(session, decoder, factory, max_cases)

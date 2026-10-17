@@ -102,3 +102,13 @@ runtime.begin 才 begin/start/build 并有界 warmup，真实 POST 出现首个�
 decoder 声明 CPU instruction 与 GPIO低8bit source 两种来源，按原 weighted decoder 选择，不强制方向轮换；GPIO高24bit固定0。CPU可产生合法算术/NOP或仅 PADOUT4字节/PADIN只读窗口的 LW/SW；SB被拒绝。IP源只有一个固定NOP support，不自动塞入一条为“命中”准备的读取。选择/接受字节不证明 fetch/CPU消费；未观察下游消费仅 stage/partial。
 
 显式 RuntimePathContract 绑定实际cpu↔gpio0窗口0x40000000/4KiB与原ownership，在begin前安装原provenance；此静态路由不授 terminal证明。入口不创建默认 Ibex ChainCertificates，不授 IRQ/retirement/source权威、四类反馈认证、RFuzz搜索或P6整行能力。真实3例、两侧实际消费、全fresh、受控负例和source/tool/build联合验收均待审查后另行运行。
+
+### Stage B 最终 packet 补充（覆盖§6中间稿的连续槽/NOP消费限制）
+
+`79d85e8` 是中间源码，最新版本把输入改为明确的32字节 packet：首4字节是唯一可提交 source槽，随后28字节为immutable实际CPU代码。0x200..0xe00共有96 packets；单独预留0xe00未填 guard槽，不再初始安装末尾自环，不会在最后 packet 后落入随机RAM。原始plan逐条记录97个 reserve（96 source+guard）及所有固定tail映像，fresh使用实际声明重建；不能用旧 contiguous384词 reservation 替代。
+
+CPU source仅一条 `ADDI x10,x0,u8`；IP source只提交一个NOP支持字。每个实际CPU tail均为 `LUI x1,GPIO_BASE; SW x10,PADOUT; LW x11,PADIN; SW x11,RAM[0x100]; XORI x10,x11,1; SW x10,PADOUT; NOP`。因此IP输入有具体的实际 pin→PADIN→CPU load→RAM store→派生PADOUT store消费路径，而非永久被NOP丢弃。bootstrap实际CPU指令将x10初始化0，不依赖初始寄存器猜值。此代码存在不等于该路径已经运行或事件认证；真实source/receipt/CPU消费关联仍待native门。
+
+NativePacketDecoder沿用weighted选源、proposal/commit和runtime路径校验，但显式固定单词输入及32字节stride。仅在原commit成功且恰好提交4字节后跨过immutable尾部；所有decode入口在reservation耗尽/错位前拒绝，不允许IP输入继续接受却没有支持代码。decoder.document标明 native_online_packet.v1、自定义stride和不支持generic contiguous重建；不把它冒充通用decoder/RFuzz接入。runtime最多96例。
+
+每例是128次CPU操作（实际每次1tick）与128次GPIO调度操作；GPIO queued ACCESS仍有真实多tick且使用原Runner间接边界记账，不能宣称每例恰好128GPIO物理tick。没有新增/跳过/虚构这些访问的时钟。CPU128预算未增加；不足则保留实际失败，不据静态指令数宣布通过。IP方向的声明图也补齐 CPU read→GPIO state 的真实MMIO route，仍只是声明，不是closed-loop hit。
