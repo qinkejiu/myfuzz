@@ -85,6 +85,8 @@ def probe_binding_digest(probe):
     if (not isinstance(contract, dict)
             or not isinstance(contract.get('source'), dict)
             or not isinstance(contract.get('parameters'), dict)
+            or not isinstance(contract.get('storage_expression'), dict)
+            or type(contract['storage_expression'].get('expression')) is not str
             or not _is_sha256(contract.get('digest'))
             or type(probe.get('ports')) is not list or not probe['ports']):
         raise ValueError('apb-storage-probe-binding-shape')
@@ -168,9 +170,13 @@ def validate_native_proof(proof, *, probe, runtime_sv, wrapper_sha256,
     binding = probe_binding_digest(probe)
     if proof.get('probe_binding_digest') != binding:
         raise ValueError('apb-storage-proof-binding-mismatch')
+    try:
+        expected_expression = probe['source_contract'][
+            'storage_expression']['expression']
+    except (KeyError, TypeError) as error:
+        raise ValueError('apb-storage-proof-binding-shape') from error
     if (proof.get('ports') != probe['ports']
-            or proof.get('expression')
-            != probe['source_contract']['storage_expression']['expression']):
+            or proof.get('expression') != expected_expression):
         raise ValueError('apb-storage-proof-expression-mismatch')
     contract = probe['source_contract']
     if (proof.get('source') != contract['source']
@@ -285,10 +291,13 @@ def verified_storage_observation(observation, *, runtime_sv, wrapper_sha256,
             or reference.get('schema_version') != EVIDENCE_SCHEMA
             or reference.get('reference') != PROOF_RELATIVE):
         raise ValueError('apb-storage-observation-evidence-shape')
-    proof = _load_proof(base_dir)
-    evidence = validate_native_proof(
-        proof, probe=observation, runtime_sv=runtime_sv,
-        wrapper_sha256=wrapper_sha256, base_dir=base_dir)
+    try:
+        proof = _load_proof(base_dir)
+        evidence = validate_native_proof(
+            proof, probe=observation, runtime_sv=runtime_sv,
+            wrapper_sha256=wrapper_sha256, base_dir=base_dir)
+    except (KeyError, TypeError) as error:
+        raise ValueError('apb-storage-observation-evidence-shape') from error
     for key in ('proof_digest', 'binding_digest', 'runtime_sv_sha256',
                 'wrapper_sha256', 'verilator', 'sample_digest'):
         if reference.get(key) != evidence[key]:
