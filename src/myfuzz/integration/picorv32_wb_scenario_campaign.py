@@ -805,13 +805,25 @@ def audit_campaign_cell(cell_dir: Path, cell: Mapping) -> list[str]:
     checks = _jsonl(cell_dir / "chain_checks.jsonl")
     if not checks and cell.get("strategy") != "independent_drive":
         findings.append("chain_checks_empty")
+    # An incomplete assessment is a legal search outcome: the campaign counts
+    # only two-round complete chains as ``completed_chains``.  The audit must
+    # recompute that same count, not demand that every scored genome closed.
+    # Only a malformed assessment (missing/typed-wrong fields, or "complete"
+    # with fewer than two rounds) is an audit failure.
+    complete_checks = 0
     for check in checks:
         assessment = check.get("assessment")
-        if (not isinstance(assessment, Mapping) or not assessment.get("complete")
-                or assessment.get("rounds") != 2):
-            findings.append("chain_check_not_two_complete_rounds")
+        if (not isinstance(assessment, Mapping)
+                or type(assessment.get("complete")) is not bool
+                or type(assessment.get("rounds")) is not int
+                or not 0 <= assessment.get("rounds") <= 2
+                or (assessment.get("complete")
+                    and assessment.get("rounds") != 2)):
+            findings.append("chain_check_assessment_invalid")
             break
-    if search.get("completed_chains") != len(checks):
+        if assessment.get("complete") and assessment.get("rounds") == 2:
+            complete_checks += 1
+    if search.get("completed_chains") != complete_checks:
         findings.append("completed_chains_mismatch")
 
     receipts = _jsonl(live / "receipts.jsonl")
