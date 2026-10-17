@@ -1,0 +1,72 @@
+{
+  "archive_member_files": 46,
+  "all_terminal_stdio_hashes_match": true,
+  "terminal_stdio_hashes_checked": 16,
+  "attempt1": {
+    "error": "ValueError('verilator-share-set-drift')",
+    "formal_p6_complete": false,
+    "gate_returncode": null,
+    "git_metadata": [],
+    "layout_returncode": 0,
+    "status": "failed"
+  },
+  "attempt2": {
+    "error": null,
+    "formal_p6_complete": false,
+    "gate_returncode": 1,
+    "git_metadata": [
+      {
+        "name": "git-root-head",
+        "returncode": 0
+      },
+      {
+        "name": "git-closures-tracked",
+        "returncode": 0
+      },
+      {
+        "name": "git-picorv32_upstream_reference-connectivity",
+        "returncode": 0
+      },
+      {
+        "name": "git-soc-pulp-apb-gpio-connectivity",
+        "returncode": 0
+      }
+    ],
+    "layout_returncode": 0,
+    "status": "failed"
+  },
+  "positive": {
+    "status": "failed",
+    "error": {
+      "message": "host source is missing: scripts/record_scenario.py",
+      "type": "ValueError"
+    },
+    "processes": [],
+    "cases": [],
+    "boundary_failure": null,
+    "capture_errors": [],
+    "cleanup_collection_errors": []
+  },
+  "layout_before": {
+    "status": "verified_files_and_directories",
+    "root": "/root/fanzehui/myfuzz/operations/p6-native-online-c924aac-20261018-attempt1/project",
+    "files": 8777,
+    "directories": 599,
+    "directory_manifest_sha256": "259aa08c3850742ebaeaf800fae04f53b8f375f95226b688f0da4222ffd5d9a6",
+    "freeze_sha256": "fb51329ff1bb749a12422a7781ce50dcdb6aae5ff31c9a72981ab64beb2f5f96",
+    "pid": 3891154,
+    "native_or_tests_run": false
+  },
+  "layout_after": {
+    "status": "verified_files_and_directories",
+    "root": "/root/fanzehui/myfuzz/operations/p6-native-online-c924aac-20261018-attempt1/project",
+    "files": 8777,
+    "directories": 599,
+    "directory_manifest_sha256": "259aa08c3850742ebaeaf800fae04f53b8f375f95226b688f0da4222ffd5d9a6",
+    "freeze_sha256": "fb51329ff1bb749a12422a7781ce50dcdb6aae5ff31c9a72981ab64beb2f5f96",
+    "pid": 3916926,
+    "native_or_tests_run": false
+  },
+  "layout_freeze_directory_hashes_equal": true,
+  "frontend_scope": "not independently traced; factory may have issued frontend queries; no claim of zero frontend activity"
+}

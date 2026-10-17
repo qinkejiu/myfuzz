@@ -1,5 +1,11 @@
 # 当前工作进度与证据入口
 
+## 2026-10-18 P6 native 门启动前失败（最新）
+
+- [两轮原始失败与独立归档](reports/evidence/p6-native-online-attempts-20261018/README.md)：首轮工具share扫描范围不匹配，未启动gate；第二轮gate PID3893459实际exit1，缺少host身份文件`scripts/record_scenario.py`，positive cases/processes均为空，controlled/fresh未进入。不是RTL失败，也不构成原生通过；工厂可能已前端查询。
+- 第二轮4个Git元数据检查、前后完整file+directory layout和工具检查通过；8,777文件/599目录freeze不变。旧source/失败记录保留，新完整scripts闭包副本待准备，不授P6/P7/P8完成。
+
+
 ## 2026-10-18 I5 首轮前置失败与工具查询实际结果
 
 - **第二份工作集已启动 staging/规划，尚未 ready：** 601964f v2 保留空目录，root 实际新建独立 operation；复制同一进程继续中，未启动第二次负例/RTL门。见[活动记录](reports/evidence/p7-i5-attempt2-preparation-20261018/operation.json)。

@@ -1,5 +1,8 @@
 # 生成式独立 Harness 的实际运行边界
 
+2026-10-18 P6 native在线门：[两次启动前失败归档](reports/evidence/p6-native-online-attempts-20261018/README.md)。第二轮真实gate PID3893459 exit1，缺少scripts/record_scenario.py，未形成DUT用例/进程记录，不能计作RTL结果；可能已有工厂前端查询。4个Git metadata和前后layout/tool检查通过仅授该前置范围，新source闭包仍待冻结运行。
+
+
 2026-10-18补记：[I5独立工作集attempt1](reports/p7-i5-remote-independent-preparation-20261018.md)在Git status前置检查exit128（Ibex空refs目录遗漏），N1–N8及新CPU/IP门未开始；9个工具版本/身份查询实际exit0仅授元数据范围。文件map一致不授Git目录完整性、native运行或P7完成；新目录修复/传输/重跑仍待验收。
 
 
