@@ -1,0 +1,12 @@
+{
+  "cpu_irq": "constant_zero",
+  "cpu_seed": "pico_native_gpio_campaign_seed.json",
+  "cross_component_bindings": [],
+  "gpio_local_window": {
+    "base": 1073741824,
+    "size": 4096
+  },
+  "local_response_model": "persistent_shadow_registers",
+  "reverse_seed": "pico_native_gpio_independent_ip_seed.json",
+  "schema_version": "scenario_independent_baseline.v1"
+}
