@@ -1,0 +1,72 @@
+{
+  "commands": [
+    {
+      "command": "MYFUZZ_SCENARIO_REAL=1 MYFUZZ_CONTROLLED_ERROR_OUTPUT=runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-01-existing-test/evidence PYTHONPATH=src flock -w 3600 /home/qinkejiu/myfuzz/.superpowers/heavy-worker.lock python3 -m pytest -q tests/integration/test_cv32e40p_opentitan_uart_controlled_error_real.py",
+      "exit_code": 0,
+      "id": "existing-same-process-real",
+      "report": "attempt-01-existing-test/controlled_error_report.json",
+      "result": "1 passed in 105.12s",
+      "scope": "historical same-process acceptance test (not a new-process pass)",
+      "stdout": "attempt-01-existing-test/stdout.log"
+    },
+    {
+      "command": "MYFUZZ_SCENARIO_REAL=1 MYFUZZ_CONTROLLED_ERROR_OUTPUT=runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence PYTHONPATH=src flock -w 3600 /home/qinkejiu/myfuzz/.superpowers/heavy-worker.lock python3 -m pytest -q tests/integration/test_non_ibex_non_gpio_controlled_error_real.py",
+      "exit_code": 0,
+      "id": "fresh-process-real",
+      "report": "attempt-04-fresh-process/fresh-process-report.json",
+      "result": "1 passed in 162.03s",
+      "scope": "control run, fault run, control fresh replay, fault fresh replay, checker-only recheck: five separate OS processes in one pytest case",
+      "stdout": "attempt-04-fresh-process/stdout.log"
+    },
+    {
+      "command": "PYTHONPATH=src python3 tests/integration/non_ibex_non_gpio_controlled_error_process.py check --group fault --trace control-run=runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/control-bundle/trace.json --trace fault-run=runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/fault-bundle/trace.json --trace control-replay=runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/control-replay-trace.json --trace fault-replay=runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/fault-replay-trace.json --observation runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/checker-recheck-software.json",
+      "exit_code": 0,
+      "id": "checker-software-recheck",
+      "result": "control-run [] ; fault-run [uart_rxdata_source_mismatch] ; control-replay [] ; fault-replay [uart_rxdata_source_mismatch]",
+      "scope": "no RTL: fresh checker process reads the four saved traces and re-derives the verdicts",
+      "stdout": "attempt-04-fresh-process/checker-recheck-software.json"
+    },
+    {
+      "command": "PYTHONPATH=src python3 -m pytest -q tests/integration/test_non_ibex_non_gpio_controlled_error_real.py",
+      "exit_code": 0,
+      "id": "collection-software",
+      "result": "1 skipped in 0.06s (MYFUZZ_SCENARIO_REAL is required)",
+      "scope": "collection without the real-RTL environment variable"
+    },
+    {
+      "command": "MYFUZZ_SCENARIO_REAL=1 MYFUZZ_CONTROLLED_ERROR_OUTPUT=runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-03-fresh-process/evidence PYTHONPATH=src flock -w 3600 /home/qinkejiu/myfuzz/.superpowers/heavy-worker.lock python3 -m pytest -q tests/integration/test_non_ibex_non_gpio_controlled_error_real.py",
+      "exit_code": 1,
+      "id": "pre-fix-test-assertion-failure",
+      "result": "1 failed in 121.44s (list vs str assertion)",
+      "scope": "preserved failure: a test-side expected_type typo, all five phases had run",
+      "stdout": "failures/attempt-03-pre-fix-assertion.stdout.log"
+    },
+    {
+      "command": "MYFUZZ_SCENARIO_REAL=1 MYFUZZ_CONTROLLED_ERROR_OUTPUT=runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-05-final/evidence PYTHONPATH=src flock -w 3600 /home/qinkejiu/myfuzz/.superpowers/heavy-worker.lock python3 -m pytest -q tests/integration/test_non_ibex_non_gpio_controlled_error_real.py",
+      "exit_code": 1,
+      "id": "concurrent-source-drift-failure",
+      "result": "1 failed in 105.99s (control replay: replay manifest identity mismatch)",
+      "scope": "preserved failure: sibling edit to src/myfuzz/scenario/compiled_paths.py during the run changed host-source identity, so the control replay correctly refused a manifest mismatch",
+      "stdout": "failures/attempt-05-concurrent-source-drift.stdout.log"
+    },
+    {
+      "command": "flock -w 3600 .superpowers/heavy-worker.lock bash runs/p6-controlled-error-non-ibex-non-gpio-20261017/run-attempt-12.sh",
+      "exit_code": 1,
+      "id": "frozen-head-snapshot-failure",
+      "result": "2 failed in 4.18s (both chains); no RTL session started",
+      "scope": "preserved failure: attempt to isolate HEAD + these two files in a materialized snapshot; source-lock verifier rejected configs/soc/closures/cv32e40p.json as untracked because the snapshot had no .git",
+      "stdout": "failures/attempt-12-frozen-head-snapshot.elaboration-evidence.log"
+    }
+  ],
+  "cwd": "/home/qinkejiu/myfuzz",
+  "environment_required": {
+    "MYFUZZ_SCENARIO_REAL": "1",
+    "PYTHONPATH": "src"
+  },
+  "notes": [
+    "The fresh-process pass is the attempt-04 run, completed before the observed concurrent src edits (attempt-04 ended 15:25:37; compiled_paths.py was next observed modified at 15:29:28 and again at 15:44:01).",
+    "The committed test and driver are byte-identical to the versions exercised by attempt-04 (sha256 in source-identity.json).",
+    "Later attempts 05-12 were not counted as passes; they are retained as failure evidence. A frozen-source rerun is pending root source freeze."
+  ],
+  "schema_version": "p6_non_ibex_non_gpio_commands.v1"
+}

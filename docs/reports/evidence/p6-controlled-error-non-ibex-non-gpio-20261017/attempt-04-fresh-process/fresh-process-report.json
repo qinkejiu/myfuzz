@@ -1,0 +1,728 @@
+{
+  "chain": {
+    "cpu_profile": "configs/cpus/cv32e40p/component_profile.json",
+    "genome_testcase_id": "cv32e40p-opentitan-uart-rx-watermark-irq",
+    "target_device_id": "uart",
+    "target_profile": "configs/peripherals/opentitan_uart_local/component_profile.json"
+  },
+  "checker": {
+    "chain": {
+      "cpu_profile": "configs/cpus/cv32e40p/component_profile.json",
+      "genome_testcase_id": "cv32e40p-opentitan-uart-rx-watermark-irq",
+      "target_device_id": "uart",
+      "target_profile": "configs/peripherals/opentitan_uart_local/component_profile.json"
+    },
+    "checker": {
+      "config": {
+        "_case_results": {},
+        "_expected_rx": [],
+        "_last_event_id": 0,
+        "_reads": {}
+      },
+      "module": "myfuzz.scenario.ibex_uart_online_checker",
+      "qualname": "IbexUartOnlineChecker",
+      "source": {
+        "path": "src/myfuzz/scenario/ibex_uart_online_checker.py",
+        "sha256": "3a5b044d5a66802950cce87ba8ad112c6aeb91c8f993960c82a1aab8ce73ffe3"
+      }
+    },
+    "expected_violation": "uart_rxdata_source_mismatch",
+    "group": "fault",
+    "process": {
+      "argv": [
+        "/home/qinkejiu/myfuzz/tests/integration/non_ibex_non_gpio_controlled_error_process.py",
+        "check",
+        "--group",
+        "fault",
+        "--trace",
+        "control-run=/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/control-bundle/trace.json",
+        "--trace",
+        "fault-run=/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/fault-bundle/trace.json",
+        "--trace",
+        "control-replay=/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/control-replay-trace.json",
+        "--trace",
+        "fault-replay=/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/fault-replay-trace.json",
+        "--observation",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/checker.json"
+      ],
+      "cwd": "/home/qinkejiu/myfuzz",
+      "environment": {
+        "MYFUZZ_CONTROLLED_ERROR_OUTPUT": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence",
+        "MYFUZZ_SCENARIO_REAL": "1",
+        "PYTHONPATH": "/home/qinkejiu/myfuzz/src:/home/qinkejiu/myfuzz:src"
+      },
+      "finished_unix_ns": 1792221937207222402,
+      "group": "fault",
+      "parent_pid": 5,
+      "pid": 4976,
+      "python": "/usr/bin/python3",
+      "python_version": "3.12.3",
+      "role": "check",
+      "started_unix_ns": 1792221936654912400
+    },
+    "results": {
+      "control-replay": {
+        "event_count": 23697,
+        "findings": [],
+        "local_ticks": {
+          "cpu": 2250,
+          "uart": 2266
+        },
+        "manifest_sha256": "b6497f9d4cbe013553d90de5d528dc171a2d58f62627ce4ea00f7c9e83851d7e",
+        "path": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/control-replay-trace.json",
+        "status": "complete",
+        "trace_json_sha256": "5ce7f6374287793969f656ff5518ebc979c89250fc77040476eb7e7770ddb715"
+      },
+      "control-run": {
+        "event_count": 23697,
+        "findings": [],
+        "local_ticks": {
+          "cpu": 2250,
+          "uart": 2266
+        },
+        "manifest_sha256": "b6497f9d4cbe013553d90de5d528dc171a2d58f62627ce4ea00f7c9e83851d7e",
+        "path": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/control-bundle/trace.json",
+        "status": "complete",
+        "trace_json_sha256": "2907278758892f68cc4986cecaa81ab8463757566c614b235880800764a89c90"
+      },
+      "fault-replay": {
+        "event_count": 23697,
+        "findings": [
+          "uart_rxdata_source_mismatch"
+        ],
+        "local_ticks": {
+          "cpu": 2250,
+          "uart": 2266
+        },
+        "manifest_sha256": "b6497f9d4cbe013553d90de5d528dc171a2d58f62627ce4ea00f7c9e83851d7e",
+        "path": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/fault-replay-trace.json",
+        "status": "complete",
+        "trace_json_sha256": "e35516686a4f7ac8f2786583258d14adc29d4fe5fc747e7d38f9d4f42e6610bf"
+      },
+      "fault-run": {
+        "event_count": 23697,
+        "findings": [
+          "uart_rxdata_source_mismatch"
+        ],
+        "local_ticks": {
+          "cpu": 2250,
+          "uart": 2266
+        },
+        "manifest_sha256": "b6497f9d4cbe013553d90de5d528dc171a2d58f62627ce4ea00f7c9e83851d7e",
+        "path": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/fault-bundle/trace.json",
+        "status": "complete",
+        "trace_json_sha256": "cefecc2a6c2e71d657dc4ebd8e08e51cace2744c9a55209f46ed5fadf2efad1b"
+      }
+    },
+    "role": "check",
+    "schema_version": "p6_non_ibex_non_gpio_process_observation.v1"
+  },
+  "control": {
+    "bundle": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/control-bundle",
+    "bundle_index_sha256": "fb68d03412fb04b30d1a84782edd5a83acdf98c39dd392366cf7ee4a39e9f357",
+    "bundle_trace_json_sha256": "2907278758892f68cc4986cecaa81ab8463757566c614b235880800764a89c90",
+    "chain": {
+      "cpu_profile": "configs/cpus/cv32e40p/component_profile.json",
+      "genome_testcase_id": "cv32e40p-opentitan-uart-rx-watermark-irq",
+      "target_device_id": "uart",
+      "target_profile": "configs/peripherals/opentitan_uart_local/component_profile.json"
+    },
+    "checker": {
+      "config": {
+        "_case_results": {},
+        "_expected_rx": [],
+        "_last_event_id": 0,
+        "_reads": {}
+      },
+      "module": "myfuzz.scenario.ibex_uart_online_checker",
+      "qualname": "IbexUartOnlineChecker",
+      "source": {
+        "path": "src/myfuzz/scenario/ibex_uart_online_checker.py",
+        "sha256": "3a5b044d5a66802950cce87ba8ad112c6aeb91c8f993960c82a1aab8ce73ffe3"
+      }
+    },
+    "event_count": 23697,
+    "evidence": {
+      "cpu_data_rsp_consumed": 1,
+      "cpu_data_rsp_rdata": 90,
+      "cpu_data_rsp_source_epoch": 0,
+      "cpu_data_rsp_source_sequence": 4,
+      "cpu_rdata_response_event_id": 10472,
+      "findings": [],
+      "intr_state_read_value": 259,
+      "ram_rdata_write": [
+        [
+          131072,
+          90
+        ]
+      ],
+      "rdata_delivery_event_id": 10455,
+      "rdata_delivery_read_value": 90,
+      "rdata_delivery_source_transaction": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 4,
+        "testcase_id": "cv32e40p-opentitan-uart-rx-watermark-irq"
+      },
+      "real_rtl_uart_rsp_local_tick": 1007,
+      "real_rtl_uart_rsp_rdata": 90,
+      "real_rtl_uart_rsp_sample_event_id": 10468,
+      "source_action_id": "external-rx-byte",
+      "source_byte": 90,
+      "source_injection_event_id": 4,
+      "target_uart_access_read_value": null,
+      "trace_status": "complete"
+    },
+    "expected_violation": "uart_rxdata_source_mismatch",
+    "fault_document": null,
+    "findings": [],
+    "group": "control",
+    "local_ticks": {
+      "cpu": 2250,
+      "uart": 2266
+    },
+    "manifest_sha256": "b6497f9d4cbe013553d90de5d528dc171a2d58f62627ce4ea00f7c9e83851d7e",
+    "persistent_ram_rdata": 90,
+    "process": {
+      "argv": [
+        "/home/qinkejiu/myfuzz/tests/integration/non_ibex_non_gpio_controlled_error_process.py",
+        "run",
+        "--group",
+        "control",
+        "--bundle",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/control-bundle",
+        "--cache",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/cache",
+        "--observation",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/control-run.json"
+      ],
+      "cwd": "/home/qinkejiu/myfuzz",
+      "environment": {
+        "MYFUZZ_CONTROLLED_ERROR_OUTPUT": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence",
+        "MYFUZZ_SCENARIO_REAL": "1",
+        "PYTHONPATH": "/home/qinkejiu/myfuzz/src:/home/qinkejiu/myfuzz:src"
+      },
+      "finished_unix_ns": 1792221822754739912,
+      "group": "control",
+      "parent_pid": 5,
+      "pid": 6,
+      "python": "/usr/bin/python3",
+      "python_version": "3.12.3",
+      "role": "run",
+      "started_unix_ns": 1792221768413569986
+    },
+    "role": "run",
+    "schema_version": "p6_non_ibex_non_gpio_process_observation.v1",
+    "semantic_sha256": "fb8717b6876d01e0c993fe45a8a3a01a348f40a631cb9110113f93638f419bff",
+    "status": "complete"
+  },
+  "control_bundle": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/control-bundle",
+  "control_bundle_trace_sha256": "2907278758892f68cc4986cecaa81ab8463757566c614b235880800764a89c90",
+  "control_replay": {
+    "chain": {
+      "cpu_profile": "configs/cpus/cv32e40p/component_profile.json",
+      "genome_testcase_id": "cv32e40p-opentitan-uart-rx-watermark-irq",
+      "target_device_id": "uart",
+      "target_profile": "configs/peripherals/opentitan_uart_local/component_profile.json"
+    },
+    "checker": {
+      "config": {
+        "_case_results": {},
+        "_expected_rx": [],
+        "_last_event_id": 0,
+        "_reads": {}
+      },
+      "module": "myfuzz.scenario.ibex_uart_online_checker",
+      "qualname": "IbexUartOnlineChecker",
+      "source": {
+        "path": "src/myfuzz/scenario/ibex_uart_online_checker.py",
+        "sha256": "3a5b044d5a66802950cce87ba8ad112c6aeb91c8f993960c82a1aab8ce73ffe3"
+      }
+    },
+    "event_count": 23697,
+    "evidence": {
+      "cpu_data_rsp_consumed": 1,
+      "cpu_data_rsp_rdata": 90,
+      "cpu_data_rsp_source_epoch": 0,
+      "cpu_data_rsp_source_sequence": 4,
+      "cpu_rdata_response_event_id": 10472,
+      "findings": [],
+      "intr_state_read_value": 259,
+      "ram_rdata_write": [
+        [
+          131072,
+          90
+        ]
+      ],
+      "rdata_delivery_event_id": 10455,
+      "rdata_delivery_read_value": 90,
+      "rdata_delivery_source_transaction": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 4,
+        "testcase_id": "cv32e40p-opentitan-uart-rx-watermark-irq"
+      },
+      "real_rtl_uart_rsp_local_tick": 1007,
+      "real_rtl_uart_rsp_rdata": 90,
+      "real_rtl_uart_rsp_sample_event_id": 10468,
+      "source_action_id": "external-rx-byte",
+      "source_byte": 90,
+      "source_injection_event_id": 4,
+      "target_uart_access_read_value": null,
+      "trace_status": "complete"
+    },
+    "expected_violation": "uart_rxdata_source_mismatch",
+    "fault_document": null,
+    "findings": [],
+    "group": "control",
+    "local_ticks": {
+      "cpu": 2250,
+      "uart": 2266
+    },
+    "manifest_sha256": "b6497f9d4cbe013553d90de5d528dc171a2d58f62627ce4ea00f7c9e83851d7e",
+    "persistent_ram_rdata": 90,
+    "process": {
+      "argv": [
+        "/home/qinkejiu/myfuzz/tests/integration/non_ibex_non_gpio_controlled_error_process.py",
+        "replay",
+        "--group",
+        "control",
+        "--bundle",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/control-bundle",
+        "--cache",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/cache",
+        "--trace-out",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/control-replay-trace.json",
+        "--observation",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/control-replay.json"
+      ],
+      "cwd": "/home/qinkejiu/myfuzz",
+      "environment": {
+        "MYFUZZ_CONTROLLED_ERROR_OUTPUT": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence",
+        "MYFUZZ_SCENARIO_REAL": "1",
+        "PYTHONPATH": "/home/qinkejiu/myfuzz/src:/home/qinkejiu/myfuzz:src"
+      },
+      "finished_unix_ns": 1792221907202356965,
+      "group": "control",
+      "parent_pid": 5,
+      "pid": 2548,
+      "python": "/usr/bin/python3",
+      "python_version": "3.12.3",
+      "role": "replay",
+      "started_unix_ns": 1792221865329345987
+    },
+    "replay": {
+      "actual_event": null,
+      "difference_context": null,
+      "expected_event": null,
+      "first_difference": null,
+      "matches": true,
+      "verification_scope": "full"
+    },
+    "replay_trace": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/control-replay-trace.json",
+    "replay_trace_json_sha256": "5ce7f6374287793969f656ff5518ebc979c89250fc77040476eb7e7770ddb715",
+    "role": "replay",
+    "schema_version": "p6_non_ibex_non_gpio_process_observation.v1",
+    "semantic_sha256": "fb8717b6876d01e0c993fe45a8a3a01a348f40a631cb9110113f93638f419bff",
+    "source_bundle": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/control-bundle",
+    "source_bundle_trace_json_sha256": "2907278758892f68cc4986cecaa81ab8463757566c614b235880800764a89c90",
+    "status": "complete"
+  },
+  "expected_violation": "uart_rxdata_source_mismatch",
+  "fault": {
+    "bundle": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/fault-bundle",
+    "bundle_index_sha256": "43ed973285255be8f00538f74f37d4ade967a9634a36f6b855db6d26caac318e",
+    "bundle_trace_json_sha256": "cefecc2a6c2e71d657dc4ebd8e08e51cace2744c9a55209f46ed5fadf2efad1b",
+    "chain": {
+      "cpu_profile": "configs/cpus/cv32e40p/component_profile.json",
+      "genome_testcase_id": "cv32e40p-opentitan-uart-rx-watermark-irq",
+      "target_device_id": "uart",
+      "target_profile": "configs/peripherals/opentitan_uart_local/component_profile.json"
+    },
+    "checker": {
+      "config": {
+        "_case_results": {},
+        "_expected_rx": [],
+        "_last_event_id": 0,
+        "_reads": {}
+      },
+      "module": "myfuzz.scenario.ibex_uart_online_checker",
+      "qualname": "IbexUartOnlineChecker",
+      "source": {
+        "path": "src/myfuzz/scenario/ibex_uart_online_checker.py",
+        "sha256": "3a5b044d5a66802950cce87ba8ad112c6aeb91c8f993960c82a1aab8ce73ffe3"
+      }
+    },
+    "event_count": 23697,
+    "evidence": {
+      "cpu_data_rsp_consumed": 1,
+      "cpu_data_rsp_rdata": 91,
+      "cpu_data_rsp_source_epoch": 0,
+      "cpu_data_rsp_source_sequence": 4,
+      "cpu_rdata_response_event_id": 10472,
+      "findings": [
+        "uart_rxdata_source_mismatch"
+      ],
+      "intr_state_read_value": 259,
+      "ram_rdata_write": [
+        [
+          131072,
+          91
+        ]
+      ],
+      "rdata_delivery_event_id": 10455,
+      "rdata_delivery_read_value": 91,
+      "rdata_delivery_source_transaction": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 4,
+        "testcase_id": "cv32e40p-opentitan-uart-rx-watermark-irq"
+      },
+      "real_rtl_uart_rsp_local_tick": 1007,
+      "real_rtl_uart_rsp_rdata": 90,
+      "real_rtl_uart_rsp_sample_event_id": 10468,
+      "source_action_id": "external-rx-byte",
+      "source_byte": 90,
+      "source_injection_event_id": 4,
+      "target_uart_access_read_value": null,
+      "trace_status": "complete"
+    },
+    "expected_violation": "uart_rxdata_source_mismatch",
+    "fault_document": {
+      "calibration_only": true,
+      "cpu_routed_mode": true,
+      "delivered_rdata": 91,
+      "expected_source_byte": 90,
+      "injected_once": true,
+      "mode": "uart_rdata_read_response_xor1.v1",
+      "observation_boundary": "target_register_read_response_copy",
+      "offset": 24,
+      "real_rtl_rdata": 90,
+      "register_read_call_ordinal": 2,
+      "rtl_internal_fault": false,
+      "schema_version": "controlled_target_response_fault.v1",
+      "target_instance": "uart",
+      "target_local_tick": 1007,
+      "target_reset_epoch": 0,
+      "write": false
+    },
+    "findings": [
+      "uart_rxdata_source_mismatch"
+    ],
+    "group": "fault",
+    "local_ticks": {
+      "cpu": 2250,
+      "uart": 2266
+    },
+    "manifest_sha256": "b6497f9d4cbe013553d90de5d528dc171a2d58f62627ce4ea00f7c9e83851d7e",
+    "persistent_ram_rdata": 91,
+    "process": {
+      "argv": [
+        "/home/qinkejiu/myfuzz/tests/integration/non_ibex_non_gpio_controlled_error_process.py",
+        "run",
+        "--group",
+        "fault",
+        "--bundle",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/fault-bundle",
+        "--cache",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/cache",
+        "--observation",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/fault-run.json"
+      ],
+      "cwd": "/home/qinkejiu/myfuzz",
+      "environment": {
+        "MYFUZZ_CONTROLLED_ERROR_OUTPUT": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence",
+        "MYFUZZ_SCENARIO_REAL": "1",
+        "PYTHONPATH": "/home/qinkejiu/myfuzz/src:/home/qinkejiu/myfuzz:src"
+      },
+      "finished_unix_ns": 1792221864696850601,
+      "group": "fault",
+      "parent_pid": 5,
+      "pid": 1334,
+      "python": "/usr/bin/python3",
+      "python_version": "3.12.3",
+      "role": "run",
+      "started_unix_ns": 1792221823064678149
+    },
+    "role": "run",
+    "schema_version": "p6_non_ibex_non_gpio_process_observation.v1",
+    "semantic_sha256": "fa8477a90c2f931b66d09bc68810b460a0c02bf1525a0e38fc206872e41485c6",
+    "status": "complete"
+  },
+  "fault_bundle": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/fault-bundle",
+  "fault_bundle_trace_sha256": "cefecc2a6c2e71d657dc4ebd8e08e51cace2744c9a55209f46ed5fadf2efad1b",
+  "fault_replay": {
+    "chain": {
+      "cpu_profile": "configs/cpus/cv32e40p/component_profile.json",
+      "genome_testcase_id": "cv32e40p-opentitan-uart-rx-watermark-irq",
+      "target_device_id": "uart",
+      "target_profile": "configs/peripherals/opentitan_uart_local/component_profile.json"
+    },
+    "checker": {
+      "config": {
+        "_case_results": {},
+        "_expected_rx": [],
+        "_last_event_id": 0,
+        "_reads": {}
+      },
+      "module": "myfuzz.scenario.ibex_uart_online_checker",
+      "qualname": "IbexUartOnlineChecker",
+      "source": {
+        "path": "src/myfuzz/scenario/ibex_uart_online_checker.py",
+        "sha256": "3a5b044d5a66802950cce87ba8ad112c6aeb91c8f993960c82a1aab8ce73ffe3"
+      }
+    },
+    "event_count": 23697,
+    "evidence": {
+      "cpu_data_rsp_consumed": 1,
+      "cpu_data_rsp_rdata": 91,
+      "cpu_data_rsp_source_epoch": 0,
+      "cpu_data_rsp_source_sequence": 4,
+      "cpu_rdata_response_event_id": 10472,
+      "findings": [
+        "uart_rxdata_source_mismatch"
+      ],
+      "intr_state_read_value": 259,
+      "ram_rdata_write": [
+        [
+          131072,
+          91
+        ]
+      ],
+      "rdata_delivery_event_id": 10455,
+      "rdata_delivery_read_value": 91,
+      "rdata_delivery_source_transaction": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 4,
+        "testcase_id": "cv32e40p-opentitan-uart-rx-watermark-irq"
+      },
+      "real_rtl_uart_rsp_local_tick": 1007,
+      "real_rtl_uart_rsp_rdata": 90,
+      "real_rtl_uart_rsp_sample_event_id": 10468,
+      "source_action_id": "external-rx-byte",
+      "source_byte": 90,
+      "source_injection_event_id": 4,
+      "target_uart_access_read_value": null,
+      "trace_status": "complete"
+    },
+    "expected_violation": "uart_rxdata_source_mismatch",
+    "fault_document": {
+      "calibration_only": true,
+      "cpu_routed_mode": true,
+      "delivered_rdata": 91,
+      "expected_source_byte": 90,
+      "injected_once": true,
+      "mode": "uart_rdata_read_response_xor1.v1",
+      "observation_boundary": "target_register_read_response_copy",
+      "offset": 24,
+      "real_rtl_rdata": 90,
+      "register_read_call_ordinal": 2,
+      "rtl_internal_fault": false,
+      "schema_version": "controlled_target_response_fault.v1",
+      "target_instance": "uart",
+      "target_local_tick": 1007,
+      "target_reset_epoch": 0,
+      "write": false
+    },
+    "findings": [
+      "uart_rxdata_source_mismatch"
+    ],
+    "group": "fault",
+    "local_ticks": {
+      "cpu": 2250,
+      "uart": 2266
+    },
+    "manifest_sha256": "b6497f9d4cbe013553d90de5d528dc171a2d58f62627ce4ea00f7c9e83851d7e",
+    "persistent_ram_rdata": 91,
+    "process": {
+      "argv": [
+        "/home/qinkejiu/myfuzz/tests/integration/non_ibex_non_gpio_controlled_error_process.py",
+        "replay",
+        "--group",
+        "fault",
+        "--bundle",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/fault-bundle",
+        "--cache",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/cache",
+        "--trace-out",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/fault-replay-trace.json",
+        "--observation",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/fault-replay.json"
+      ],
+      "cwd": "/home/qinkejiu/myfuzz",
+      "environment": {
+        "MYFUZZ_CONTROLLED_ERROR_OUTPUT": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence",
+        "MYFUZZ_SCENARIO_REAL": "1",
+        "PYTHONPATH": "/home/qinkejiu/myfuzz/src:/home/qinkejiu/myfuzz:src"
+      },
+      "finished_unix_ns": 1792221936457584012,
+      "group": "fault",
+      "parent_pid": 5,
+      "pid": 3762,
+      "python": "/usr/bin/python3",
+      "python_version": "3.12.3",
+      "role": "replay",
+      "started_unix_ns": 1792221907499983997
+    },
+    "replay": {
+      "actual_event": null,
+      "difference_context": null,
+      "expected_event": null,
+      "first_difference": null,
+      "matches": true,
+      "verification_scope": "full"
+    },
+    "replay_trace": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/fault-replay-trace.json",
+    "replay_trace_json_sha256": "e35516686a4f7ac8f2786583258d14adc29d4fe5fc747e7d38f9d4f42e6610bf",
+    "role": "replay",
+    "schema_version": "p6_non_ibex_non_gpio_process_observation.v1",
+    "semantic_sha256": "fa8477a90c2f931b66d09bc68810b460a0c02bf1525a0e38fc206872e41485c6",
+    "source_bundle": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/fault-bundle",
+    "source_bundle_trace_json_sha256": "cefecc2a6c2e71d657dc4ebd8e08e51cace2744c9a55209f46ed5fadf2efad1b",
+    "status": "complete"
+  },
+  "injected_byte": 91,
+  "process_ids": [
+    6,
+    1334,
+    2548,
+    3762,
+    4976
+  ],
+  "schema_version": "p6_non_ibex_non_gpio_fresh_process_report.v1",
+  "source_byte": 90,
+  "steps": [
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "/home/qinkejiu/myfuzz/tests/integration/non_ibex_non_gpio_controlled_error_process.py",
+        "run",
+        "--group",
+        "control",
+        "--bundle",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/control-bundle",
+        "--cache",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/cache",
+        "--observation",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/control-run.json"
+      ],
+      "finished_unix_ns": 1792221822961611192,
+      "label": "01-control-run",
+      "returncode": 0,
+      "started_unix_ns": 1792221768305566536,
+      "stderr": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/01-control-run.stderr.log",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/01-control-run.stdout.log",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "/home/qinkejiu/myfuzz/tests/integration/non_ibex_non_gpio_controlled_error_process.py",
+        "run",
+        "--group",
+        "fault",
+        "--bundle",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/fault-bundle",
+        "--cache",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/cache",
+        "--observation",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/fault-run.json"
+      ],
+      "finished_unix_ns": 1792221865007617320,
+      "label": "02-fault-run",
+      "returncode": 0,
+      "started_unix_ns": 1792221822962179851,
+      "stderr": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/02-fault-run.stderr.log",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/02-fault-run.stdout.log",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "/home/qinkejiu/myfuzz/tests/integration/non_ibex_non_gpio_controlled_error_process.py",
+        "replay",
+        "--group",
+        "control",
+        "--bundle",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/control-bundle",
+        "--cache",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/cache",
+        "--trace-out",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/control-replay-trace.json",
+        "--observation",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/control-replay.json"
+      ],
+      "finished_unix_ns": 1792221907406185619,
+      "label": "03-control-replay",
+      "returncode": 0,
+      "started_unix_ns": 1792221865008410327,
+      "stderr": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/03-control-replay.stderr.log",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/03-control-replay.stdout.log",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "/home/qinkejiu/myfuzz/tests/integration/non_ibex_non_gpio_controlled_error_process.py",
+        "replay",
+        "--group",
+        "fault",
+        "--bundle",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/fault-bundle",
+        "--cache",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/cache",
+        "--trace-out",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/fault-replay-trace.json",
+        "--observation",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/fault-replay.json"
+      ],
+      "finished_unix_ns": 1792221936574286862,
+      "label": "04-fault-replay",
+      "returncode": 0,
+      "started_unix_ns": 1792221907407446761,
+      "stderr": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/04-fault-replay.stderr.log",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/04-fault-replay.stdout.log",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "/home/qinkejiu/myfuzz/tests/integration/non_ibex_non_gpio_controlled_error_process.py",
+        "check",
+        "--group",
+        "fault",
+        "--trace",
+        "control-run=/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/control-bundle/trace.json",
+        "--trace",
+        "fault-run=/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/fault-bundle/trace.json",
+        "--trace",
+        "control-replay=/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/control-replay-trace.json",
+        "--trace",
+        "fault-replay=/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/fault-replay-trace.json",
+        "--observation",
+        "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/checker.json"
+      ],
+      "finished_unix_ns": 1792221937234341161,
+      "label": "05-check",
+      "returncode": 0,
+      "started_unix_ns": 1792221936574688396,
+      "stderr": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/05-check.stderr.log",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/05-check.stdout.log",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

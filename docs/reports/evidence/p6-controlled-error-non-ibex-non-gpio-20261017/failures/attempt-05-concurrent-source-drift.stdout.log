@@ -1,0 +1,47 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ NonIbexNonGpioFreshProcessControlledErrorTests.test_control_run_fault_run_and_fresh_replays_are_separate_processes _
+
+self = <tests.integration.test_non_ibex_non_gpio_controlled_error_real.NonIbexNonGpioFreshProcessControlledErrorTests testMethod=test_control_run_fault_run_and_fresh_replays_are_separate_processes>
+
+    def test_control_run_fault_run_and_fresh_replays_are_separate_processes(self):
+        override = os.environ.get('MYFUZZ_CONTROLLED_ERROR_OUTPUT')
+        cleanup = None
+        if override:
+            work = Path(override)
+            work.mkdir(parents=True, exist_ok=True)
+        else:
+            cleanup = tempfile.TemporaryDirectory(
+                prefix='myfuzz-p6-non-ibex-non-gpio-fresh-process-')
+            work = Path(cleanup.name)
+        try:
+            case = work / f'fresh-process-{os.getpid()}'
+            case.mkdir(parents=True, exist_ok=False)
+>           self._run_case(case)
+
+tests/integration/test_non_ibex_non_gpio_controlled_error_real.py:88: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/integration/test_non_ibex_non_gpio_controlled_error_real.py:150: in _run_case
+    steps.append(self._step(
+tests/integration/test_non_ibex_non_gpio_controlled_error_real.py:116: in _step
+    self.fail(
+E   AssertionError: 03-control-replay exited 1
+E   command: ['/usr/bin/python3', '/home/qinkejiu/myfuzz/tests/integration/non_ibex_non_gpio_controlled_error_process.py', 'replay', '--group', 'control', '--bundle', '/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-05-final/evidence/fresh-process-5/control-bundle', '--cache', '/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-05-final/evidence/fresh-process-5/cache', '--trace-out', '/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-05-final/evidence/fresh-process-5/control-replay-trace.json', '--observation', '/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-05-final/evidence/fresh-process-5/control-replay.json']
+E   stdout tail:
+E   
+E   stderr tail:
+E   Traceback (most recent call last):
+E     File "/home/qinkejiu/myfuzz/tests/integration/non_ibex_non_gpio_controlled_error_process.py", line 309, in <module>
+E       raise SystemExit(main())
+E                        ^^^^^^
+E     File "/home/qinkejiu/myfuzz/tests/integration/non_ibex_non_gpio_controlled_error_process.py", line 302, in main
+E       replay(args)
+E     File "/home/qinkejiu/myfuzz/tests/integration/non_ibex_non_gpio_controlled_error_process.py", line 201, in replay
+E       comparison = replay_evidence_bundle(bundle, factory)
+E                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E     File "/home/qinkejiu/myfuzz/src/myfuzz/scenario/evidence.py", line 929, in replay_evidence_bundle
+E       raise ValueError("replay manifest identity mismatch")
+E   ValueError: replay manifest identity mismatch
+=========================== short test summary info ============================
+FAILED tests/integration/test_non_ibex_non_gpio_controlled_error_real.py::NonIbexNonGpioFreshProcessControlledErrorTests::test_control_run_fault_run_and_fresh_replays_are_separate_processes
+1 failed in 105.99s (0:01:45)

@@ -71,8 +71,11 @@ CPU 方向触发链（真实事件序）：`mmio_acceptance(PADOUT=A)` → `sour
 * **修法（不碰共享代码）**：把 graph 改成"每个 coverage target 一条诚实单源规则"：
   `gpio0.pin_sync_bit_*`/`cpu.device_answer_bit_*` 只依赖 pin 源，
   `gpio0.padout_pin_bit_*` 只依赖 CPU 源（第一轮固定写 A），anchor 双源。
-  这样 hint 在 seed 后第一步先选 pin 源（template 序号更小且 target 未命中），
-  第二步选 CPU 源，两个源在最早两例内都被真实选中/消费；不是靠频度交替或按名分支。
+  这样 seed 后第一个变异 hint 会先选 pin 源（anchor 已命中，pin 侧未命中 target 的
+  template 序号更小），pin 侧 8 个未命中位耗尽后评分才转向 CPU 源。这是设计上的可执行性，
+  不是已测结论：本轮外部源码仍在变动，冻结树上的 60s 单格回执尚未取得，报告不声称
+  "两源已在同一格内实测"。campaign 后由审计测试从 `receipts.jsonl` 的
+  `applied_sources`/`applied_source_ids` 逐条重算，不能靠本段文字代替。
 
 20s 的 9 例口径：effective 20.0s（wall 43.6s）→ 每例有效约 2.2s，因此 `--seconds 60`
 预期约 27 例（远大于 gate 的 `testcases > 9`）。50/150s 只是更大余量，不是 gate 变更。

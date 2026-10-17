@@ -1,0 +1,47 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ NonIbexNonGpioFreshProcessControlledErrorTests.test_control_run_fault_run_and_fresh_replays_are_separate_processes _
+
+self = <tests.integration.test_non_ibex_non_gpio_controlled_error_real.NonIbexNonGpioFreshProcessControlledErrorTests testMethod=test_control_run_fault_run_and_fresh_replays_are_separate_processes>
+
+    def test_control_run_fault_run_and_fresh_replays_are_separate_processes(self):
+        override = os.environ.get('MYFUZZ_CONTROLLED_ERROR_OUTPUT')
+        cleanup = None
+        if override:
+            work = Path(override)
+            work.mkdir(parents=True, exist_ok=True)
+        else:
+            cleanup = tempfile.TemporaryDirectory(
+                prefix='myfuzz-p6-non-ibex-non-gpio-fresh-process-')
+            work = Path(cleanup.name)
+        try:
+            case = work / f'fresh-process-{os.getpid()}'
+            case.mkdir(parents=True, exist_ok=False)
+>           self._run_case(case)
+
+tests/integration/test_non_ibex_non_gpio_controlled_error_real.py:88: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/integration/test_non_ibex_non_gpio_controlled_error_real.py:135: in _run_case
+    steps.append(self._step(
+tests/integration/test_non_ibex_non_gpio_controlled_error_real.py:116: in _step
+    self.fail(
+E   AssertionError: 01-control-run exited 1
+E   command: ['/usr/bin/python3', '/home/qinkejiu/myfuzz/tests/integration/non_ibex_non_gpio_controlled_error_process.py', 'run', '--group', 'control', '--bundle', '/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-02-fresh-process/evidence/fresh-process-5/control-bundle', '--cache', '/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-02-fresh-process/evidence/fresh-process-5/cache', '--observation', '/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-02-fresh-process/evidence/fresh-process-5/control-run.json']
+E   stdout tail:
+E   
+E   stderr tail:
+E   Traceback (most recent call last):
+E     File "/home/qinkejiu/myfuzz/tests/integration/non_ibex_non_gpio_controlled_error_process.py", line 309, in <module>
+E       raise SystemExit(main())
+E                        ^^^^^^
+E     File "/home/qinkejiu/myfuzz/tests/integration/non_ibex_non_gpio_controlled_error_process.py", line 300, in main
+E       run(args)
+E     File "/home/qinkejiu/myfuzz/tests/integration/non_ibex_non_gpio_controlled_error_process.py", line 152, in run
+E       helpers = _load_case_helpers()
+E                 ^^^^^^^^^^^^^^^^^^^^
+E     File "/home/qinkejiu/myfuzz/tests/integration/non_ibex_non_gpio_controlled_error_process.py", line 106, in _load_case_helpers
+E       from tests.integration.test_cv32e40p_opentitan_uart_irq_real import (
+E   ModuleNotFoundError: No module named 'tests.integration.test_cv32e40p_opentitan_uart_irq_real'
+=========================== short test summary info ============================
+FAILED tests/integration/test_non_ibex_non_gpio_controlled_error_real.py::NonIbexNonGpioFreshProcessControlledErrorTests::test_control_run_fault_run_and_fresh_replays_are_separate_processes
+1 failed in 0.21s

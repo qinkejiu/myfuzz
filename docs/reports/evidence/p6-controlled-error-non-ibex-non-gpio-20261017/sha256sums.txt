@@ -1,0 +1,46 @@
+# P6 non-Ibex/non-GPIO controlled-error evidence
+# Uncompressed trace hashes (the .gz files are committed):
+# control-bundle/trace.json 2907278758892f68cc4986cecaa81ab8463757566c614b235880800764a89c90
+# fault-bundle/trace.json   cefecc2a6c2e71d657dc4ebd8e08e51cace2744c9a55209f46ed5fadf2efad1b
+# control-replay-trace.json 5ce7f6374287793969f656ff5518ebc979c89250fc77040476eb7e7770ddb715
+# fault-replay-trace.json   e35516686a4f7ac8f2786583258d14adc29d4fe5fc747e7d38f9d4f42e6610bf
+ccfcc61dac8e3a997c2fe503bcbd53d12343811cb2e706c3db83298522e4e428  ./attempt-01-existing-test/controlled_error_report.json
+9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  ./attempt-01-existing-test/exit_code
+6e268a077d6f57047319ffdf2aa7ff24f4b5003af76d46495e37a2f4150ec9f9  ./attempt-01-existing-test/stdout.log
+fb68d03412fb04b30d1a84782edd5a83acdf98c39dd392366cf7ee4a39e9f357  ./attempt-04-fresh-process/bundles/control-bundle_index.json
+4c8df9804146141e6cc61c5caacbd890fb43057a5f361d2e6bd78f46ebb78b2f  ./attempt-04-fresh-process/bundles/control-factory_source.json
+5c13248a70da966c91ca1840cfe75d2f24c8adb04128ee44b2dcae69867f1dd6  ./attempt-04-fresh-process/bundles/control-final_state.json
+90c63e01abfae183ece3bc6b0610efa0bbb2b694964876f6737dc58ab3fb9955  ./attempt-04-fresh-process/bundles/control-result.json
+7eaa44f820a26477c7ea9d44088f06aace5bded5ad74caf0b81fe0f59dc8410e  ./attempt-04-fresh-process/bundles/control-run_identity.json
+43ed973285255be8f00538f74f37d4ade967a9634a36f6b855db6d26caac318e  ./attempt-04-fresh-process/bundles/fault-bundle_index.json
+54f2306e13884c9cffc8ed1b9878296ca7e55518355dbf6fe97eff6d155b6301  ./attempt-04-fresh-process/bundles/fault-factory_source.json
+ce321120c6ce694e98e7be140af9329e68763fb2f471d937842e8fb307118ccf  ./attempt-04-fresh-process/bundles/fault-final_state.json
+f1e704f84c5b4a54ca777bd9454c64f5e8992d58a080549d17351fef2e772d5d  ./attempt-04-fresh-process/bundles/fault-result.json
+021815fb2fafc63c5066dad85006c55ea6de9d28e4bff9bc362d7e81fd0b5420  ./attempt-04-fresh-process/bundles/fault-run_identity.json
+ed717cceac633c4d037b22b878ecdf6edcc98413cbd989e1efb3730872e8aae5  ./attempt-04-fresh-process/checker-recheck-software.json
+f2f5de4c4e371bb08452a14aa823812529269cbd868b01da73c1c41ea670ad52  ./attempt-04-fresh-process/checker.json
+4941d4de688036c0ead4fb62620d7013c9d11cb45950f0e1466b906a66b57fe4  ./attempt-04-fresh-process/control-bundle-manifest.json.gz
+8b96b8083d747d85e1a0860402d30b2177a6d8a50f2d1c03a2f819761cede198  ./attempt-04-fresh-process/control-bundle-trace.json.gz
+6f7df87efc1f8a114502071cef5fe9f8e9c7d76c974815bfe9568d8267766c52  ./attempt-04-fresh-process/control-replay-trace.json.gz
+8d179ee48c80d278e8f289c091b847b7423ab4c5ec6d7dbc0f38793a3cf3c93a  ./attempt-04-fresh-process/control-replay.json
+e316ef3daacd5ce8a5d9c3b0f773f340116db70fe623b19ea36506c705c254ac  ./attempt-04-fresh-process/control-run.json
+9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  ./attempt-04-fresh-process/exit_code
+4941d4de688036c0ead4fb62620d7013c9d11cb45950f0e1466b906a66b57fe4  ./attempt-04-fresh-process/fault-bundle-manifest.json.gz
+7ce854cf1b8ad8e880a21feb28f0b455245d20df3536af9425853f34ff173c49  ./attempt-04-fresh-process/fault-bundle-trace.json.gz
+89b0127d7d99428ff26d6b94e17ea95919f4758e9a7e79cb7a4c09eae5da14cd  ./attempt-04-fresh-process/fault-replay-trace.json.gz
+bab5977a8c5e657524c37d11353efd9cbf7736c9eee68de9bab5f5bd1acaae80  ./attempt-04-fresh-process/fault-replay.json
+03d189dd556a4afddbe3aca00796f7093c3b68e3db2956e9593b25d466da54d3  ./attempt-04-fresh-process/fault-run.json
+b2f858fd8dce28945216ffd5702f55dd2312e3864af3f3e9af5f1c794864f663  ./attempt-04-fresh-process/fresh-process-report.json
+7f66ef464247afeeda254e3a691966897332c493fb1cc13b256050da73228268  ./attempt-04-fresh-process/stdout.log
+6202766d55dad0c480f61d5b629299016735b292a9206fcf03435c8c0692dd17  ./attempt-04-fresh-process/witness-events.json
+0dd016a254040c06adf860b11355a8615f7e366f01a3c84518ad4f348fb43091  ./commands.json
+4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865  ./failures/attempt-02-driver-import.exit_code
+e135f46fe9dad8fe38955d830e4b945e62059100140d0ba4385d872e17cb7971  ./failures/attempt-02-driver-import.stdout.log
+4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865  ./failures/attempt-03-pre-fix-assertion.exit_code
+55dd74b7e288a262c78994cb0547d010ae588a807c525792f83444c0afdc799b  ./failures/attempt-03-pre-fix-assertion.stdout.log
+4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865  ./failures/attempt-05-concurrent-source-drift.exit_code
+b8ad7f88137a1116d4df804ddc80666f9d1657f0eb64e6573c5667dfcc5c9f52  ./failures/attempt-05-concurrent-source-drift.stdout.log
+83da689ec5c0bb7ab717bf92fd60eddbc32dd5ca0dda346644b44b1c23935ed0  ./failures/attempt-12-frozen-head-snapshot.elaboration-evidence.log
+4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865  ./failures/attempt-12-frozen-head-snapshot.exit_code
+2966767c9250f42a8cd3898b7ef60ba8e5c21e9d3623062b2eb6aa337570bda8  ./failures/attempt-12-run-script.sh
+a0825a93488925091b3de4e45454592165ac9433cb91abca722a19eec74bc053  ./source-identity.json

@@ -1,0 +1,29 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ NonIbexNonGpioFreshProcessControlledErrorTests.test_control_run_fault_run_and_fresh_replays_are_separate_processes _
+
+self = <tests.integration.test_non_ibex_non_gpio_controlled_error_real.NonIbexNonGpioFreshProcessControlledErrorTests testMethod=test_control_run_fault_run_and_fresh_replays_are_separate_processes>
+
+    def test_control_run_fault_run_and_fresh_replays_are_separate_processes(self):
+        override = os.environ.get('MYFUZZ_CONTROLLED_ERROR_OUTPUT')
+        cleanup = None
+        if override:
+            work = Path(override)
+            work.mkdir(parents=True, exist_ok=True)
+        else:
+            cleanup = tempfile.TemporaryDirectory(
+                prefix='myfuzz-p6-non-ibex-non-gpio-fresh-process-')
+            work = Path(cleanup.name)
+        try:
+            case = work / f'fresh-process-{os.getpid()}'
+            case.mkdir(parents=True, exist_ok=False)
+>           self._run_case(case)
+
+tests/integration/test_non_ibex_non_gpio_controlled_error_real.py:88: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/integration/test_non_ibex_non_gpio_controlled_error_real.py:256: in _run_case
+    self.assertEqual([EXPECTED_VIOLATION], checker['expected_violation'])
+E   AssertionError: ['uart_rxdata_source_mismatch'] != 'uart_rxdata_source_mismatch'
+=========================== short test summary info ============================
+FAILED tests/integration/test_non_ibex_non_gpio_controlled_error_real.py::NonIbexNonGpioFreshProcessControlledErrorTests::test_control_run_fault_run_and_fresh_replays_are_separate_processes
+1 failed in 121.44s (0:02:01)

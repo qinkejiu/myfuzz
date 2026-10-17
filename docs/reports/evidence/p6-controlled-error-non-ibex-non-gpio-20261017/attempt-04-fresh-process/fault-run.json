@@ -1,0 +1,122 @@
+{
+  "bundle": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/fault-bundle",
+  "bundle_index_sha256": "43ed973285255be8f00538f74f37d4ade967a9634a36f6b855db6d26caac318e",
+  "bundle_trace_json_sha256": "cefecc2a6c2e71d657dc4ebd8e08e51cace2744c9a55209f46ed5fadf2efad1b",
+  "chain": {
+    "cpu_profile": "configs/cpus/cv32e40p/component_profile.json",
+    "genome_testcase_id": "cv32e40p-opentitan-uart-rx-watermark-irq",
+    "target_device_id": "uart",
+    "target_profile": "configs/peripherals/opentitan_uart_local/component_profile.json"
+  },
+  "checker": {
+    "config": {
+      "_case_results": {},
+      "_expected_rx": [],
+      "_last_event_id": 0,
+      "_reads": {}
+    },
+    "module": "myfuzz.scenario.ibex_uart_online_checker",
+    "qualname": "IbexUartOnlineChecker",
+    "source": {
+      "path": "src/myfuzz/scenario/ibex_uart_online_checker.py",
+      "sha256": "3a5b044d5a66802950cce87ba8ad112c6aeb91c8f993960c82a1aab8ce73ffe3"
+    }
+  },
+  "event_count": 23697,
+  "evidence": {
+    "cpu_data_rsp_consumed": 1,
+    "cpu_data_rsp_rdata": 91,
+    "cpu_data_rsp_source_epoch": 0,
+    "cpu_data_rsp_source_sequence": 4,
+    "cpu_rdata_response_event_id": 10472,
+    "findings": [
+      "uart_rxdata_source_mismatch"
+    ],
+    "intr_state_read_value": 259,
+    "ram_rdata_write": [
+      [
+        131072,
+        91
+      ]
+    ],
+    "rdata_delivery_event_id": 10455,
+    "rdata_delivery_read_value": 91,
+    "rdata_delivery_source_transaction": {
+      "channel_id": "data",
+      "execution_id": "local-execution",
+      "source_component": "cpu",
+      "source_epoch": 0,
+      "source_sequence": 4,
+      "testcase_id": "cv32e40p-opentitan-uart-rx-watermark-irq"
+    },
+    "real_rtl_uart_rsp_local_tick": 1007,
+    "real_rtl_uart_rsp_rdata": 90,
+    "real_rtl_uart_rsp_sample_event_id": 10468,
+    "source_action_id": "external-rx-byte",
+    "source_byte": 90,
+    "source_injection_event_id": 4,
+    "target_uart_access_read_value": null,
+    "trace_status": "complete"
+  },
+  "expected_violation": "uart_rxdata_source_mismatch",
+  "fault_document": {
+    "calibration_only": true,
+    "cpu_routed_mode": true,
+    "delivered_rdata": 91,
+    "expected_source_byte": 90,
+    "injected_once": true,
+    "mode": "uart_rdata_read_response_xor1.v1",
+    "observation_boundary": "target_register_read_response_copy",
+    "offset": 24,
+    "real_rtl_rdata": 90,
+    "register_read_call_ordinal": 2,
+    "rtl_internal_fault": false,
+    "schema_version": "controlled_target_response_fault.v1",
+    "target_instance": "uart",
+    "target_local_tick": 1007,
+    "target_reset_epoch": 0,
+    "write": false
+  },
+  "findings": [
+    "uart_rxdata_source_mismatch"
+  ],
+  "group": "fault",
+  "local_ticks": {
+    "cpu": 2250,
+    "uart": 2266
+  },
+  "manifest_sha256": "b6497f9d4cbe013553d90de5d528dc171a2d58f62627ce4ea00f7c9e83851d7e",
+  "persistent_ram_rdata": 91,
+  "process": {
+    "argv": [
+      "/home/qinkejiu/myfuzz/tests/integration/non_ibex_non_gpio_controlled_error_process.py",
+      "run",
+      "--group",
+      "fault",
+      "--bundle",
+      "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/fault-bundle",
+      "--cache",
+      "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/cache",
+      "--observation",
+      "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence/fresh-process-5/fault-run.json"
+    ],
+    "cwd": "/home/qinkejiu/myfuzz",
+    "environment": {
+      "MYFUZZ_CONTROLLED_ERROR_OUTPUT": "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-04-fresh-process/evidence",
+      "MYFUZZ_SCENARIO_REAL": "1",
+      "PYTHONPATH": "/home/qinkejiu/myfuzz/src:/home/qinkejiu/myfuzz:src"
+    },
+    "finished_unix_ns": 1792221864696850601,
+    "group": "fault",
+    "parent_pid": 5,
+    "pid": 1334,
+    "python": "/usr/bin/python3",
+    "python_version": "3.12.3",
+    "role": "run",
+    "started_unix_ns": 1792221823064678149
+  },
+  "role": "run",
+  "schema_version": "p6_non_ibex_non_gpio_process_observation.v1",
+  "semantic_sha256": "fa8477a90c2f931b66d09bc68810b460a0c02bf1525a0e38fc206872e41485c6",
+  "status": "complete"
+}

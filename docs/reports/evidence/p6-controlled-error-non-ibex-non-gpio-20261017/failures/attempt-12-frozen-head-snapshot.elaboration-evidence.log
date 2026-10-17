@@ -1,0 +1,267 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+_ Cv32e40pOpentitanUartControlledErrorTests.test_controlled_rxdata_response_error_is_caught_and_replayed _
+
+self = <tests.integration.test_cv32e40p_opentitan_uart_controlled_error_real.Cv32e40pOpentitanUartControlledErrorTests testMethod=test_controlled_rxdata_response_error_is_caught_and_replayed>
+
+    def test_controlled_rxdata_response_error_is_caught_and_replayed(self):
+        override = os.environ.get('MYFUZZ_CONTROLLED_ERROR_OUTPUT')
+        cleanup = None
+        if override:
+            work = Path(override)
+            work.mkdir(parents=True, exist_ok=True)
+        else:
+            cleanup = tempfile.TemporaryDirectory(
+                prefix='myfuzz-cv32e40p-uart-controlled-error-')
+            work = Path(cleanup.name)
+        try:
+>           self._run_case(work)
+
+tests/integration/test_cv32e40p_opentitan_uart_controlled_error_real.py:272: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/integration/test_cv32e40p_opentitan_uart_controlled_error_real.py:278: in _run_case
+    cpu_artifact = _artifact(CPU_PROFILE, 'cpu')
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/integration/test_scenario_cv32e40p_opentitan_uart_irq_real.py:33: in _artifact
+    verify_local_source_lock(plan.profile, base_dir=ROOT), base_dir=ROOT)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/myfuzz/local_harness/source_lock.py:163: in verify_local_source_lock
+    result = verifier.verify_record(
+scripts/verify_soc_sources.py:414: in verify_record
+    elaboration = verify_elaboration(record, base_dir, owners, allowed_roots)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+record = {'id': 'cv32e40p', 'source': {'root': 'external_designs/cv32e40p', 'revision': 'git:6033d2b1be3295ec774d17ac4cf226faac...ource'}, ...], 'selected_content_hash': 'sha256:ebc28bb5e5ad525476c61923419225d82f1af8bd222ffc2d39d5d1b8ea8d570b', ...}
+base_dir = PosixPath('/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-12-head-snapshot/source')
+owners = {'third_party/rfuzz/upstream/ibex': 'git:34b0705760ef3dfa00e99637432473d2be8f22f3', 'third_party/cva6_upstream_referen...520a6b12a06d03', 'third_party/cva6_upstream_reference/core/cvfpu': 'git:3eb6afeab2cb33f7d8689222955d0171aeb3a801', ...}
+allowed_roots = {'external_designs/cv32e40p'}
+
+    def verify_elaboration(record, base_dir, owners, allowed_roots=None):
+        """Re-derive the elaboration claim from the pinned evidence document."""
+        status = record["elaboration_status"]
+        block = record.get("elaboration")
+        if status == ELABORATION_UNVERIFIED:
+            if block is not None:
+                raise ValueError("unsupported-verification-claim")
+            return {"elaboration_status": status, "closure_files": 0, "elaboration_status_detail": "no-evidence"}
+        if status != ELABORATION_VERIFIED:
+            raise ValueError("invalid-elaboration-status")
+        if not isinstance(block, dict) or block.get("status") != ELABORATION_VERIFIED:
+            raise ValueError("unsupported-verification-claim")
+        for field in ("top_module", "tool", "evidence", "evidence_sha256", "closure_files", "lint"):
+            if field not in block:
+                raise ValueError("missing-elaboration-field:" + field)
+        if not isinstance(block["evidence_sha256"], str) or not HEX64.fullmatch(block["evidence_sha256"]):
+            raise ValueError("invalid-elaboration-evidence-hash")
+    
+        base = Path(base_dir).resolve()
+        evidence = _safe_child(base, _declared_relative(block["evidence"]))
+        raw = evidence.read_bytes()
+        if hashlib.sha256(raw).hexdigest() != block["evidence_sha256"]:
+            raise ValueError("elaboration-evidence-hash-mismatch")
+        try:
+            closure = json.loads(raw)
+        except json.JSONDecodeError as error:
+            raise ValueError("invalid-elaboration-evidence") from error
+        if not isinstance(closure, dict) or closure.get("schema_version") != CLOSURE_SCHEMA:
+            raise ValueError("invalid-elaboration-evidence")
+        if closure.get("component") != record["id"]:
+            raise ValueError("elaboration-component-mismatch")
+        if closure.get("status") != ELABORATION_VERIFIED:
+            raise ValueError("unsupported-verification-claim")
+        if closure.get("top_module") != block["top_module"]:
+            raise ValueError("elaboration-top-mismatch")
+        if record["source"].get("top_module") != block["top_module"]:
+            # The elaboration must be about the component's declared top, not some
+            # other module that happens to live in the same checkout.
+            raise ValueError("elaboration-source-top-mismatch:" + record["id"])
+        if closure.get("tool") != block["tool"]:
+            raise ValueError("elaboration-tool-mismatch")
+    
+        lint = closure.get("lint") or {}
+        if lint.get("errors") != 0 or lint.get("exit_code") != 0:
+            raise ValueError("elaboration-lint-failed")
+        for key in ("errors", "warnings", "exit_code"):
+            if block["lint"].get(key) != lint.get(key):
+                raise ValueError("elaboration-lint-mismatch:" + key)
+    
+        files = closure.get("closure_files")
+        if not isinstance(files, list) or not files:
+            raise ValueError("empty-elaboration-closure")
+        if not isinstance(block["closure_files"], int) or block["closure_files"] != len(files):
+            raise ValueError("elaboration-closure-count-mismatch")
+        entries = set()
+        for item in files:
+            if not isinstance(item, dict):
+                raise ValueError("invalid-closure-entry")
+            key = (_declared_relative(item.get("root")), _declared_relative(item.get("path")))
+            if key in entries:
+                # Duplicates would inflate the recorded count without pinning more.
+                raise ValueError("duplicate-closure-entry:" + key[1])
+            entries.add(key)
+        allowed = allowed_roots if allowed_roots is not None else (
+            {record["source"]["root"]}
+            | {(Path(record["source"]["root"]) / _declared_relative(pin["path"])).as_posix()
+               for pin in record["source"].get("repositories", [])})
+    
+        command = closure.get("command")
+        if not isinstance(command, list) or not command or not all(isinstance(t, str) for t in command):
+            raise ValueError("missing-elaboration-command")
+        tops = [index for index, token in enumerate(command) if token == "--top-module"]
+        if len(tops) != 1:
+            # A second --top-module silently changes what the tool elaborates.
+            raise ValueError("elaboration-command-top-count:%d" % len(tops))
+        if command[tops[0] + 1] != closure["top_module"]:
+            raise ValueError("elaboration-command-top-mismatch")
+    
+        # Parameters must agree three ways: what the closure records, what the lock
+        # declares and what the command actually passes. A lying value in any of
+        # them means the elaboration proves a different configuration.
+        declared = {str(item.get("name")): str(item.get("value"))
+                    for item in record.get("typed_parameters", [])}
+        constants = {str(key): str(value)
+                     for key, value in (record.get("generated_constants") or {}).items()}
+        listed = {}
+        for item in closure.get("parameters", []):
+            if not isinstance(item, dict) or "name" not in item or "value" not in item:
+                raise ValueError("invalid-elaboration-parameter")
+            name, value = str(item["name"]), str(item["value"])
+            listed[name] = value
+            if "::" in name:
+                # Generated-package constants are reported separately from the
+                # module's typed parameters, but they must still be pinned.
+                if constants.get(name) != value:
+                    raise ValueError("generated-constant-mismatch:" + name)
+            elif name not in declared:
+                raise ValueError("undeclared-elaboration-parameter:" + name)
+            elif declared[name] != value:
+                raise ValueError("elaboration-parameter-mismatch:" + name)
+        for name, value in declared.items():
+            if listed.get(name) != value:
+                raise ValueError("lock-parameter-not-elaborated:" + name)
+        include_dirs, include_files, defines, parameter_tokens = _command_options(command)
+        for token in parameter_tokens:
+            name, _, value = token.partition("=")
+            if listed.get(name) != value:
+                raise ValueError("command-parameter-mismatch:" + name)
+        for token in defines:
+            name = token.partition("=")[0]
+            if not any(str(item).partition("=")[0] == name for item in closure.get("defines", [])):
+                raise ValueError("undeclared-elaboration-define:" + name)
+    
+        # Include and filelist options must stay inside the pinned closure roots:
+        # an extra -I pointing elsewhere can silently override a pinned header.
+        for value in include_dirs:
+            directory = _safe_child(base, _declared_relative(value))
+            if not directory.is_dir():
+                raise ValueError("include-root-missing:" + value)
+            if not any(_safe_child(base, root) in directory.parents or
+                       _safe_child(base, root) == directory for root in allowed):
+                raise ValueError("include-root-outside-pinned-sources:" + value)
+        for value in include_files:
+            target = _safe_child(base, _declared_relative(value))
+            if not target.is_file():
+                raise ValueError("filelist-missing:" + value)
+            if target.relative_to(base).as_posix() not in {path for _, path in entries}:
+                raise ValueError("filelist-not-in-closure:" + value)
+    
+        labelled = set()
+        roots = set()
+        for item in files:
+            if not isinstance(item, dict):
+                raise ValueError("invalid-closure-entry")
+            root_relative = _declared_relative(item.get("root"))
+            relative = _declared_relative(item.get("path"))
+            digest = item.get("sha256")
+            if not isinstance(digest, str) or not HEX64.fullmatch(digest):
+                raise ValueError("invalid-closure-hash:" + relative)
+            revision = owners.get(root_relative)
+            if not isinstance(revision, str) or not revision.startswith("git:"):
+                raise ValueError("unpinned-closure-root:" + root_relative)
+            if root_relative not in allowed:
+                raise ValueError("undeclared-closure-root:" + root_relative)
+            root = _safe_child(base, root_relative)
+            path = _safe_child(root, relative)
+            content = path.read_bytes()
+            if hashlib.sha256(content).hexdigest() != digest:
+                raise ValueError("closure-hash-mismatch:" + relative)
+            blob = subprocess.run(
+                ["git", "-C", str(root), "cat-file", "blob", revision[4:] + ":" + relative],
+                capture_output=True, check=False,
+            )
+            if blob.returncode or blob.stdout != content:
+                raise ValueError("git-content-mismatch:" + relative)
+            labelled.add(path.relative_to(base).as_posix())
+            roots.add(root_relative)
+    
+        for token in command:
+            if token.startswith("-") or token.startswith("+") or "=" in token:
+                continue
+            candidate = base / token
+            if candidate.is_file() and base in candidate.resolve().parents:
+                if candidate.resolve().relative_to(base).as_posix() not in labelled:
+                    raise ValueError("command-file-not-in-closure:" + token)
+    
+        if _is_git_worktree(base) and not _is_tracked(base, block["evidence"]):
+            # Untracked evidence is not durable: it can be edited with no trace in
+            # any commit, so the claim would not be reviewable after the fact.
+>           raise ValueError("untracked-elaboration-evidence:" + block["evidence"])
+E           ValueError: untracked-elaboration-evidence:configs/soc/closures/cv32e40p.json
+
+scripts/verify_soc_sources.py:323: ValueError
+_ NonIbexNonGpioFreshProcessControlledErrorTests.test_control_run_fault_run_and_fresh_replays_are_separate_processes _
+
+self = <tests.integration.test_non_ibex_non_gpio_controlled_error_real.NonIbexNonGpioFreshProcessControlledErrorTests testMethod=test_control_run_fault_run_and_fresh_replays_are_separate_processes>
+
+    def test_control_run_fault_run_and_fresh_replays_are_separate_processes(self):
+        override = os.environ.get('MYFUZZ_CONTROLLED_ERROR_OUTPUT')
+        cleanup = None
+        if override:
+            work = Path(override)
+            work.mkdir(parents=True, exist_ok=True)
+        else:
+            cleanup = tempfile.TemporaryDirectory(
+                prefix='myfuzz-p6-non-ibex-non-gpio-fresh-process-')
+            work = Path(cleanup.name)
+        try:
+            case = work / f'fresh-process-{os.getpid()}'
+            case.mkdir(parents=True, exist_ok=False)
+>           self._run_case(case)
+
+tests/integration/test_non_ibex_non_gpio_controlled_error_real.py:88: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/integration/test_non_ibex_non_gpio_controlled_error_real.py:135: in _run_case
+    steps.append(self._step(
+tests/integration/test_non_ibex_non_gpio_controlled_error_real.py:116: in _step
+    self.fail(
+E   AssertionError: 01-control-run exited 1
+E   command: ['/usr/bin/python3', '/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-12-head-snapshot/source/tests/integration/non_ibex_non_gpio_controlled_error_process.py', 'run', '--group', 'control', '--bundle', '/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-12-head-snapshot/evidence/fresh-process-20/control-bundle', '--cache', '/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-12-head-snapshot/evidence/fresh-process-20/cache', '--observation', '/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-12-head-snapshot/evidence/fresh-process-20/control-run.json']
+E   stdout tail:
+E   
+E   stderr tail:
+E   Traceback (most recent call last):
+E     File "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-12-head-snapshot/source/tests/integration/non_ibex_non_gpio_controlled_error_process.py", line 309, in <module>
+E       raise SystemExit(main())
+E                        ^^^^^^
+E     File "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-12-head-snapshot/source/tests/integration/non_ibex_non_gpio_controlled_error_process.py", line 300, in main
+E       run(args)
+E     File "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-12-head-snapshot/source/tests/integration/non_ibex_non_gpio_controlled_error_process.py", line 156, in run
+E       cpu_artifact = helpers['_artifact'](CPU_PROFILE, 'cpu')
+E                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E     File "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-12-head-snapshot/source/tests/integration/test_scenario_cv32e40p_opentitan_uart_irq_real.py", line 33, in _artifact
+E       verify_local_source_lock(plan.profile, base_dir=ROOT), base_dir=ROOT)
+E       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E     File "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-12-head-snapshot/source/src/myfuzz/local_harness/source_lock.py", line 163, in verify_local_source_lock
+E       result = verifier.verify_record(
+E                ^^^^^^^^^^^^^^^^^^^^^^^
+E     File "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-12-head-snapshot/source/scripts/verify_soc_sources.py", line 414, in verify_record
+E       elaboration = verify_elaboration(record, base_dir, owners, allowed_roots)
+E                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E     File "/home/qinkejiu/myfuzz/runs/p6-controlled-error-non-ibex-non-gpio-20261017/attempt-12-head-snapshot/source/scripts/verify_soc_sources.py", line 323, in verify_elaboration
+E       raise ValueError("untracked-elaboration-evidence:" + block["evidence"])
+E   ValueError: untracked-elaboration-evidence:configs/soc/closures/cv32e40p.json
+=========================== short test summary info ============================
+FAILED tests/integration/test_cv32e40p_opentitan_uart_controlled_error_real.py::Cv32e40pOpentitanUartControlledErrorTests::test_controlled_rxdata_response_error_is_caught_and_replayed
+FAILED tests/integration/test_non_ibex_non_gpio_controlled_error_real.py::NonIbexNonGpioFreshProcessControlledErrorTests::test_control_run_fault_run_and_fresh_replays_are_separate_processes
+2 failed in 4.18s
