@@ -74,8 +74,18 @@ def test_descriptor_program_is_direction_and_window_bounded():
     program = firmware.descriptor_program('RAM_TO_TX', 3, 2)
     assert program['destination_words'] == (firmware.UART_WDATA,) * 2
     assert program['witness'] == firmware.SOURCE_RAM
+    # S3 declares the illegal direction as a real error case: both master
+    # addresses are the one declared illegal offset and no data word is
+    # attempted before the declared target environment rejects the read.
+    program = firmware.descriptor_program('ILLEGAL', 0, 2)
+    assert program['source'] == program['destination'] == firmware.ILLEGAL_TARGET
+    assert program['control'] == firmware.CONTROL_WORDS['ILLEGAL']
+    assert program['witness'] == firmware.DESTINATION
+    assert program['source_words'] == ()
+    assert program['destination_words'] == ()
+    assert program['attempted_source_words'] == (firmware.ILLEGAL_TARGET,)
     with pytest.raises(ValueError, match='direction'):
-        firmware.descriptor_program('ILLEGAL', 0, 1)
+        firmware.descriptor_program('BOGUS', 0, 1)
     with pytest.raises(ValueError, match='destination words'):
         firmware.descriptor_program('RX_TO_RAM', 3, 2)
     with pytest.raises(ValueError, match='length'):
@@ -126,8 +136,10 @@ def test_create_encodes_the_canonical_wire_descriptor():
 
 
 def test_create_refuses_undeclared_fields_before_any_wire_byte():
-    with pytest.raises(DescriptorCaseRejected, match='three declared directions'):
-        DescriptorCase.create('ILLEGAL', dst_index=0, payload=0, length=1)
+    with pytest.raises(DescriptorCaseRejected, match='undeclared descriptor direction'):
+        DescriptorCase.create('BOGUS', dst_index=0, payload=0, length=1)
+    illegal = DescriptorCase.create('ILLEGAL', dst_index=0, payload=0, length=1)
+    assert illegal.expect == 'environment_error'
     with pytest.raises(DescriptorCaseRejected, match='length'):
         DescriptorCase.create('RX_TO_RAM', dst_index=0, payload=0, length=0)
     with pytest.raises(DescriptorCaseRejected, match='length'):
@@ -173,12 +185,17 @@ def test_validate_is_pure_and_refuses_narrowed_or_unknown_windows():
         case.validate(())
 
 
-def test_illegal_direction_and_non_complete_outcomes_are_refused_at_construction():
-    with pytest.raises(DescriptorCaseRejected, match='three declared directions'):
+def test_only_the_illegal_direction_may_carry_the_environment_error_outcome():
+    illegal = DescriptorCase('ILLEGAL', 0, 0x11, 1, (0x03, 0, 0, 0x11, 0x11),
+        dict(direction='ILLEGAL', dst_index=0, payload=0x11, length=1),
+        expect='environment_error')
+    assert illegal.expect == 'environment_error'
+    with pytest.raises(DescriptorCaseRejected, match='only the declared illegal'):
         DescriptorCase('ILLEGAL', 0, 0x11, 1, (0x03, 0, 0, 0x11, 0x11),
-            dict(direction='ILLEGAL', dst_index=0, payload=0x11, length=1))
+            dict(direction='ILLEGAL', dst_index=0, payload=0x11, length=1),
+            expect='complete')
     case = DescriptorCase.create('RX_TO_RAM', dst_index=0, payload=0x11, length=1)
-    with pytest.raises(DescriptorCaseRejected, match='S3'):
+    with pytest.raises(DescriptorCaseRejected, match='only the declared illegal'):
         DescriptorCase(case.direction, case.dst_index, case.payload,
             case.length, case.source_bytes, dict(case.descriptor),
             expect='environment_error')

@@ -8,8 +8,11 @@ reads the real DMA status/length registers.
 
 This module makes no source-authority claim: ``fifo_origin`` stays ``unknown``
 and every case is explicitly ``source_authority='incomplete'``.  Admission,
-typed normalizers and certified prefix replay are S4 work; invalid/error ISR
-cases are S3 work.  The per-case evidence here is a bounded historical chain
+typed normalizers and certified prefix replay are S4 work.  S3 adds the one
+declared illegal descriptor: the real ``wbdmac`` takes its bus-error path, the
+real native IRQ reaches the CPU, and the ISR records the real status/length/
+mcause/counter.  That case is certified as ``environment_error`` (never as a
+successful dataflow).  The per-case evidence here is a bounded historical chain
 over real journal rows, never a host-signed token.
 """
 from __future__ import annotations
@@ -27,11 +30,12 @@ from myfuzz.scenario.contracts import ResourceBudget
 from myfuzz.scenario.genome import ScenarioGenome
 from myfuzz.scenario.ibex_dma_example import DMA_BASE
 from myfuzz.scenario.ibex_dma_uart_descriptor import (
-    COMPLETED, CONTROL_KEY, CONTROL_KEY_MASK, DESCRIPTOR_WORDS, DEST_WORDS,
-    DESTINATION, DIRECTION_CODES, DIRECTIONS, ILLEGAL_TARGET, ISR_PCS, MAIN,
-    MAX_LENGTH, RESULT, SOURCE_RAM, UART_BASE, UART_RDATA,
-    UART_RDATA_OFFSET, UART_RXEMPTY_MASK, UART_STATUS_OFFSET, UART_WDATA,
-    UART_WDATA_OFFSET, WITNESS, WITNESS_POINTER, descriptor_program,
+    COMPLETED, CONTROL_KEY, CONTROL_KEY_MASK, DECLARED_DIRECTIONS,
+    DESCRIPTOR_WORDS, DEST_WORDS, DESTINATION, DIRECTION_CODES,
+    DMA_STATUS_LAYOUT, ILLEGAL_TARGET, ISR_PCS, MAIN, MAX_LENGTH, RESULT,
+    SOURCE_RAM, UART_BASE, UART_RDATA, UART_RDATA_OFFSET, UART_RXEMPTY_MASK,
+    UART_STATUS_OFFSET, UART_WDATA, UART_WDATA_OFFSET, WITNESS,
+    WITNESS_POINTER, descriptor_program, dma_status_fields,
     make_descriptor_runner)
 from myfuzz.scenario.runner import ScenarioRunner
 
@@ -43,7 +47,7 @@ CASE_SCHEMA = 'descriptor_dma_case.v1'
 SOURCE_PORT = 'uart_rx_byte'
 SOURCE_COMPONENT = 'uart'
 ACTION_PREFIX = 'descriptor'
-OUTCOMES = ('complete',)
+OUTCOMES = ('complete', 'environment_error')
 DMA_IRQ_MCAUSE = 0x8000000B
 UART_TX_CLOCKS_PER_BIT = 32
 UART_TX_FRAME_TICKS = 10 * UART_TX_CLOCKS_PER_BIT
@@ -98,7 +102,7 @@ def descriptor_windows():
     return {
         # Half-open windows.  Scalar fields are checked with width=1.
         'uart_rx_byte': (0, 256),
-        'descriptor_direction': (0, len(DIRECTIONS)),
+        'descriptor_direction': (0, len(DECLARED_DIRECTIONS)),
         'descriptor_length': (1, MAX_LENGTH + 1),
         'descriptor_dst_index': (0, DEST_WORDS),
         'uart_rdata': (UART_RDATA, UART_RDATA + 4),
@@ -131,8 +135,8 @@ def decode_descriptor(source_bytes):
 
 def encode_descriptor(direction, dst_index, payload, length):
     """Canonical wire descriptor: high bits zero, payload repeated ``len``."""
-    if direction not in DIRECTIONS:
-        raise DescriptorCaseRejected('S2 executes only the three declared directions')
+    if direction not in DECLARED_DIRECTIONS:
+        raise DescriptorCaseRejected('undeclared descriptor direction')
     _byte(payload, 'payload')
     if type(length) is not int or not 1 <= length <= MAX_LENGTH:
         raise DescriptorCaseRejected(f'length must be in 1..{MAX_LENGTH}')
@@ -160,11 +164,14 @@ class DescriptorCase:
     expect: str = 'complete'
 
     def __post_init__(self):
-        if self.direction not in DIRECTIONS:
-            raise DescriptorCaseRejected('S2 executes only the three declared directions')
+        if self.direction not in DECLARED_DIRECTIONS:
+            raise DescriptorCaseRejected('undeclared descriptor direction')
         if self.expect not in OUTCOMES:
+            raise DescriptorCaseRejected('undeclared descriptor outcome')
+        expected = 'environment_error' if self.direction == 'ILLEGAL' else 'complete'
+        if self.expect != expected:
             raise DescriptorCaseRejected(
-                'S2 certifies only complete chains; invalid/error cases are S3')
+                'only the declared illegal direction may carry environment_error')
         if not isinstance(self.source_bytes, tuple):
             raise ValueError('source_bytes must be a tuple of serial bytes')
         for index, value in enumerate(self.source_bytes):
@@ -176,7 +183,7 @@ class DescriptorCase:
                 or decoded['length'] != self.length):
             raise ValueError('declared descriptor fields differ from the serial bytes')
         if decoded['payload_bytes'] != (self.payload,) * self.length:
-            raise ValueError('S2 declares every transferred word equal to the payload')
+            raise ValueError('every transferred word must equal the payload')
         if not isinstance(self.descriptor, dict) or self.descriptor != {
                 'direction': self.direction, 'dst_index': self.dst_index,
                 'payload': self.payload, 'length': self.length}:
@@ -186,17 +193,21 @@ class DescriptorCase:
     @classmethod
     def create(cls, direction, *, dst_index, payload, length):
         source_bytes = encode_descriptor(direction, dst_index, payload, length)
+        expect = 'environment_error' if direction == 'ILLEGAL' else 'complete'
         return cls(direction, dst_index, payload, length, source_bytes,
             dict(direction=direction, dst_index=dst_index, payload=payload,
-                 length=length))
+                 length=length), expect)
 
     @classmethod
     def from_wire(cls, source_bytes):
         decoded = decode_descriptor(tuple(source_bytes))
-        return cls(decoded['direction'], decoded['dst_index'], decoded['payload'],
+        direction = decoded['direction']
+        expect = 'environment_error' if direction == 'ILLEGAL' else 'complete'
+        return cls(direction, decoded['dst_index'], decoded['payload'],
             decoded['length'], tuple(source_bytes),
-            dict(direction=decoded['direction'], dst_index=decoded['dst_index'],
-                 payload=decoded['payload'], length=decoded['length']))
+            dict(direction=direction, dst_index=decoded['dst_index'],
+                 payload=decoded['payload'], length=decoded['length']),
+            expect)
 
     # -- declared program --------------------------------------------------
     @property
@@ -244,15 +255,18 @@ class DescriptorCase:
                 raise DescriptorCaseRejected(
                     f'address {address:#x} is outside the declared {name} window')
 
-        if self.direction not in DIRECTIONS:
-            raise DescriptorCaseRejected('S2 executes only the three declared directions')
+        if self.direction not in DECLARED_DIRECTIONS:
+            raise DescriptorCaseRejected('undeclared descriptor direction')
+        if self.expect not in OUTCOMES:
+            raise DescriptorCaseRejected('undeclared descriptor outcome')
+        expected = 'environment_error' if self.direction == 'ILLEGAL' else 'complete'
+        if self.expect != expected:
+            raise DescriptorCaseRejected(
+                'only the declared illegal direction may carry environment_error')
         code = DIRECTION_CODES[self.direction]
         inside('descriptor_direction', code, 1)
         inside('descriptor_length', self.length, 1)
         inside('descriptor_dst_index', self.dst_index, 1)
-        if self.expect not in OUTCOMES:
-            raise DescriptorCaseRejected(
-                'S2 certifies only complete chains; invalid/error cases are S3')
         # The serial stream must equal the canonical encoding: a spec cannot
         # hide a second, differently-masked descriptor in the high bits.
         canonical = encode_descriptor(self.direction, self.dst_index,
@@ -265,28 +279,40 @@ class DescriptorCase:
                 or decoded['direction_code'] != code):
             raise DescriptorCaseRejected('serial stream does not decode to the declared case')
         program = descriptor_program(self.direction, self.dst_index, self.length)
-        for address in program['source_words']:
-            if self.direction == 'RX_TO_RAM':
-                inside('uart_rdata', address)
-            else:
-                inside('source_ram', address)
-        for address in program['destination_words']:
-            if self.direction == 'RAM_TO_TX':
-                inside('uart_wdata', address)
-            else:
-                inside('destination_ram', address)
-        for address in program['cpu_source_words']:
-            inside('source_ram', address)
-        if self.direction == 'RAM_TO_TX':
-            inside('source_ram', program['witness'])
-        else:
-            inside('destination_ram', program['witness'])
         if ILLEGAL_TARGET not in range(*declared['declared_illegal']):
             raise DescriptorCaseRejected('the declared illegal master target is missing')
-        for address in (*program['source_words'], *program['destination_words']):
-            if address == ILLEGAL_TARGET:
+        if self.direction == 'ILLEGAL':
+            # The only declared error path: both master addresses are the one
+            # declared illegal offset, so the real target environment rejects
+            # the first read before any data beat or RAM commit can exist.
+            inside('declared_illegal', program['source'])
+            inside('declared_illegal', program['destination'])
+            if (program['source'] != ILLEGAL_TARGET
+                    or program['destination'] != ILLEGAL_TARGET):
                 raise DescriptorCaseRejected(
-                    'a complete case cannot target the declared illegal offset')
+                    'the illegal case must program the declared illegal target')
+            inside('destination_ram', program['witness'])
+        else:
+            for address in program['source_words']:
+                if self.direction == 'RX_TO_RAM':
+                    inside('uart_rdata', address)
+                else:
+                    inside('source_ram', address)
+            for address in program['destination_words']:
+                if self.direction == 'RAM_TO_TX':
+                    inside('uart_wdata', address)
+                else:
+                    inside('destination_ram', address)
+            for address in program['cpu_source_words']:
+                inside('source_ram', address)
+            if self.direction == 'RAM_TO_TX':
+                inside('source_ram', program['witness'])
+            else:
+                inside('destination_ram', program['witness'])
+            for address in (*program['source_words'], *program['destination_words']):
+                if address == ILLEGAL_TARGET:
+                    raise DescriptorCaseRejected(
+                        'a complete case cannot target the declared illegal offset')
         # Every payload byte is already queued by the spec; nothing is invented.
         if len(self.source_bytes) - DESCRIPTOR_WORDS != self.length:
             raise DescriptorCaseRejected('len exceeds the queued payload bytes')
@@ -361,6 +387,14 @@ class CaseWitnesses:
     irq_edges: tuple[dict, ...]
     tick_observations: tuple[dict, ...]
     tick_pushes: tuple[dict, ...]
+    # S3 error-path rows.  They are grouped, never reclassified: a rejected
+    # master request is not a data beat, and an error response is not an ACK.
+    dma_edges: tuple[dict, ...]
+    rejections: tuple[dict, ...]
+    environment_errors: tuple[dict, ...]
+    error_responses: tuple[dict, ...]
+    error_irq_edges: tuple[dict, ...]
+    dma_rdata_accesses: tuple[dict, ...]
 
 
 def extract_case_witnesses(rows):
@@ -371,7 +405,9 @@ def extract_case_witnesses(rows):
         'frames', 'source_injections', 'cpu_pops', 'uart_rdata_mmio',
         'uart_status_mmio', 'dma_mmio', 'beats', 'responses', 'memory_writes',
         'data_responses', 'retires', 'external_irq', 'bound_takes',
-        'bound_starts', 'irq_edges', 'tick_observations', 'tick_pushes')}
+        'bound_starts', 'irq_edges', 'tick_observations', 'tick_pushes',
+        'dma_edges', 'rejections', 'environment_errors', 'error_responses',
+        'error_irq_edges', 'dma_rdata_accesses')}
     for event in rows:
         if not isinstance(event, dict):
             raise ValueError('journal records must be objects')
@@ -385,6 +421,10 @@ def extract_case_witnesses(rows):
             if isinstance(transaction, dict) and transaction.get('channel_id') == 'data':
                 event = dict(event, _pop_source='top_level')
                 grouped['cpu_pops'].append(event)
+            else:
+                # A DMA-master or unattributed RDATA access.  On the S3 error
+                # path there must be none: a rejected read never pops the FIFO.
+                grouped['dma_rdata_accesses'].append(event)
         elif kind == 'mmio_delivery':
             device = event.get('device_id')
             if device == 'uart' and event.get('offset') == UART_RDATA_OFFSET \
@@ -396,17 +436,32 @@ def extract_case_witnesses(rows):
             elif device == 'dma':
                 grouped['dma_mmio'].append(event)
         elif kind == 'dma_edge':
-            if isinstance(event.get('accepted'), dict):
+            grouped['dma_edges'].append(event)
+            accepted = event.get('accepted')
+            receipt = event.get('environment_error_receipt')
+            rejected = isinstance(accepted, dict) and (
+                'target_rejection' in accepted or isinstance(receipt, dict))
+            if isinstance(accepted, dict) and not rejected:
                 grouped['beats'].append(event)
-            if isinstance(event.get('response'), dict):
+            if rejected:
+                grouped['rejections'].append(event)
+            if isinstance(receipt, dict):
+                grouped['environment_errors'].append(event)
+            response = event.get('response')
+            if isinstance(response, dict):
                 grouped['responses'].append(event)
+                if response.get('error') == 1:
+                    grouped['error_responses'].append(event)
             payload = event.get('payload') or {}
             physical = (payload.get('observations') or {}).get('physical') or {}
             backend = payload.get('pre_backend') or {}
-            if (isinstance(physical, dict) and any(bool(value) for value in physical.values())
-                    and backend.get('mwb_ack') == 1 and backend.get('mwb_we') == 1
+            pulse = (isinstance(physical, dict)
+                     and any(bool(value) for value in physical.values()))
+            if (pulse and backend.get('mwb_ack') == 1 and backend.get('mwb_we') == 1
                     and backend.get('mwb_err') == 0):
                 grouped['irq_edges'].append(event)
+            if pulse and backend.get('mwb_err') == 1:
+                grouped['error_irq_edges'].append(event)
         elif kind == 'memory_write':
             grouped['memory_writes'].append(event)
         elif kind == 'data_response':
@@ -625,6 +680,271 @@ def _assert_no_host_writes(writes):
                 raise RuntimeError('a non-CPU/DMA writer wrote case data')
 
 
+def _certify_environment_error(witnesses, case, *, case_index, program,
+        action_ids, frame_ids, push_chain, push_depths, cpu_pops, cpu_fifo,
+        cpu_values, settled_pops, witness_pointer_store, tx_captures):
+    """Certify the declared illegal master target against the real journal.
+
+    The only error signal accepted here is a real environment rejection of the
+    declared illegal target: one accepted master request carrying
+    ``target_rejection='declared_master_target_access'``, its real
+    ``environment_error_receipt`` (``error=1``, ``target_effect=false``), the
+    real error response (``response.error=1``), the real native IRQ pulse on
+    that response edge, the real CPU take, and the real ISR status/length/
+    witness/counter stores and retirements.  The status word is recorded as
+    measured; only the RTL-declared error/busy/inc bit positions are checked,
+    never a pre-baked status value.
+    """
+    if case.direction != 'ILLEGAL' or case.expect != 'environment_error':
+        raise ValueError('an environment-error certificate requires the illegal case')
+    if witnesses.irq_edges:
+        raise RuntimeError('an environment-error case must not carry a success IRQ pulse')
+    tx_captures = tuple(tx_captures)
+    if tx_captures:
+        raise RuntimeError('an environment-error case must not transmit on the UART pin')
+    if witnesses.beats:
+        raise RuntimeError('an environment-error case must not accept a data beat')
+    accepted_edges = [event for event in witnesses.dma_edges
+                      if isinstance(event.get('accepted'), dict)]
+    request = _one(accepted_edges,
+        'illegal case needs exactly one real accepted master request')
+    request_id = _event_id(request.get('event_id'), 'rejected master request')
+    accepted = request['accepted']
+    if accepted.get('write') is not False:
+        raise RuntimeError('the declared illegal target must be read, not written')
+    if accepted.get('address') != program['source']:
+        raise RuntimeError('rejected master request address differs from the declared target')
+    if accepted.get('target_rejection') != 'declared_master_target_access':
+        raise RuntimeError('rejected master request is not the declared target rejection')
+    if (isinstance(accepted.get('target_delivery'), dict)
+            or isinstance(request.get('target_delivery'), dict)):
+        raise RuntimeError('an environment-error request must have no target delivery')
+    key = accepted.get('transaction')
+    if (not isinstance(key, dict) or key.get('channel_id') != 'dma-memory'
+            or key.get('source_component') != 'dma'):
+        raise RuntimeError('rejected master request lacks the real DMA transaction identity')
+
+    receipt_event = _one(witnesses.environment_errors,
+        'illegal case needs exactly one real environment error receipt')
+    if receipt_event.get('event_id') != request_id:
+        raise RuntimeError('environment error receipt is not the rejected master request')
+    receipt = receipt_event['environment_error_receipt']
+    expected_receipt = dict(error=1, target_effect=False,
+        op='master_environment_error', address=program['source'], write=False,
+        byte_enable=15, reason='declared_master_target_access')
+    for field, expected in expected_receipt.items():
+        if receipt.get(field) != expected:
+            raise RuntimeError(f'environment error receipt field {field} is not the declared rejection')
+    if receipt.get('source_transaction') != key:
+        raise RuntimeError('environment error receipt transaction differs from the real request')
+
+    response_events = [event for event in witnesses.error_responses
+                       if (event['response'].get('transaction') or {}) == key]
+    response_event = _one(response_events,
+        'illegal case needs exactly one real error response for the rejected request')
+    response = response_event['response']
+    response_id = _event_id(response_event.get('event_id'), 'error response')
+    if response.get('error') != 1 or response.get('rdata') != 0:
+        raise RuntimeError('real DMA error response is not the declared bus error')
+    if response_id <= request_id:
+        raise RuntimeError('DMA error response precedes its accepted master request')
+
+    # The error completion edge is the same real edge that carries the native
+    # DMA interrupt pulse and inputs i_mwb_err=1 to the controller.
+    error_edge = _one(witnesses.error_irq_edges,
+        'illegal case needs one real native error IRQ pulse')
+    if error_edge.get('event_id') != response_id:
+        raise RuntimeError('native DMA error IRQ pulse is not the error response edge')
+    edge_backend = (error_edge.get('payload') or {}).get('pre_backend') or {}
+    if (edge_backend.get('mwb_err') != 1 or edge_backend.get('mwb_ack') != 0
+            or edge_backend.get('mwb_we') != 0):
+        raise RuntimeError('native DMA error IRQ edge is not the real bus-error completion')
+
+    # No target was touched and no FIFO entry was popped after the rejection.
+    if witnesses.dma_rdata_accesses:
+        raise RuntimeError('an illegal DMA request must not pop the UART RX FIFO')
+    protected = ((SOURCE_RAM, SOURCE_RAM + 4 * DEST_WORDS),
+                 (DESTINATION, DESTINATION + 4 * DEST_WORDS))
+    for event in witnesses.memory_writes:
+        address = event.get('address')
+        if type(address) is int and any(low <= address < high
+                                       for low, high in protected):
+            raise RuntimeError('an environment-error case must not commit RAM data')
+    pop_ids = [_event_id(event.get('event_id'), 'CPU RDATA pop')
+               for event in cpu_pops]
+    if max(pop_ids) >= request_id:
+        raise RuntimeError('CPU payload drain occurred after the illegal master request')
+
+    start = _one(witnesses.bound_starts, 'error case needs one bound DMA IRQ source start')
+    take = _one(witnesses.bound_takes, 'error case needs one bound CPU IRQ take')
+    external = _one(witnesses.external_irq, 'error case needs one real external IRQ take')
+    if (start.get('source_event_id') != take.get('source_event_id')
+            or take.get('cpu_tick') != external.get('local_tick')
+            or start.get('source_tick') != error_edge.get('native_local_tick')):
+        raise RuntimeError('CPU error take is not joined to the real DMA error pulse tick')
+    if not (response_id < start.get('event_id') < external.get('event_id')
+            < take.get('event_id')):
+        raise RuntimeError('DMA error/IRQ/CPU take order is incomplete')
+
+    # Real ISR reads and stores.  The status word is recorded exactly as read.
+    status_delivery = _one([event for event in witnesses.dma_mmio
+        if event.get('write') is False and event.get('offset') == 0],
+        'error ISR status store lacks a real DMA status MMIO delivery')
+    length_delivery = _one([event for event in witnesses.dma_mmio
+        if event.get('write') is False and event.get('offset') == 4],
+        'error ISR length store lacks a real DMA length MMIO delivery')
+    status = status_delivery.get('read_value')
+    length_actual = length_delivery.get('read_value')
+    if type(status) is not int or not 0 <= status <= 0xFFFFFFFF:
+        raise RuntimeError('error ISR status is not a real 32-bit readback')
+    status_fields = dma_status_fields(status)
+    if status_fields['error'] != 1:
+        raise RuntimeError('real DMA error status does not report the declared error bit')
+    if status_fields['busy'] != 0:
+        raise RuntimeError('real DMA status still reports busy after the error interrupt')
+    control_bits = (program['control'] >> 28) & 0x3
+    if ((status >> 28) & 0x3) != control_bits:
+        raise RuntimeError('real DMA status inc bits differ from the written CONTROL word')
+    if type(length_actual) is not int or not 0 <= length_actual <= 0xFFFFFFFF:
+        raise RuntimeError('error ISR length read is not a real 32-bit value')
+    if length_actual != case.length:
+        raise RuntimeError('real DMA length after the read-phase error differs from the programmed length')
+
+    def isr_store(address, value, name):
+        matches = [event for event in witnesses.memory_writes
+                   if event.get('component') == 'cpu' and event.get('address') == address
+                   and event.get('value') == value]
+        if len(matches) != 1:
+            raise RuntimeError(f'ISR {name} store is missing or duplicated')
+        return _event_id(matches[0].get('event_id'), f'ISR {name} store')
+
+    mcause_store = isr_store(RESULT, DMA_IRQ_MCAUSE, 'mcause')
+    status_store = isr_store(RESULT + 4, status, 'status')
+    length_store = isr_store(RESULT + 8, length_actual, 'length')
+    witness_stores = [event for event in witnesses.memory_writes
+                      if event.get('component') == 'cpu'
+                      and event.get('address') == WITNESS]
+    isr_witness_store = _one(witness_stores, 'ISR witness store is missing or duplicated')
+    witness_value = isr_witness_store.get('value')
+    if type(witness_value) is not int or not 0 <= witness_value <= 0xFFFFFFFF:
+        raise RuntimeError('ISR witness read is not a real 32-bit value')
+    witness_store_id = _event_id(isr_witness_store.get('event_id'),
+        'ISR witness store')
+    counter_store = isr_store(COMPLETED, case_index, 'counter')
+    status_key = status_delivery.get('source_transaction')
+    _one([event for event in witnesses.data_responses
+          if event.get('transaction') == status_key and event.get('rdata') == status],
+        'DMA error status lacks a real native data response')
+    status_load_id = _retire(witnesses.retires, ISR_PCS['isr_status'],
+        mem_addr=DMA_BASE, rdata=status, rd=7)
+    status_store_id = _retire(witnesses.retires, ISR_PCS['isr_status'] + 4,
+        mem_addr=RESULT + 4, wdata=status, rs2=7)
+    length_load_id = _retire(witnesses.retires, ISR_PCS['isr_length'],
+        mem_addr=DMA_BASE + 4, rdata=length_actual, rd=8)
+    length_store_id = _retire(witnesses.retires, ISR_PCS['isr_length'] + 4,
+        mem_addr=RESULT + 8, wdata=length_actual, rs2=8)
+    pointer_load_id = _retire(witnesses.retires, ISR_PCS['isr_witness_pointer'],
+        mem_addr=WITNESS_POINTER, rdata=program['witness'], rd=9)
+    witness_load_id = _retire(witnesses.retires, ISR_PCS['isr_witness'],
+        mem_addr=program['witness'], rdata=witness_value, rd=9)
+    witness_store_retire_id = _retire(witnesses.retires,
+        ISR_PCS['isr_witness'] + 4, mem_addr=WITNESS,
+        wdata=witness_value, rs2=9)
+    counter_load_id = _retire(witnesses.retires, ISR_PCS['isr_counter_load'],
+        mem_addr=COMPLETED, rdata=case_index - 1, rd=9)
+    counter_store_retire_id = _retire(witnesses.retires,
+        ISR_PCS['isr_counter_load'] + 8, mem_addr=COMPLETED,
+        wdata=case_index, rs2=9)
+    if not (take.get('event_id') < mcause_store
+            < status_delivery.get('event_id') <= status_load_id < status_store_id
+            < length_load_id < length_store_id < pointer_load_id < witness_load_id
+            < witness_store_retire_id < counter_load_id < counter_store_retire_id):
+        raise RuntimeError('native error status/length/witness/counter flow is out of order')
+    if witness_pointer_store.get('event_id') >= request_id:
+        raise RuntimeError('ISR witness pointer must be committed before the illegal start')
+
+    fifo_pops = [dict(kind='cpu', **fifo) for fifo in cpu_fifo]
+    depths = [pop['post_depth'] for pop in fifo_pops]
+    transaction_summary = dict(
+        testcase_id=key.get('testcase_id'),
+        source_component=key.get('source_component'),
+        source_epoch=key.get('source_epoch'),
+        channel_id=key.get('channel_id'),
+        source_sequence=key.get('source_sequence'))
+    receipt_summary = dict(op=receipt['op'], error=receipt['error'],
+        target_effect=receipt['target_effect'], address=receipt['address'],
+        write=receipt['write'], value=receipt.get('value'),
+        byte_enable=receipt['byte_enable'], reason=receipt['reason'],
+        transaction=transaction_summary)
+    error_summary = dict(request_event_id=request_id,
+        response_event_id=response_id, receipt_event_id=request_id,
+        address=program['source'], write=False,
+        reason=receipt['reason'], target_effect=False,
+        data_beats=0, destination_commits=0, fifo_dma_pops=0,
+        no_target_delivery=True, destination_committed=False,
+        status=status, status_bits=list(status_fields['bits']),
+        status_error=status_fields['error'],
+        status_busy=status_fields['busy'],
+        status_nread=status_fields['nread'],
+        status_blocklen_sub_one=status_fields['blocklen_sub_one'],
+        status_inc_s_n=status_fields['inc_s_n'],
+        status_inc_d_n=status_fields['inc_d_n'],
+        length=length_actual, mcause=DMA_IRQ_MCAUSE, counter=case_index,
+        witness=witness_value, witness_pointer=program['witness'])
+    return dict(schema_version=CASE_SCHEMA, case_index=case_index,
+        spec=case.to_document(), direction=case.direction,
+        descriptor=dict(case.descriptor), source_bytes=list(case.source_bytes),
+        action_ids=list(action_ids), frame_ids=list(frame_ids),
+        program=dict(direction=program['direction'], source=program['source'],
+            destination=program['destination'], length=program['length'],
+            control=program['control'], witness=program['witness'],
+            source_words=list(program['source_words']),
+            destination_words=list(program['destination_words']),
+            cpu_source_words=list(program['cpu_source_words']),
+            attempted_source_words=list(program['attempted_source_words'])),
+        outcome='environment_error', completed=False, sealed=True,
+        error_path='declared_illegal_master_target',
+        environment_error_receipt=receipt_summary,
+        environment_error=error_summary,
+        no_target_delivery=True, destination_committed=False,
+        beats=[], beat_count=0, ram_commits=[],
+        cpu_source_versions=[],
+        cpu_pop_access_ids=[fifo['access_id'] for fifo in cpu_fifo],
+        settled_cpu_access_ids=[event.get('access_id') for event in settled_pops],
+        fifo=dict(pushes=len(witnesses.tick_pushes),
+            push_depths=list(push_depths),
+            push_chain=[dict(item) for item in push_chain],
+            pops=fifo_pops, dma_pops=0,
+            depth_after=(depths[-1] if depths else None),
+            max_depth=(max(push_depths) if push_depths else 0)),
+        isr=dict(mcause=DMA_IRQ_MCAUSE, status=status, length=length_actual,
+            status_bits=list(status_fields['bits']),
+            status_layout={name: list(bounds) for name, bounds
+                           in DMA_STATUS_LAYOUT.items()},
+            status_nread=status_fields['nread'],
+            status_blocklen_sub_one=status_fields['blocklen_sub_one'],
+            status_error=status_fields['error'],
+            status_busy=status_fields['busy'],
+            status_inc_s_n=status_fields['inc_s_n'],
+            status_inc_d_n=status_fields['inc_d_n'],
+            control_inc_s_n=(program['control'] >> 29) & 1,
+            control_inc_d_n=(program['control'] >> 28) & 1,
+            payload=None, witness=witness_value, counter=case_index,
+            mcause_event_id=mcause_store, status_event_id=status_store,
+            length_event_id=length_store, witness_event_id=witness_store_id,
+            counter_event_id=counter_store),
+        irq=dict(edge_event_id=error_edge.get('event_id'),
+            edge_tick=error_edge.get('native_local_tick'), error=True,
+            source_start_event_id=start.get('event_id'),
+            source_tick=start.get('source_tick'),
+            cpu_take_event_id=take.get('event_id'),
+            external_event_id=external.get('event_id'),
+            external_tick=external.get('local_tick')),
+        tx_captures=[], tx_capture_count=0,
+        fifo_origin='unknown', source_authority='incomplete',
+        proof_grade='bounded_historical_chain')
+
+
 def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
                             action_ids=None, settled_access_ids=None):
     """Join one real journal slice into a completed descriptor case.
@@ -742,6 +1062,14 @@ def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
         raise RuntimeError('ISR witness pointer differs from the declared program')
     if witness_store[0].get('event_id') >= control_event.get('event_id'):
         raise RuntimeError('witness pointer must be committed before the DMA start')
+
+    if case.expect == 'environment_error':
+        return _certify_environment_error(witnesses, case, case_index=case_index,
+            program=program, action_ids=ids, frame_ids=frame_ids,
+            push_chain=push_chain, push_depths=push_depths,
+            cpu_pops=cpu_pops, cpu_fifo=cpu_fifo, cpu_values=cpu_values,
+            settled_pops=settled_pops, witness_pointer_store=witness_store[0],
+            tx_captures=tx_captures)
 
     # -- real master beats: read then write for every declared word ----------
     if len(witnesses.beats) != 2 * case.length:
@@ -953,11 +1281,15 @@ def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
     elif tx_captures:
         raise RuntimeError('a non-TX case must not transmit on the UART serial pin')
 
+    if witnesses.rejections or witnesses.environment_errors \
+            or witnesses.error_responses:
+        raise RuntimeError('a complete case must not contain an environment error')
     fifo_pops = [dict(kind='cpu', **fifo) for fifo in cpu_fifo]
     if case.direction == 'RX_TO_RAM':
         fifo_pops.extend(dict(kind='dma', source='dma-master', **beat['fifo'])
                          for beat in beat_rows)
     depths = [pop['post_depth'] for pop in fifo_pops]
+    status_fields = dma_status_fields(status)
     return dict(schema_version=CASE_SCHEMA, case_index=case_index,
         spec=case.to_document(), direction=case.direction,
         descriptor=dict(case.descriptor), source_bytes=list(case.source_bytes),
@@ -979,11 +1311,15 @@ def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
             depth_after=(depths[-1] if depths else None),
             max_depth=(max(push_depths) if push_depths else 0)),
         isr=dict(mcause=DMA_IRQ_MCAUSE, status=status, length=length_actual,
-            status_nread=(status >> 16) & 0x3FF,
-            status_blocklen_sub_one=status & 0x3FF,
-            status_error=(status >> 30) & 1,
-            status_inc_s_n=(status >> 29) & 1,
-            status_inc_d_n=(status >> 28) & 1,
+            status_bits=list(status_fields['bits']),
+            status_layout={name: list(bounds) for name, bounds
+                           in DMA_STATUS_LAYOUT.items()},
+            status_nread=status_fields['nread'],
+            status_blocklen_sub_one=status_fields['blocklen_sub_one'],
+            status_error=status_fields['error'],
+            status_busy=status_fields['busy'],
+            status_inc_s_n=status_fields['inc_s_n'],
+            status_inc_d_n=status_fields['inc_d_n'],
             control_inc_s_n=(program['control'] >> 29) & 1,
             control_inc_d_n=(program['control'] >> 28) & 1,
             payload=case.payload,
@@ -998,7 +1334,8 @@ def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
             external_event_id=external.get('event_id'),
             external_tick=external.get('local_tick')),
         tx_captures=list(tx_captures), tx_capture_count=len(tx_captures),
-        completed=True, fifo_origin='unknown', source_authority='incomplete',
+        outcome='complete', completed=True, sealed=True,
+        fifo_origin='unknown', source_authority='incomplete',
         proof_grade='bounded_historical_chain')
 
 
@@ -1318,6 +1655,10 @@ def run_descriptor_cases(cases, *, cache_dir: Path,
                 max_rounds_per_case=max_rounds_per_case, windows=windows))
         result = boot.finish()
         assert_plan_matches_cases(result.plan, specs)
+        for case, spec in zip(result.cases, specs):
+            if case.get('outcome') != spec.expect or case.get('sealed') is not True:
+                raise RuntimeError(
+                    'certified case outcome differs from the declared expectation')
         if (result.error is not None or result.trace is None
                 or result.trace.status != 'complete'
                 or result.uncertain_status['source_drift']):

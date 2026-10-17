@@ -15,10 +15,11 @@ Descriptor decode (fixed by this program)::
     dst_index = d2 & 3
     payload   = d3          # every transferred word equals this byte
 
-Direction code 3 is the declared illegal hook: it configures the declared
-illegal master target so a future S3 error-ISR increment can observe the real
-DMA error status.  S2 refuses that direction before any RTL command is issued,
-so no invalid case executes.
+Direction code 3 is the declared illegal hook.  It configures the one declared
+illegal master target (``ILLEGAL_TARGET``) as both source and destination, so
+the real ``wbdmac`` takes its bus-error path (``i_mwb_err``), raises its native
+interrupt, and the real ISR records the real status/length/mcause/counter.  S3
+enables that case with ``expect='environment_error'``; S2 refused it pre-RTL.
 
 Control word (wbdmac ``wbdmac.v``: bit 29 ``inc_s_n``, bit 28 ``inc_d_n``,
 bits 27..16 key 0xfed, bits 9..0 block length 1)::
@@ -84,6 +85,10 @@ ILLEGAL_TARGET = UART_BASE + 0x20
 DIRECTION_CODES = {'RX_TO_RAM': 0, 'RAM_TO_RAM': 1, 'RAM_TO_TX': 2,
                    'ILLEGAL': 3}
 DIRECTIONS = ('RX_TO_RAM', 'RAM_TO_RAM', 'RAM_TO_TX')
+#: Every descriptor direction the fixed firmware decodes.  ``ILLEGAL`` is a
+#: declared error case, not a dataflow direction: it reaches the real wbdmac
+#: bus-error path and is certified as ``environment_error``.
+DECLARED_DIRECTIONS = DIRECTIONS + ('ILLEGAL',)
 CONTROL_INC_S_N = 1 << 29
 CONTROL_INC_D_N = 1 << 28
 CONTROL_KEY = 0xFED
@@ -99,6 +104,58 @@ CONTROL_WORDS = {
 MAX_LENGTH = 4
 MAX_SOURCE_BYTES = DESCRIPTOR_WORDS + MAX_LENGTH
 
+# Declared wbdmac CONTROL/STATUS readback layout, copied from the pinned
+# ``third_party/soc-zipcpu/rtl/peripherals/wbdmac.v`` (header comment lines
+# 30-60 and the status concatenation near lines 604-608):
+#
+#   bit 31 busy              (dma_state != DMA_IDLE)
+#   bit 30 cfg_err           (stopped after a bus error)
+#   bit 29 !cfg_incs / inc_s_n
+#   bit 28 !cfg_incd / inc_d_n
+#   bit 27 always 0
+#   bits 26..16 nread
+#   bits 15..10 cfg_on_dev_trigger / cfg_dev_trigger
+#   bits 9..0   cfg_blocklen_sub_one
+#
+# These names let evidence carry the *measured* word plus named bits.  No
+# post-error status word is asserted here: the S3 gate must observe it first.
+DMA_STATUS_BUSY_BIT = 31
+DMA_STATUS_ERROR_BIT = 30
+DMA_STATUS_INC_S_N_BIT = 29
+DMA_STATUS_INC_D_N_BIT = 28
+DMA_STATUS_NREAD_LOW = 16
+DMA_STATUS_NREAD_HIGH = 26
+DMA_STATUS_BLOCKLEN_LOW = 0
+DMA_STATUS_BLOCKLEN_HIGH = 9
+DMA_STATUS_LAYOUT = {
+    'busy': [DMA_STATUS_BUSY_BIT, DMA_STATUS_BUSY_BIT],
+    'error': [DMA_STATUS_ERROR_BIT, DMA_STATUS_ERROR_BIT],
+    'inc_s_n': [DMA_STATUS_INC_S_N_BIT, DMA_STATUS_INC_S_N_BIT],
+    'inc_d_n': [DMA_STATUS_INC_D_N_BIT, DMA_STATUS_INC_D_N_BIT],
+    'nread': [DMA_STATUS_NREAD_LOW, DMA_STATUS_NREAD_HIGH],
+    'blocklen_sub_one': [DMA_STATUS_BLOCKLEN_LOW,
+                         DMA_STATUS_BLOCKLEN_HIGH],
+}
+
+
+def dma_status_fields(value):
+    """Named fields and set-bit positions of one measured DMA status word.
+
+    Pure decomposition of a real 32-bit readback; it starts no RTL and adds no
+    expected value.  Evidence stores both the raw word and ``bits`` so a later
+    audit can pin the exact post-error reading.
+    """
+    if type(value) is not int or not 0 <= value <= 0xFFFFFFFF:
+        raise ValueError('DMA status must be a real 32-bit readback')
+    def field(name):
+        low, high = DMA_STATUS_LAYOUT[name]
+        return (value >> low) & ((1 << (high - low + 1)) - 1)
+    return dict(raw=value, bits=[bit for bit in range(32)
+                                 if value & (1 << bit)],
+        busy=field('busy'), error=field('error'), inc_s_n=field('inc_s_n'),
+        inc_d_n=field('inc_d_n'), nread=field('nread'),
+        blocklen_sub_one=field('blocklen_sub_one'))
+
 
 def descriptor_program(direction, dst_index, length):
     """The exact real DMA program the CPU must write for one decoded case.
@@ -107,12 +164,23 @@ def descriptor_program(direction, dst_index, length):
     the declared program the journal evidence is checked against, not an input
     the firmware reads.
     """
-    if direction not in DIRECTIONS:
+    if direction not in DECLARED_DIRECTIONS:
         raise ValueError('undeclared descriptor direction')
     if type(dst_index) is not int or not 0 <= dst_index < DEST_WORDS:
         raise ValueError('dst_index is outside the declared destination window')
     if type(length) is not int or not 1 <= length <= MAX_LENGTH:
         raise ValueError('length is outside the declared descriptor window')
+    if direction == 'ILLEGAL':
+        # The fixed firmware's illegal path writes the declared illegal target
+        # into both SOURCE and DEST and drains the queued payload bytes; the
+        # first master read is rejected by the declared target environment, so
+        # no beat ever delivers data and the destination RAM is never written.
+        return dict(direction='ILLEGAL', source=ILLEGAL_TARGET,
+            destination=ILLEGAL_TARGET, length=length,
+            control=CONTROL_WORDS['ILLEGAL'], witness=DESTINATION,
+            source_words=(), destination_words=(), cpu_source_words=(),
+            attempted_source_words=(ILLEGAL_TARGET,),
+            attempted_destination_words=())
     if direction == 'RX_TO_RAM':
         source = UART_RDATA
         destination = DESTINATION + 4 * dst_index

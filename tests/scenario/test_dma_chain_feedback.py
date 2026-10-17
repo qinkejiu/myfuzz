@@ -18,7 +18,8 @@ MCAUSE = 0x8000000b
 
 
 def chain(byte, *, counter=1, matched=True, write_value=None, order=True,
-          environment_error=False, no_target_effect=False, tx=False):
+          environment_error=False, no_target_effect=False, tx=False,
+          real_receipt=False, status_value=0):
     """Build one case-sized journal slice with real attempt6 field names."""
     rows = []
 
@@ -55,7 +56,16 @@ def chain(byte, *, counter=1, matched=True, write_value=None, order=True,
     if no_target_effect:
         accepted = {**accepted, 'target_rejection': {'reason': 'environment_error'}}
     if environment_error or no_target_effect:
-        add(kind='dma_edge', native_local_tick=11, accepted=accepted, payload=payload)
+        edge = add(kind='dma_edge', native_local_tick=11, accepted=accepted,
+            payload=payload)
+        if real_receipt:
+            accepted['target_rejection'] = 'declared_master_target_access'
+            receipt = {'source_transaction': dict(delivery['source_transaction']),
+                'error': 1, 'target_effect': False,
+                'op': 'master_environment_error', 'address': accepted['address'],
+                'write': False, 'value': 0, 'byte_enable': 15,
+                'reason': 'declared_master_target_access'}
+            edge['environment_error_receipt'] = receipt
     else:
         accepted = {**accepted, 'target_delivery': delivery}
         add(kind='dma_edge', native_local_tick=10, accepted=accepted,
@@ -78,7 +88,8 @@ def chain(byte, *, counter=1, matched=True, write_value=None, order=True,
             source_event_id=1, cpu_tick=66, cpu_step_event_id=1)
         add(kind='cpu_external_irq_taken', component='cpu', local_tick=66)
         add(kind='memory_write', component='cpu', address=RESULT, value=MCAUSE)
-        add(kind='memory_write', component='cpu', address=RESULT + 4, value=0)
+        add(kind='memory_write', component='cpu', address=RESULT + 4,
+            value=status_value)
         add(kind='memory_write', component='cpu', address=RESULT + 8, value=byte)
         add(kind='memory_write', component='cpu', address=COMPLETED, value=counter)
     if tx:
@@ -215,3 +226,25 @@ def test_declared_feature_and_target_vocabulary_is_frozen():
         'isr_payload', 'isr_counter', 'env_error', 'no_target_effect',
         'ram_commit_cpu', 'ram_commit_dma', 'tx_capture')
     assert len(set(DMA_TARGETS)) == len(DMA_TARGETS)
+
+
+def test_real_top_level_environment_error_receipt_is_counted_once():
+    rows, _ = chain(0x5a, environment_error=True, real_receipt=True)
+    result = features(rows)
+    assert result.features.get('env_error') == 1
+    assert result.features.get('no_target_effect') == 1
+    assert result.target_error is True
+    assert result.completed_chain is False
+    assert 'dma_master_read' not in result.features
+
+
+def test_declared_status_error_bit_prevents_a_completed_chain():
+    rows, _ = chain(0x5a, status_value=1 << 30)
+    result = features(rows)
+    assert result.status_error is True
+    assert result.status_bits == (30,)
+    assert result.target_error is True
+    assert result.completed_chain is False
+    assert result.features.get('isr_status_error') == 1
+    assert is_declared_feature('isr_status_error')
+    assert 'isr.status' in result.targets

@@ -24,6 +24,11 @@ UART_STATUS_OFFSET = 0x14
 UART_RXEMPTY_MASK = 1 << 5
 UART_RDATA_OFFSET = 0x18
 DMA_IRQ_MCAUSE = 0x8000000b
+# Pinned wbdmac status layout (third_party/soc-zipcpu/rtl/peripherals/wbdmac.v
+# lines 30-60 and the status concatenation near 604-608): bit 30 is cfg_err.
+# Feedback uses the declared bit position only; a saved case carries the raw
+# measured word so a later audit can pin the exact post-error reading.
+DMA_STATUS_ERROR_BIT = 30
 DEPTH_BUCKETS = 4
 
 DMA_FEATURES = ("uart_frame_matched", "fifo_push", "fifo_cpu_pop", "fifo_dma_pop",
@@ -37,7 +42,7 @@ DMA_FEATURES = ("uart_frame_matched", "fifo_push", "fifo_cpu_pop", "fifo_dma_pop
 FEATURE_BUCKET_PREFIXES = ("fifo_push_depth_", "dma_target_", "payload_")
 
 # Diagnostic buckets that are deliberately not coverage claims.
-EXTRA_FEATURES = ("fifo_pop_unattributed",)
+EXTRA_FEATURES = ("fifo_pop_unattributed", "isr_status_error")
 
 DMA_TARGETS = ("uart.frame_matched", "uart.fifo_push", "uart.fifo_cpu_pop",
                "uart.fifo_dma_pop", "uart.status_nonempty", "dma.master_read",
@@ -78,6 +83,10 @@ class DmaChainFeatures:
     completed_chain: bool
     target_error: bool
     payloads: tuple[int, ...]
+    # S3: an observed ISR status word that reports the declared wbdmac error
+    # bit.  This is a classification aid, not authority and not a dataflow.
+    status_error: bool = False
+    status_bits: tuple[int, ...] = ()
 
 
 def is_declared_feature(key: str) -> bool:
@@ -233,13 +242,21 @@ def dma_chain_features(events: Sequence[dict], *, start: int, end: int,
             if _pulse_observed(event):
                 _bump(counts, targets, "dma_irq_pulse")
                 pulses.append(event)
-            if _int(payload.get("error")) and payload["error"] == 1:
-                _bump(counts, targets, "env_error")
-            if isinstance(payload.get("environment_error_receipt"), dict):
+            # The real S3 journal puts the receipt on the dma_edge record (the
+            # S1b feedback originally looked only inside payload).  Count one
+            # real environment error per edge, never both shapes twice.
+            receipt = event.get("environment_error_receipt")
+            if receipt is None and isinstance(payload, dict):
+                receipt = payload.get("environment_error_receipt")
+            rejected = (isinstance(accepted, dict)
+                        and isinstance(accepted.get("target_rejection"),
+                                       (dict, list, str)))
+            if (isinstance(receipt, dict) or rejected
+                    or (_int(payload.get("error")) and payload["error"] == 1)):
                 _bump(counts, targets, "env_error")
             if isinstance(accepted, dict):
                 write = accepted.get("write")
-                if isinstance(accepted.get("target_rejection"), (dict, list, str)):
+                if rejected:
                     _bump(counts, targets, "no_target_effect")
                 elif write is True or write is False:
                     _bump(counts, targets,
@@ -285,16 +302,30 @@ def dma_chain_features(events: Sequence[dict], *, start: int, end: int,
                      for start_event in source_starts)]
     if joined:
         _bump(counts, targets, "cpu_irq_take")
+    status = status_store.get("value") if status_store is not None else None
+    status_error = (_int(status) and bool(status & (1 << DMA_STATUS_ERROR_BIT)))
+    status_bits = (tuple(bit for bit in range(32) if status & (1 << bit))
+                   if _int(status) and 0 <= status <= 0xffffffff else ())
+    if status_error:
+        counts["isr_status_error"] += 1
+        targets.add("isr.status")
+    target_error = bool(counts.get("env_error") or counts.get("no_target_effect")
+                        or status_error)
     completed = _completed_chain(frames, pops, writes, pulses, joined,
-                                 mcause, payload_store)
+                                 mcause, payload_store, target_error=target_error)
     return DmaChainFeatures(features=dict(sorted(counts.items())),
         targets=tuple(sorted(targets)), completed_chain=completed,
-        target_error=bool(counts.get("env_error") or counts.get("no_target_effect")),
-        payloads=tuple(payloads))
+        target_error=target_error, payloads=tuple(payloads),
+        status_error=bool(status_error), status_bits=status_bits)
 
 
-def _completed_chain(frames, pops, writes, pulses, takes, mcause, payload_store) -> bool:
+def _completed_chain(frames, pops, writes, pulses, takes, mcause, payload_store,
+                     *, target_error=False) -> bool:
     """Chain-level witness only; the per-case certificate stays authoritative."""
+    if target_error:
+        # A real environment error is never a successful dataflow, even if a
+        # slice happens to contain a stray write or pop.
+        return False
     if (len(frames) != 1 or len(pops) != 1 or len(writes) != 1
             or len(pulses) != 1 or len(takes) != 1
             or mcause is None or payload_store is None):

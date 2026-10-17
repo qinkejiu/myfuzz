@@ -103,7 +103,8 @@ def test_descriptor_three_directions_multiword_and_fresh_replay(tmp_path):
             images={hex(address): len(image) for address, image
                     in descriptor_uart_images().items()}),
         claim=dict(fifo_origin='unknown', source_authority='incomplete',
-            error_isr='S3 not implemented', prefix_replay='S4 not implemented')
+            error_isr='separate S3 gate: test_dma_error_isr_real.py',
+            prefix_replay='S4 not implemented')
     ), sort_keys=True, indent=1), encoding='utf-8')
 
     assert result.phase == 'complete' and result.error is None
