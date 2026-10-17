@@ -9,8 +9,16 @@ def test_public_case_loop_advances_poll_cursor_without_discarding_history(monkey
         def __init__(self):
             self.rows = []
             self.queries = []
-            self.sessions = dict(cpu=SimpleNamespace(router=SimpleNamespace(ready_targets=('uart',))),
-                uart=SimpleNamespace(source_events=[], register_access_conflict=lambda: None))
+            # The boot records per-case prefix boundaries, so the fake runner
+            # carries the same component/execution surface as a real one.
+            self.local_ticks = dict(cpu=0, dma=0, uart=0)
+            self.execution_id = '4' * 32
+            self.sessions = dict(
+                cpu=SimpleNamespace(router=SimpleNamespace(ready_targets=(('uart',))),
+                    execution='1' * 32, identity_document=lambda: {}, _execution='1' * 32),
+                dma=SimpleNamespace(identity_document=lambda: {}, _execution='2' * 32),
+                uart=SimpleNamespace(source_events=[], register_access_conflict=lambda: None,
+                    identity_document=lambda: {}, _execution='3' * 32))
         def set_resource_budget(self, budget):
             pass
         @property
@@ -25,6 +33,7 @@ def test_public_case_loop_advances_poll_cursor_without_discarding_history(monkey
         def __init__(self, template, selected):
             assert selected is runner
             self.rounds = 0
+            self.commands = ()
         def begin(self):
             pass
         def submit_source_event(self, event):
@@ -33,6 +42,8 @@ def test_public_case_loop_advances_poll_cursor_without_discarding_history(monkey
                 action_id=event.action_id, waveform_matched=True))
         def advance(self, schedule):
             runner.rows.append(dict(kind='native_progress'))
+            for component in schedule:
+                runner.local_ticks[component] += 1
             if schedule == ('dma', 'cpu', 'uart'):
                 self.rounds += 1
                 if self.rounds == 2:
