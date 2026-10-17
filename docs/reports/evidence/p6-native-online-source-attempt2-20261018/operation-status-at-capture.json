@@ -1,0 +1,21 @@
+{
+  "cases_or_fresh_pass_claimed": false,
+  "gate_attempt": 3,
+  "gate_parent_pid": 4046776,
+  "parent_is_not_DUT_pid": true,
+  "process_evidence_scope": "child PIDs from root read-only proc observation; this archive has local parent observations only, not new proc/model evidence",
+  "remote_or_native_commands_run_by_this_collection": false,
+  "root_reported_actual_harness_children": [
+    {
+      "cache_prefix": "bb212",
+      "pid": 4108968
+    },
+    {
+      "cache_prefix": "1d9df",
+      "pid": 4109109
+    }
+  ],
+  "root_reported_outer_session": 11654,
+  "source_attempt": 2,
+  "status": "third_gate_parent_live_no_terminal"
+}

@@ -1,0 +1,282 @@
+[
+  {
+    "bytes": 2272,
+    "path": "README.md",
+    "sha256": "15fe94c7aca6b8f2ccc132bec0f9c17e5800d763ad222a7a6765b5aba3d673f8",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/README.md"
+  },
+  {
+    "bytes": 0,
+    "path": "attempt2-upload.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/attempt2-upload.stderr"
+  },
+  {
+    "bytes": 188,
+    "path": "attempt2-upload.stdout",
+    "sha256": "d4c169a333dec25759eb7cb4901dbee1f96e639514054bb07acda19ff88b13dd",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/attempt2-upload.stdout"
+  },
+  {
+    "bytes": 717,
+    "path": "attempt3-observation-1.json",
+    "sha256": "70e280cf321e475282882ed19319a63774e6dcb7cb93eaa576c3cd39f8f1c163",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/attempt3-observation-1.json"
+  },
+  {
+    "bytes": 718,
+    "path": "attempt3-observation-2.json",
+    "sha256": "28f381ffee0abae4185b123e14708c862f4fca60eb5bb090ff2921bcf3d82234",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/attempt3-observation-2.json"
+  },
+  {
+    "bytes": 0,
+    "path": "attempt3-upload.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/attempt3-upload.stderr"
+  },
+  {
+    "bytes": 188,
+    "path": "attempt3-upload.stdout",
+    "sha256": "cdc7524bec02d6fb2c91a79043bfdbeff01cc33404a32f240ea498af9942a67d",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/attempt3-upload.stdout"
+  },
+  {
+    "bytes": 0,
+    "path": "controller-upload.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/controller-upload.stderr"
+  },
+  {
+    "bytes": 258,
+    "path": "controller-upload.stdout",
+    "sha256": "a81776bf779f760602bb13f8049b2b14381eb3178161840b9513cd6d77b82274",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/controller-upload.stdout"
+  },
+  {
+    "bytes": 0,
+    "path": "copy-attempt2-upload.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/copy-attempt2-upload.stderr"
+  },
+  {
+    "bytes": 65,
+    "path": "copy-attempt2-upload.stdout",
+    "sha256": "b739e6a2c1f7dd31c811cbe0a710088ad7d64abf7f89115aa90b9d5ef4541ace",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/copy-attempt2-upload.stdout"
+  },
+  {
+    "bytes": 0,
+    "path": "copy-attempt2.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/copy-attempt2.stderr"
+  },
+  {
+    "bytes": 3500,
+    "path": "copy-attempt2.stdout",
+    "sha256": "95de0a7a4118596f5c537243c6a5206b93c2d7343802f402d6a2baab60b99092",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/copy-attempt2.stdout"
+  },
+  {
+    "bytes": 0,
+    "path": "copy.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/copy.stderr"
+  },
+  {
+    "bytes": 886,
+    "path": "copy.stdout",
+    "sha256": "485dca0d872baaaf42ae22d2185c9da963555959908de2de7d921976d5cbb081",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/copy.stdout"
+  },
+  {
+    "bytes": 0,
+    "path": "download.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/download.stderr"
+  },
+  {
+    "bytes": 435,
+    "path": "independent-copy-review.json",
+    "sha256": "dfef1805ecef8aade43409d0f82e26ae0b3e6cdaac1c2adfde7d9c53291aa0ce",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/independent-copy-review.json"
+  },
+  {
+    "bytes": 499,
+    "path": "launch-native-attempt2.sh",
+    "sha256": "8fa47000fb621d6a5916b93eaa5e37cca7d7ae57c6dd0cafb42e50d7e7907f74",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/launch-native-attempt2.sh"
+  },
+  {
+    "bytes": 499,
+    "path": "launch-native-attempt3.sh",
+    "sha256": "65457352eedbe725869081c23732c397ed83763953a778c0e0015ac95197f608",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/launch-native-attempt3.sh"
+  },
+  {
+    "bytes": 490,
+    "path": "launch-native.sh",
+    "sha256": "90fdd9395b427b5dcb789fd456dbce0b4f73a9cda171d0b5bba603260bd14499",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/launch-native.sh"
+  },
+  {
+    "bytes": 0,
+    "path": "native-attempt2-parent.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/native-attempt2-parent.stderr"
+  },
+  {
+    "bytes": 0,
+    "path": "native-attempt2-parent.stdout",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/native-attempt2-parent.stdout"
+  },
+  {
+    "bytes": 0,
+    "path": "native-attempt3-parent.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/native-attempt3-parent.stderr"
+  },
+  {
+    "bytes": 0,
+    "path": "native-attempt3-parent.stdout",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/native-attempt3-parent.stdout"
+  },
+  {
+    "bytes": 811,
+    "path": "native-parent.stderr",
+    "sha256": "02e09f3de5294c372e5f6724633c59571a2007079e26b50fb1defd45725a8bc9",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/native-parent.stderr"
+  },
+  {
+    "bytes": 0,
+    "path": "native-parent.stdout",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/native-parent.stdout"
+  },
+  {
+    "bytes": 717,
+    "path": "observation-1.json",
+    "sha256": "859b8f920d3763f23770ce9c0839842a3b5b5be546003bc28c235c108ee6b929",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/observation-1.json"
+  },
+  {
+    "bytes": 1212,
+    "path": "observation-2.json",
+    "sha256": "0282c9c158bc9d7252061e1d051ffcd00d7b8cdf95f7c67448fe35ad0a9a8d7e",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/observation-2.json"
+  },
+  {
+    "bytes": 1101,
+    "path": "observe-attempt3.py",
+    "sha256": "300c443b0513a70fcc798565fb97a557acc7f93eef412b4f3ed023d55a2e8d02",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/observe-attempt3.py"
+  },
+  {
+    "bytes": 1101,
+    "path": "observe.py",
+    "sha256": "808ed657e48e181dba07df03eb5f9dc88547ebe87fcb960c7a1c4428248b5a38",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/observe.py"
+  },
+  {
+    "bytes": 10988,
+    "path": "prepare_p6_copy.py",
+    "sha256": "a449fe1f8ce0ffd74a2c5bcb6f562b4dfc001674650b2a52142b6e9e53be7dd4",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/prepare_p6_copy.py"
+  },
+  {
+    "bytes": 12446,
+    "path": "prepare_p6_copy_attempt2.py",
+    "sha256": "baacdbffdfda9340d918e8ec487e70e55e41c6e1e281c246e52a6076bd61ddbd",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/prepare_p6_copy_attempt2.py"
+  },
+  {
+    "bytes": 2823,
+    "path": "review_copy.py",
+    "sha256": "d49fe55b162459f29ce10a7a1c0353e11adc137566bd9363d668660d2dc2cc6a",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/review_copy.py"
+  },
+  {
+    "bytes": 6687,
+    "path": "run_p6.py",
+    "sha256": "3a30adc6f906e168d53580a9108f77346f5f8afb9a2c3faf16ef338f99a0d7fe",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/run_p6.py"
+  },
+  {
+    "bytes": 6816,
+    "path": "run_p6_attempt2.py",
+    "sha256": "b530f9c03769fd0824139d9f23d0fcb45d2cd50a333654e637617be5fc494a51",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/run_p6_attempt2.py"
+  },
+  {
+    "bytes": 6816,
+    "path": "run_p6_attempt3.py",
+    "sha256": "f216bc95f80f93c8ae01282ac8210f27f6ee3ee590ddce49d027b8a98c04a56a",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/run_p6_attempt3.py"
+  },
+  {
+    "bytes": 0,
+    "path": "source-attempt2-review/download.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/source-attempt2-review/download.stderr"
+  },
+  {
+    "bytes": 434,
+    "path": "source-attempt2-review/independent-copy-review.json",
+    "sha256": "f7095ea5bd33d0f6cfa5bd147e17d112aa1399c12e79af0fd7b8bc33b7bbc539",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/source-attempt2-review/independent-copy-review.json"
+  },
+  {
+    "bytes": 0,
+    "path": "upload.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/upload.stderr"
+  },
+  {
+    "bytes": 65,
+    "path": "upload.stdout",
+    "sha256": "45d7b17c1db3398fb7b068dfc1d402aff4fe06992b2cbd042f1b2b3ea8c47f26",
+    "source_after_matches_captured": true,
+    "sourcepath": "/tmp/p6-native-copy-control-20261018/upload.stdout"
+  }
+]

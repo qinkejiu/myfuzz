@@ -1,0 +1,10 @@
+{
+  "status": "independent_file_directory_review_passed",
+  "files": 8887,
+  "directories": 600,
+  "file_freeze_sha256": "50145c2408804a76c6ff651cefbb143aae17cd1be18559f79ea6386b510e2cc4",
+  "receipt_sha256": "c6f570ae39acfd44aec14c2391cfe5c4e1f686707db0bd07f7f926d920b9a017",
+  "directory_sha256": "7cf80b4ce94a31703f41df19307efe7227090ba330130acbe1d1a4a8bf5417ad",
+  "old_source_unchanged": true,
+  "static_host_source_count": 63
+}

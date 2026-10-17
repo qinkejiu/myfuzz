@@ -1,0 +1,36 @@
+{
+  "all_local_records_stable_during_capture": true,
+  "files": {
+    "independent-copy-review.json": {
+      "bytes": 434,
+      "sha256": "f7095ea5bd33d0f6cfa5bd147e17d112aa1399c12e79af0fd7b8bc33b7bbc539"
+    },
+    "local-control-records.tar.gz": {
+      "bytes": 11884,
+      "sha256": "78ee358db6c5237189a59b9c4c916f08bb4aa15f9135066c94fac7393e016b79"
+    },
+    "local-members.json": {
+      "bytes": 10754,
+      "sha256": "df972eb508755ada75da99e5bb73a8ae11e4dc7b2486b928157f8803270d8089"
+    },
+    "operation-status-at-capture.json": {
+      "bytes": 637,
+      "sha256": "30fc7d0710afabeff3b5eead0d10c76f987b7a1d6c3bb370cd74b7e78ba75677"
+    },
+    "remote-copy-control.tar.gz": {
+      "bytes": 2431112,
+      "sha256": "9f4328ecd395097af7bd226ab74b2c3500d2ec8edd60fc85370323765580c6aa"
+    },
+    "static-host-source-audit.json": {
+      "bytes": 18051,
+      "sha256": "3e33a413a7498b626f19bd71d689241a67f52cef608b10034bdbe22e0ff428ab"
+    }
+  },
+  "local_record_count": 40,
+  "operation_terminal_claimed": false,
+  "original_archive_preserved_byte_for_byte": true,
+  "original_remote_copy_archive_source": "/tmp/p6-native-copy-control-20261018/source-attempt2-review/remote-copy-control.tar.gz",
+  "project_import_tests_build_models_executed": false,
+  "remote_commands_executed": false,
+  "scope": "original second-source copy-control archive plus local controllers/observations and static audit only; live operation not complete"
+}
