@@ -1,0 +1,21 @@
+{
+  "status": "selection_reviewed_for_explicit_preparation",
+  "selection_sha256": "1227ac39a03200b6646bbc1ca91a24ae748c6c8600cd2cf6675530f82b333e55",
+  "files": 15333,
+  "directories": 1330,
+  "bytes": 798107295,
+  "source": "/root/fanzehui/myfuzz/operations/p7-i5-independent-601964f-20261018-attempt2/staging",
+  "destination": "/root/fanzehui/myfuzz/operations/p7-i5-independent-601964f-20261018-attempt2/project",
+  "git_head_files": {
+    ".git": "ref: refs/heads/codex/system-completion-20261016",
+    ".git/modules/external_designs/cv32e40p": "6033d2b1be3295ec774d17ac4cf226faacfdeb08",
+    ".git/modules/external_designs/rvx": "38bdee0ef8da0b606b7024f85934898e99963756",
+    ".git/modules/third_party/soc-pulp-apb-i2c": "84855413cc2c8e70209ee7f168a0225d3c5914a1",
+    ".git/modules/third_party/soc-pulp-apb-timer": "03eba2e6965f5363df12621882bc70498c551a73",
+    "third_party/cv32e20_upstream_reference/.git": "ref: refs/heads/main",
+    "third_party/rfuzz/upstream/ibex/.git": "34b0705760ef3dfa00e99637432473d2be8f22f3",
+    "third_party/soc-pulp-apb-gpio/.git": "ref: refs/heads/master"
+  },
+  "original_source_unchanged": true,
+  "formal_p7_complete": false
+}

@@ -1,0 +1,38 @@
+{
+  "operation-stage-plan-running-history.json": {
+    "bytes": 512,
+    "sha256": "4b449f03c81f7c2be2a484d2e1e751d61e3082b0e3b547e70df3bf00064f0c82"
+  },
+  "operation.json": {
+    "bytes": 1736,
+    "sha256": "9bd206e7e56c780815f3505f3dcd3d487f03125edb6468362a0048ed4070d284"
+  },
+  "remote-stage-control.tar.gz": {
+    "bytes": 3695344,
+    "sha256": "fdbd5017cffdf4aa4f917f37cd54f38a24622cb4131e18c8466fea7b398a9c7c"
+  },
+  "remote-stage-members.json": {
+    "bytes": 2001,
+    "sha256": "8872c34d98c923064bc692d3d47ced1a7403e28f21d01ef7cff3ba13a45a8e1f"
+  },
+  "review_stage.py": {
+    "bytes": 2294,
+    "sha256": "e0cdd37e70f84daabb07e95544ae8865c632ca6d6edbe050a623354d3d75a607"
+  },
+  "run_attempt2.py": {
+    "bytes": 3190,
+    "sha256": "deb9ef0398c317735f921dd4e2acceb6cc220e6d86b3d32c220596fe24015776"
+  },
+  "stage-independent-review.json": {
+    "bytes": 1172,
+    "sha256": "09909c5b75c93aababa5c0c50743773572c3e25b7656c8ad9a42ea78381f1fa0"
+  },
+  "stage.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "stage.stdout": {
+    "bytes": 181,
+    "sha256": "52aa906c1e1c3d803369375f11216bad87e1709e42630ad8b625a9d9c182cf0b"
+  }
+}

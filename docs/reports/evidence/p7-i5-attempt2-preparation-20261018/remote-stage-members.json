@@ -1,0 +1,67 @@
+[
+  {
+    "path": "./stage-plan.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "./stage-plan.launch.json",
+    "bytes": 1241,
+    "sha256": "3982c5aec10ff9bb52633db8f87296182e64ca9afe4a47670dafc1b0a12525f9"
+  },
+  {
+    "path": "./stage-plan-source-after-directories.json",
+    "bytes": 102898,
+    "sha256": "6e4e9e26968cb643a5a06e63b7fc62b6082727140c56da6edc63707e128dafe2"
+  },
+  {
+    "path": "./explicit-transform.json",
+    "bytes": 1290,
+    "sha256": "0ff48b2b2498a911529478d6b9bfe96afe56c18fd87cdf3e9991a81e2ac345d7"
+  },
+  {
+    "path": "./staging-files.json",
+    "bytes": 3009686,
+    "sha256": "e3d2eaa2937fd665ad816250e976e7745cefe220a71e51a5815a892bd35a13fa"
+  },
+  {
+    "path": "./stage-plan.stdout",
+    "bytes": 156,
+    "sha256": "28bdfe94f7fb851a801534547e15d0621a2d3c9d5b328d8575d12a2f438fe879"
+  },
+  {
+    "path": "./stage-plan-source-before-directories.json",
+    "bytes": 102898,
+    "sha256": "6e4e9e26968cb643a5a06e63b7fc62b6082727140c56da6edc63707e128dafe2"
+  },
+  {
+    "path": "./staging-directories.json",
+    "bytes": 103119,
+    "sha256": "c761f00fd62d50a71ba6941df5822d1dfc41d4e7a09e0cb03446e3c036aefae3"
+  },
+  {
+    "path": "./stage-plan-result.json",
+    "bytes": 191,
+    "sha256": "3e6385aad94f62e2abdf497cdb9eea495960c3fa44f64bd431c1ec5e7439f258"
+  },
+  {
+    "path": "./stage-plan.terminal.json",
+    "bytes": 1324,
+    "sha256": "5f1fa088803e96afcdd337c4fe8e71242da77100e44e4c57893a2a3694615dc4"
+  },
+  {
+    "path": "./stage-plan-source-after-files.json",
+    "bytes": 3009686,
+    "sha256": "b6372fcdb7ca1e93c289f850b0d53bc421c571204a65b86bd828815eb1f13dd2"
+  },
+  {
+    "path": "./selection-v2.json",
+    "bytes": 3275410,
+    "sha256": "1227ac39a03200b6646bbc1ca91a24ae748c6c8600cd2cf6675530f82b333e55"
+  },
+  {
+    "path": "./stage-plan-source-before-files.json",
+    "bytes": 3009686,
+    "sha256": "b6372fcdb7ca1e93c289f850b0d53bc421c571204a65b86bd828815eb1f13dd2"
+  }
+]
