@@ -337,13 +337,47 @@ class CompiledOnlineDecoder:
                          ) -> CompiledCandidate:
         """Decode one raw record into the exact declared candidate."""
         self.verify()
+        self._check_cursor(cursor)
+        if self._cursor_provider is not None and cursor != self._cursor_provider():
+            raise CompiledCandidateRefused('cursor-not-the-declared-cursor',
+                                           detail={'cursor': cursor})
+        return self._decode_at(raw, cursor=cursor, case_index=case_index,
+                               case_id=case_id)
+
+    def decode_sequence(self, records, *, cursor, case_index
+                        ) -> tuple[CompiledCandidate, ...]:
+        """Decode one whole RFuzz test (1..8 declared decision records).
+
+        Every record is validated and its exact future cursor is planned here,
+        before the caller issues any native command.  The first record must
+        start at the runtime's declared cursor; each following record starts
+        where the previous declared instruction fragment ends.
+        """
+        self.verify()
+        self._check_cursor(cursor)
+        if self._cursor_provider is not None and cursor != self._cursor_provider():
+            raise CompiledCandidateRefused('cursor-not-the-declared-cursor',
+                                           detail={'cursor': cursor})
+        if (not isinstance(records, tuple) or not records
+                or any(type(record) is not bytes for record in records)):
+            raise CompiledCandidateRefused('sequence-record-required')
+        planned = []
+        current = cursor
+        for offset, raw in enumerate(records):
+            candidate = self._decode_at(raw, cursor=current,
+                                        case_index=case_index + offset)
+            planned.append(candidate)
+            current += len(candidate.declaration['code_hex']) // 2
+        return tuple(planned)
+
+    def _check_cursor(self, cursor):
         if type(cursor) is not int or cursor % 4:
             raise CompiledCandidateRefused('cursor-invalid')
         if not self.instruction_start <= cursor < self.instruction_end:
             raise CompiledCandidateRefused('cursor-outside-image')
-        if self._cursor_provider is not None and cursor != self._cursor_provider():
-            raise CompiledCandidateRefused('cursor-not-the-declared-cursor',
-                                           detail={'cursor': cursor})
+
+    def _decode_at(self, raw, *, cursor, case_index, case_id=None):
+        """Decode one record at an already validated/planned cursor."""
         if type(case_index) is not int or case_index < 0:
             raise CompiledCandidateRefused('case-index-invalid')
         projection = project_wire_record(self.layout, raw,

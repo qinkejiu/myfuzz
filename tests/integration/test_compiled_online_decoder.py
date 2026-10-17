@@ -13,6 +13,7 @@ from hashlib import sha256
 import json
 from pathlib import Path
 import re
+import struct
 
 import pytest
 
@@ -20,12 +21,15 @@ from myfuzz.integration import compiled_f4 as compiled_f4_module
 from myfuzz.integration.compiled_candidate_layout import compile_candidate_layout
 from myfuzz.integration.compiled_f4 import normalized_semantic_sha256
 from myfuzz.integration.compiled_rfuzz import (
+    COMPILED_WIRE_CYCLES,
     CompiledRfuzzExecutor,
     compiled_commit_targets,
     fresh_verification_document,
     join_compiled_receipts,
+    parse_compiled_input_buffer,
 )
-from myfuzz.integration.rfuzz_wire import InputBatch
+from myfuzz.integration.rfuzz_wire import INPUT_MAGIC, InputBatch
+from myfuzz.integration.scenario_rfuzz import ScenarioRfuzzExecutor
 from myfuzz.local_harness.auto_harness_test import (
     build_path_compile_request,
     load_composition,
@@ -158,6 +162,19 @@ def _executor(inputs, path, runtime):
 
 def _batch(*raws, buffer_id=1):
     return InputBatch(buffer_id, WIRE, tuple((raw,) for raw in raws))
+
+
+def _wire(*tests):
+    """One RFuzz input-buffer frame: each test is a tuple of 8-byte records."""
+    header = struct.pack('>IIHHHH', INPUT_MAGIC, 1, len(tests), 0, 0, 0)
+    body = b''.join(struct.pack('>Q', len(records)) + b''.join(records)
+                    for records in tests)
+    return header + body
+
+
+def _high_byte_records(count):
+    return tuple(bytes([0, 0, 0, 0x80 if index % 2 else 0x01]) + bytes(4)
+                 for index in range(count))
 
 
 def test_decoder_document_records_the_exact_compiled_path_and_source_ids(gpio):
@@ -471,3 +488,69 @@ def test_fresh_verification_scope_comes_from_the_full_prefix_replay():
     assert difference['first_difference'] == '/semantic_hash'
     absent = fresh_verification_document({}, plan)
     assert absent['matches'] is False
+
+
+def test_the_compiled_wire_cycle_limit_matches_the_scenario_fields():
+    from myfuzz.integration.scenario_rfuzz_live import _DECISION_FIELDS
+    assert COMPILED_WIRE_CYCLES == len(_DECISION_FIELDS) == 8
+
+
+def test_one_and_eight_cycle_tests_parse_and_more_is_refused():
+    one = parse_compiled_input_buffer(_wire((bytes(8),)))
+    assert len(one.tests) == 1
+    assert one.tests[0] == (bytes(8),)
+
+    records = _high_byte_records(8)
+    eight = parse_compiled_input_buffer(_wire(records))
+    assert len(eight.tests) == 1
+    assert eight.tests[0] == records
+
+    nine = _wire(tuple(bytes(8) for _ in range(9)))
+    with pytest.raises(ValueError, match='test cycle count outside bound'):
+        parse_compiled_input_buffer(nine)
+
+
+def test_an_eight_cycle_test_executes_every_record_with_one_receipt(gpio):
+    _, inputs, path = gpio
+    runtime = _FakeRuntime(path, inputs['compiled'], max_cases=16)
+    executor = _executor(inputs, path, runtime)
+    records = _high_byte_records(8)
+    coverages = executor.execute_batch(InputBatch(5, WIRE, (records,)))
+    assert len(runtime.submits) == 8
+    assert len(runtime.records) == 8
+    assert len(coverages) == 1 and int(coverages[0].hex(), 16) != 0
+    assert len(executor.receipts) == 1
+    receipt = executor.receipts[0]
+    assert receipt.status == 'certified'
+    assert receipt.path_id == path['path_id']
+    assert receipt.total_local_ticks == 8 * 30
+    assert receipt.local_ticks == {'processor': 80, 'peripheral': 160}
+    source = receipt.online_case['source']
+    assert source['schema_version'] == 'compiled_online_sequence.v1'
+    assert source['candidate_count'] == 8
+    assert source['values'] == [int.from_bytes(record[:4], 'little')
+                                for record in records]
+    decision = executor._online_decisions_by_slot[(5, 0)]
+    assert decision['cycle_count'] == 8
+    assert decision['candidate_count'] == 8
+    assert decision['candidate_disposition_reason'] == 'rtl_case_committed'
+    assert decision['source_id'] == 'peripheral.GPIOEN.value.mmio'
+
+
+def test_an_eight_cycle_test_over_max_cases_refuses_before_any_submit(gpio):
+    _, inputs, path = gpio
+    runtime = _FakeRuntime(path, inputs['compiled'], max_cases=4)
+    executor = _executor(inputs, path, runtime)
+    records = _high_byte_records(8)
+    executor.execute_batch(InputBatch(6, WIRE, (records,)))
+    assert runtime.submits == []
+    assert runtime.records == []
+    receipt = executor.receipts[0]
+    assert receipt.status == 'input_invalid'
+    assert 'case-budget-exhausted' in (receipt.error or '')
+    assert executor._session_stop_reason == 'case-budget-exhausted'
+
+
+def test_the_compiled_executor_overrides_the_one_cycle_wire_parser():
+    assert (CompiledRfuzzExecutor.process_owned_pair
+            is not ScenarioRfuzzExecutor.process_owned_pair)

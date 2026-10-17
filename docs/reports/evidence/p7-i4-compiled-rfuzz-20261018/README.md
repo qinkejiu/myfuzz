@@ -1,12 +1,16 @@
 # P7 I4 compiled candidate → RFuzz continuous search — pure-software handoff
 
 Commit lineage: started at `00dd54d`; concurrent `P8 S3` commits landed during
-the turn, so the source commit's parent is `0eff9a7` (the I4 files are the only
-ones that commit adds).
+the turn. The I4 work is `2a9e84b` (bridge), the digest fix (`4b66185`, amended
+to `2b713f2`) and this wire follow-up; the follow-up's parent is the then-current
+`P8 S3` HEAD, and every I4 commit adds only the I4 files.
 
-Status: **PURE SOFTWARE ONLY. No real RTL/RFuzz gate was run by this
-implementation turn.** The source is committed for the root session to freeze
-and run the real gate; nothing here is gate evidence.
+Status: **PURE SOFTWARE + a cited root-session native attempt.** This
+implementation turn did not run a real RTL/RFuzz gate. The root session's native
+attempt (`runs/p7-i4-real-2b713f2c`) is summarized from its own artifacts and is
+**not a pass**: one seed receipt was certified, then the inherited wire parse
+refused the real eight-cycle test. The wire fix awaits the root rerun; no gate
+result is claimed here.
 
 ## What landed
 
@@ -15,8 +19,11 @@ and run the real gate; nothing here is gate evidence.
     compile request (`compile_paths(request) == compiled`) and binds the layout
     issued by `compile_candidate_layout(path)`; `from_runtime(...)` binds the
     runtime's own already-issued layout object and checks the cursor.
-  - `decode_candidate(raw, cursor=...)` projects the exact declared byte prefix
-    of one eight-byte RFuzz wire record onto the `CandidateLayout`, calls
+  - `decode_sequence(records, cursor=...)` plans 1..8 records of one real
+    RFuzz test as an ordered candidate sequence (all values, masks and slot
+    budgets checked before any native command); `decode_candidate(raw, ...)`
+    is the one-record form. Each record projects the exact declared byte prefix
+    of the eight-byte RFuzz wire record onto the `CandidateLayout`, calls
     `declare_writer(request, compiled, source_id=<D3 cpu_mmio_stream id>,
     value=..., result_address=<runtime result word>)` and carries the exact
     `source_id`, `path_id`, register contract, value, compiled digest, layout
@@ -34,8 +41,13 @@ and run the real gate; nothing here is gate evidence.
     `ScenarioRfuzzExecutor` only to pass the transport's executor gate; it
     initializes the shared executor surface explicitly, checks that surface,
     and overrides every genome/online operation it does not use).
-  - Feeds each decoded raw record to `runtime.submit(...)`; maps each returned
-    certificate to one `ScenarioRfuzzReceipt` with the real path/source/status,
+  - Overrides `process_owned_pair` to parse with the real eight-cycle scenario
+    bound (`COMPILED_WIRE_CYCLES=8`, 1..8 accepted, >8 refused, never clipped),
+    decodes a test's records as one ordered candidate sequence and executes
+    them in order in the same runtime, then emits one aggregate coverage
+    vector/receipt/`receipts.jsonl` row for that wire test.
+  - Maps each returned certificate to one `ScenarioRfuzzReceipt` with the real
+    path/source/status,
     real per-component local ticks, the certificate digest and one
     `session/receipts.jsonl` row per slot (the transport persists it).
   - Exposes 8 real coverage targets: `compiled_f4.<target>.<register>
@@ -77,9 +89,10 @@ and run the real gate; nothing here is gate evidence.
 
 ## Design deviation the root session must review
 
-The RFuzz decision wire in this tree is **one eight-byte record per test**
-(`RECORD_BYTES=8`; scenario-mode input fields are 8 × 8 bits). The PULP timer
-F4 candidate is **four bytes** (`configs/scenarios/compiled-f4-obi-apb-timer*`
+The RFuzz decision wire in this tree is **one eight-byte record per decision**
+(`RECORD_BYTES=8`; scenario-mode input fields are 8 × 8 bits), and one real
+scenario **test** may carry 1..8 such records (cycles). The PULP timer F4
+candidate is **four bytes** (`configs/scenarios/compiled-f4-obi-apb-timer*`
 README: "Each candidate is 4 bytes: the CPU MMIO word alone"). An exact
 four-byte layout therefore cannot be a whole RFuzz wire record.
 
@@ -91,7 +104,9 @@ in the receipt's `raw_records_hex`, and the runtime's fresh replay re-executes
 the exact candidate bytes that did reach the RTL. A layout wider than the wire
 is refused at decoder construction; a record that is not eight bytes is
 refused at decode. For the eight-byte GPIO layout the projection is the whole
-record and this caveat does not apply.
+record and this caveat does not apply. For a multi-cycle test every one of its
+records is projected independently; the test's ordered sequence of candidates
+is retained in the receipt's `online_case.source` (one document per record).
 
 This is the one place where the brief's "one raw record → exact layout" and
 the shipped wire width cannot both be literal. It was **not** turned into a
@@ -105,9 +120,9 @@ All commands: `cd /home/qinkejiu/myfuzz && PYTHONPATH=src python3 -m pytest -q`.
 
 | command | result |
 |---|---|
-| `pytest -q tests/integration/test_compiled_online_decoder.py` | **15 passed, 0 failed** in 29.58 s |
-| `pytest -q tests/integration/test_compiled_online_decoder.py tests/integration/test_auto_harness_test.py` | **39 passed, 0 failed** in 138.37 s |
-| `pytest -q tests/integration/test_compiled_f4.py tests/integration/test_compiled_f4_storage_producer.py tests/integration/test_compiled_candidate_layout.py` | **104 passed, 1 skipped** in 210.07 s (the skip is the existing `MYFUZZ_COMPILED_F4_REAL=1` native gate, intentionally not run) |
+| `pytest -q tests/integration/test_compiled_online_decoder.py` | **20 passed, 0 failed** in 30.28 s |
+| `pytest -q tests/integration/test_compiled_online_decoder.py tests/integration/test_auto_harness_test.py` | **44 passed, 0 failed** in 136.70 s |
+| `pytest -q tests/integration/test_compiled_f4.py tests/integration/test_compiled_f4_storage_producer.py tests/integration/test_compiled_candidate_layout.py` | **104 passed, 1 skipped** in 176.22 s (rerun after the wire change) (the skip is the existing `MYFUZZ_COMPILED_F4_REAL=1` native gate, intentionally not run) |
 | `pytest -q tests/integration/test_compiled_execution_files.py tests/integration/test_compiled_execution_projection.py tests/integration/test_compiled_artifact_admission.py tests/integration/test_compiled_f4_layout_replay_audit.py` | **77 passed, 0 failed** in 116.58 s (rerun after the digest fix) |
 | `python3 scripts/auto_harness_test.py --cpu configs/cpus/ibex_obi_local/component_profile.json --ip configs/peripherals/pulp_timer/component_profile.json --ip-capability configs/scenarios/compiled-f4-obi-apb-timer/test_capability.json --compose configs/scenarios/compiled-f4-obi-apb-timer/compose.json --output <new> --executor compiled-f4-rfuzz --skip-session` | exit 0; `status=complete`; `executor.status=ok`, name `compiled-f4-rfuzz`, `family_fallback=false`; session/fresh `not_requested` |
 
@@ -121,7 +136,10 @@ any submit (the runtime double records zero/one submit), the receipt mapping
 with real ticks and nonzero coverage, a full-scope fresh-verification document
 control, two different execution UUIDs producing the same normalized replay
 hash while the raw event hash differs, and the no-component-name-branch parse
-guard. The four CLI tests cover: no client ⇒ named absence (no family
+guard, that one and eight cycle tests parse while nine are refused, that an
+eight-cycle test executes every record with one aggregate receipt/coverage
+vector, and that an eight-cycle test over `max_cases` refuses before any
+submit. The four CLI tests cover: no client ⇒ named absence (no family
 fallback), unknown executor ⇒ named refusal, executor + runtime ⇒ named
 refusal, and `--executor … --skip-session` ⇒ exit 0 with the selection visible.
 
@@ -156,6 +174,36 @@ digest.
 The real gate must be rerun by the root session on the new commit; no gate
 result is claimed here.
 
+
+## Native client and the real eight-cycle scenario test
+
+The gate uses the **native** client (`runs/rfuzz_client_native_build/target/debug/kfuzz`).
+The bounded client (`runs/rfuzz_client_bounded_build/...`) enforces a minimum
+256 runs per batch in its build, while the shipped transport accepts only
+`--max-runs-per-batch 1..8`; the bounded client is therefore not usable for
+this route and was not used.
+
+The native client's real scenario test carries **eight decision records**
+(eight cycles: one eight-byte record per declared field). The first native run
+proved the runtime path itself: one seed test executed and was persisted as a
+certified receipt (`value=0`, `local_ticks` 136/128, correct `path_id` /
+`source_id`), and the next buffer then failed at
+`ValueError: test cycle count outside bound` because the inherited
+`process_owned_pair` derived its cycle bound from
+`online_decoder.max_input_bytes // RECORD_BYTES` = 1.
+
+Fix (this follow-up commit): `CompiledRfuzzExecutor.process_owned_pair` is
+overridden to parse with `parse_compiled_input_buffer`, whose real bound is
+`COMPILED_WIRE_CYCLES=8` (matching the eight scenario fields). The bound is
+still enforced, not removed: 1..8 cycles parse, a ninth is refused. A test's
+records are decoded as an ordered candidate sequence (all values, masks and
+slot budgets checked **before any native command**), executed in order in the
+same runtime, and represented by one aggregate coverage vector / receipt /
+`receipts.jsonl` row for the test (the wire test is one slot). The runtime case
+budget is sized `max_tests * 8 + 8` so a test can carry its full sequence;
+`max_tests` still counts wire tests. Coverage is the union of the actual commit
+predicates of every certificate in the test.
+
 ## Real gate (NOT run here; for the root session)
 
 ```
@@ -165,13 +213,16 @@ PYTHONPATH=src python3 scripts/auto_harness_test.py \
   --ip-capability configs/scenarios/compiled-f4-obi-apb-timer-cve2/test_capability.json \
   --compose configs/scenarios/compiled-f4-obi-apb-timer-cve2/compose.json \
   --executor compiled-f4-rfuzz \
-  --client-binary runs/rfuzz_client_bounded_build/target/debug/kfuzz \
+  --client-binary runs/rfuzz_client_native_build/target/debug/kfuzz \
   --budget-seconds 60 --max-tests 200 --output runs/p7-i4-<utc>/ \
   --cache-dir .superpowers/cache-p7-i4-<utc>
 ```
 
 The cache directory must already exist (the driver refuses a missing cache
-before starting RTL, same as the family session). Acceptance fields from the
+before starting RTL, same as the family session). The client is the native
+build because the bounded build's minimum batch (256) is outside the transport's
+1..8 bound; the native client's eight-cycle scenario tests are the wire this
+route now parses and executes. Acceptance fields from the
 brief: client return code 0; at least one real coverage-guided batch; each
 `session/receipts.jsonl` row's `source_id`/`path_id` joins
 `compiled_paths.v1.json` (also summarized in
