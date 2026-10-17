@@ -384,6 +384,25 @@ class WiringEnvironmentLink:
 
 
 @dataclass(frozen=True, slots=True)
+class WiringFixedInput:
+    """A declared constant on one physical input bit range of one instance.
+
+    The declaration says *this range is not a fuzzable source and not a bound
+    delivery target*: the environment holds it at ``constant``.  It is the only
+    wiring section that can own an input the compiled paths do not mention, so it
+    is closed and typed here and cross-checked against the real ABI by
+    :mod:`myfuzz.scenario.compiled_ownership`.
+    """
+
+    component_instance: str
+    port: str
+    bit_offset: int
+    width: int
+    constant: int
+    source: str
+
+
+@dataclass(frozen=True, slots=True)
 class PathWiring:
     """One composition's declared wiring, normalised to a single shape."""
 
@@ -394,12 +413,14 @@ class PathWiring:
     resources: tuple[WiringResource, ...] = ()
     deliveries: tuple[WiringDelivery, ...] = ()
     environment_links: tuple[WiringEnvironmentLink, ...] = ()
+    fixed_inputs: tuple[WiringFixedInput, ...] = ()
     declared_sections: tuple[str, ...] = ()
     absent_sections: tuple[str, ...] = ()
     document: Mapping[str, object] = field(default_factory=dict)
 
 
-_WIRING_SECTIONS = ('cpu', 'windows', 'resources', 'deliveries', 'environment_links')
+_WIRING_SECTIONS = ('cpu', 'windows', 'resources', 'deliveries',
+                    'environment_links', 'fixed_inputs')
 
 
 def _wiring_window(row: Mapping[str, object], pointer: str, source: str) -> WiringWindow:
@@ -477,6 +498,33 @@ def _wiring_link(row: Mapping[str, object], pointer: str, source: str) -> Wiring
         source)
 
 
+def _wiring_fixed_input(row: Mapping[str, object], pointer: str,
+                        source: str) -> WiringFixedInput:
+    """Read one declared constant input range of a wiring contract.
+
+    The record is closed: an unknown key, a missing width/constant or a constant
+    that does not fit the declared width is a named refusal.  Whether the range
+    really names an input is cross-checked against the loaded ABI by the
+    ownership compiler, which is the module that knows the physical ports.
+    """
+    row = _closed(row, {'component_instance', 'port', 'width', 'constant'},
+                  {'bit_offset'}, pointer, 'wiring-fixed-input')
+    offset = row.get('bit_offset', 0)
+    width = _integer(row['width'], pointer + '/width', 'wiring-fixed-input-width',
+                     minimum=1)
+    constant = _integer(row['constant'], pointer + '/constant',
+                        'wiring-fixed-input-constant')
+    if constant >= 1 << width:
+        _refuse('wiring-fixed-input-constant-exceeds-width', pointer + '/constant',
+                {'constant': constant, 'width': width})
+    return WiringFixedInput(
+        _text(row['component_instance'], pointer + '/component_instance',
+              'wiring-fixed-input-component'),
+        _text(row['port'], pointer + '/port', 'wiring-fixed-input-port'),
+        _integer(offset, pointer + '/bit_offset', 'wiring-fixed-input-offset'),
+        width, constant, source)
+
+
 def _from_wiring_contract(document: Mapping[str, object]) -> PathWiring:
     """Normalise the P7-B ``wiring_contract.v1`` document.
 
@@ -490,7 +538,7 @@ def _from_wiring_contract(document: Mapping[str, object]) -> PathWiring:
     """
     row = _closed(document, {'schema_version', 'delivery', 'global_interconnect',
                              'cycle_accurate', 'cpu', 'windows'},
-                  {'resources'}, '', 'wiring-contract')
+                  {'resources', 'fixed_inputs'}, '', 'wiring-contract')
     if row['global_interconnect'] is not False or row['cycle_accurate'] is not False:
         _refuse('wiring-contract-claims-interconnect', '/global_interconnect')
     cpu = _closed(_object(row['cpu'], '/cpu', 'wiring-contract-cpu'),
@@ -503,6 +551,11 @@ def _from_wiring_contract(document: Mapping[str, object]) -> PathWiring:
                       for index, item in enumerate(
                           _array(row.get('resources', []), '/resources',
                                  'wiring-contract-resources')))
+    fixed_inputs = tuple(
+        _wiring_fixed_input(item, f'/fixed_inputs/{index}', WIRING_CONTRACT_SCHEMA)
+        for index, item in enumerate(
+            _array(row.get('fixed_inputs', []), '/fixed_inputs',
+                   'wiring-contract-fixed-inputs')))
     declared = tuple(name for name in _WIRING_SECTIONS if name in row)
     return PathWiring(
         WIRING_CONTRACT_SCHEMA,
@@ -510,6 +563,7 @@ def _from_wiring_contract(document: Mapping[str, object]) -> PathWiring:
         _text(cpu['endpoint_id'], '/cpu/endpoint_id', 'wiring-contract-cpu-endpoint'),
         windows=windows,
         resources=resources,
+        fixed_inputs=fixed_inputs,
         declared_sections=declared,
         absent_sections=tuple(name for name in _WIRING_SECTIONS
                               if name not in declared),
@@ -537,6 +591,11 @@ def _from_path_wiring(document: Mapping[str, object]) -> PathWiring:
                   for index, item in enumerate(
                       _array(row.get('environment_links', []), '/environment_links',
                              'path-wiring-links')))
+    fixed_inputs = tuple(
+        _wiring_fixed_input(item, f'/fixed_inputs/{index}', PATH_WIRING_SCHEMA)
+        for index, item in enumerate(
+            _array(row.get('fixed_inputs', []), '/fixed_inputs',
+                   'path-wiring-fixed-inputs')))
     data_endpoint = cpu.get('data_endpoint')
     return PathWiring(
         PATH_WIRING_SCHEMA,
@@ -544,7 +603,7 @@ def _from_path_wiring(document: Mapping[str, object]) -> PathWiring:
         (None if data_endpoint is None else
          _text(data_endpoint, '/cpu/data_endpoint', 'path-wiring-cpu-data-endpoint')),
         windows=windows, resources=resources, deliveries=deliveries,
-        environment_links=links,
+        environment_links=links, fixed_inputs=fixed_inputs,
         declared_sections=tuple(name for name in _WIRING_SECTIONS if name in row),
         absent_sections=tuple(name for name in _WIRING_SECTIONS if name not in row),
         document=dict(document))
@@ -881,6 +940,31 @@ def _component_row(row: Mapping[str, object], pointer: str, *,
     return instance_id, profile, capability
 
 
+def _sole_unified_master(profile) -> str | None:
+    """The profile's unified memory port, when it is its *sole* master.
+
+    A core may expose one master that carries both instruction fetches and data
+    (CVW's EBU-arbitrated AHB bus, picorv32's ready/valid port).  Only endpoints
+    whose declared direction is ``protocol-inverted`` can be a bus master, so a
+    passive declaration next to the bus (CVW's ``cpu.manager_domain``
+    observation endpoint, a configuration endpoint, an interrupt entry) never
+    makes the port ambiguous.  A profile with zero or several master-capable
+    endpoints has no unified role to accept, and ``None`` is returned.
+
+    This is the **single** predicate for that rule: both
+    :func:`load_path_compile_request` (the declared role pointers) and
+    :func:`_cpu_master` (the per-flow resolver) call it, so the two can no longer
+    disagree about which declarations are accepted.
+    """
+    masters = [item for item in profile.endpoints
+               if item.function in MASTER_FUNCTIONS]
+    unified = [item for item in masters
+               if item.function in UNIFIED_MASTER_FUNCTIONS]
+    if len(masters) == 1 and len(unified) == 1:
+        return unified[0].endpoint_id
+    return None
+
+
 def load_path_compile_request(document_or_path: object, *,
                               base_dir: object = '.') -> PathCompileRequest:
     """Load a closed ``path_compile_request.v1`` composition declaration.
@@ -921,20 +1005,15 @@ def load_path_compile_request(document_or_path: object, *,
         # A unified-memory CPU (CVW's AHB external bus, picorv32's ready/valid
         # port) exposes one master that carries both fetches and data, so the same
         # endpoint legitimately fills both role pointers.  Accepting it only when
-        # it is the profile's sole master keeps the pointer unambiguous; refusing
-        # it would reject every accurate unified-memory declaration.
-        # Count only endpoints that can actually be a bus master.  A profile
-        # may additionally declare non-master endpoints (observation,
-        # configuration, interrupts); those do not make the unified memory
-        # port ambiguous.
-        masters = [item for item in cpu_profile.endpoints
-                   if item.function in MASTER_FUNCTIONS]
-        unified = [item for item in masters
-                   if item.function in UNIFIED_MASTER_FUNCTIONS]
+        # it is the profile's sole *master-capable* endpoint keeps the pointer
+        # unambiguous while allowing passive declarations (observation,
+        # configuration) beside the bus; refusing it would reject every accurate
+        # unified-memory declaration.  The predicate is shared with
+        # :func:`_cpu_master` so the two decisions cannot drift apart.
         accept_unified = (endpoint is not None
                           and endpoint.function in UNIFIED_MASTER_FUNCTIONS
-                          and len(masters) == 1
-                          and len(unified) == 1)
+                          and _sole_unified_master(cpu_profile)
+                          == endpoint.endpoint_id)
         if endpoint is None or (endpoint.function != function and not accept_unified):
             _refuse('cpu-master-role-pointer-mismatch', f'/cpu/{name}',
                     {'endpoint_id': declared,
@@ -1006,6 +1085,7 @@ def load_path_compile_request(document_or_path: object, *,
             'resources': wiring.resources,
             'deliveries': wiring.deliveries,
             'environment_links': wiring.environment_links,
+            'fixed_inputs': wiring.fixed_inputs,
             'declared_sections': wiring.declared_sections,
             'absent_sections': wiring.absent_sections,
             'document': wiring.document,
@@ -1225,15 +1305,16 @@ def _cpu_master(assessment: _Assessment, cpu: PathComponent, function: str, code
         # and its profile is accurate to say so.  The single unified master fills
         # both roles; accepting it here is what keeps an accurate unified-memory
         # declaration from being reported as an unsupported flow.  It is accepted
-        # only when it is the profile's *sole* endpoint, so the role stays
-        # unambiguous and a profile with several masters must still name the right
-        # one.
+        # only when it is the profile's sole *master-capable* endpoint (passive
+        # observation/configuration declarations beside the bus are irrelevant), so
+        # the role stays unambiguous and a profile with several masters must still
+        # name the right one.  :func:`_sole_unified_master` is the one predicate
+        # for this rule, shared with :func:`load_path_compile_request`.
         if function in (FUNCTION_INSTRUCTION_MASTER, FUNCTION_DATA_MASTER):
-            everything = cpu.endpoints()
-            masters = [row for row in everything if row.function in MASTER_FUNCTIONS]
-            unified = [row for row in masters if row.function in UNIFIED_MASTER_FUNCTIONS]
-            if len(masters) == 1 and len(unified) == 1:
-                matches = unified
+            sole = _sole_unified_master(cpu.profile)
+            if sole is not None:
+                matches = [row for row in cpu.endpoints()
+                           if row.endpoint_id == sole]
     if not matches:
         assessment.need(code, '/cpu/profile/endpoints',
                         {'requires': f'an endpoint with function {function!r}',

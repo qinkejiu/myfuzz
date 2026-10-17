@@ -98,7 +98,7 @@ def load_compose(path, *, base_dir):
     if not isinstance(document, dict):
         _refuse('compose-document-required', '')
     top = _require(document, {'schema_version', 'cpu', 'devices'},
-                   '', optional={'memory'})
+                   '', optional={'memory', 'fixed_inputs'})
     if top['schema_version'] != 'harness_compose.v1':
         _refuse('compose-schema-version', '/schema_version',
                 {'expected': 'harness_compose.v1',
@@ -142,7 +142,74 @@ def load_compose(path, *, base_dir):
         seen.add(row['device_id'])
     cpu['devices'] = rows
     cpu['memory'] = _memory(cpu['instance_id'], rows, top.get('memory', []))
+    if 'fixed_inputs' in top:
+        cpu['fixed_inputs'] = _fixed_inputs(
+            top['fixed_inputs'],
+            instances={cpu['instance_id']} | {row['instance_id'] for row in rows})
     return cpu
+
+
+#: The closed vocabulary of one declared constant input range.
+FIXED_INPUT_KEYS = frozenset(('component_instance', 'port', 'width', 'constant'))
+#: Optional keys of one declared constant input range.
+FIXED_INPUT_OPTIONAL_KEYS = frozenset(('bit_offset',))
+
+
+def _fixed_inputs(raw, *, instances) -> list:
+    """Read the declared constant environment inputs, or refuse by name.
+
+    A ``fixed_inputs`` row is the composition's own statement about one physical
+    input bit range: this component instance, this port, these bits, this
+    constant.  Nothing here decides *why* the bits are constant - that is the
+    ownership compiler's job (``scenario.compiled_ownership``) - but the record
+    itself is closed and typed, and its owner must be an instance this same
+    composition declares.
+    """
+    if not isinstance(raw, list):
+        _refuse('compose-fixed-input-array-required', '/fixed_inputs')
+    records = []
+    seen = set()
+    for index, item in enumerate(raw):
+        pointer = f'/fixed_inputs/{index}'
+        if not isinstance(item, Mapping):
+            _refuse('compose-fixed-input-object-required', pointer)
+        row = _require(dict(item), FIXED_INPUT_KEYS, pointer,
+                       optional=FIXED_INPUT_OPTIONAL_KEYS)
+        instance = _text(row['component_instance'],
+                         pointer + '/component_instance',
+                         'compose-fixed-input-component')
+        port = _text(row['port'], pointer + '/port', 'compose-fixed-input-port')
+        offset = row.get('bit_offset', 0)
+        if type(offset) is not int or offset < 0:
+            _refuse('compose-fixed-input-field-invalid', pointer + '/bit_offset',
+                    {'value': offset})
+        width = row['width']
+        if type(width) is not int or width < 1:
+            _refuse('compose-fixed-input-field-invalid', pointer + '/width',
+                    {'value': width})
+        constant = row['constant']
+        if type(constant) is not int or constant < 0:
+            _refuse('compose-fixed-input-field-invalid', pointer + '/constant',
+                    {'value': constant})
+        if constant >= 1 << width:
+            _refuse('compose-fixed-input-constant-exceeds-width',
+                    pointer + '/constant',
+                    {'constant': constant, 'width': width})
+        if instance not in instances:
+            _refuse('compose-fixed-input-owner-undeclared',
+                    pointer + '/component_instance',
+                    {'component_instance': instance,
+                     'declared_instances': sorted(instances)})
+        identity = (instance, port, offset, width)
+        if identity in seen:
+            _refuse('compose-fixed-input-duplicate', pointer,
+                    {'component_instance': instance, 'port': port,
+                     'bit_offset': offset, 'width': width})
+        seen.add(identity)
+        records.append({'component_instance': instance, 'port': port,
+                        'bit_offset': offset, 'width': width,
+                        'constant': constant})
+    return records
 
 
 #: The permissions a memory resource must state explicitly.  Nothing is defaulted:
@@ -257,18 +324,36 @@ def _admit_endpoints(plan, instance_id, declared_role, endpoint_id, pointer):
 
 
 def generate_component(request_path, *, base_dir, output, build_cache=None):
-    """Plan, render, write and optionally build one component harness."""
+    """Plan, render, write and optionally build one component harness.
+
+    Every planning/rendering/verification ``ValueError`` is a *named* refusal
+    (``component-render-refused``) that carries the instance id, the request that
+    failed and the renderer's own message.  Letting it escape as a bare
+    ``ValueError`` left the caller above this module with a traceback instead of a
+    ``code`` + ``pointer`` (and, before the driver's fail-closed fix, with a
+    ``complete`` run next to that traceback).
+    """
     if output.exists() or output.is_symlink():
         _refuse('harness-output-exists', '', {'output': str(output)})
     if not output.parent.is_dir():
         _refuse('harness-output-parent-missing', '', {'output': str(output)})
     document = json.loads(Path(request_path).read_text(encoding='utf-8'))
-    request = load_local_harness_request(document)
-    plan = plan_local_harness(request, base_dir=base_dir)
-    verified = verify_local_source_lock(plan.profile, base_dir=base_dir)
-    structural = render_local_harness(plan)
-    runtime = render_local_runtime(plan, structural, verified, base_dir=base_dir)
-    artifact = render_local_driver(runtime, base_dir=base_dir)
+    instance_id = (document.get('instance_id')
+                   if isinstance(document, Mapping) else None) or output.name
+    pointer = f'/{instance_id}/request'
+    try:
+        request = load_local_harness_request(document)
+        plan = plan_local_harness(request, base_dir=base_dir)
+        verified = verify_local_source_lock(plan.profile, base_dir=base_dir)
+        structural = render_local_harness(plan)
+        runtime = render_local_runtime(plan, structural, verified, base_dir=base_dir)
+        artifact = render_local_driver(runtime, base_dir=base_dir)
+    except ValueError as error:
+        _refuse('component-render-refused', pointer,
+                {'instance_id': instance_id, 'request': str(request_path),
+                 'error': str(error),
+                 'requires': 'a request and a pinned profile the plan/render/verify '
+                             'stages admit; the renderer refused this component'})
     files = {
         # Persist the exact admitted request for independent loading/replay.
         'request.json': _json_bytes(document),
@@ -408,6 +493,11 @@ def generate_harness_set(compose, *, base_dir, output_root, compose_base=None,
                 **({'initialization_policy': row['initialization_policy']}
                    if row['initialization_policy'] is not None else {}),
             } for row in cpu['memory']]
+        # A composition that declares constant environment inputs publishes them
+        # in the contract.  The section is only written when it was declared, so
+        # a composition without one keeps producing the exact old bytes.
+        if cpu.get('fixed_inputs'):
+            wiring['fixed_inputs'] = [dict(row) for row in cpu['fixed_inputs']]
         document = {
             'schema_version': HARNESS_SET_SCHEMA_VERSION,
             'tier': GENERATED_TIER,

@@ -569,6 +569,47 @@ def test_the_help_text_matches_the_shipped_stages():
         'the help text no longer names every artifact a run writes')
 
 
+def test_a_renderer_exception_is_a_named_refusal_not_a_complete_run(tmp_path,
+                                                                   monkeypatch):
+    """A renderer defect must name itself and stop the run.
+
+    ``generate_component`` used to let a render ``ValueError`` escape unwrapped:
+    the driver could only report ``auto-harness-failed`` with a traceback - and
+    before the fail-closed predicate was fixed, it reported ``complete``/exit 0
+    next to the traceback.  With the component refusal named, the harness-set
+    stage carries the code and pointer, the run cannot complete, and the output
+    directory keeps its ``.incomplete`` marker.
+    """
+    from myfuzz.local_harness import harness_set
+    from myfuzz.local_harness.auto_harness_test import run_auto_harness_test
+
+    def refuse_render(*args, **kwargs):
+        raise ValueError('synthetic-render-defect')
+
+    monkeypatch.setattr(harness_set, 'render_local_runtime', refuse_render)
+    output = tmp_path / 'run'
+    summary = run_auto_harness_test(
+        cpu=ROOT / IBEX_CPU, ips=[ROOT / GPIO],
+        compose=ROOT / SOLO_COMPOSE, output=output,
+        base_dir=ROOT, skip_session=True, label='render-refusal')
+
+    assert summary['status'] == 'refused', summary
+    assert summary['exit_code'] == 1
+    refusals = [row for row in summary['refusals']
+                if row['code'] == 'component-render-refused']
+    assert len(refusals) == 1, summary['refusals']
+    assert refusals[0]['pointer'].endswith('/request')
+    assert refusals[0]['detail']['instance_id']
+    # The stage view is self-consistent: the D2 stage is the one that refused,
+    # and the driver published its own stage (never a vacuous complete run).
+    assert summary['stages']['harness_set']['status'] == 'refused'
+    assert summary['stages']['harness_set']['code'] == 'component-render-refused'
+    assert 'driver' in summary['stages']
+    assert (output / '.incomplete').exists()
+    assert read(output / 'run-summary.json')['status'] == 'refused'
+    assert not (output / 'generated').exists()
+
+
 def test_a_driver_exception_can_never_report_complete(tmp_path, monkeypatch):
     """A refusal outside ``stages`` must still make the run incomplete.
 
@@ -595,3 +636,9 @@ def test_a_driver_exception_can_never_report_complete(tmp_path, monkeypatch):
     assert any(row.get('stage') == 'driver'
                and row.get('code') == 'synthetic-driver-refusal'
                for row in summary['refusals']), summary['refusals']
+    # The driver now publishes its own stage, so the refusal is visible in the
+    # stage map instead of only in the flat refusal list.
+    driver_stage = summary['stages']['driver']
+    assert driver_stage['status'] == 'refused'
+    assert driver_stage['code'] == 'synthetic-driver-refusal'
+    assert driver_stage['pointer'] == '/harness_set'

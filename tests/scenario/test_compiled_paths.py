@@ -191,7 +191,11 @@ class RealCompositionTests(unittest.TestCase):
                          document['counts'])
         self.assertEqual(['cpu', 'windows'], document['identity']['wiring']
                          ['declared_sections'])
-        self.assertEqual(['resources', 'deliveries', 'environment_links'],
+        # The closed section vocabulary gained ``fixed_inputs`` (P7-I2): a
+        # contract without it declares no constant input, so the section is
+        # reported absent exactly like deliveries and environment links.
+        self.assertEqual(['resources', 'deliveries', 'environment_links',
+                          'fixed_inputs'],
                          document['identity']['wiring']['absent_sections'])
         for flow in EXECUTABLE_FLOWS:
             path = path_of(document, flow)

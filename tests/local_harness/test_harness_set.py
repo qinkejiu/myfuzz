@@ -172,6 +172,33 @@ def test_a_missing_request_file_is_refused_before_any_generation(tmp_path):
     assert raised.value.code == 'component-request-missing'
 
 
+def test_a_component_render_refusal_is_named(tmp_path, monkeypatch):
+    """A plan/render/verify failure is a named refusal, not a bare traceback.
+
+    ``generate_component`` used to call ``plan_local_harness``/``render_*``
+    directly, so a renderer's ``ValueError`` escaped unwrapped.  A caller above it
+    could then only report ``auto-harness-failed`` (or, before the fail-closed
+    driver fix, a ``complete`` run next to the traceback).  The refused instance
+    must be named, and the whole set must stay ungenerated.
+    """
+    from myfuzz.local_harness import harness_set
+
+    def refuse_render(*args, **kwargs):
+        raise ValueError('synthetic-render-defect')
+
+    monkeypatch.setattr(harness_set, 'render_local_runtime', refuse_render)
+    compose = load_compose(compose_document(tmp_path), base_dir=ROOT)
+    output = tmp_path / 'out'
+    with pytest.raises(HarnessSetRefused) as raised:
+        generate_harness_set(compose, base_dir=ROOT, compose_base=tmp_path,
+                             output_root=output)
+    assert raised.value.code == 'component-render-refused'
+    assert raised.value.pointer == '/cpu/request'
+    assert raised.value.detail['instance_id'] == 'cpu'
+    assert 'synthetic-render-defect' in raised.value.detail['error']
+    assert not output.exists(), 'a refused render must not leave a partial set'
+
+
 def test_an_existing_output_is_never_overwritten(tmp_path):
     compose = load_compose(compose_document(tmp_path), base_dir=ROOT)
     output = tmp_path / 'out'

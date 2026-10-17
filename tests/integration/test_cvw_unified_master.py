@@ -47,6 +47,9 @@ class _FakeComponent:
     def __init__(self, endpoints, component_id='fake'):
         self._endpoints = endpoints
         self.component_id = component_id
+        # ``_cpu_master`` reads the shared predicate through ``.profile``, whose
+        # ``.endpoints`` is a declared tuple in production; the fake matches it.
+        self.profile = type('FakeProfileView', (), {'endpoints': endpoints})()
 
     def endpoints(self):
         return self._endpoints
@@ -121,6 +124,138 @@ def test_a_dedicated_instruction_master_still_wins():
                            'cpu-instruction-master-missing')
     assert resolved is not None and resolved.endpoint_id == 'cpu.i'
     assert not assessment.needs
+
+
+def _path_request_document(*, data_endpoint, instruction_endpoint='cpu.external_bus',
+                           cpu_profile=CVW_PROFILE):
+    """The smallest closed ``path_compile_request.v1`` that reaches the role check.
+
+    The CPU's role pointers are validated before any device or wiring fact is
+    read, so a minimal declared wiring is enough: this test is about the pointer
+    rule, not about compiling paths.
+    """
+    return {
+        'schema_version': 'path_compile_request.v1',
+        'cpu': {'instance_id': 'cpu', 'profile': str(cpu_profile),
+                'data_endpoint': data_endpoint,
+                'instruction_endpoint': instruction_endpoint},
+        'devices': [{'device_id': 'gpio', 'instance_id': 'gpio',
+                     'profile': 'configs/peripherals/pulp_gpio/component_profile.json'}],
+        'wiring': {'schema_version': 'path_wiring.v1',
+                   'cpu': {'instance_id': 'cpu'}},
+    }
+
+
+def test_a_sole_unified_master_beside_a_non_master_endpoint_is_accepted():
+    """Observation/configuration endpoints never make the bus ambiguous.
+
+    CVW really declares ``cpu.manager_domain`` next to its AHB external bus, and
+    that endpoint is a passive observation: it is not a second master.  The
+    shared predicate must count only master-capable endpoints, and both the
+    request loader and the per-flow resolver must use it.
+    """
+    from myfuzz.scenario.compiled_paths import (_sole_unified_master,
+                                                load_path_compile_request)
+
+    profile = _FakeProfile([_endpoint('memory_master'),
+                            _endpoint('observation', 'cpu.obs'),
+                            _endpoint('configuration', 'cpu.cfg')])
+    assert _sole_unified_master(profile) == 'cpu.bus'
+
+    request = load_path_compile_request(
+        _path_request_document(data_endpoint='cpu.external_bus'), base_dir=ROOT)
+    assert request.cpu.instance_id == 'cpu'
+    assert request.role_pointer('data_memory_master') == 'cpu.external_bus'
+    assert request.role_pointer('instruction_memory_master') == 'cpu.external_bus'
+    # The same declaration the request just accepted is the real CVW profile.
+    from myfuzz.composition.component_profile import load_component_profile
+    real = load_component_profile(CVW_PROFILE)
+    assert _sole_unified_master(real) == 'cpu.external_bus'
+
+
+def test_two_master_capable_endpoints_are_not_a_sole_unified_master(tmp_path):
+    """A second master keeps the unified role ambiguous, in both places.
+
+    The acceptance is only for the *sole* master: with two master-capable
+    endpoints ``_sole_unified_master`` resolves nothing, the per-flow resolver
+    refuses, and the request pointer is refused at ``/cpu/data_endpoint``.
+    """
+    from myfuzz.scenario.compiled_paths import (FUNCTION_DATA_MASTER,
+                                                FUNCTION_INSTRUCTION_MASTER,
+                                                PathCompilationError,
+                                                _cpu_master,
+                                                _sole_unified_master,
+                                                load_path_compile_request)
+
+    profile = _FakeProfile([_endpoint('memory_master', 'cpu.bus'),
+                            _endpoint('memory_master', 'cpu.other')])
+    assert _sole_unified_master(profile) is None
+    component = _FakeComponent([_endpoint_row('memory_master', 'cpu.bus'),
+                                _endpoint_row('memory_master', 'cpu.other')])
+    for function in (FUNCTION_INSTRUCTION_MASTER, FUNCTION_DATA_MASTER):
+        assessment = _need_recorder()
+        assert _cpu_master(assessment, component, function,
+                           'cpu-instruction-master-missing') is None
+        assert [code for code, _, _ in assessment.needs] == [
+            'cpu-instruction-master-missing']
+
+    scratch = _two_master_profile(tmp_path)
+    with pytest.raises(PathCompilationError) as raised:
+        load_path_compile_request(
+            _path_request_document(data_endpoint='cpu.external_bus',
+                                   cpu_profile=scratch), base_dir=ROOT)
+    assert raised.value.code == 'cpu-master-role-pointer-mismatch'
+    assert raised.value.pointer == '/cpu/data_endpoint'
+
+
+def _two_master_profile(tmp_path):
+    """The real CVW declaration plus one second master-capable endpoint.
+
+    The second endpoint gets its own physical port aliases: reusing the bus's
+    ports would be an illegal declaration (one physical pin cannot belong to two
+    endpoints), and this test is about the *master count*, not about port
+    uniqueness.
+    """
+    document = json.loads(CVW_PROFILE.read_text(encoding='utf-8'))
+    document['endpoints'].append({
+        'endpoint_id': 'cpu.data_bus',
+        'function': 'memory_master',
+        'protocol': ['ahb-lite', '1'],
+        'clock': 'core',
+        'reset': 'sys_rst',
+        'fields': [
+            {'role': 'haddr', 'aliases': ['D2_HADDR'], 'direction': 'output',
+             'width': 34},
+            {'role': 'hrdata', 'aliases': ['D2_HRDATA'], 'direction': 'input',
+             'width': 32},
+        ],
+    })
+    scratch = tmp_path / 'two_masters' / 'component_profile.json'
+    scratch.parent.mkdir(parents=True, exist_ok=True)
+    scratch.write_text(json.dumps(document, indent=1), encoding='utf-8')
+    return scratch
+
+
+def test_the_data_endpoint_pointer_cannot_name_an_observation_endpoint(tmp_path):
+    """A pointer is a role claim: an observation endpoint is not the data master."""
+    from myfuzz.scenario.compiled_paths import (PathCompilationError,
+                                                load_path_compile_request)
+
+    scratch = _two_master_profile(tmp_path)
+    with pytest.raises(PathCompilationError) as raised:
+        load_path_compile_request(
+            _path_request_document(data_endpoint='cpu.external_bus',
+                                   cpu_profile=scratch), base_dir=ROOT)
+    assert raised.value.code == 'cpu-master-role-pointer-mismatch'
+    assert raised.value.pointer == '/cpu/data_endpoint'
+
+    # The real CVW profile's observation endpoint is not a data master either.
+    with pytest.raises(PathCompilationError) as observed:
+        load_path_compile_request(
+            _path_request_document(data_endpoint='cpu.manager_domain'),
+            base_dir=ROOT)
+    assert observed.value.code == 'cpu-master-role-pointer-mismatch'
+    assert observed.value.pointer == '/cpu/data_endpoint'
 
 
 def test_the_cvw_profile_declares_its_bus_as_a_unified_master():

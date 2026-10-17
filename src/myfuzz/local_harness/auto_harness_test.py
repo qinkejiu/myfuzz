@@ -833,44 +833,117 @@ def _link_or_copy(source: Path, target: Path) -> None:
         shutil.copyfile(source, target)
 
 
-def load_session_inputs(*,generated_root,base_dir,family,request,compiled):
-    """Load exact D2 objects and explicit family ownership for D3 admission.
+def _declared_ownership(declaration, artifacts):
+    """The named family's ownership table, mapped onto the ABI's physical ports.
 
-    Physical IRQ mapping follows the profile's declared endpoint/role. Other
-    fields require an exact physical-port declaration; no profile name selects
-    semantics. Missing producers continue to refuse in D3 execution admission.
+    The family declaration is a *claim*: its abstract port names (``irq`` and the
+    physical pin names) are resolved through the profile's declared endpoint/role
+    or the ABI's own physical port, exactly once, here.  The result is handed to
+    :func:`myfuzz.scenario.compiled_ownership.compile_compiled_ownership` as
+    claims to be checked against D3 - never as the ownership source itself.
+    """
+    from myfuzz.scenario.ownership import InputField, InputOwner
+
+    fields = declaration.ownership_fields
+    owners = declaration.ownership_owners
+    physical = {}
+    compiled_fields = []
+    for field in fields:
+        artifact = artifacts.get(field.component_id)
+        if artifact is None:
+            _refuse('generated-runtime-instance-set-mismatch', '/artifacts')
+        profile = artifact.plan.profile
+        rows = artifact.structural.abi_document['ports']
+        if profile.cpu is not None and field.port == 'irq':
+            candidates = {r['physical_port'] for r in rows if r['direction'] == 'input'
+                          and r['endpoint_id'] == profile.cpu.irq_entry_endpoint
+                          and r['role'] == profile.cpu.irq_entry_role
+                          and r['width'] == field.width}
+        else:
+            candidates = {r['physical_port'] for r in rows if r['direction'] == 'input'
+                          and r['physical_port'] == field.port
+                          and r['width'] == field.width}
+        if len(candidates) != 1:
+            _refuse('runtime-ownership-physical-map-undeclared',
+                    '/physical_port_map/' + field.component_id + '/' + field.port)
+        port = candidates.pop()
+        physical[(field.component_id, field.port)] = port
+        compiled_fields.append(InputField(field.component_id, port, field.width))
+    compiled_owners = []
+    for owner in owners:
+        port = physical.get((owner.component_id, owner.port))
+        if port is None:
+            _refuse('runtime-ownership-physical-map-undeclared',
+                    f'/ownership/{owner.component_id}/{owner.port}',
+                    {'requires': 'a declared ownership field for every declared '
+                                 'owner'})
+        compiled_owners.append(InputOwner(
+            owner.component_id, port, owner.bit_offset, owner.width, owner.kind,
+            owner.producer_ref))
+    return tuple(compiled_fields), tuple(compiled_owners)
+
+
+def _wiring_fixed_inputs(generated_root) -> list:
+    """The constant inputs the generated wiring contract declares, if any.
+
+    D2 writes the section only when the composition declared one, so a contract
+    without it really declares no constant input rather than an empty default.
+    """
+    path = Path(generated_root) / 'wiring_contract.json'
+    try:
+        document = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        _refuse('wiring-contract-unreadable', '/wiring',
+                {'path': str(path), 'error': str(error)})
+    rows = document.get('fixed_inputs', []) if isinstance(document, Mapping) else None
+    if not isinstance(rows, list):
+        _refuse('wiring-contract-fixed-inputs-invalid', '/fixed_inputs',
+                {'path': str(path)})
+    return rows
+
+
+def load_session_inputs(*,generated_root,base_dir,family,request,compiled):
+    """Compile the session's ownership from D3, cross-checking the family table.
+
+    The compiled document now supplies the per-bit input ownership
+    (:mod:`myfuzz.scenario.compiled_ownership`): D3's ``external_pin`` sources,
+    D3's physical ``cpu_irq_input`` bounds, and the wiring contract's
+    ``fixed_inputs`` constants.  The named family's ``ownership_fields`` /
+    ``ownership_owners`` are still read, but only as **declared claims**: a claim
+    that D3 also declares must agree with D3, and a claim D3 does not declare is
+    kept with ``declared-not-compiled`` provenance so the existing admission can
+    refuse it by name (``ownership-source-uncompiled`` /
+    ``ownership-bound-producer-not-admitted``) instead of silently running it.
+
+    The compiled audit document is written next to the generated tree
+    (``<run>/compiled_ownership.v1.json``) so the provenance of every owned bit
+    is reviewable.  Missing producers continue to refuse in D3 execution
+    admission; nothing here starts RTL.
     """
     from .generated_artifact_admission import load_generated_artifacts,GeneratedArtifactRefused
-    from myfuzz.scenario.ownership import compile_ownership
+    from myfuzz.scenario.compiled_ownership import (CompiledOwnershipRefused,
+                                                    compile_compiled_ownership)
     try:
         artifacts=load_generated_artifacts(generated_root=generated_root,base_dir=base_dir)
     except GeneratedArtifactRefused as error:
         _refuse(error.code,error.pointer,error.detail)
     declaration=_load_entry(family.wiring_declaration,
         code='runtime-wiring-declaration-unavailable',pointer='/runtime')()
-    if not hasattr(declaration,'ownership_fields') or not hasattr(declaration,'ownership_owners'):
-        _refuse('runtime-ownership-projection-undeclared','/ownership')
-    ownership=compile_ownership(declaration.ownership_fields,declaration.ownership_owners)
-    physical={}
-    for field in declaration.ownership_fields:
-        artifact=artifacts.get(field.component_id)
-        if artifact is None:
-            _refuse('generated-runtime-instance-set-mismatch','/artifacts')
-        profile=artifact.plan.profile
-        rows=artifact.structural.abi_document['ports']
-        if profile.cpu is not None and field.port=='irq':
-            candidates={r['physical_port'] for r in rows if r['direction']=='input'
-                and r['endpoint_id']==profile.cpu.irq_entry_endpoint
-                and r['role']==profile.cpu.irq_entry_role and r['width']==field.width}
-        else:
-            candidates={r['physical_port'] for r in rows if r['direction']=='input'
-                and r['physical_port']==field.port and r['width']==field.width}
-        if len(candidates)!=1:
-            _refuse('runtime-ownership-physical-map-undeclared',
-                '/physical_port_map/'+field.component_id+'/'+field.port)
-        physical[(field.component_id,field.port)]=candidates.pop()
+    declared=((),())
+    if hasattr(declaration,'ownership_fields') and hasattr(declaration,'ownership_owners'):
+        declared=_declared_ownership(declaration,artifacts)
+    try:
+        compiled_ownership=compile_compiled_ownership(
+            artifacts=artifacts,compiled=compiled,
+            fixed_inputs=_wiring_fixed_inputs(generated_root),declared=declared)
+    except CompiledOwnershipRefused as error:
+        _refuse(error.code,error.pointer,error.detail)
+    document=compiled_ownership.document
+    _write(Path(generated_root).parent/'compiled_ownership.v1.json',document)
+    physical={(row['component_id'],row['port']):row['port']
+        for row in document['inputs']}
     return artifacts,dict(request=request,compiled=compiled,
-        ownership=ownership,physical_port_map=physical)
+        ownership=compiled_ownership.ownership,physical_port_map=physical)
 
 
 def assess_runtime_execution(*,family,artifacts,compiled_inputs,producer_events=()):
@@ -1084,6 +1157,12 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
         'started_utc': _utc_now(),
         'runtime_family': family_stage,
         'stages': {
+            # The driver is a stage like any other: its verdict is the run's own,
+            # a named ``refuse('driver', ...)`` updates it, and ``finish()``
+            # publishes whether every requested sub-stage really completed.  That
+            # keeps the stage map self-consistent (an early driver exception used
+            # to be recorded only in the flat refusal list).
+            'driver': _empty_stage(),
             'declaration_review': _empty_stage(),
             'runtime_family': family_stage,
             'harness_set': _empty_stage(),
@@ -1124,6 +1203,17 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
             'schema_version': (document or {}).get('schema_version')
             if isinstance(document, Mapping) else None}
 
+    def _any_refusal_or_unfinished_stage():
+        """The run's own predicate: a refusal, or a requested stage that is not ok.
+
+        The driver stage is excluded because it *is* this predicate's verdict; it
+        is published by :func:`finish` from this same answer.
+        """
+        requested = [name for name, stage in summary['stages'].items()
+                     if name != 'driver' and stage['status'] != NOT_REQUESTED]
+        return bool(summary['refusals']) or not all(
+            summary['stages'][name]['status'] == OK for name in requested)
+
     # The output directory is owned by this run or not written at all.
     if output.exists() or output.is_symlink():
         summary['run_summary'] = {
@@ -1144,7 +1234,24 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
                                     'output': str(output)}))
 
     def finish():
+        # ``finish`` is the one place the verdict is decided: a refusal anywhere,
+        # or any *requested* stage that is not ``ok``, means the run is refused.
+        # A refused driver stage therefore also makes the run refused, and a
+        # refused run can never leave the ``.incomplete`` marker removed.
+        failed = _any_refusal_or_unfinished_stage()
+        if failed and summary['status'] == RUN_COMPLETE:
+            summary['status'] = RUN_REFUSED
         complete = summary['status'] == RUN_COMPLETE
+        driver = summary['stages']['driver']
+        driver['status'] = OK if not failed else REFUSED
+        if not failed:
+            driver.update(code=None, pointer=None, detail=None)
+        elif driver['code'] is None:
+            # A named absence refuses the run without being a refusal: the
+            # driver's own stage names the absence instead of inventing a code.
+            driver.update(pointer='/run',
+                          detail={'absences': [row['code']
+                                               for row in summary['absences']]})
         summary['finished_utc'] = _utc_now()
         summary['exit_code'] = (EXIT_DIFFERENCE if summary['status'] == RUN_DIFFERENCE
                                 else EXIT_COMPLETE if complete else EXIT_REFUSED)
@@ -1346,6 +1453,9 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
                 generated_artifacts,compiled_inputs = load_session_inputs(
                     generated_root=output/'generated',base_dir=base,
                     family=family,request=typed_compile_request,compiled=compiled_document)
+                ownership_path=output/'compiled_ownership.v1.json'
+                if ownership_path.is_file():
+                    record('compiled_ownership',ownership_path)
                 projection=assess_runtime_execution(family=family,
                     artifacts=generated_artifacts,compiled_inputs=compiled_inputs)
                 projection_path=_write(output/'execution_projection.v1.json',projection)
@@ -1476,14 +1586,11 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
                {'error': f'{type(error).__name__}: {error}',
                 'requires': 'an unexpected driver failure; see stderr'})
 
-    requested = [name for name, stage in summary['stages'].items()
-                 if stage['status'] != NOT_REQUESTED]
-    # A driver-level refusal is recorded outside ``stages`` (there is no driver
-    # stage in the published map).  It must still prevent a vacuous "all
-    # requested stages are ok" completion, otherwise an early driver exception
-    # reports complete/exit 0 with a refusal in the same document.
-    if not summary['refusals'] and all(
-            summary['stages'][name]['status'] == OK for name in requested):
+    # A driver-level refusal is published in the driver stage as well, and the
+    # completion predicate is shared with ``finish``: a refusal, or any requested
+    # stage that is not ok, must prevent the vacuous "all requested stages are
+    # ok" completion an empty request set used to produce.
+    if not _any_refusal_or_unfinished_stage():
         if summary['fresh_replay'] is not None and not summary['fresh_replay']['matches']:
             summary['status'] = RUN_DIFFERENCE
         else:
