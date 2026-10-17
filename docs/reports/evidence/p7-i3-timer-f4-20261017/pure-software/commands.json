@@ -1,0 +1,35 @@
+{
+  "schema_version": "p7_i3_pure_software_commands.v1",
+  "base_commit": "f9fc9b0",
+  "red": {
+    "method": "git stash push -u of the four I3 source files only (new consumer, producer, compiled_f4, projection); the new test file stayed; stash popped immediately after the run",
+    "command": "PYTHONPATH=src python3 -m pytest -q tests/integration/test_compiled_f4_storage_producer.py -k \"storage_consumer or generic_producer_is_supported or generic_support or stable_storage\"",
+    "result": "38 failed, 28 deselected in 18.26s",
+    "artifact": "pure-software/red.log",
+    "artifact_sha256": "37d36a3734cb3e808a0871a7509ca61675aef232ad788d5dcbd7d2441d7672b0",
+    "failure_reason": "myfuzz.integration.generated_storage_consumer does not exist at base f9fc9b0; every new control fails at its lazy import. No production refusal or fixture was bypassed."
+  },
+  "green": {
+    "command": "PYTHONPATH=src python3 -m pytest -q tests/integration/test_compiled_f4_storage_producer.py tests/integration/test_compiled_f4.py tests/integration/test_compiled_execution_files.py",
+    "result": "106 passed, 1 skipped in 170.42s",
+    "skip": "tests/integration/test_compiled_f4.py::test_real_continuous_compiled_f4_and_two_fresh_prefixes (MYFUZZ_COMPILED_F4_REAL != 1); intentionally not run",
+    "artifact": "pure-software/green.log",
+    "artifact_sha256": "985214e4969c09393cfe75f114e92be5dcbcc74ddd2feb29d6c23f824f9e6f48"
+  },
+  "adjacent": {
+    "command": "PYTHONPATH=src python3 -m pytest -q tests/integration -k \"compiled_f4 or compiled_storage\"",
+    "result": "97 passed, 1 skipped, 3133 deselected in 198.89s",
+    "artifact": "pure-software/adjacent-compiled-f4.log",
+    "artifact_sha256": "776e4444f07e81215999e24f6388d920b2660c927fed47cc46bbea1e550b8397"
+  },
+  "source_pins": {
+    "src/myfuzz/integration/generated_storage_consumer.py": "4e63f469878435fa8bd457c2405c94205bc44243c40ba566f316b7f367a95196",
+    "src/myfuzz/integration/compiled_storage_producer.py": "ad028db96374b56996065883d7f5b368418ec58e3a23d7efcd0a9501d7543f2a",
+    "src/myfuzz/integration/compiled_f4.py": "e1d1fd53aaceb63331eb0f3272266bfe3ec6173b55bd905186b61d3c58dc6d31",
+    "src/myfuzz/local_harness/compiled_execution_projection.py": "3b298d0ece35dc897ae122f31407062b25a8c5b052d9a245e112a30e2ca83793",
+    "tests/integration/test_compiled_f4_storage_producer.py": "fee490d5e91fd4603aa33d4ddfd8cd00306c68eb822bf7be66f8d1a47ce25774",
+    "tests/integration/test_compiled_execution_files.py": "5b3e966ba4048862788d29809b8f0104ceff695db26d2b30d54e7ce2e7589645",
+    "configs/scenarios/compiled-f4-obi-apb-timer/README.md": "7ef05a8cb0ab70e7a8708ea3c8cee0d5d02771c15ec16b20a3444a4e286e548a"
+  },
+  "deferred_real_gate": "gate-pending.json (no native build/model/Verilator, no token or certificate produced)"
+}

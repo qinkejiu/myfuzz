@@ -15,7 +15,8 @@ arbitrary same-protocol IP inference.
 The returned binding is immutable and is rebuilt from trusted source inputs on
 every admission, stability check and fresh prefix. It grants no live token,
 certificate, native eligibility, reset prerequisite or storage authority; the
-generic commit/raw join is the separately owned D2 increment.
+generic row's in-row commit consumer only consumes a token that the native C
+issuer actually issued in the same live process.
 """
 from __future__ import annotations
 
@@ -31,6 +32,10 @@ import sys
 from myfuzz.integration.compiled_candidate_layout import compile_candidate_layout
 from myfuzz.integration.generated_register_writer import (
     check_writer_observation, declare_writer)
+from myfuzz.integration.generated_storage_consumer import (
+    CONSUMER_QUALNAME as APB_COMMIT_CONSUMER,
+    RECEIPT_ELEMENTS as APB_RECEIPT_ELEMENTS,
+    check_storage_observation, storage_consumer_support)
 from myfuzz.local_harness.apb3_register_session import GeneratedApb3RegisterSession
 from myfuzz.local_harness.apb_storage_probe_contract import storage_probe_selection
 from myfuzz.local_harness.apb_storage_source_contract import (
@@ -54,7 +59,7 @@ _GPIO_TEMPLATE = MappingProxyType(dict(template_id='pulp.gpio.causal',
 _APB_TEMPLATE = MappingProxyType(dict(template_id='target.apb3',
     template_version='1', variant_id='full-word'))
 _GPIO_COMMIT_CONSUMER = 'myfuzz.integration.generated_register_writer.check_writer_observation'
-_APB_COMMIT_CONSUMER = 'pending_D2_generic_commit_join'
+_APB_COMMIT_CONSUMER = APB_COMMIT_CONSUMER
 
 
 def _json(value):
@@ -102,6 +107,8 @@ _DEPENDENCIES = {
     'apb_storage_address_matches': apb_storage_address_matches,
     'declare_writer': declare_writer,
     'check_writer_observation': check_writer_observation,
+    'check_storage_observation': check_storage_observation,
+    'storage_consumer_support': storage_consumer_support,
 }
 _PINNED = MappingProxyType({name: _pin(value) for name, value in _DEPENDENCIES.items()})
 _ORIGINS = MappingProxyType({name: value.__module__ for name, value in _DEPENDENCIES.items()})
@@ -392,6 +399,8 @@ def _generic_apb_document(*, artifacts, compiled_inputs, path, image, stream, ac
         session_construction=dict(setup_writes=[], probe_offsets=[],
             dynamic_inputs=[], bound_inputs=[]),
         commit_consumer=_APB_COMMIT_CONSUMER,
+        commit_consumer_source_sha256=_module_source(check_storage_observation),
+        commit_consumer_receipt_elements=list(APB_RECEIPT_ELEMENTS),
         write_declaration=_qualified(declare_writer),
         write_declaration_source_sha256=_module_source(declare_writer),
         version_issuance='ApbStorageRegisterVersionAuthority.issue/consume/writes',
@@ -435,7 +444,7 @@ def _generic_apb_document(*, artifacts, compiled_inputs, path, image, stream, ac
                 component=target_component, register=contract['name'], reset_epoch=0))),
         candidate=_candidate(path, stream, layout, []),
         live_authority='not_claimed',
-        runtime_commit_join='D2_pending_generic_commit_raw_join')
+        runtime_commit_join='generic_apb_storage_commit_consumer')
 
 
 def select_storage_producer(*, artifacts, compiled_inputs, base_dir=None):
@@ -532,6 +541,12 @@ def build_storage_producer(binding, *, artifact, base_dir, cache_dir, max_cases)
         authority = GpioRegisterVersionAuthority(target, max_writes=max_cases + 8)
         return target, authority
     if document['row'] == ROW_GENERIC_APB_STORAGE:
+        support = storage_consumer_support(binding=binding,
+            artifacts={document['target_component']: artifact})
+        if support['complete'] is not True:
+            missing = ','.join(row['element'] for row in support['refusals'])
+            raise ValueError(
+                'compiled-F4-producer-receipt-join-incomplete:' + missing)
         target = GeneratedApb3RegisterSession(artifact, base_dir=base_dir,
             cache_dir=cache_dir, setup_writes=(), probe_offsets=())
         authority = ApbStorageRegisterVersionAuthority(target,

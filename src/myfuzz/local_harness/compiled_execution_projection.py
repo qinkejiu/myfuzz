@@ -143,6 +143,13 @@ def assess_compiled_execution(*,artifacts,compiled_inputs,runtime_declaration,
     return report
 
 
+def _storage_consumer_support(*, binding, artifacts):
+    """One indirection so the report mapping itself stays unit-testable."""
+    from myfuzz.integration.generated_storage_consumer import (
+        storage_consumer_support)
+    return storage_consumer_support(binding=binding, artifacts=artifacts)
+
+
 def assess_compiled_f4_support(*,artifacts,compiled_inputs,base_dir=None):
     """Inspect the installed executor without granting live execution authority."""
     from myfuzz.integration.compiled_f4 import admit_f4
@@ -156,17 +163,33 @@ def assess_compiled_f4_support(*,artifacts,compiled_inputs,base_dir=None):
         return dict(schema_version='compiled_F4_support.v1',execution_supported=0,
             runtime_admitted=False,status='unsupported',reason=str(error))
     if binding.row!=ROW_GPIO_CAUSAL:
-        # D1 admits the registered producer row; its generic commit/raw consumer
-        # is D2, so the installed executor cannot run this target yet.
-        return dict(schema_version='compiled_F4_support.v1',execution_supported=0,
-            runtime_admitted=False,status='unsupported',
-            reason='compiled-F4-generic-commit-consumer-unsupported',
+        # The generic APB storage row is executable only after the in-row
+        # consumer and all four live receipt joins are installed.  This report
+        # is source/code identity only; runtime admission still requires the
+        # actual native startup and opaque version token.
+        support=_storage_consumer_support(binding=binding,artifacts=artifacts)
+        unsupported_paths=[dict(path_id=p['path_id'],flow_id=p['flow_id'],
+            reason='compiled-executor-flow-unsupported') for p in compiled_inputs['compiled']['paths']
+            if p['path_id']!=selected['path_id']]
+        if support['complete'] is not True:
+            missing=','.join(row['element'] for row in support['refusals'])
+            return dict(schema_version='compiled_F4_support.v1',execution_supported=0,
+                runtime_admitted=False,status='unsupported',
+                reason='compiled-F4-generic-receipt-join-incomplete:'+missing,
+                executor='compiled_f4_obi_apb',path_id=selected['path_id'],
+                producer_binding=binding.document(),receipt_elements=support,
+                support_scope='generic_APB_storage_receipt_join_incomplete',
+                unsupported_paths=unsupported_paths)
+        return dict(schema_version='compiled_F4_support.v1',execution_supported=1,
+            runtime_admitted=False,status='supported_requires_actual_startup',
             executor='compiled_f4_obi_apb',path_id=selected['path_id'],
-            producer_binding=binding.document(),
-            support_scope='closed_producer_selected_commit_consumer_pending_D2',
-            unsupported_paths=[dict(path_id=p['path_id'],flow_id=p['flow_id'],
-                reason='compiled-executor-flow-unsupported') for p in compiled_inputs['compiled']['paths']
-                if p['path_id']!=selected['path_id']])
+            producer_binding=binding.document(),receipt_elements=support,
+            support_scope='experimental_RV32I_writer_generic_APB_storage_with_live_version_token',
+            startup_requires=['native_first_fetch_inside_instruction_image',
+                              'exact_private_input_readmission',
+                              'writable_instruction_image_result_word',
+                              'actual_native_APB_storage_version_token'],
+            unsupported_paths=unsupported_paths)
     return dict(schema_version='compiled_F4_support.v1',execution_supported=1,
         runtime_admitted=False,status='supported_requires_actual_startup',
         executor='compiled_f4_obi_apb',path_id=selected['path_id'],

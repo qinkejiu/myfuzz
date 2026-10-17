@@ -1,12 +1,15 @@
-"""Closed compiled F4 storage producer selection; pure source controls only.
+"""Closed compiled F4 storage producer selection and generic APB consumer.
 
 The registered timer target is selected only from its reviewed source contract,
-declaration and generated observation contract. Selection is not a live token,
-certificate or native eligibility claim, and the generic commit/raw join is D2.
+declaration and generated observation contract.  The generic row consumes the
+actual CPU acceptance, Router delivery, native APB pre/post sample and opaque
+single-use C version token.  Selection and the pure controls are not a live
+token, certificate or native eligibility claim.
 """
 from copy import deepcopy
 from dataclasses import replace
 from hashlib import sha256
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -15,6 +18,11 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 TIMER_CONFIG = ROOT / 'configs/scenarios/compiled-f4-obi-apb-timer'
 GPIO_CONFIG = ROOT / 'configs/scenarios/compiled-f4-obi-apb'
+
+
+def canonical(value):
+    return json.dumps(value, sort_keys=True, separators=(',', ':'))
+
 
 
 def timer_loaded(directory):
@@ -157,21 +165,115 @@ def test_gpio_causal_row_preserves_existing_producer(timer_generated, gpio_gener
         selector().select_storage_producer(artifacts=timer_artifacts, compiled_inputs=inputs)
 
 
-def test_generic_producer_is_not_reported_as_executable(timer_generated, tmp_path):
-    """D1 selection is real, but the generic commit/raw join is D2: fail closed."""
+def test_generic_producer_is_supported_only_with_complete_in_row_receipts(
+        timer_generated, monkeypatch, tmp_path):
+    """Generic enters supported only with the in-row consumer + four receipts.
+
+    The report is source/code identity only: runtime admission still requires
+    the actual native startup and the opaque single-use version token.
+    """
     from myfuzz.integration.compiled_f4 import CompiledF4Runtime
+    from myfuzz.integration.generated_storage_consumer import RECEIPT_ELEMENTS
+    from myfuzz.integration.generated_storage_consumer import storage_consumer_support
+    from myfuzz.integration.compiled_storage_producer import (
+        build_storage_producer, select_storage_producer)
     from myfuzz.local_harness.compiled_execution_projection import assess_compiled_f4_support
     artifacts, inputs = timer_generated
-    with patch('subprocess.Popen', side_effect=AssertionError('no native process')):
-        with pytest.raises(ValueError, match='compiled-F4-generic-commit-consumer-unsupported'):
-            CompiledF4Runtime(artifacts=artifacts, compiled_inputs=inputs, base_dir=ROOT,
-                cache_dir=tmp_path / 'cache', run_id='timer-d1')
-        report = assess_compiled_f4_support(artifacts=artifacts, compiled_inputs=inputs,
-            base_dir=ROOT)
-    assert report['execution_supported'] == 0
+    report = assess_compiled_f4_support(artifacts=artifacts, compiled_inputs=inputs,
+        base_dir=ROOT)
+    assert report['execution_supported'] == 1
+    assert report['status'] == 'supported_requires_actual_startup'
     assert report['runtime_admitted'] is False
-    assert report['reason'] == 'compiled-F4-generic-commit-consumer-unsupported'
     assert report['producer_binding']['row'] == 'generic_apb_storage_abi'
+    assert report['producer_binding']['producer']['commit_consumer'] == \
+        'myfuzz.integration.generated_storage_consumer.check_storage_observation'
+    elements = report['receipt_elements']
+    assert elements['complete'] is True
+    assert tuple(elements['elements']) == RECEIPT_ELEMENTS
+    assert all(row['present'] for row in elements['elements'].values())
+    binding = select_storage_producer(artifacts=artifacts, compiled_inputs=inputs,
+        base_dir=ROOT)
+    target, authority = build_storage_producer(binding,
+        artifact=artifacts['peripheral'], base_dir=ROOT,
+        cache_dir=tmp_path / 'cache', max_cases=2)
+    assert type(target).__name__ == 'GeneratedApb3RegisterSession'
+    assert type(authority).__name__ == 'ApbStorageRegisterVersionAuthority'
+    # The old hard refusal is gone, but a missing receipt join still refuses.
+    monkeypatch.setattr(
+        'myfuzz.local_harness.compiled_execution_projection.'
+        '_storage_consumer_support',
+        lambda **kwargs: dict(elements, complete=False,
+            disposition='unsupported',
+            refusals=[dict(code='compiled-F4-storage-receipt-join-incomplete',
+                           element='version_token')]))
+    refused = assess_compiled_f4_support(artifacts=artifacts,
+        compiled_inputs=inputs, base_dir=ROOT)
+    assert refused['execution_supported'] == 0
+    assert refused['status'] == 'unsupported'
+    assert refused['reason'] == \
+        'compiled-F4-generic-receipt-join-incomplete:version_token'
+    with patch('subprocess.Popen', side_effect=AssertionError('no native process')):
+        try:
+            CompiledF4Runtime(artifacts=artifacts, compiled_inputs=inputs,
+                base_dir=ROOT, cache_dir=tmp_path / 'cache-2', run_id='timer-i3')
+        except ValueError as error:
+            assert 'generic-commit-consumer-unsupported' not in str(error)
+        except AssertionError:
+            pass
+
+
+def test_generic_support_requires_each_of_the_four_receipt_joins(timer_generated,
+                                                                 tmp_path):
+    from myfuzz.integration.compiled_storage_producer import (
+        AdmittedStorageProducerBinding, build_storage_producer,
+        select_storage_producer)
+    from myfuzz.integration.generated_storage_consumer import (
+        RECEIPT_ELEMENTS, storage_consumer_support)
+    artifacts, inputs = timer_generated
+    binding = select_storage_producer(artifacts=artifacts, compiled_inputs=inputs,
+        base_dir=ROOT)
+    baseline = storage_consumer_support(binding=binding, artifacts=artifacts)
+    assert baseline['complete'] is True
+    document = binding.document()
+    expected_missing = {
+        'consumer': 'cpu_acceptance',
+        'bound': 'router_delivery',
+        'artifact': 'native_apb_pre_sample',
+        'issuer': 'version_token',
+    }
+    for mutation, element in expected_missing.items():
+        forged = deepcopy(document)
+        forged_artifacts = dict(artifacts)
+        if mutation == 'consumer':
+            forged['producer']['commit_consumer'] = \
+                'pending_D2_generic_commit_join'
+        elif mutation == 'bound':
+            forged['bound_input']['kind'] = 'dynamic'
+        elif mutation == 'issuer':
+            forged['producer']['issuer_class'] = 'other.UnknownIssuer'
+        else:
+            runtime = deepcopy(artifacts['peripheral'].runtime_document)
+            runtime.pop('storage_probe_ports')
+            forged_artifacts['peripheral'] = replace(
+                artifacts['peripheral'], runtime_document=runtime)
+        tampered = storage_consumer_support(
+            binding=AdmittedStorageProducerBinding.build(forged),
+            artifacts=forged_artifacts)
+        assert tampered['complete'] is False, mutation
+        assert tampered['disposition'] == 'unsupported'
+        assert tampered['elements'][element]['present'] is False, mutation
+        assert any(row['element'] == element for row in tampered['refusals'])
+    # Construction also refuses an incomplete row before any native startup.
+    forged = AdmittedStorageProducerBinding.build({
+        **document, 'producer': {
+            **document['producer'],
+            'commit_consumer': 'pending_D2_generic_commit_join'}})
+    with patch('subprocess.Popen', side_effect=AssertionError('no native process')):
+        with pytest.raises(ValueError, match='producer-receipt-join-incomplete'):
+            build_storage_producer(forged, artifact=artifacts['peripheral'],
+                base_dir=ROOT, cache_dir=tmp_path / 'cache', max_cases=2)
+    assert tuple(baseline['receipt_elements']) == RECEIPT_ELEMENTS
+
 
 
 # --- Negative controls: nothing but exact trusted declarations selects ------
@@ -422,3 +524,444 @@ def test_closed_rows_construct_exact_session_and_issuer(timer_generated, gpio_ge
     with pytest.raises(ValueError, match='compiled-F4-producer-artifact-binding-mismatch'):
         build_storage_producer(binding, artifact=gpio_artifacts['peripheral'],
             base_dir=ROOT, cache_dir=tmp_path / 'other', max_cases=4)
+
+
+# --- Generic APB storage consumer: actual event/journal joins, no native token --
+
+_DECLARATIONS = {}
+
+
+def timer_declaration(timer_generated, value):
+    artifacts, inputs = timer_generated
+    path = f4_path(inputs['compiled'])
+    stream = next(s for s in path['sources'] if s['kind'] == 'cpu_mmio_stream')
+    image = next(s for s in path['sources'] if s['kind'] == 'instruction_image')
+    key = (id(inputs['compiled']), value)
+    if key not in _DECLARATIONS:
+        from myfuzz.integration.generated_register_writer import declare_writer
+        _DECLARATIONS[key] = declare_writer(inputs['request'],
+            inputs['compiled'], source_id=stream['source_id'], value=value,
+            result_address=image['range'][1] - 3)
+    return _DECLARATIONS[key]
+
+
+def _transaction(sequence):
+    return dict(execution_id='local-execution', testcase_id='unit',
+                source_component='processor', source_epoch=0,
+                channel_id='data', source_sequence=sequence)
+
+
+def _probes(value, *, pwrite, pwdata=0, prdata=0, paddr=4):
+    return dict(storage_value=value, storage_reset=0, storage_paddr=paddr,
+                storage_psel=1, storage_penable=1, storage_pwrite=pwrite,
+                storage_pwdata=pwdata, storage_prdata=prdata,
+                storage_pready=1, storage_pslverr=0)
+
+
+def _backend(target_artifact, *, pwrite, pwdata=0, prdata=0):
+    signals = target_artifact.runtime_document['base_protocol_trace']['signals']
+    return {signals['psel']: 1, signals['penable']: 1, signals['pready']: 1,
+            signals['pslverr']: 0, signals['pwrite']: pwrite,
+            signals['paddr']: 4, signals['pwdata']: pwdata,
+            signals['prdata']: prdata}
+
+
+def timer_receipt(target_artifact, declaration, *, before_value=0):
+    value = declaration['candidate']['value']
+    access = declaration['candidate']['access']
+    events = []
+
+    def add(**row):
+        row['event_id'] = len(events) + 1
+        events.append(row)
+        return row
+
+    def sample(tick, phase, producer, probes, backend):
+        return add(kind='local_tick_sample', component='peripheral',
+            local_tick=tick, phase=phase, producer_event_id=producer,
+            reset_epoch=0, observation_schema_version='ip_raw_observation.v1',
+            outputs=dict(backend=backend, storage_probes=probes))
+
+    add(kind='mmio_acceptance', component='processor',
+        device_id='peripheral', address=access['address'],
+        offset=access['register_offset'], write=True,
+        source_transaction=_transaction(1), producer_event_id=101)
+    add(kind='mmio_delivery', component='processor', device_id='peripheral',
+        address=access['address'], offset=access['register_offset'],
+        write=True, write_value=value, read_value=None, byte_enable=15,
+        source_transaction=_transaction(1), source_sequence=1,
+        producer_event_id=101)
+    sample(20, 'pre', 101, _probes(before_value, pwrite=1, pwdata=value),
+           _backend(target_artifact, pwrite=1, pwdata=value))
+    sample(20, 'post', 101, _probes(value, pwrite=1, pwdata=value),
+           _backend(target_artifact, pwrite=1, pwdata=value))
+    add(kind='mmio_acceptance', component='processor',
+        device_id='peripheral', address=access['address'],
+        offset=access['register_offset'], write=False,
+        source_transaction=_transaction(2), producer_event_id=102)
+    add(kind='mmio_delivery', component='processor', device_id='peripheral',
+        address=access['address'], offset=access['register_offset'],
+        write=False, write_value=None, read_value=value, byte_enable=15,
+        source_transaction=_transaction(2), source_sequence=2,
+        producer_event_id=102)
+    sample(30, 'pre', 102, _probes(value, pwrite=0, prdata=value),
+           _backend(target_artifact, pwrite=0, prdata=value))
+    sample(30, 'post', 102, _probes(value, pwrite=0, prdata=value),
+           _backend(target_artifact, pwrite=0, prdata=value))
+    add(kind='memory_write', component='processor',
+        address=declaration['result_address'], value=value, byte_enable=15)
+    return SimpleNamespace(events=events, violations=(), status='running',
+                           case_id='unit:0')
+
+
+def timer_commit(target_artifact, declaration, *, before_value=0, tick=20,
+                 command_sequence=7, execution='', context_reset_epoch=0,
+                 raw_sequence=None, mutate=None):
+    value = declaration['candidate']['value']
+    access = declaration['candidate']['access']
+    context = dict(source_transaction=_transaction(1),
+        device_id='peripheral', window_base=access['window_base'],
+        window_size=access['window_size'], address=access['address'],
+        offset=access['register_offset'], write=True, value=value, be=15,
+        execution=execution, reset_epoch=context_reset_epoch,
+        command_sequence=command_sequence,
+        schema_version='apb_storage_routed_context.v1',
+        source_authenticated=False)
+    commit = dict(tick=tick, raw_address=4, before=before_value, after=value,
+        sample_index=0, phase='pre', command_sequence=command_sequence,
+        context=context,
+        raw_reference=dict(execution=execution,
+            sequence=command_sequence if raw_sequence is None else raw_sequence,
+            sample_index=0, phase='pre'))
+    if mutate is not None:
+        mutate(commit)
+    return commit
+
+
+def version_witness(target_artifact, *, value=0, write_count=0, history=None,
+                    execution='', pid=1):
+    from myfuzz.integration.generated_storage_consumer import (
+        HISTORY_SCOPE, VERSION_BASIS)
+    observation = target_artifact.runtime_document['storage_observation']
+    if history is None:
+        history = sha256(canonical([]).encode()).hexdigest()
+    return dict(register='TIMER0_CTRL', value=value,
+        local_tick=10 + write_count, write_history_sha256=history,
+        field_version=write_count, write_count=write_count,
+        version_basis=VERSION_BASIS, reset_epoch=0,
+        command_sequence=write_count, pid=pid, execution=execution,
+        build_identity_sha256='a' * 64, producer_source_sha256='b' * 64,
+        artifact_digest=target_artifact.runtime_document['artifact_digest'],
+        source_contract_digest=observation['source_contract']['digest'],
+        probe_digest=observation['digest'], reset_waveform_observed=False,
+        grants_reset_prerequisite=False, history_scope=HISTORY_SCOPE,
+        routed_context_authenticated=False)
+
+
+def generic_authority(timer_generated, tmp_path):
+    from myfuzz.integration.compiled_storage_producer import (
+        build_storage_producer, select_storage_producer)
+    artifacts, inputs = timer_generated
+    binding = select_storage_producer(artifacts=artifacts,
+        compiled_inputs=inputs, base_dir=ROOT)
+    target, authority = build_storage_producer(binding,
+        artifact=artifacts['peripheral'], base_dir=ROOT,
+        cache_dir=Path(tmp_path) / 'consumer-cache', max_cases=4)
+    return artifacts, inputs, binding, target, authority
+
+
+def install_writes(authority, writes):
+    from myfuzz.scenario import apb_storage_register_version as module
+    module._LIVE[authority]['writes'] = deepcopy(writes)
+
+
+def consume_storage(timer_generated, tmp_path, *, value=0x55, receipt=None,
+                    before=None, token=None, journal=None):
+    from myfuzz.integration.generated_storage_consumer import (
+        check_storage_observation)
+    artifacts, inputs, binding, target, authority = generic_authority(
+        timer_generated, tmp_path)
+    artifact = artifacts['peripheral']
+    declaration = timer_declaration(timer_generated, value)
+    receipt = receipt if receipt is not None else timer_receipt(
+        artifact, declaration)
+    before = before if before is not None else version_witness(artifact)
+    journal = journal if journal is not None else [timer_commit(
+        artifact, declaration)]
+    install_writes(authority, journal)
+    return check_storage_observation(declaration, receipt,
+        target_artifact=artifact, authority=authority,
+        token=object() if token is None else token,
+        register='TIMER0_CTRL', reset_epoch=0, before=before,
+        prior_writes=0)
+
+
+def test_storage_consumer_checks_the_whole_chain_before_the_native_token(
+        timer_generated, tmp_path):
+    artifacts, inputs, binding, target, authority = generic_authority(
+        timer_generated, tmp_path)
+    artifact = artifacts['peripheral']
+    declaration = timer_declaration(timer_generated, 0x55)
+    install_writes(authority, [timer_commit(artifact, declaration)])
+    with pytest.raises(ValueError,
+                       match='storage-version-actual-native-build-required'):
+        from myfuzz.integration.generated_storage_consumer import (
+            check_storage_observation)
+        check_storage_observation(declaration,
+            timer_receipt(artifact, declaration), target_artifact=artifact,
+            authority=authority, token=object(), register='TIMER0_CTRL',
+            reset_epoch=0, before=version_witness(artifact), prior_writes=0)
+
+
+@pytest.mark.parametrize(('mutation', 'expected'), (
+    ('write_value', 'compiled-F4-storage-delivery-count'),
+    ('delivery_offset', 'compiled-F4-storage-delivery-geometry'),
+    ('delivery_device', 'compiled-F4-storage-delivery-count'),
+    ('byte_enable', 'compiled-F4-storage-delivery-count'),
+    ('sequence', 'compiled-F4-storage-sequence-mismatch'),
+    ('missing_acceptance', 'compiled-F4-storage-CPU-acceptance-join'),
+    ('missing_pre', 'compiled-F4-storage-native-transfer-missing'),
+    ('probe_paddr', 'compiled-F4-storage-storage-probe-trace-mismatch'),
+    ('native_pwdata', 'compiled-F4-storage-native-write-value-mismatch'),
+    ('storage_transition', 'compiled-F4-storage-storage-transition-mismatch'),
+    ('read_prdata', 'compiled-F4-storage-native-read-value-mismatch'),
+    ('ram', 'compiled-F4-storage-readback-RAM-mismatch'),
+))
+def test_storage_consumer_refuses_tampered_delivery_or_native_sample(
+        timer_generated, tmp_path, mutation, expected):
+    artifacts, inputs, binding, target, authority = generic_authority(
+        timer_generated, tmp_path)
+    artifact = artifacts['peripheral']
+    declaration = timer_declaration(timer_generated, 0x55)
+    value = declaration['candidate']['value']
+    receipt = timer_receipt(artifact, declaration)
+    events = receipt.events
+    if mutation == 'write_value':
+        events[1]['write_value'] = value + 1
+    elif mutation == 'delivery_offset':
+        events[1]['offset'] = 8
+    elif mutation == 'delivery_device':
+        events[1]['device_id'] = 'other'
+        events[5]['device_id'] = 'other'
+    elif mutation == 'byte_enable':
+        events[1]['byte_enable'] = 3
+    elif mutation == 'sequence':
+        events[4]['source_transaction']['source_sequence'] = 3
+        events[5]['source_transaction']['source_sequence'] = 3
+    elif mutation == 'missing_acceptance':
+        events[0]['kind'] = 'other_acceptance'
+    elif mutation == 'missing_pre':
+        events[2]['kind'] = 'other_tick'
+    elif mutation == 'probe_paddr':
+        events[2]['outputs']['storage_probes']['storage_paddr'] = 0
+    elif mutation == 'native_pwdata':
+        events[2]['outputs']['storage_probes']['storage_pwdata'] = value + 1
+        signals = artifact.runtime_document['base_protocol_trace']['signals']
+        events[2]['outputs']['backend'][signals['pwdata']] = value + 1
+    elif mutation == 'storage_transition':
+        events[2]['outputs']['storage_probes']['storage_value'] = 1
+    elif mutation == 'read_prdata':
+        events[6]['outputs']['storage_probes']['storage_prdata'] = value + 1
+        signals = artifact.runtime_document['base_protocol_trace']['signals']
+        events[6]['outputs']['backend'][signals['prdata']] = value + 1
+    elif mutation == 'ram':
+        events[8]['value'] = value + 1
+    install_writes(authority, [timer_commit(artifact, declaration)])
+    with pytest.raises(ValueError, match=expected):
+        from myfuzz.integration.generated_storage_consumer import (
+            check_storage_observation)
+        check_storage_observation(declaration, receipt,
+            target_artifact=artifact, authority=authority, token=object(),
+            register='TIMER0_CTRL', reset_epoch=0,
+            before=version_witness(artifact), prior_writes=0)
+
+
+@pytest.mark.parametrize(('mutation', 'expected'), (
+    ('tick', 'compiled-F4-storage-commit-tick-mismatch'),
+    ('epoch', 'compiled-F4-storage-commit-epoch-mismatch'),
+    ('raw_sequence', 'compiled-F4-storage-commit-sequence-mismatch'),
+    ('context_value', 'compiled-F4-storage-commit-context-mismatch'),
+    ('context_transaction', 'compiled-F4-storage-commit-context-mismatch'),
+    ('after', 'compiled-F4-storage-commit-value-mismatch'),
+    ('before', 'compiled-F4-storage-commit-value-mismatch'),
+    ('raw_address', 'compiled-F4-storage-commit-alias-mismatch'),
+    ('missing', 'compiled-F4-storage-commit-count'),
+))
+def test_storage_consumer_refuses_tampered_c_version_journal(
+        timer_generated, tmp_path, mutation, expected):
+    artifacts, inputs, binding, target, authority = generic_authority(
+        timer_generated, tmp_path)
+    artifact = artifacts['peripheral']
+    declaration = timer_declaration(timer_generated, 0x55)
+    value = declaration['candidate']['value']
+
+    def mutate(commit):
+        if mutation == 'tick':
+            commit['tick'] = 21
+        elif mutation == 'epoch':
+            commit['context']['reset_epoch'] = 1
+        elif mutation == 'raw_sequence':
+            commit['raw_reference']['sequence'] = 8
+        elif mutation == 'context_value':
+            commit['context']['value'] = value + 1
+        elif mutation == 'context_transaction':
+            commit['context']['source_transaction']['source_sequence'] = 9
+        elif mutation == 'after':
+            commit['after'] = value + 1
+        elif mutation == 'before':
+            commit['before'] = 1
+        elif mutation == 'raw_address':
+            commit['raw_address'] = 8
+
+    journal = [] if mutation == 'missing' else [timer_commit(
+        artifact, declaration, mutate=mutate)]
+    before = version_witness(artifact, write_count=0)
+    if mutation == 'missing':
+        before['local_tick'] = 10
+    install_writes(authority, journal)
+    with pytest.raises(ValueError, match=expected):
+        from myfuzz.integration.generated_storage_consumer import (
+            check_storage_observation)
+        check_storage_observation(declaration,
+            timer_receipt(artifact, declaration), target_artifact=artifact,
+            authority=authority, token=object(), register='TIMER0_CTRL',
+            reset_epoch=0, before=before, prior_writes=0)
+
+
+@pytest.mark.parametrize(('mutation', 'expected'), (
+    ('history', 'compiled-F4-storage-before-history-mismatch'),
+    ('artifact_digest', 'compiled-F4-storage-before-witness-mismatch'),
+    ('register', 'compiled-F4-storage-before-witness-required'),
+    ('reset_epoch', 'compiled-F4-storage-before-witness-mismatch'),
+    ('grants_reset', 'compiled-F4-storage-before-witness-required'),
+    ('extra_key', 'compiled-F4-storage-before-witness-required'),
+))
+def test_storage_consumer_refuses_a_caller_serialized_before_witness(
+        timer_generated, tmp_path, mutation, expected):
+    artifacts, inputs, binding, target, authority = generic_authority(
+        timer_generated, tmp_path)
+    artifact = artifacts['peripheral']
+    declaration = timer_declaration(timer_generated, 0x55)
+    before = version_witness(artifact)
+    if mutation == 'history':
+        before['write_history_sha256'] = sha256(
+            canonical([{'forged': True}]).encode()).hexdigest()
+    elif mutation == 'artifact_digest':
+        before['artifact_digest'] = 'f' * 64
+    elif mutation == 'register':
+        before['register'] = 'TIMER1_CTRL'
+    elif mutation == 'reset_epoch':
+        before['reset_epoch'] = 1
+    elif mutation == 'grants_reset':
+        before['grants_reset_prerequisite'] = True
+    elif mutation == 'extra_key':
+        before['caller_readback'] = 0x55
+    install_writes(authority, [timer_commit(artifact, declaration)])
+    with pytest.raises(ValueError, match=expected):
+        from myfuzz.integration.generated_storage_consumer import (
+            check_storage_observation)
+        check_storage_observation(declaration,
+            timer_receipt(artifact, declaration), target_artifact=artifact,
+            authority=authority, token=object(), register='TIMER0_CTRL',
+            reset_epoch=0, before=before, prior_writes=0)
+
+
+@pytest.mark.parametrize(('mutation', 'expected'), (
+    ('offset_alias', 'compiled-F4-storage-declaration-geometry'),
+    ('value_mask', 'compiled-F4-storage-declaration-geometry'),
+    ('byte_enables', 'compiled-F4-storage-declaration-geometry'),
+    ('address', 'compiled-F4-storage-declaration-geometry'),
+    ('result_address', 'compiled-F4-storage-declaration-required'),
+    ('operation', 'compiled-F4-storage-declaration-geometry'),
+))
+def test_storage_consumer_refuses_tampered_declaration_geometry(
+        timer_generated, tmp_path, mutation, expected):
+    artifacts, inputs, binding, target, authority = generic_authority(
+        timer_generated, tmp_path)
+    artifact = artifacts['peripheral']
+    declaration = deepcopy(timer_declaration(timer_generated, 0x55))
+    access = declaration['candidate']['access']
+    if mutation == 'offset_alias':
+        access['register_offset'] = 8
+        access['address'] += 4
+    elif mutation == 'value_mask':
+        access['value_mask'] = 0xffff
+    elif mutation == 'byte_enables':
+        access['allowed_byte_enables'] = [7]
+    elif mutation == 'address':
+        access['address'] += 4
+    elif mutation == 'result_address':
+        declaration['result_address'] += 2
+    elif mutation == 'operation':
+        access['operation'] = 'read'
+    install_writes(authority, [timer_commit(artifact, declaration)])
+    with pytest.raises(ValueError, match=expected):
+        from myfuzz.integration.generated_storage_consumer import (
+            check_storage_observation)
+        check_storage_observation(declaration,
+            timer_receipt(artifact, declaration), target_artifact=artifact,
+            authority=authority, token=object(), register='TIMER0_CTRL',
+            reset_epoch=0, before=version_witness(artifact), prior_writes=0)
+
+
+def test_storage_consumer_requires_an_opaque_authority_and_live_token(
+        timer_generated, tmp_path):
+    from myfuzz.integration.generated_storage_consumer import (
+        check_storage_observation, stable_storage_version)
+    artifacts, inputs, binding, target, authority = generic_authority(
+        timer_generated, tmp_path)
+    artifact = artifacts['peripheral']
+    declaration = timer_declaration(timer_generated, 0x55)
+    install_writes(authority, [timer_commit(artifact, declaration)])
+    receipt = timer_receipt(artifact, declaration)
+    before = version_witness(artifact)
+    # Serialized witness/readback is never a token or an authority.
+    for forged_token in (dict(before), SimpleNamespace(witness=before),
+                         'opaque', b'token', 7, None):
+        with pytest.raises(ValueError,
+                           match='compiled-F4-storage-token-required'):
+            check_storage_observation(declaration, receipt,
+                target_artifact=artifact, authority=authority,
+                token=forged_token, register='TIMER0_CTRL', reset_epoch=0,
+                before=before, prior_writes=0)
+    with pytest.raises(ValueError,
+                       match='compiled-F4-storage-authority-required'):
+        check_storage_observation(declaration, receipt,
+            target_artifact=artifact,
+            authority=SimpleNamespace(target=target, writes=lambda: [None],
+                                      consume=lambda token: dict(before)),
+            token=object(), register='TIMER0_CTRL', reset_epoch=0,
+            before=before, prior_writes=0)
+    # A forged opaque token still fails closed at actual native eligibility.
+    with pytest.raises(ValueError,
+                       match='storage-version-actual-native-build-required'):
+        check_storage_observation(declaration, receipt,
+            target_artifact=artifact, authority=authority, token=object(),
+            register='TIMER0_CTRL', reset_epoch=0, before=before,
+            prior_writes=0)
+
+
+def test_stable_storage_version_keeps_only_process_independent_fields():
+    from myfuzz.integration.generated_storage_consumer import (
+        STABLE_VERSION_KEYS, stable_storage_version)
+    witness = dict(register='TIMER0_CTRL', value=0x55, local_tick=40,
+        write_history_sha256='c' * 64, field_version=1, write_count=1,
+        version_basis='all_measured_CTRL_alias_writes_since_first_command',
+        reset_epoch=0, command_sequence=12, pid=4242,
+        execution='driver-nonce', build_identity_sha256='a' * 64,
+        producer_source_sha256='b' * 64, artifact_digest='d' * 64,
+        source_contract_digest='e' * 64, probe_digest='f' * 64,
+        reset_waveform_observed=False, grants_reset_prerequisite=False,
+        history_scope=('complete_commands_since_first_measured_state_'
+                       'not_unobserved_startup'),
+        routed_context_authenticated=False)
+    stable = stable_storage_version(witness)
+    assert stable['schema_version'] == 'apb_storage_register_version.v1'
+    for key in ('pid', 'execution', 'write_history_sha256',
+                'build_identity_sha256', 'producer_source_sha256'):
+        assert key not in stable
+    for key in STABLE_VERSION_KEYS:
+        assert key in stable
+    tampered = dict(witness, caller_value=0)
+    with pytest.raises(ValueError, match='compiled-F4-storage-witness-shape'):
+        stable_storage_version(tampered)

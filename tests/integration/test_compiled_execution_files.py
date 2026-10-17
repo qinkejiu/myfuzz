@@ -154,7 +154,8 @@ def test_f4_chain_refuses_missing_or_mismatched_native_target_commit(mutation):
     elif mutation=='wrong_tick':commit['tick']=12
     elif mutation=='wrong_context':context['source_transaction']={**transaction,'source_sequence':2}
     elif mutation=='wrong_value':commit['after']=86
-    runtime=SimpleNamespace(target_id='peripheral',artifacts={'peripheral':object()},
+    runtime=SimpleNamespace(target_id='peripheral',row='gpio_causal_abi',
+        artifacts={'peripheral':object()},
         access=dict(address=0x40001004,register_offset=4),authority=SimpleNamespace(writes=lambda:writes))
     receipt=SimpleNamespace(events=[dict(event_id=2,source_transaction=transaction),dict(event_id=3,local_tick=11)])
     observed=dict(joins=[dict(delivery_event=2,native_APB_event=3)])

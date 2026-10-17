@@ -1,0 +1,36 @@
+{
+  "schema_version": "compiled_F4_gate_pending.v1",
+  "status": "pending_frozen_source_window",
+  "reason": "The real timer F4 native gate is serialized by the root session on a frozen source tree after the parallel P8 S2 source edit and the P6 row2/3 campaigns. It was not executed for this I3 commit.",
+  "executor": "compiled_f4_obi_apb",
+  "base_commit_at_handoff": "f9fc9b0",
+  "inputs": {
+    "compose": "configs/scenarios/compiled-f4-obi-apb-timer/compose.json",
+    "ip_capability": "configs/scenarios/compiled-f4-obi-apb-timer/test_capability.json",
+    "supplement": "configs/scenarios/compiled-f4-obi-apb-timer/execution_supplement.json",
+    "records": "configs/scenarios/compiled-f4-obi-apb-timer/example_records.json",
+    "records_values": ["0x55", "0xaa", "0x12345678"]
+  },
+  "command": "flock -w 14400 /home/qinkejiu/myfuzz/.superpowers/heavy-worker.lock env PYTHONPATH=src python3 scripts/run_compiled_dataflow.py --compose configs/scenarios/compiled-f4-obi-apb-timer/compose.json --ip-capability configs/scenarios/compiled-f4-obi-apb-timer/test_capability.json --supplement configs/scenarios/compiled-f4-obi-apb-timer/execution_supplement.json --records configs/scenarios/compiled-f4-obi-apb-timer/example_records.json --executor compiled_f4_obi_apb --output docs/reports/evidence/p7-i3-timer-f4-20261017/outputs/timer --cache-dir .superpowers/cache/p7-i3-timer --run-id p7-i3-timer-f4 --replays 1",
+  "expected_f4_identity": {
+    "path_id_actual": "F4:ram.image",
+    "path_id_requested_by_brief": "F4:timer.TIMER0_CTRL.value.mmio",
+    "target_source_id_actual": "peripheral.TIMER0_CTRL.value.mmio",
+    "target_component_actual": "peripheral",
+    "note": "The current compiler derives F4 path_id from the first F4 source (ram.image); the device instance in this compose is 'peripheral' and the window endpoint is timer.bus. The literal brief path_id is not produced and was not forced or fabricated."
+  },
+  "acceptance_required": [
+    "three explicit records 0x55/0xaa/0x12345678 execute continuously in one runtime",
+    "each certificate status is certified (or an honest real candidate status) with commit before/after and version token",
+    "the three compiled F4 assertions are present and passed per case",
+    "at least one fresh prefix replay reports matches=true and a full freshness scope",
+    "summary/prefix/events/execution audit/source pins and every failure are retained under outputs/timer",
+    "the checker and report never claim coverage-guided search, F2/F3 retirements, F5 IRQ or P7 acceptance"
+  ],
+  "not_claimed": [
+    "no native build/model/Verilator run for this target",
+    "no live token, witness, certificate or fresh prefix positive",
+    "no runtime_admitted claim: the support report keeps runtime_admitted=false",
+    "no P7 completion: I4 (compiled candidate search) and I5 (new CPU) remain undone"
+  ]
+}

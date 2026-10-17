@@ -1,7 +1,11 @@
 """Execute the selected compiled F4 through generated OBI/APB RTL.
 
-This adapter admits one RV32I instruction image and a source pinned GPIOEN
-producer. Other flows and producer contracts are explicitly unsupported.
+This adapter admits one RV32I instruction image and one closed storage producer
+row: the source-pinned PULP GPIOEN causal ABI or the registered generic APB
+storage ABI (``GeneratedApb3RegisterSession`` with a live
+``ApbStorageRegisterVersionAuthority`` token joined to CPU acceptance, Router
+delivery, native APB pre/post samples and CPU readback/RAM). Other flows and
+producer contracts are explicitly unsupported.
 """
 from copy import deepcopy
 from dataclasses import asdict, fields, is_dataclass
@@ -23,8 +27,11 @@ from myfuzz.scenario.session_runtime import ScenarioSession, OnlineCase, OnlineI
 from myfuzz.scenario.batch import BatchAdvance, BatchSourceEvent
 from .compiled_candidate_layout import compile_candidate_layout, CandidateLayout, LAYOUT_SCHEMA
 from .compiled_storage_producer import (
-    ROW_GPIO_CAUSAL, build_storage_producer, select_storage_producer)
+    ROW_GENERIC_APB_STORAGE, ROW_GPIO_CAUSAL, build_storage_producer,
+    select_storage_producer)
 from .generated_register_writer import declare_writer, check_writer_observation
+from .generated_storage_consumer import (
+    check_storage_observation, stable_storage_version, storage_consumer_support)
 
 
 def _digest(value):
@@ -427,10 +434,19 @@ class CompiledF4Runtime:
         self.base_dir=Path(base_dir);self.cache_dir=Path(cache_dir);self.run_id=run_id
         self.producer_binding=select_storage_producer(artifacts=artifacts,
             compiled_inputs=compiled_inputs,base_dir=self.base_dir)
-        if self.producer_binding.row!=ROW_GPIO_CAUSAL:
-            # D1 selects and admits the registered APB storage producer, but its
-            # generic commit/raw consumer is the separately owned D2 increment.
-            raise ValueError('compiled-F4-generic-commit-consumer-unsupported')
+        self.row=self.producer_binding.row
+        self.register_name=self.producer_binding.document()['register']['name']
+        if self.row!=ROW_GPIO_CAUSAL:
+            # The generic APB storage row is executable only through its
+            # in-row consumer, exact C issuer and complete four receipt joins.
+            # Without them this refuses before any constructor or native tick.
+            support=storage_consumer_support(binding=self.producer_binding,
+                artifacts=artifacts)
+            if support['complete'] is not True:
+                missing=','.join(row['element'] for row in support['refusals'])
+                raise ValueError(
+                    'compiled-F4-generic-receipt-join-incomplete:'+missing)
+            self.receipt_elements=support
         self.rounds=rounds_per_case;self.max_cases=max_cases;self.records=[];self.finished=False
         self.closure=_closure(base_dir);self.compiled_digest=_digest(compiled_inputs['compiled'])
         request=compiled_inputs['request'];self.cpu_id=request.cpu.instance_id
@@ -504,7 +520,8 @@ class CompiledF4Runtime:
         return dict(schema_version='compiled_F4_checker.v1',path_id=self.path['path_id'],
             compiled_sha256=self.compiled_digest,assertions=self.path['assertions'],
             candidate_layout=_layout_document(self.layout),cpu_error_policy=deepcopy(self.error_policy),
-            producer_binding=self.producer_binding.document())
+            producer_binding=self.producer_binding.document(),
+            producer_row=self.producer_binding.row)
 
     def _check_receipt(self, receipt):
         if receipt.violations:
@@ -522,23 +539,31 @@ class CompiledF4Runtime:
             return (str(error),)
 
     def _check_chain(self,receipt,declaration,before,prior):
-        value=declaration['candidate']['value']
-        observed=check_writer_observation(declaration,receipt,target_artifact=self.artifacts[self.target_id])
-        writes=self.authority.writes()[prior:]
-        if len(writes)!=1:raise ValueError('compiled-F4-bound-commit-count')
-        commit=writes[0];context=commit['context']
-        delivery=next(e for e in receipt.events if e.get('event_id')==observed['joins'][0]['delivery_event'])
-        if (not context or context['source_transaction']!=delivery['source_transaction']
-                or context['address']!=self.access['address'] or context['offset']!=self.access['register_offset']
-                or context['write'] is not True or context['value']!=value or context['be']!=15
-                or commit['before']!=before['value'] or commit['after']!=value or commit['epoch']!=before['reset_epoch']):
-            raise ValueError('compiled-F4-bound-commit-join-mismatch')
-        physical=next(e for e in receipt.events if e.get('event_id')==observed['joins'][0]['native_APB_event'])
-        if commit['tick']!=physical['local_tick'] or context['command_scope']!={
-                'component':self.target_id,'reset_epoch':commit['epoch'],'command_sequence':commit['command_sequence']}:
-            raise ValueError('compiled-F4-native-commit-identity-mismatch')
-        after=self.authority.consume(self.authority.issue(reset_epoch=before['reset_epoch']))
-        if after['value']!=value:raise ValueError('compiled-F4-live-register-mismatch')
+        if self.row==ROW_GENERIC_APB_STORAGE:
+            token=self.authority.issue(register=self.register_name,
+                reset_epoch=before['reset_epoch'])
+            observed,commit,after=check_storage_observation(declaration,receipt,
+                target_artifact=self.artifacts[self.target_id],authority=self.authority,
+                token=token,register=self.register_name,
+                reset_epoch=before['reset_epoch'],before=before,prior_writes=prior)
+        else:
+            value=declaration['candidate']['value']
+            observed=check_writer_observation(declaration,receipt,target_artifact=self.artifacts[self.target_id])
+            writes=self.authority.writes()[prior:]
+            if len(writes)!=1:raise ValueError('compiled-F4-bound-commit-count')
+            commit=writes[0];context=commit['context']
+            delivery=next(e for e in receipt.events if e.get('event_id')==observed['joins'][0]['delivery_event'])
+            if (not context or context['source_transaction']!=delivery['source_transaction']
+                    or context['address']!=self.access['address'] or context['offset']!=self.access['register_offset']
+                    or context['write'] is not True or context['value']!=value or context['be']!=15
+                    or commit['before']!=before['value'] or commit['after']!=value or commit['epoch']!=before['reset_epoch']):
+                raise ValueError('compiled-F4-bound-commit-join-mismatch')
+            physical=next(e for e in receipt.events if e.get('event_id')==observed['joins'][0]['native_APB_event'])
+            if commit['tick']!=physical['local_tick'] or context['command_scope']!={
+                    'component':self.target_id,'reset_epoch':commit['epoch'],'command_sequence':commit['command_sequence']}:
+                raise ValueError('compiled-F4-native-commit-identity-mismatch')
+            after=self.authority.consume(self.authority.issue(reset_epoch=before['reset_epoch']))
+            if after['value']!=value:raise ValueError('compiled-F4-live-register-mismatch')
         instruction_snapshots=[self.runner.sessions[self.cpu_id].memory.read(self.cursor+offset,4,
             transaction_id=f'compiled-F4-check:{len(self.records)}:{offset}') for offset in range(0,32,4)]
         observed['exact_hops']=check_f4_exact_hops(events=self.runner.events_since(0),
@@ -610,6 +635,8 @@ class CompiledF4Runtime:
             pin_receipt=self.session.submit_case(pin_case)
             if pin_receipt.violations:raise ValueError('compiled-F4-external-source-failed')
         before=self.authority.consume(self.authority.issue(reset_epoch=self.runner.sessions[self.target_id].reset_epoch))
+        prerequisite=(stable_storage_version(before)
+                      if self.row==ROW_GENERIC_APB_STORAGE else before)
         prior=len(self.authority.writes())
         index=len(self.records);case_id=f'{self.run_id}:{index}'
         case=OnlineCase(case_id,'CPU_TO_IP',self.path['path_id'],
@@ -627,7 +654,7 @@ class CompiledF4Runtime:
             bound_input_id=self.path['bound_inputs'][0]['input_id'],case_id=case_id,
             instruction_source_id=next(s['source_id'] for s in self.path['sources'] if s['kind']=='instruction_image'),
             instruction_address=self.cursor,instruction_sha256=sha256(code).hexdigest(),
-            prerequisite=before,commit=commit,postcondition=after,joins=observed['joins'],
+            prerequisite=prerequisite,commit=commit,postcondition=after,joins=observed['joins'],
             first_fetch=self.first_fetch,exact_hops=observed['exact_hops'],
             assertions=observed['exact_hops']['assertions'],
             runtime_admitted=True)
