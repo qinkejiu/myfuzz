@@ -145,6 +145,8 @@ def check_real_gate(directory):
         raise ValueError('real-client-not-successful')
     if fresh.get('matches') is not True or fresh.get('verification_scope') != 'full':
         raise ValueError('full-fresh-replay-not-matching')
+    if 'first_difference' not in fresh or fresh['first_difference'] is not None:
+        raise ValueError('fresh-first-difference-not-explicitly-null')
     for key in ('prefix_sha256', 'semantic_hash'):
         if not fresh.get('expected_' + key) or fresh['expected_' + key] != fresh.get('actual_' + key):
             raise ValueError('fresh-digest-mismatch:' + key)

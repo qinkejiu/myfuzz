@@ -68,3 +68,10 @@ write failures and interruptions preserve the first exception and still wait
 for that same child to exit; terminal recording is attempted before re-raising
 the original exception. No such failure permits a restart or lock release
 while the child is still being awaited.
+
+Independent source review of `0e91754` found that a contradictory fresh report
+could claim `matches=true` and matching hashes while omitting
+`first_difference` or recording a difference. The collector now requires that
+the key exists and is exactly JSON `null`; either contradiction fails before
+the evidence can receive `collected_pending_independent_audit`. This is a
+source-only review fix; no test or execution result is claimed.
