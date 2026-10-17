@@ -5,25 +5,25 @@
       "command": "PYTHONPATH=src python3 -m pytest -q tests/integration/test_compiled_online_decoder.py",
       "counts": {
         "failed": 0,
-        "passed": 25,
+        "passed": 26,
         "skipped": 0
       },
       "cwd": "/home/qinkejiu/myfuzz",
       "id": "new-decoder-and-bridge",
       "result": "passed",
-      "seconds": 28.66
+      "seconds": 33.18
     },
     {
       "command": "PYTHONPATH=src python3 -m pytest -q tests/integration/test_compiled_online_decoder.py tests/integration/test_auto_harness_test.py",
       "counts": {
         "failed": 0,
-        "passed": 58,
+        "passed": 59,
         "skipped": 0
       },
       "cwd": "/home/qinkejiu/myfuzz",
       "id": "new-plus-auto-harness",
       "result": "passed",
-      "seconds": 162.42
+      "seconds": 181.25
     },
     {
       "command": "PYTHONPATH=src python3 -m pytest -q tests/integration/test_compiled_f4.py tests/integration/test_compiled_f4_storage_producer.py tests/integration/test_compiled_candidate_layout.py",
@@ -83,6 +83,62 @@
       "seconds": 0.76
     }
   ],
+  "coverage_simulation": {
+    "basis": "real a43e3fa session/receipts/report with corrected per-value coverage vectors",
+    "chosen_vectors": {
+      "0": "0000000000000000",
+      "1": "0100000000000000",
+      "2": "0200000000000000",
+      "4": "0400000000000000"
+    },
+    "first_seen_target_bits": 3,
+    "mutation_hint_updates": 6,
+    "note": "simulation on saved real receipts, not a gate pass; the real rerun must produce the tier itself",
+    "result": "Coverage-guided searched awarded"
+  },
+  "coverage_targets": {
+    "explicit_test": "test_low_byte_mutations_hit_a_real_target_and_coverage_is_nonzero",
+    "gate_rerun_required": true,
+    "hit_map": {
+      "0": "no hit (honest zero)",
+      "1": "bit 0",
+      "2": "bit 1",
+      "4": "bit 2"
+    },
+    "observed_commit_after": [
+      0,
+      1,
+      2,
+      4
+    ],
+    "observed_real_values": [
+      0,
+      1,
+      2,
+      4
+    ],
+    "previous_result": "all coverage_hex zero; Coverage-guided searched tier 0",
+    "previous_target_bits": [
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31
+    ],
+    "target_bits": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ]
+  },
   "executor": "compiled-f4-rfuzz",
   "follow_up": {
     "fix": "one shared myfuzz.scenario.compiled_paths.compiled_document_sha256 canonical form (sorted compact JSON, default ASCII escaping) used by CompiledF4Runtime.compiled_digest, CompiledOnlineDecoder and join_compiled_receipts; compiled_rfuzz canonical encoder uses the same ASCII form",

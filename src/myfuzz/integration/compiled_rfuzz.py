@@ -64,10 +64,12 @@ EXECUTOR_NAME = 'compiled-f4-rfuzz'
 JOIN_SCHEMA = 'compiled_receipt_join.v1'
 FRESH_VERIFICATION_SCHEMA = 'fresh_verification.v1'
 
-#: The register commit word bits this route observes.  The high byte is the
-#: one the RFuzz scenario decision mutator really drives, so these bits give
-#: non-constant per-case coverage instead of a constant hit.
-COMMIT_TARGET_BITS = tuple(range(24, 32))
+#: The register commit word bits this route observes.  The real native
+#: scenario mutations submitted values 0/1/2/4, i.e. the LOW byte; targets on
+#: bits 24..31 were never reached and produced an all-zero coverage vector.
+#: Bits 0..7 are the reachable low byte, so a value of 1/2/4 really hits a
+#: target and the coverage-guided contract is not vacuous.
+COMMIT_TARGET_BITS = tuple(range(0, 8))
 COMMIT_OBSERVATION_LANE = 'storage_commit_after'
 
 #: The native scenario test can carry a longer wire sequence than the eight

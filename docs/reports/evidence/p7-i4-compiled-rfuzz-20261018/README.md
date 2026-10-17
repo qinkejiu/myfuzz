@@ -56,9 +56,13 @@ result is claimed here.
     real per-component local ticks, the certificate digest and one
     `session/receipts.jsonl` row per slot (the transport persists it).
   - Exposes 8 real coverage targets: `compiled_f4.<target>.<register>
-    .commit_word_bit_24..31`, each a predicate on the actual observed commit
+    .commit_word_bit_0..7`, each a predicate on the actual observed commit
     word (`certificate["commit"]["after"]`) of the certificate the runtime
-    returned. A refused candidate has the zero coverage vector.
+    returned. Bits 0..7 are the reachable low byte: the native gate's real
+    mutation values were 0/1/2/4, so a value of 1/2/4 really hits a target and
+    the coverage vector is nonzero (the previous high-byte 24..31 targets were
+    never reached and produced all-zero coverage). A refused candidate has the
+    zero coverage vector.
   - Refuses a candidate before the native command when `runtime.records >=
     runtime.max_cases` or the declared candidate does not fit the remaining
     instruction image; a post-submit failure is an `environment_error` receipt
@@ -135,10 +139,10 @@ All commands: `cd /home/qinkejiu/myfuzz && PYTHONPATH=src python3 -m pytest -q`.
 
 | command | result |
 |---|---|
-| `pytest -q tests/integration/test_compiled_online_decoder.py` | **25 passed, 0 failed** in 28.66 s |
+| `pytest -q tests/integration/test_compiled_online_decoder.py` | **26 passed, 0 failed** in 33.18 s |
 | `pytest -q tests/integration/test_auto_harness_test.py` | **33 passed, 0 failed** in 136.24 s |
 | `pytest -q tests/integration/test_scenario_rfuzz_live_client.py tests/integration/test_scenario_rfuzz_terminal_identity.py tests/integration/test_scenario_rfuzz_transport.py tests/integration/test_scenario_rfuzz_acceptance.py` | **39 passed, 4 skipped, 4 subtests passed** in 0.76 s |
-| `pytest -q tests/integration/test_compiled_online_decoder.py tests/integration/test_auto_harness_test.py` | **58 passed, 0 failed** in 162.42 s |
+| `pytest -q tests/integration/test_compiled_online_decoder.py tests/integration/test_auto_harness_test.py` | **59 passed, 0 failed** in 181.25 s |
 | `pytest -q tests/integration/test_compiled_f4.py tests/integration/test_compiled_f4_storage_producer.py tests/integration/test_compiled_candidate_layout.py` | **104 passed, 1 skipped** in 176.22 s (rerun after the wire change) (the skip is the existing `MYFUZZ_COMPILED_F4_REAL=1` native gate, intentionally not run) |
 | `pytest -q tests/integration/test_compiled_execution_files.py tests/integration/test_compiled_execution_projection.py tests/integration/test_compiled_artifact_admission.py tests/integration/test_compiled_f4_layout_replay_audit.py` | **77 passed, 0 failed** in 116.58 s (rerun after the digest fix) |
 | `python3 scripts/auto_harness_test.py --cpu configs/cpus/ibex_obi_local/component_profile.json --ip configs/peripherals/pulp_timer/component_profile.json --ip-capability configs/scenarios/compiled-f4-obi-apb-timer/test_capability.json --compose configs/scenarios/compiled-f4-obi-apb-timer/compose.json --output <new> --executor compiled-f4-rfuzz --skip-session` | exit 0; `status=complete`; `executor.status=ok`, name `compiled-f4-rfuzz`, `family_fallback=false`; session/fresh `not_requested` |
@@ -251,6 +255,39 @@ test then drives 8 candidate cases at 32 rounds each, which fits the wall
 budget; if 32 rounds is too short for the case to commit, 48/64 remain inside
 the declared 1..4096 range. A too-short value is not a pass: it fails the real
 gate's own receipt/verification artifacts.
+
+
+## Coverage-target follow-up after the `a43e3fa` gate
+
+That gate executed four tests (submitted values 0, 1, 2, 4), all certified, but
+every `coverage_hex` was zero and `Coverage-guided searched` stayed 0. The
+targets were commit-word bits 24..31, which the real low-byte mutations never
+reach.
+
+Fix (this follow-up commit): the eight targets are commit-word **bits 0..7**
+(`compiled_commit_targets`), still predicates on the actual observed commit
+word; the certificate/commit evidence is unchanged. Values 1/2/4 now hit bits
+0/1/2 and produce a nonzero coverage vector; value 0 remains an honest zero.
+The capability report's coverage gate already requires a receipt with nonzero
+`coverage_hex` plus a steering fact (`mutation_hint_updates` /
+`applied_hint_sequence`), so the real tier must come from the rerun's own
+receipts; this file does not claim it.
+
+The successful native run's own certificates show the committed values
+`0, 1, 2, 4` (commit `after` = `0, 1, 2, 4`), so bits 0..7 are exactly the
+reachable byte; `1/2/4` hit bits 0/1/2 and `0` stays an honest zero.
+
+Regression test:
+`test_low_byte_mutations_hit_a_real_target_and_coverage_is_nonzero` asserts the
+target masks are exactly bits 0..7, values 1/2/4 hit at least one target and
+produce a nonzero coverage vector, and value 0 produces no hit. The execution
+tests now use low-byte records so their aggregate coverage is nonzero.
+
+A pure capability-report re-run over the real `a43e3fa` session with the
+corrected per-value coverage vectors (`1`→bit 0, `2`→bit 1, `4`→bit 2) awards
+`Coverage-guided searched` with `first_seen_target_bits=3` and
+`mutation_hint_updates=6`. That is a simulation on the saved real receipts, not
+a gate pass; the rerun must produce the tier from its own receipts.
 
 ## Real gate (NOT run here; for the root session)
 

@@ -24,6 +24,7 @@ from myfuzz.integration.compiled_rfuzz import (
     COMPILED_CANDIDATE_CYCLES,
     COMPILED_WIRE_MAX_CYCLES,
     CompiledRfuzzExecutor,
+    compiled_commit_hits,
     compiled_commit_targets,
     fresh_verification_document,
     join_compiled_receipts,
@@ -174,8 +175,8 @@ def _wire(*tests):
     return header + body
 
 
-def _high_byte_records(count):
-    return tuple(bytes([0, 0, 0, 0x80 if index % 2 else 0x01]) + bytes(4)
+def _low_byte_records(count):
+    return tuple((1 << (index % 8)).to_bytes(4, 'little') + bytes(4)
                  for index in range(count))
 
 
@@ -346,7 +347,7 @@ def test_mapped_receipt_carries_real_source_path_status_and_coverage(gpio):
                   if row['kind'] == 'cpu_mmio_stream')
     runtime = _FakeRuntime(path, inputs['compiled'])
     executor = _executor(inputs, path, runtime)
-    raw = bytes.fromhex('00000080' + '00000000')  # value bit 31 set
+    raw = bytes.fromhex('01000000' + '00000000')  # value 1: low-byte bit 0
     coverages = executor.execute_batch(_batch(raw))
     assert len(runtime.submits) == 1
     assert len(coverages) == 1 and int(coverages[0].hex(), 16) != 0
@@ -354,7 +355,7 @@ def test_mapped_receipt_carries_real_source_path_status_and_coverage(gpio):
     assert receipt.status == 'certified'
     assert receipt.path_id == path['path_id']
     assert receipt.online_case['source']['source_id'] == stream['source_id']
-    assert receipt.online_case['source']['value'] == 0x80000000
+    assert receipt.online_case['source']['value'] == 1
     assert receipt.local_ticks == {'processor': 10, 'peripheral': 20}
     decision = executor._online_decisions_by_slot[(1, 0)]
     assert decision['path_id'] == path['path_id']
@@ -508,7 +509,7 @@ def test_one_eight_nine_sixty_four_and_200_cycle_tests_parse():
     assert len(one.tests) == 1
     assert one.tests[0] == (bytes(8),)
     for count in (8, 9, 64, 200):
-        records = _high_byte_records(count)
+        records = _low_byte_records(count)
         batch = parse_compiled_input_buffer(_wire(records))
         assert len(batch.tests) == 1
         assert batch.tests[0] == records
@@ -521,7 +522,7 @@ def test_a_64_cycle_test_uses_eight_candidates_and_records_the_rest(gpio):
     _, inputs, path = gpio
     runtime = _FakeRuntime(path, inputs['compiled'], max_cases=16)
     executor = _executor(inputs, path, runtime)
-    records = _high_byte_records(64)
+    records = _low_byte_records(64)
     coverages = executor.execute_batch(InputBatch(7, WIRE, (records,)))
     assert len(runtime.submits) == 8
     assert len(runtime.records) == 8
@@ -548,7 +549,7 @@ def test_a_nine_cycle_test_uses_eight_candidates_and_one_unreferenced_record(gpi
     _, inputs, path = gpio
     runtime = _FakeRuntime(path, inputs['compiled'], max_cases=16)
     executor = _executor(inputs, path, runtime)
-    records = _high_byte_records(9)
+    records = _low_byte_records(9)
     executor.execute_batch(InputBatch(8, WIRE, (records,)))
     assert len(runtime.submits) == 8
     source = executor.receipts[0].online_case['source']
@@ -580,7 +581,7 @@ def test_an_eight_cycle_test_executes_every_record_with_one_receipt(gpio):
     _, inputs, path = gpio
     runtime = _FakeRuntime(path, inputs['compiled'], max_cases=16)
     executor = _executor(inputs, path, runtime)
-    records = _high_byte_records(8)
+    records = _low_byte_records(8)
     coverages = executor.execute_batch(InputBatch(5, WIRE, (records,)))
     assert len(runtime.submits) == 8
     assert len(runtime.records) == 8
@@ -607,7 +608,7 @@ def test_an_eight_cycle_test_over_max_cases_refuses_before_any_submit(gpio):
     _, inputs, path = gpio
     runtime = _FakeRuntime(path, inputs['compiled'], max_cases=4)
     executor = _executor(inputs, path, runtime)
-    records = _high_byte_records(8)
+    records = _low_byte_records(8)
     executor.execute_batch(InputBatch(6, WIRE, (records,)))
     assert runtime.submits == []
     assert runtime.records == []
@@ -632,3 +633,20 @@ def test_the_compiled_session_helper_refuses_rounds_outside_1_to_4096(tmp_path):
             output_dir=tmp_path / 'o', client_binary=ROOT / 'kfuzz',
             budget_seconds=1, max_tests=1, search_seed=None,
             max_runs_per_batch=1, rounds_per_case=0)
+
+
+def test_low_byte_mutations_hit_a_real_target_and_coverage_is_nonzero(gpio):
+    _, inputs, path = gpio
+    targets = compiled_commit_targets(path)
+    assert [target.mask for target in targets] == [1 << bit
+                                                   for bit in range(8)]
+    for value in (1, 2, 4):
+        certificate = {'status': 'certified',
+                       'commit': {'before': 0, 'after': value}}
+        hits = compiled_commit_hits(certificate, targets)
+        assert hits, value
+        coverage = bytes(int(target.target_id in hits) for target in targets)
+        assert int(coverage.hex(), 16) != 0, value
+    zero = compiled_commit_hits(
+        {'status': 'certified', 'commit': {'before': 0, 'after': 0}}, targets)
+    assert zero == frozenset()
