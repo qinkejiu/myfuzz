@@ -59,3 +59,12 @@ checked again afterward, and generated actual build manifests remain required
 for the independent tool/provenance audit. The manifest checks named tool
 entry points, not every transitive executable or shared library. An unmet or
 unreviewed transitive closure still blocks operator execution authorization.
+In particular, hashing a `c++` wrapper cannot approve its hard-coded old
+workspace dependency or TMPDIR override. Those wrapper dependencies must be
+reviewed before authorizing the operation.
+
+All child log files are opened before spawn. Once spawned, metadata/observation
+write failures and interruptions preserve the first exception and still wait
+for that same child to exit; terminal recording is attempted before re-raising
+the original exception. No such failure permits a restart or lock release
+while the child is still being awaited.

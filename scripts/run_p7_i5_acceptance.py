@@ -61,24 +61,45 @@ def child(argv, *, name, root, output, env):
     record = {'argv': [str(arg) for arg in argv], 'cwd': str(root),
               'started_unix': time.time(), 'returncode': None}
     with (output / (name + '.stdout')).open('xb') as stdout, \
-            (output / (name + '.stderr')).open('xb') as stderr:
+            (output / (name + '.stderr')).open('xb') as stderr, \
+            (output / (name + '.observations.jsonl')).open('x') as observations:
         process = subprocess.Popen(record['argv'], cwd=root, env=env,
                                    stdout=stdout, stderr=stderr, stdin=subprocess.DEVNULL)
-        record['pid'] = process.pid
-        write(output / (name + '.process.json'), record)
-        with (output / (name + '.observations.jsonl')).open('x') as observations:
+        primary = None
+        try:
+            record['pid'] = process.pid
+            write(output / (name + '.process.json'), record)
+        except BaseException as error:
+            primary = error
+        finally:
+            # All resources were opened before spawn. Even receipt-write errors
+            # and interruptions after spawn must await this actual child.
             while True:
                 try:
                     code = process.wait(timeout=30)
                     break
                 except subprocess.TimeoutExpired:
-                    observations.write(json.dumps({'pid': process.pid,
-                        'observed_unix': time.time(), 'poll': process.poll()}) + '\n')
-                    observations.flush()
-    record.update(returncode=code, ended_unix=time.time(),
-                  stdout_sha256=digest(output / (name + '.stdout')),
-                  stderr_sha256=digest(output / (name + '.stderr')))
-    write(output / (name + '.process.json'), record)
+                    try:
+                        observations.write(json.dumps({'pid': process.pid,
+                            'observed_unix': time.time(), 'poll': process.poll()}) + '\n')
+                        observations.flush()
+                    except BaseException as error:
+                        if primary is None:
+                            primary = error
+                except BaseException as error:
+                    if primary is None:
+                        primary = error
+            try:
+                record.update(returncode=code, ended_unix=time.time(),
+                              stdout_sha256=digest(output / (name + '.stdout')),
+                              stderr_sha256=digest(output / (name + '.stderr')),
+                              collection_error=repr(primary) if primary else None)
+                write(output / (name + '.process.json'), record)
+            except BaseException as error:
+                if primary is None:
+                    primary = error
+            if primary is not None:
+                raise primary
     return record
 
 
