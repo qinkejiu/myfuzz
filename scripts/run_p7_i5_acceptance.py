@@ -295,6 +295,11 @@ def main():
                     raise ValueError('negative-child-failed:' + label)
                 result['negative_results'][label] = check_junit(junit, selector)
             run = output / 'real-run'
+            # The production CLI requires an existing external cache directory
+            # before session admission. This operation owns a new empty cache;
+            # its existence does not claim prebuilt artifacts or native success.
+            native_cache = output / 'native-cache'
+            native_cache.mkdir(exist_ok=False)
             scenario = root / 'configs/scenarios/compiled-f4-obi-apb-timer-cve2'
             argv = [sys.executable, root / 'scripts/auto_harness_test.py',
                     '--base-dir', root, '--cpu', root / 'configs/cpus/cv32e20/component_profile.json',
@@ -302,7 +307,7 @@ def main():
                     '--ip-capability', scenario / 'test_capability.json', '--compose', scenario / 'compose.json',
                     '--executor', 'compiled-f4-rfuzz', '--client-binary', client,
                     '--budget-seconds', '60', '--max-tests', '8', '--rounds-per-case', '32',
-                    '--output', run, '--cache-dir', output / 'native-cache']
+                    '--output', run, '--cache-dir', native_cache]
             record = child(argv, name='real-gate', root=root, output=output, env=env)
             if record['returncode'] != 0:
                 raise ValueError('real-gate-child-failed')
