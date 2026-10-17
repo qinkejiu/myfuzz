@@ -1,0 +1,64 @@
+{
+  "command": "MYFUZZ_GENERATED_RUNTIME_REAL=1 PYTHONPATH=src MYFUZZ_GENERATED_RUNTIME_CACHE=.superpowers/cache/local-harness python3 -m pytest -xq tests/integration/test_generated_dual_runtime_loaded_real.py",
+  "evidence_dir": "docs/reports/evidence/p7-i2-real-20261017/evidence",
+  "evidence_summary": {
+    "compiled_counts": {
+      "executable": 4,
+      "total": 6,
+      "unsupported": 2
+    },
+    "event_count": 4021,
+    "execution_projection": {
+      "capability_executable": 4,
+      "execution_supported": 0,
+      "runtime_admitted": false
+    },
+    "fresh_matches": true,
+    "fresh_scope": "full",
+    "receipt_violations": 0,
+    "receipts": 8
+  },
+  "expected": "2 passed",
+  "files": {
+    "evidence/compiled-paths.json": {
+      "bytes": 57175,
+      "sha256": "efe6546db0e92edcb862016d9f7a073a86e51f068f432c60dc7c0a3a5c5acb8c"
+    },
+    "evidence/events.json.gz": {
+      "bytes": 129801,
+      "sha256": "8518c0772264b9087e22a799e9dc0512c460c0e0829f5dcfd9e3a038d57988e6"
+    },
+    "evidence/execution-projection.json": {
+      "bytes": 49901,
+      "sha256": "32f8aaa5cf3b8fea27c0e556f4453b065a5bbbff611fd37e1226ea658e1e4eca"
+    },
+    "evidence/plan.json": {
+      "bytes": 41172,
+      "sha256": "cc2688ec482ee18188499e0931fcc43c306c87f58ba05c82eb3125ee832e741b"
+    },
+    "evidence/summary.json.gz": {
+      "bytes": 113512,
+      "sha256": "53f48e709bde25b3e15eb413d82c7fdb4846914c2c12d4998aced3c4c7c8edf9"
+    },
+    "real-gate.exit": {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "real-gate.log": {
+      "bytes": 109,
+      "sha256": "49d0229c3006a57dbd0d2c38513a40c10896825d48cb7fc6e12e6aed14e817f2"
+    }
+  },
+  "finished_utc": "2026-10-17T10:08:21Z",
+  "flock": "flock -w 14400 .superpowers/heavy-worker.lock",
+  "gate": "I2 compiled ownership does not weaken the family runtime",
+  "gate_result": "2 passed",
+  "head_sha": "d24da4d5915f33bc4f9bfec77842cd32af93d3b5",
+  "log": "docs/reports/evidence/p7-i2-real-20261017/real-gate.log",
+  "pytest_exit_code": 0,
+  "pytest_summary": "2 passed in 94.56s (0:01:34)",
+  "schema_version": "p7_i2_real_gate_run.v1",
+  "source_modified_during_gate": false,
+  "started_utc": "2026-10-17T10:06:43Z",
+  "test": "tests/integration/test_generated_dual_runtime_loaded_real.py"
+}

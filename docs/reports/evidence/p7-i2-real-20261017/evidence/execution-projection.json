@@ -1,0 +1,1488 @@
+{
+  "schema_version": "compiled_execution_projection.v1",
+  "scope": "execution_feasibility_no_runtime_authority",
+  "runtime_admitted": false,
+  "capability_executable": 4,
+  "execution_supported": 0,
+  "paths": [
+    {
+      "path_id": "F1:ram.image",
+      "flow_id": "F1",
+      "capability_status": "executable",
+      "status": "unsupported",
+      "runtime_admitted": false,
+      "register_targets": [],
+      "refusals": [
+        {
+          "code": "authenticated-retirement-observation-missing",
+          "pointer": "/paths/0/termination_observation",
+          "detail": {
+            "required": {
+              "kind": "retirement",
+              "basis": "CPU \u771f\u5b9e\u8bd1\u7801\u6267\u884c\u5e76\u66f4\u65b0 PC/\u5bc4\u5b58\u5668 (plan line 77)"
+            },
+            "available_contract": null,
+            "source_component": "cpu"
+          }
+        },
+        {
+          "code": "compiled-source-execution-map-missing",
+          "pointer": "/paths/0/sources/0",
+          "detail": {
+            "source_id": "ram.image",
+            "kind": "instruction_image",
+            "runtime_sources": [
+              "cpu.online_instruction",
+              "gpio_b.external_pin8"
+            ]
+          }
+        },
+        {
+          "code": "compiled-prerequisite-handler-missing",
+          "pointer": "/paths/0/prerequisites/0",
+          "detail": {
+            "kind": "instruction_slot_unmaterialized",
+            "basis": "F1 mutates the program image itself, so the slot has to be still unmaterialized when the case is admitted (myfuzz.scenario.source_actions:PREREQUISITE_KINDS)",
+            "subject": {
+              "component": "cpu"
+            }
+          }
+        },
+        {
+          "code": "compiled-assertion-checker-map-missing",
+          "pointer": "/paths/0/assertions/0",
+          "detail": {
+            "expectation_id": "cpu_ip.retirement_observation_supported",
+            "assertion_class": "cpu_ip_behaviour",
+            "declared_by": "myfuzz.scenario.cpu_retirement:cpu_retirement_match.v1.status",
+            "asserts": "a retired instruction the observation contract cannot decode is recorded as status=rejected with its reason instead of being dropped from the artifact"
+          }
+        },
+        {
+          "code": "compiled-assertion-checker-map-missing",
+          "pointer": "/paths/0/assertions/1",
+          "detail": {
+            "expectation_id": "cpu_ip.retirement_instruction_origin",
+            "assertion_class": "cpu_ip_behaviour",
+            "declared_by": "myfuzz.scenario.chain_certificates: instruction_origin_status == 'typed_writer_refs'",
+            "asserts": "a retirement is usable as an instruction-source hop only when its instruction bytes are typed back to writer refs (instruction_origin_status=typed_writer_refs)"
+          }
+        },
+        {
+          "code": "compiled-seed-execution-map-missing",
+          "pointer": "/paths/0/seed",
+          "detail": {
+            "kind": "instruction_image",
+            "detail": {
+              "resource_id": "ram",
+              "base": 65536,
+              "size": 196608,
+              "isa": {
+                "xlen": 32,
+                "extensions": [
+                  "C",
+                  "I",
+                  "M"
+                ],
+                "instruction_alignment": 2
+              }
+            }
+          }
+        },
+        {
+          "code": "compiled-path-executor-not-installed",
+          "pointer": "/paths/0",
+          "detail": "declarations and diagnostic matching deliveries cannot grant execution"
+        }
+      ]
+    },
+    {
+      "path_id": "F2:ram.image",
+      "flow_id": "F2",
+      "capability_status": "executable",
+      "status": "unsupported",
+      "runtime_admitted": false,
+      "register_targets": [
+        {
+          "source_id": "gpio_a.PADIN.value.address",
+          "producer_component": "gpio_a",
+          "endpoint_id": "gpio.bus",
+          "register": "PADIN",
+          "offset": 8,
+          "address": 1073745928,
+          "register_width": 32,
+          "artifact_digest": "37831a62abe2fe67c9eafdd7a06e804b9e3f2bfde1f59a56e53851fd75d80261",
+          "profile_fingerprint": "sha256:fddde37680351d9813373cbf38c22d50dcfc63abc7d3b421515fef27d8d08484",
+          "source_verification": {
+            "id": "pulp_gpio",
+            "source_status": "source_verified",
+            "elaboration_status": "elaboration_verified",
+            "runtime_status": "runtime_unverified",
+            "parse_status": "parameterized_ports_pending_elaboration",
+            "selected_files": 1,
+            "selected_content_hash": "sha256:7622917c85229ee645c720309c308a6506c2c547081f8c899d4e9338b4f5c7a9",
+            "elaboration": {
+              "elaboration_status": "elaboration_verified",
+              "closure_files": 1,
+              "closure_roots": [
+                "third_party/soc-pulp-apb-gpio"
+              ],
+              "top_module": "apb_gpio",
+              "tool": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+              "lint": {
+                "errors": 0,
+                "warnings": 2,
+                "exit_code": 0,
+                "log": "runs/soc-source-elaboration/pulp/pulp_gpio.elaborate.log"
+              }
+            },
+            "schema_version": "local_source_lock_verification.v1",
+            "lock_sha256": "4caf0ae616e99e3c7cac76a1b04daca41af9bcef0eee3b6b0923fb6bd7e2a29e"
+          },
+          "physical_bus_outputs": [
+            {
+              "port": "PRDATA",
+              "role": "prdata",
+              "width": 32
+            },
+            {
+              "port": "PREADY",
+              "role": "pready",
+              "width": 1
+            },
+            {
+              "port": "PSLVERR",
+              "role": "pslverr",
+              "width": 1
+            }
+          ],
+          "diagnostic_matching_deliveries": [],
+          "register_access": {
+            "schema_version": "register_source_access.v1",
+            "source_component": "cpu",
+            "source_endpoint": "processor.data",
+            "target_component": "gpio_a",
+            "target_endpoint": "gpio.bus",
+            "device_id": "gpio_a",
+            "register": "PADIN",
+            "field": "value",
+            "register_offset": 8,
+            "address": 1073745928,
+            "window_base": 1073745920,
+            "window_size": 4096,
+            "window_alignment": 4096,
+            "access_alignment": 4,
+            "width_bytes": 4,
+            "byte_enable_domain": "target_word_lanes",
+            "allowed_byte_enables": [
+              15
+            ],
+            "operation": "read",
+            "value_origin": "bound_target_rdata",
+            "register_origin": "bound_target_register_commit",
+            "value_mask": 4294967295
+          },
+          "candidate_source_certified": false,
+          "constraint_mapping": "exact_register_access_declared"
+        }
+      ],
+      "refusals": [
+        {
+          "code": "compiled-source-execution-map-missing",
+          "pointer": "/paths/1/sources/0",
+          "detail": {
+            "source_id": "ram.image",
+            "kind": "instruction_image",
+            "runtime_sources": [
+              "cpu.online_instruction",
+              "gpio_b.external_pin8"
+            ]
+          }
+        },
+        {
+          "code": "compiled-source-execution-map-missing",
+          "pointer": "/paths/1/sources/1",
+          "detail": {
+            "source_id": "gpio_a.PADIN.value.address",
+            "kind": "cpu_load_stream",
+            "runtime_sources": [
+              "cpu.online_instruction",
+              "gpio_b.external_pin8"
+            ]
+          }
+        },
+        {
+          "code": "compiled-register-writer-checker-binding-missing",
+          "pointer": "/paths/1/sources/1/register_access",
+          "detail": {
+            "address": 1073745928,
+            "source_owner": "cpu",
+            "requires": [
+              "actual CPU writer receipt join",
+              "IP register version witness",
+              "compiled assertion checker binding"
+            ]
+          }
+        },
+        {
+          "code": "compiled-register-outside-runtime-candidate-windows",
+          "pointer": "/paths/1/sources/1",
+          "detail": {
+            "address": 1073745928,
+            "offset": 8,
+            "operation": "LW",
+            "runtime_windows": [
+              {
+                "base": 1073745932,
+                "size": 4,
+                "readable": true,
+                "writable": true,
+                "write_widths": [
+                  1,
+                  4
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "code": "compiled-bound-producer-map-missing",
+          "pointer": "/paths/1/bound_inputs/0",
+          "detail": {
+            "input_id": "gpio_a.gpio.bus.read_response",
+            "origin": "bound",
+            "kind": "ip_read_response",
+            "component": "gpio_a",
+            "endpoint_id": "gpio.bus",
+            "basis": "F2 uses the target IP RTL real read response; bound rdata is never randomly overwritten (plan line 78)"
+          }
+        },
+        {
+          "code": "compiled-prerequisite-handler-missing",
+          "pointer": "/paths/1/prerequisites/0",
+          "detail": {
+            "kind": "ram_byte_version",
+            "basis": "F2 reads a committed version of the target, never a re-loaded initial value (plan line 78)",
+            "subject": {
+              "memory_id": "PADIN"
+            }
+          }
+        },
+        {
+          "code": "compiled-assertion-checker-map-missing",
+          "pointer": "/paths/1/assertions/0",
+          "detail": {
+            "expectation_id": "protocol_checker.receipt_violations",
+            "assertion_class": "protocol_checker",
+            "declared_by": "session_runtime online receipt contract: receipts.jsonl[].violations",
+            "asserts": "a receipt carries a violation string exactly when the run's own checker returned it for that case's real RTL events; a non-empty violations list forces the case status to 'finding' and is never rewritten into a complete case"
+          }
+        },
+        {
+          "code": "compiled-assertion-checker-map-missing",
+          "pointer": "/paths/1/assertions/1",
+          "detail": {
+            "expectation_id": "cross_component.declared_edge_hops",
+            "assertion_class": "cross_component_provenance_and_order",
+            "declared_by": "myfuzz.scenario.edge_provenance:runtime_edge_provenance_report.v1",
+            "asserts": "a declared runtime edge is certified only by the exact identity joins of its producer/delivery/consumer hops; a partially observed edge stays incomplete with the missing hop named, and an edge with no observable shape stays unknown with its reason"
+          }
+        },
+        {
+          "code": "compiled-path-executor-not-installed",
+          "pointer": "/paths/1",
+          "detail": "declarations and diagnostic matching deliveries cannot grant execution"
+        }
+      ]
+    },
+    {
+      "path_id": "F3:ram.image",
+      "flow_id": "F3",
+      "capability_status": "executable",
+      "status": "unsupported",
+      "runtime_admitted": false,
+      "register_targets": [],
+      "refusals": [
+        {
+          "code": "compiled-source-execution-map-missing",
+          "pointer": "/paths/2/sources/0",
+          "detail": {
+            "source_id": "ram.image",
+            "kind": "instruction_image",
+            "runtime_sources": [
+              "cpu.online_instruction",
+              "gpio_b.external_pin8"
+            ]
+          }
+        },
+        {
+          "code": "compiled-source-execution-map-missing",
+          "pointer": "/paths/2/sources/1",
+          "detail": {
+            "source_id": "ram.store_stream",
+            "kind": "cpu_store_stream",
+            "runtime_sources": [
+              "cpu.online_instruction",
+              "gpio_b.external_pin8"
+            ]
+          }
+        },
+        {
+          "code": "compiled-prerequisite-handler-missing",
+          "pointer": "/paths/2/prerequisites/0",
+          "detail": {
+            "kind": "ram_byte_version",
+            "basis": "a committed byte version must exist before a later read observes it",
+            "subject": {
+              "memory_id": "ram"
+            }
+          }
+        },
+        {
+          "code": "compiled-assertion-checker-map-missing",
+          "pointer": "/paths/2/assertions/0",
+          "detail": {
+            "expectation_id": "cross_component.chain_certificate_hops",
+            "assertion_class": "cross_component_provenance_and_order",
+            "declared_by": "myfuzz.scenario.chain_certificates:runtime_chain_certificate.v1",
+            "asserts": "an end-to-end chain is certified only when every declared hop of its direction is joined by exact identity; otherwise it settles incomplete with missing_hops naming the first gap and every required hop after it"
+          }
+        },
+        {
+          "code": "compiled-assertion-checker-map-missing",
+          "pointer": "/paths/2/assertions/1",
+          "detail": {
+            "expectation_id": "cpu_ip.consumption_record",
+            "assertion_class": "cpu_ip_behaviour",
+            "declared_by": "gpio_consumption_match / cpu_retired_transaction_target_delivery",
+            "asserts": "a consumption record names the exact observation and producer event ids and the transaction key it consumed"
+          }
+        },
+        {
+          "code": "compiled-path-executor-not-installed",
+          "pointer": "/paths/2",
+          "detail": "declarations and diagnostic matching deliveries cannot grant execution"
+        }
+      ]
+    },
+    {
+      "path_id": "F4:ram.image",
+      "flow_id": "F4",
+      "capability_status": "executable",
+      "status": "unsupported",
+      "runtime_admitted": false,
+      "register_targets": [
+        {
+          "source_id": "gpio_a.GPIOEN.value.mmio",
+          "producer_component": "gpio_a",
+          "endpoint_id": "gpio.bus",
+          "register": "GPIOEN",
+          "offset": 4,
+          "address": 1073745924,
+          "register_width": 32,
+          "artifact_digest": "37831a62abe2fe67c9eafdd7a06e804b9e3f2bfde1f59a56e53851fd75d80261",
+          "profile_fingerprint": "sha256:fddde37680351d9813373cbf38c22d50dcfc63abc7d3b421515fef27d8d08484",
+          "source_verification": {
+            "id": "pulp_gpio",
+            "source_status": "source_verified",
+            "elaboration_status": "elaboration_verified",
+            "runtime_status": "runtime_unverified",
+            "parse_status": "parameterized_ports_pending_elaboration",
+            "selected_files": 1,
+            "selected_content_hash": "sha256:7622917c85229ee645c720309c308a6506c2c547081f8c899d4e9338b4f5c7a9",
+            "elaboration": {
+              "elaboration_status": "elaboration_verified",
+              "closure_files": 1,
+              "closure_roots": [
+                "third_party/soc-pulp-apb-gpio"
+              ],
+              "top_module": "apb_gpio",
+              "tool": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+              "lint": {
+                "errors": 0,
+                "warnings": 2,
+                "exit_code": 0,
+                "log": "runs/soc-source-elaboration/pulp/pulp_gpio.elaborate.log"
+              }
+            },
+            "schema_version": "local_source_lock_verification.v1",
+            "lock_sha256": "4caf0ae616e99e3c7cac76a1b04daca41af9bcef0eee3b6b0923fb6bd7e2a29e"
+          },
+          "physical_bus_outputs": [
+            {
+              "port": "PRDATA",
+              "role": "prdata",
+              "width": 32
+            },
+            {
+              "port": "PREADY",
+              "role": "pready",
+              "width": 1
+            },
+            {
+              "port": "PSLVERR",
+              "role": "pslverr",
+              "width": 1
+            }
+          ],
+          "diagnostic_matching_deliveries": [
+            {
+              "event_id": 462,
+              "write": true,
+              "write_value": 255,
+              "read_value": null,
+              "provenance": {
+                "schema_version": "event_source_provenance.v1",
+                "observed_case": null,
+                "origin_admission_ids": [],
+                "origin_status": "unknown",
+                "unknown_writer_ids": [],
+                "invalid_origin_references": 0,
+                "proof_scope": "transport_candidates_only",
+                "edge_candidates": [
+                  {
+                    "graph_sha256": "3bfd62f42a5aaa5b5ce02605cfdd41baf342b868a1837269184e36129fb2af27",
+                    "rule_index": 0,
+                    "prerequisite_index": 0,
+                    "relation": "mmio_route",
+                    "path_ids": [
+                      "542b422a912c69091d5c51733e950013f097c412fc3a6fe693f7fdc11a662ed8"
+                    ],
+                    "scope": "route_window"
+                  },
+                  {
+                    "graph_sha256": "3bfd62f42a5aaa5b5ce02605cfdd41baf342b868a1837269184e36129fb2af27",
+                    "rule_index": 13,
+                    "prerequisite_index": 0,
+                    "relation": "mmio_route",
+                    "path_ids": [
+                      "7943a650707727109140f795e5119ca82eb9a6ec3895845341998eba525975b8"
+                    ],
+                    "scope": "route_window"
+                  }
+                ],
+                "resource": null
+              }
+            }
+          ],
+          "register_access": {
+            "schema_version": "register_source_access.v1",
+            "source_component": "cpu",
+            "source_endpoint": "processor.data",
+            "target_component": "gpio_a",
+            "target_endpoint": "gpio.bus",
+            "device_id": "gpio_a",
+            "register": "GPIOEN",
+            "field": "value",
+            "register_offset": 4,
+            "address": 1073745924,
+            "window_base": 1073745920,
+            "window_size": 4096,
+            "window_alignment": 4096,
+            "access_alignment": 4,
+            "width_bytes": 4,
+            "byte_enable_domain": "target_word_lanes",
+            "allowed_byte_enables": [
+              15
+            ],
+            "operation": "write",
+            "value_origin": "cpu_transaction_wdata",
+            "register_origin": "bound_target_register_commit",
+            "value_mask": 4294967295
+          },
+          "candidate_source_certified": false,
+          "constraint_mapping": "exact_register_access_declared"
+        }
+      ],
+      "refusals": [
+        {
+          "code": "compiled-source-execution-map-missing",
+          "pointer": "/paths/3/sources/0",
+          "detail": {
+            "source_id": "ram.image",
+            "kind": "instruction_image",
+            "runtime_sources": [
+              "cpu.online_instruction",
+              "gpio_b.external_pin8"
+            ]
+          }
+        },
+        {
+          "code": "compiled-source-execution-map-missing",
+          "pointer": "/paths/3/sources/1",
+          "detail": {
+            "source_id": "gpio_a.GPIOEN.value.mmio",
+            "kind": "cpu_mmio_stream",
+            "runtime_sources": [
+              "cpu.online_instruction",
+              "gpio_b.external_pin8"
+            ]
+          }
+        },
+        {
+          "code": "compiled-register-writer-checker-binding-missing",
+          "pointer": "/paths/3/sources/1/register_access",
+          "detail": {
+            "address": 1073745924,
+            "source_owner": "cpu",
+            "requires": [
+              "actual CPU writer receipt join",
+              "IP register version witness",
+              "compiled assertion checker binding"
+            ]
+          }
+        },
+        {
+          "code": "compiled-register-outside-runtime-candidate-windows",
+          "pointer": "/paths/3/sources/1",
+          "detail": {
+            "address": 1073745924,
+            "offset": 4,
+            "operation": "SW",
+            "runtime_windows": [
+              {
+                "base": 1073745932,
+                "size": 4,
+                "readable": true,
+                "writable": true,
+                "write_widths": [
+                  1,
+                  4
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "code": "compiled-bound-producer-map-missing",
+          "pointer": "/paths/3/bound_inputs/0",
+          "detail": {
+            "input_id": "gpio_a.gpio.bus.register.GPIOEN.value",
+            "origin": "bound",
+            "kind": "ip_register_commit",
+            "component": "gpio_a",
+            "endpoint_id": "gpio.bus",
+            "basis": "the register value is owned by the real IP RTL and the CPU MMIO transaction; the environment may not write it (docs/CURRENT_DESIGN.md:34)"
+          }
+        },
+        {
+          "code": "compiled-prerequisite-handler-missing",
+          "pointer": "/paths/3/prerequisites/0",
+          "detail": {
+            "kind": "ip_register_version",
+            "basis": "the pre-state of the configured register is a declared version, not a freshly loaded initial value",
+            "subject": {
+              "component": "gpio_a",
+              "register": "GPIOEN",
+              "reset_epoch": 0
+            }
+          }
+        },
+        {
+          "code": "compiled-assertion-checker-map-missing",
+          "pointer": "/paths/3/assertions/0",
+          "detail": {
+            "expectation_id": "protocol_checker.receipt_violations",
+            "assertion_class": "protocol_checker",
+            "declared_by": "session_runtime online receipt contract: receipts.jsonl[].violations",
+            "asserts": "a receipt carries a violation string exactly when the run's own checker returned it for that case's real RTL events; a non-empty violations list forces the case status to 'finding' and is never rewritten into a complete case"
+          }
+        },
+        {
+          "code": "compiled-assertion-checker-map-missing",
+          "pointer": "/paths/3/assertions/1",
+          "detail": {
+            "expectation_id": "cross_component.declared_edge_hops",
+            "assertion_class": "cross_component_provenance_and_order",
+            "declared_by": "myfuzz.scenario.edge_provenance:runtime_edge_provenance_report.v1",
+            "asserts": "a declared runtime edge is certified only by the exact identity joins of its producer/delivery/consumer hops; a partially observed edge stays incomplete with the missing hop named, and an edge with no observable shape stays unknown with its reason"
+          }
+        },
+        {
+          "code": "compiled-assertion-checker-map-missing",
+          "pointer": "/paths/3/assertions/2",
+          "detail": {
+            "expectation_id": "cross_component.chain_certificate_hops",
+            "assertion_class": "cross_component_provenance_and_order",
+            "declared_by": "myfuzz.scenario.chain_certificates:runtime_chain_certificate.v1",
+            "asserts": "an end-to-end chain is certified only when every declared hop of its direction is joined by exact identity; otherwise it settles incomplete with missing_hops naming the first gap and every required hop after it"
+          }
+        },
+        {
+          "code": "compiled-path-executor-not-installed",
+          "pointer": "/paths/3",
+          "detail": "declarations and diagnostic matching deliveries cannot grant execution"
+        }
+      ]
+    }
+  ],
+  "input_admission": {
+    "schema_version": "compiled_artifact_admission.v1",
+    "scope": "compiled_artifact_consistency",
+    "status": "refused",
+    "refusals": [
+      {
+        "code": "ownership-bound-producer-not-admitted",
+        "pointer": "/ownership/owners/0",
+        "detail": "physical delivery producer requires execution wiring admission"
+      },
+      {
+        "code": "ownership-bound-producer-not-admitted",
+        "pointer": "/ownership/owners/2",
+        "detail": "physical delivery producer requires execution wiring admission"
+      },
+      {
+        "code": "ownership-source-uncompiled",
+        "pointer": "/ownership/owners/3",
+        "detail": null
+      }
+    ],
+    "artifact_digests": {
+      "cpu": "cbae644ac4097c8c10892c993ce8982d24b97870f5258fba9ea90cab702d4502",
+      "gpio_a": "37831a62abe2fe67c9eafdd7a06e804b9e3f2bfde1f59a56e53851fd75d80261",
+      "gpio_b": "e9891f834eb08cb92530fbf0b3508f4090c3d19c027c3d22ef9fa76064071a4e"
+    },
+    "runtime_enforcement": "not_admitted",
+    "not_claimed": [
+      "decoder/checker constraint enforcement",
+      "RTL operational",
+      "cross-component accepted",
+      "coverage-guided searched"
+    ]
+  },
+  "source_evidence_scope": "loaded_D2_source_and_ABI",
+  "observed_evidence_scope": "diagnostic_only_no_grants",
+  "runtime_declaration": {
+    "schema_version": "fixed_runtime_execution_declaration.v1",
+    "decoder": {
+      "schema_version": "online_case_decoder.v3",
+      "sources": [
+        {
+          "source_id": "cpu.online_instruction",
+          "kind": "instruction",
+          "component": "cpu",
+          "direction": "CPU_TO_IP_TO_CPU",
+          "path_id": "cpu_to_ip_to_cpu.closed_loop",
+          "weight": 1,
+          "port": "",
+          "bit_offset": 0,
+          "width": 1,
+          "coverage_target_ids": [
+            "gpio_a_output_bit0",
+            "cpu_data_write"
+          ]
+        },
+        {
+          "source_id": "gpio_b.external_pin8",
+          "kind": "source",
+          "component": "gpio_b",
+          "direction": "IP_TO_CPU_TO_IP",
+          "path_id": "ip_to_cpu_to_ip.closed_loop",
+          "weight": 1,
+          "port": "gpio_in",
+          "bit_offset": 8,
+          "width": 1,
+          "coverage_target_ids": [
+            "gpio_b_irq",
+            "cpu_external_irq_vector_fetch"
+          ]
+        }
+      ],
+      "graph": {
+        "schema_version": "dependency_edge_graph.v1",
+        "sources": [
+          {
+            "source_id": "cpu.online_instruction",
+            "component": "cpu",
+            "port": "",
+            "bit_offset": 0,
+            "width": 1,
+            "directions": [
+              "CPU_TO_IP_TO_CPU"
+            ],
+            "kind": "instruction"
+          },
+          {
+            "source_id": "gpio_b.external_pin8",
+            "component": "gpio_b",
+            "port": "gpio_in",
+            "bit_offset": 8,
+            "width": 1,
+            "directions": [
+              "IP_TO_CPU_TO_IP"
+            ],
+            "kind": "source"
+          }
+        ],
+        "rules": [
+          {
+            "rule_index": 0,
+            "target": "online.gpio_a.padout",
+            "prerequisites": [
+              "cpu.online_instruction"
+            ],
+            "kind": "PERSISTENT_STATE_RULE"
+          },
+          {
+            "rule_index": 1,
+            "target": "online.gpio_a.output",
+            "prerequisites": [
+              "online.gpio_a.padout"
+            ],
+            "kind": "DATA_BINDING"
+          },
+          {
+            "rule_index": 2,
+            "target": "online.gpio_b.bound_low",
+            "prerequisites": [
+              "online.gpio_a.output"
+            ],
+            "kind": "DATA_BINDING"
+          },
+          {
+            "rule_index": 3,
+            "target": "online.gpio_b.irq_from_low",
+            "prerequisites": [
+              "online.gpio_b.bound_low"
+            ],
+            "kind": "EVENT_ORDER"
+          },
+          {
+            "rule_index": 4,
+            "target": "online.cpu.irq_from_low",
+            "prerequisites": [
+              "online.gpio_b.irq_from_low"
+            ],
+            "kind": "EVENT_ORDER"
+          },
+          {
+            "rule_index": 5,
+            "target": "online.gpio_b.padin_after_low_irq",
+            "prerequisites": [
+              "online.cpu.irq_from_low"
+            ],
+            "kind": "EVENT_ORDER"
+          },
+          {
+            "rule_index": 6,
+            "target": "online.cpu.padin_after_low_irq",
+            "prerequisites": [
+              "online.gpio_b.padin_after_low_irq"
+            ],
+            "kind": "DATA_BINDING"
+          },
+          {
+            "rule_index": 7,
+            "target": "cpu_to_ip_to_cpu.closed_loop",
+            "prerequisites": [
+              "online.cpu.padin_after_low_irq"
+            ],
+            "kind": "EVENT_ORDER"
+          },
+          {
+            "rule_index": 8,
+            "target": "online.gpio_b.pin8",
+            "prerequisites": [
+              "gpio_b.external_pin8"
+            ],
+            "kind": "ENV_PRECONDITION"
+          },
+          {
+            "rule_index": 9,
+            "target": "online.gpio_b.irq_from_pin8",
+            "prerequisites": [
+              "online.gpio_b.pin8"
+            ],
+            "kind": "EVENT_ORDER"
+          },
+          {
+            "rule_index": 10,
+            "target": "online.cpu.irq_from_pin8",
+            "prerequisites": [
+              "online.gpio_b.irq_from_pin8"
+            ],
+            "kind": "EVENT_ORDER"
+          },
+          {
+            "rule_index": 11,
+            "target": "online.gpio_b.padin_after_pin8_irq",
+            "prerequisites": [
+              "online.cpu.irq_from_pin8"
+            ],
+            "kind": "EVENT_ORDER"
+          },
+          {
+            "rule_index": 12,
+            "target": "online.cpu.padin_after_pin8_irq",
+            "prerequisites": [
+              "online.gpio_b.padin_after_pin8_irq"
+            ],
+            "kind": "DATA_BINDING"
+          },
+          {
+            "rule_index": 13,
+            "target": "online.gpio_a.isr_padout",
+            "prerequisites": [
+              "online.cpu.padin_after_pin8_irq"
+            ],
+            "kind": "PERSISTENT_STATE_RULE"
+          },
+          {
+            "rule_index": 14,
+            "target": "ip_to_cpu_to_ip.closed_loop",
+            "prerequisites": [
+              "online.gpio_a.isr_padout"
+            ],
+            "kind": "EVENT_ORDER"
+          },
+          {
+            "rule_index": 15,
+            "target": "online.cpu.persistent_ram_byte",
+            "prerequisites": [
+              "cpu.online_instruction"
+            ],
+            "kind": "PERSISTENT_STATE_RULE"
+          },
+          {
+            "rule_index": 16,
+            "target": "online.gpio_a.persistent_register_bit",
+            "prerequisites": [
+              "online.gpio_a.isr_padout"
+            ],
+            "kind": "PERSISTENT_STATE_RULE"
+          }
+        ],
+        "edges": [
+          {
+            "rule_index": 0,
+            "prerequisite_index": 0,
+            "prerequisite": "cpu.online_instruction",
+            "target": "online.gpio_a.padout",
+            "kind": "PERSISTENT_STATE_RULE"
+          },
+          {
+            "rule_index": 1,
+            "prerequisite_index": 0,
+            "prerequisite": "online.gpio_a.padout",
+            "target": "online.gpio_a.output",
+            "kind": "DATA_BINDING"
+          },
+          {
+            "rule_index": 2,
+            "prerequisite_index": 0,
+            "prerequisite": "online.gpio_a.output",
+            "target": "online.gpio_b.bound_low",
+            "kind": "DATA_BINDING"
+          },
+          {
+            "rule_index": 3,
+            "prerequisite_index": 0,
+            "prerequisite": "online.gpio_b.bound_low",
+            "target": "online.gpio_b.irq_from_low",
+            "kind": "EVENT_ORDER"
+          },
+          {
+            "rule_index": 4,
+            "prerequisite_index": 0,
+            "prerequisite": "online.gpio_b.irq_from_low",
+            "target": "online.cpu.irq_from_low",
+            "kind": "EVENT_ORDER"
+          },
+          {
+            "rule_index": 5,
+            "prerequisite_index": 0,
+            "prerequisite": "online.cpu.irq_from_low",
+            "target": "online.gpio_b.padin_after_low_irq",
+            "kind": "EVENT_ORDER"
+          },
+          {
+            "rule_index": 6,
+            "prerequisite_index": 0,
+            "prerequisite": "online.gpio_b.padin_after_low_irq",
+            "target": "online.cpu.padin_after_low_irq",
+            "kind": "DATA_BINDING"
+          },
+          {
+            "rule_index": 7,
+            "prerequisite_index": 0,
+            "prerequisite": "online.cpu.padin_after_low_irq",
+            "target": "cpu_to_ip_to_cpu.closed_loop",
+            "kind": "EVENT_ORDER"
+          },
+          {
+            "rule_index": 8,
+            "prerequisite_index": 0,
+            "prerequisite": "gpio_b.external_pin8",
+            "target": "online.gpio_b.pin8",
+            "kind": "ENV_PRECONDITION"
+          },
+          {
+            "rule_index": 9,
+            "prerequisite_index": 0,
+            "prerequisite": "online.gpio_b.pin8",
+            "target": "online.gpio_b.irq_from_pin8",
+            "kind": "EVENT_ORDER"
+          },
+          {
+            "rule_index": 10,
+            "prerequisite_index": 0,
+            "prerequisite": "online.gpio_b.irq_from_pin8",
+            "target": "online.cpu.irq_from_pin8",
+            "kind": "EVENT_ORDER"
+          },
+          {
+            "rule_index": 11,
+            "prerequisite_index": 0,
+            "prerequisite": "online.cpu.irq_from_pin8",
+            "target": "online.gpio_b.padin_after_pin8_irq",
+            "kind": "EVENT_ORDER"
+          },
+          {
+            "rule_index": 12,
+            "prerequisite_index": 0,
+            "prerequisite": "online.gpio_b.padin_after_pin8_irq",
+            "target": "online.cpu.padin_after_pin8_irq",
+            "kind": "DATA_BINDING"
+          },
+          {
+            "rule_index": 13,
+            "prerequisite_index": 0,
+            "prerequisite": "online.cpu.padin_after_pin8_irq",
+            "target": "online.gpio_a.isr_padout",
+            "kind": "PERSISTENT_STATE_RULE"
+          },
+          {
+            "rule_index": 14,
+            "prerequisite_index": 0,
+            "prerequisite": "online.gpio_a.isr_padout",
+            "target": "ip_to_cpu_to_ip.closed_loop",
+            "kind": "EVENT_ORDER"
+          },
+          {
+            "rule_index": 15,
+            "prerequisite_index": 0,
+            "prerequisite": "cpu.online_instruction",
+            "target": "online.cpu.persistent_ram_byte",
+            "kind": "PERSISTENT_STATE_RULE"
+          },
+          {
+            "rule_index": 16,
+            "prerequisite_index": 0,
+            "prerequisite": "online.gpio_a.isr_padout",
+            "target": "online.gpio_a.persistent_register_bit",
+            "kind": "PERSISTENT_STATE_RULE"
+          }
+        ]
+      },
+      "dependency_mode": "runtime_contract",
+      "ownership": {
+        "fields": [
+          {
+            "component_id": "cpu",
+            "port": "irq",
+            "width": 1
+          },
+          {
+            "component_id": "gpio_a",
+            "port": "gpio_in",
+            "width": 32
+          },
+          {
+            "component_id": "gpio_b",
+            "port": "gpio_in",
+            "width": 32
+          }
+        ],
+        "owners": [
+          {
+            "component_id": "cpu",
+            "port": "irq",
+            "bit_offset": 0,
+            "width": 1,
+            "kind": "bound",
+            "producer_ref": "gpio_b.irq"
+          },
+          {
+            "component_id": "gpio_a",
+            "port": "gpio_in",
+            "bit_offset": 0,
+            "width": 32,
+            "kind": "fixed",
+            "producer_ref": "constant_zero"
+          },
+          {
+            "component_id": "gpio_b",
+            "port": "gpio_in",
+            "bit_offset": 0,
+            "width": 8,
+            "kind": "bound",
+            "producer_ref": "gpio_a.gpio_out"
+          },
+          {
+            "component_id": "gpio_b",
+            "port": "gpio_in",
+            "bit_offset": 8,
+            "width": 1,
+            "kind": "source",
+            "producer_ref": "external_b.pin8"
+          },
+          {
+            "component_id": "gpio_b",
+            "port": "gpio_in",
+            "bit_offset": 9,
+            "width": 23,
+            "kind": "fixed",
+            "producer_ref": "constant_zero"
+          }
+        ]
+      },
+      "instruction_start": 69632,
+      "instruction_end": 196096,
+      "initial_instruction_cursor": 69632,
+      "mmio_windows": [
+        {
+          "base": 1073745932,
+          "size": 4,
+          "readable": true,
+          "writable": true,
+          "write_widths": [
+            1,
+            4
+          ]
+        }
+      ],
+      "allowed_mmio_operations": [
+        "LW",
+        "SW"
+      ],
+      "schedule": [
+        "cpu",
+        "gpio_a",
+        "gpio_b"
+      ],
+      "advance_rounds": 32,
+      "max_steps": 512,
+      "max_input_bytes": 8,
+      "support_words": 4,
+      "runtime_contract": {
+        "schema_version": "runtime_path_contract.v1",
+        "graph_sha256": "3bfd62f42a5aaa5b5ce02605cfdd41baf342b868a1837269184e36129fb2af27",
+        "nodes": [
+          {
+            "node_id": "cpu.online_instruction",
+            "component": "cpu",
+            "kind": "logical",
+            "port": null,
+            "bit_offset": 0,
+            "width": null
+          },
+          {
+            "node_id": "cpu_to_ip_to_cpu.closed_loop",
+            "component": "cpu",
+            "kind": "logical",
+            "port": null,
+            "bit_offset": 0,
+            "width": null
+          },
+          {
+            "node_id": "gpio_b.external_pin8",
+            "component": "gpio_b",
+            "kind": "physical",
+            "port": "gpio_in",
+            "bit_offset": 8,
+            "width": 1
+          },
+          {
+            "node_id": "ip_to_cpu_to_ip.closed_loop",
+            "component": "gpio_a",
+            "kind": "logical",
+            "port": null,
+            "bit_offset": 0,
+            "width": null
+          },
+          {
+            "node_id": "online.cpu.irq_from_low",
+            "component": "cpu",
+            "kind": "physical",
+            "port": "irq",
+            "bit_offset": 0,
+            "width": 1
+          },
+          {
+            "node_id": "online.cpu.irq_from_pin8",
+            "component": "cpu",
+            "kind": "physical",
+            "port": "irq",
+            "bit_offset": 0,
+            "width": 1
+          },
+          {
+            "node_id": "online.cpu.padin_after_low_irq",
+            "component": "cpu",
+            "kind": "logical",
+            "port": null,
+            "bit_offset": 0,
+            "width": null
+          },
+          {
+            "node_id": "online.cpu.padin_after_pin8_irq",
+            "component": "cpu",
+            "kind": "logical",
+            "port": null,
+            "bit_offset": 0,
+            "width": null
+          },
+          {
+            "node_id": "online.cpu.persistent_ram_byte",
+            "component": "cpu",
+            "kind": "logical",
+            "port": null,
+            "bit_offset": 0,
+            "width": null
+          },
+          {
+            "node_id": "online.gpio_a.isr_padout",
+            "component": "gpio_a",
+            "kind": "state",
+            "port": null,
+            "bit_offset": 0,
+            "width": null
+          },
+          {
+            "node_id": "online.gpio_a.output",
+            "component": "gpio_a",
+            "kind": "physical",
+            "port": "gpio_out",
+            "bit_offset": 0,
+            "width": 8
+          },
+          {
+            "node_id": "online.gpio_a.padout",
+            "component": "gpio_a",
+            "kind": "state",
+            "port": null,
+            "bit_offset": 0,
+            "width": null
+          },
+          {
+            "node_id": "online.gpio_a.persistent_register_bit",
+            "component": "gpio_a",
+            "kind": "logical",
+            "port": null,
+            "bit_offset": 0,
+            "width": null
+          },
+          {
+            "node_id": "online.gpio_b.bound_low",
+            "component": "gpio_b",
+            "kind": "physical",
+            "port": "gpio_in",
+            "bit_offset": 0,
+            "width": 8
+          },
+          {
+            "node_id": "online.gpio_b.irq_from_low",
+            "component": "gpio_b",
+            "kind": "physical",
+            "port": "irq",
+            "bit_offset": 0,
+            "width": 1
+          },
+          {
+            "node_id": "online.gpio_b.irq_from_pin8",
+            "component": "gpio_b",
+            "kind": "physical",
+            "port": "irq",
+            "bit_offset": 0,
+            "width": 1
+          },
+          {
+            "node_id": "online.gpio_b.padin_after_low_irq",
+            "component": "gpio_b",
+            "kind": "logical",
+            "port": null,
+            "bit_offset": 0,
+            "width": null
+          },
+          {
+            "node_id": "online.gpio_b.padin_after_pin8_irq",
+            "component": "gpio_b",
+            "kind": "logical",
+            "port": null,
+            "bit_offset": 0,
+            "width": null
+          },
+          {
+            "node_id": "online.gpio_b.pin8",
+            "component": "gpio_b",
+            "kind": "physical",
+            "port": "gpio_in",
+            "bit_offset": 8,
+            "width": 1
+          }
+        ],
+        "edges": [
+          {
+            "rule_index": 0,
+            "prerequisite_index": 0,
+            "relation": "mmio_route",
+            "initiator_component": "cpu",
+            "device_id": "gpio_a",
+            "base": 1073745920,
+            "size": 4096,
+            "resource_component": null,
+            "resource_id": null
+          },
+          {
+            "rule_index": 2,
+            "prerequisite_index": 0,
+            "relation": "direct_binding",
+            "initiator_component": null,
+            "device_id": null,
+            "base": null,
+            "size": null,
+            "resource_component": null,
+            "resource_id": null
+          },
+          {
+            "rule_index": 4,
+            "prerequisite_index": 0,
+            "relation": "direct_binding",
+            "initiator_component": null,
+            "device_id": null,
+            "base": null,
+            "size": null,
+            "resource_component": null,
+            "resource_id": null
+          },
+          {
+            "rule_index": 5,
+            "prerequisite_index": 0,
+            "relation": "mmio_route",
+            "initiator_component": "cpu",
+            "device_id": "gpio_b",
+            "base": 1073741824,
+            "size": 4096,
+            "resource_component": null,
+            "resource_id": null
+          },
+          {
+            "rule_index": 6,
+            "prerequisite_index": 0,
+            "relation": "mmio_route",
+            "initiator_component": "cpu",
+            "device_id": "gpio_b",
+            "base": 1073741824,
+            "size": 4096,
+            "resource_component": null,
+            "resource_id": null
+          },
+          {
+            "rule_index": 10,
+            "prerequisite_index": 0,
+            "relation": "direct_binding",
+            "initiator_component": null,
+            "device_id": null,
+            "base": null,
+            "size": null,
+            "resource_component": null,
+            "resource_id": null
+          },
+          {
+            "rule_index": 11,
+            "prerequisite_index": 0,
+            "relation": "mmio_route",
+            "initiator_component": "cpu",
+            "device_id": "gpio_b",
+            "base": 1073741824,
+            "size": 4096,
+            "resource_component": null,
+            "resource_id": null
+          },
+          {
+            "rule_index": 12,
+            "prerequisite_index": 0,
+            "relation": "mmio_route",
+            "initiator_component": "cpu",
+            "device_id": "gpio_b",
+            "base": 1073741824,
+            "size": 4096,
+            "resource_component": null,
+            "resource_id": null
+          },
+          {
+            "rule_index": 13,
+            "prerequisite_index": 0,
+            "relation": "mmio_route",
+            "initiator_component": "cpu",
+            "device_id": "gpio_a",
+            "base": 1073745920,
+            "size": 4096,
+            "resource_component": null,
+            "resource_id": null
+          },
+          {
+            "rule_index": 15,
+            "prerequisite_index": 0,
+            "relation": "persistent_state",
+            "initiator_component": null,
+            "device_id": null,
+            "base": null,
+            "size": null,
+            "resource_component": "cpu",
+            "resource_id": "ram"
+          },
+          {
+            "rule_index": 16,
+            "prerequisite_index": 0,
+            "relation": "persistent_state",
+            "initiator_component": null,
+            "device_id": null,
+            "base": null,
+            "size": null,
+            "resource_component": "gpio_a",
+            "resource_id": "out"
+          }
+        ]
+      },
+      "path_mapping": [
+        {
+          "direction": "CPU_TO_IP_TO_CPU",
+          "path_id": "542b422a912c69091d5c51733e950013f097c412fc3a6fe693f7fdc11a662ed8",
+          "target": "cpu_to_ip_to_cpu.closed_loop",
+          "source_ids": [
+            "cpu.online_instruction"
+          ],
+          "edges": [
+            {
+              "rule_index": 0,
+              "prerequisite_index": 0,
+              "prerequisite": "cpu.online_instruction",
+              "target": "online.gpio_a.padout",
+              "kind": "PERSISTENT_STATE_RULE"
+            },
+            {
+              "rule_index": 1,
+              "prerequisite_index": 0,
+              "prerequisite": "online.gpio_a.padout",
+              "target": "online.gpio_a.output",
+              "kind": "DATA_BINDING"
+            },
+            {
+              "rule_index": 2,
+              "prerequisite_index": 0,
+              "prerequisite": "online.gpio_a.output",
+              "target": "online.gpio_b.bound_low",
+              "kind": "DATA_BINDING"
+            },
+            {
+              "rule_index": 3,
+              "prerequisite_index": 0,
+              "prerequisite": "online.gpio_b.bound_low",
+              "target": "online.gpio_b.irq_from_low",
+              "kind": "EVENT_ORDER"
+            },
+            {
+              "rule_index": 4,
+              "prerequisite_index": 0,
+              "prerequisite": "online.gpio_b.irq_from_low",
+              "target": "online.cpu.irq_from_low",
+              "kind": "EVENT_ORDER"
+            },
+            {
+              "rule_index": 5,
+              "prerequisite_index": 0,
+              "prerequisite": "online.cpu.irq_from_low",
+              "target": "online.gpio_b.padin_after_low_irq",
+              "kind": "EVENT_ORDER"
+            },
+            {
+              "rule_index": 6,
+              "prerequisite_index": 0,
+              "prerequisite": "online.gpio_b.padin_after_low_irq",
+              "target": "online.cpu.padin_after_low_irq",
+              "kind": "DATA_BINDING"
+            },
+            {
+              "rule_index": 7,
+              "prerequisite_index": 0,
+              "prerequisite": "online.cpu.padin_after_low_irq",
+              "target": "cpu_to_ip_to_cpu.closed_loop",
+              "kind": "EVENT_ORDER"
+            }
+          ]
+        },
+        {
+          "direction": "IP_TO_CPU_TO_IP",
+          "path_id": "7943a650707727109140f795e5119ca82eb9a6ec3895845341998eba525975b8",
+          "target": "ip_to_cpu_to_ip.closed_loop",
+          "source_ids": [
+            "gpio_b.external_pin8"
+          ],
+          "edges": [
+            {
+              "rule_index": 8,
+              "prerequisite_index": 0,
+              "prerequisite": "gpio_b.external_pin8",
+              "target": "online.gpio_b.pin8",
+              "kind": "ENV_PRECONDITION"
+            },
+            {
+              "rule_index": 9,
+              "prerequisite_index": 0,
+              "prerequisite": "online.gpio_b.pin8",
+              "target": "online.gpio_b.irq_from_pin8",
+              "kind": "EVENT_ORDER"
+            },
+            {
+              "rule_index": 10,
+              "prerequisite_index": 0,
+              "prerequisite": "online.gpio_b.irq_from_pin8",
+              "target": "online.cpu.irq_from_pin8",
+              "kind": "EVENT_ORDER"
+            },
+            {
+              "rule_index": 11,
+              "prerequisite_index": 0,
+              "prerequisite": "online.cpu.irq_from_pin8",
+              "target": "online.gpio_b.padin_after_pin8_irq",
+              "kind": "EVENT_ORDER"
+            },
+            {
+              "rule_index": 12,
+              "prerequisite_index": 0,
+              "prerequisite": "online.gpio_b.padin_after_pin8_irq",
+              "target": "online.cpu.padin_after_pin8_irq",
+              "kind": "DATA_BINDING"
+            },
+            {
+              "rule_index": 13,
+              "prerequisite_index": 0,
+              "prerequisite": "online.cpu.padin_after_pin8_irq",
+              "target": "online.gpio_a.isr_padout",
+              "kind": "PERSISTENT_STATE_RULE"
+            },
+            {
+              "rule_index": 14,
+              "prerequisite_index": 0,
+              "prerequisite": "online.gpio_a.isr_padout",
+              "target": "ip_to_cpu_to_ip.closed_loop",
+              "kind": "EVENT_ORDER"
+            }
+          ]
+        }
+      ],
+      "flow_by_target": {
+        "cpu_to_ip_to_cpu.closed_loop": "F4",
+        "ip_to_cpu_to_ip.closed_loop": "F5"
+      }
+    },
+    "authenticated_retirement_contract": null,
+    "source_projection": {},
+    "bound_projection": {},
+    "compiled_prerequisite_handlers": {},
+    "compiled_assertion_handlers": {},
+    "compiled_seed_projection": {}
+  },
+  "status": "unsupported"
+}
