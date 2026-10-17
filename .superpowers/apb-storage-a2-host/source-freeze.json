@@ -1,0 +1,21 @@
+{
+ "c_issuer_owner_review_required": true,
+ "files": {
+  "src/myfuzz/local_harness/apb3_register_session.py": "4abd50281982ab1094c6e37b509dc192cdfe54b6b0200589193b52d7a68b485f",
+  "src/myfuzz/local_harness/apb_storage_startup.py": "3064443e6536f087b4696970a89471dd5537b0de1b4e2b4403a9a44cbdf17da9",
+  "src/myfuzz/local_harness/native_reset_observation.py": "ac8a90fcc7832e752d34106b30709871820dded26cc6dc2d61f372b91437a1c7",
+  "src/myfuzz/local_harness/native_reset_producer_contract.py": "5a5ed8171d878ab6357ed36384372f1665a857556f664366691fa56933975073",
+  "src/myfuzz/local_harness/session.py": "45c74705730498ab96cb3e007deed3a623eb34c458f8424cac8fe48c28a0be1a",
+  "src/myfuzz/scenario/apb_storage_register_version.py": "46cbf228625eeaf3e37409a4e6f0a1280ca0210b61640e1318137fb35f6b0e5d",
+  "tests/local_harness/test_apb_storage_startup.py": "5e5d4036aeb99d820be23063fe37fe9698d855e46fdd7c8379f27a6450ca622b",
+  "tests/local_harness/test_apb_storage_startup_host.py": "6936be13fb8c2abe1b7989342f3dd567ca791350a59e5e1eb489662d6184799e",
+  "tests/scenario/test_apb_storage_startup_issuer.py": "ce7654a51c990e8e0086c44c04fa09e0f0a661a6d17129e757d2acc33f464360"
+ },
+ "hierarchy_verified": false,
+ "native_verified": false,
+ "note": "C issuer startup-retrieval phase is source-only; native-positive path remains unexecuted.",
+ "reset_authority": false,
+ "scope": "source_only_a2_host_consumer",
+ "source_authority": false,
+ "version_authority": false
+}

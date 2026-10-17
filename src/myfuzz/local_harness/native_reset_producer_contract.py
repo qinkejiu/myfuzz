@@ -15,11 +15,13 @@ _DEPENDENCIES = MappingProxyType({name: (module, MappingProxyType({
     'myfuzz.local_harness.apb3_register_template',
     'myfuzz.local_harness.apb_storage_source_contract',
     'myfuzz.local_harness.apb_storage_probe_contract',
+    'myfuzz.local_harness.apb_storage_startup',
     'myfuzz.scenario.apb_storage_register_version')
     for module in (import_module(name),)})
 _DEPENDENCIES_PIN = _DEPENDENCIES
 from pathlib import Path
 import hashlib
+import json
 _STORAGE_ISSUER_SOURCE = (_DEPENDENCIES['myfuzz.scenario.apb_storage_register_version'][0],
     hashlib.sha256(Path(_DEPENDENCIES['myfuzz.scenario.apb_storage_register_version'][0].__file__).read_bytes()).hexdigest())
 
@@ -107,4 +109,23 @@ def check_producer(owner):
         # reprojects every storage port/metadata/runtime expression. No frontend.
         if _VERIFY[0](owner.artifact) is not True:
             raise ValueError('native reset storage probe canonical projection required')
+        document=owner._artifact_document
+        if ('storage_startup_capture' in document
+                or 'storage_startup_selection' in document):
+            startup=_DEPENDENCIES['myfuzz.local_harness.apb_storage_startup'][0]
+            contract=startup.contract_from_document(document)
+            if (document.get('kind')!='apb3_register_observe'
+                    or document.get('driver_schema_version')!='local_driver_generation.apb_storage_startup.v2'
+                    or owner._storage_startup_required is not True
+                    or json.dumps(owner._storage_startup_contract,sort_keys=True,
+                        separators=(',',':'),allow_nan=False)!=json.dumps(contract,
+                        sort_keys=True,separators=(',',':'),allow_nan=False)
+                    or json.dumps(owner._storage_startup_ports,sort_keys=True,
+                        separators=(',',':'),allow_nan=False)!=json.dumps(
+                        document.get('storage_probe_ports'),sort_keys=True,
+                        separators=(',',':'),allow_nan=False)
+                    or type(owner._storage_startup_complete) is not bool
+                    or type(owner._storage_startup_retrieving) is not bool
+                    or type(owner._storage_startup_receipts) is not list):
+                raise ValueError('native reset A2 startup admission drift')
     return selected

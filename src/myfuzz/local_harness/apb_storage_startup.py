@@ -96,6 +96,55 @@ def validate_startup_page(page,contract,*,expected_page,ports):
     return copy.deepcopy(records)
 
 
+def validate_startup_handoff(last_startup,first_command,*,operation,fields,reset_observed):
+    """Pure startup-post to first-command-pre continuity namespace join.
+
+    Persistent source-mapped storage and reset levels must be unchanged. APB
+    request roles that a command actually drives must match that command;
+    combinational readback/acknowledge roles are deliberately free to change
+    and readback is never used as a storage substitute. This function issues
+    no token, authority or reset prerequisite.
+    """
+    if reset_observed is not True:raise ValueError('storage_startup_reset_not_observed')
+    names=tuple(PORT_WIDTHS)
+    for group in (last_startup,first_command):
+        if not isinstance(group,dict) or set(group)!=set(names):raise ValueError('storage_startup_handoff_shape')
+        for name in names:
+            value=group[name]
+            if type(value) is not int or not 0<=value<1<<PORT_WIDTHS[name]:
+                raise ValueError('storage_startup_handoff_width')
+    if last_startup['storage_reset'] not in (0,1):raise ValueError('storage_startup_handoff_reset')
+    if first_command['storage_value']!=last_startup['storage_value']:
+        raise ValueError('storage_startup_value_discontinuity')
+    if first_command['storage_reset']!=last_startup['storage_reset']:
+        raise ValueError('storage_startup_reset_discontinuity')
+    if operation=='ACCESS_APB3_REG':
+        if (type(fields) is not tuple or len(fields)!=4
+            or any(type(value) is not int for value in fields)):
+            raise ValueError('storage_startup_handoff_command')
+        write,offset,value,be=fields
+        if write not in (0,1) or be!=15 or not 0<=offset<1<<12 or offset%4:
+            raise ValueError('storage_startup_handoff_command')
+        if first_command['storage_psel']!=1:raise ValueError('storage_startup_handoff_drive')
+        if first_command['storage_paddr']!=offset:raise ValueError('storage_startup_handoff_address')
+        if first_command['storage_pwrite']!=write:raise ValueError('storage_startup_handoff_write')
+        if write and first_command['storage_pwdata']!=value:
+            raise ValueError('storage_startup_handoff_wdata')
+    elif operation=='STEP_APB3_REG':
+        if type(fields) is not tuple or fields:raise ValueError('storage_startup_handoff_command')
+        if first_command['storage_psel']!=0 or first_command['storage_penable']!=0:
+            raise ValueError('storage_startup_handoff_drive')
+    else:raise ValueError('storage_startup_handoff_command')
+    return dict(namespace='startup_to_command',startup_phase='last_startup_post',
+        command_phase='first_command_pre',startup_value=last_startup['storage_value'],
+        startup_reset=last_startup['storage_reset'],
+        command_value=first_command['storage_value'],
+        command_reset=first_command['storage_reset'],operation=operation,
+        fields=list(fields),readback_not_storage=True,
+        combinational_readback_free=True,storage_reset_persistent=True,
+        source_equation_reset_checked=True,grants_reset_prerequisite=False)
+
+
 def render_startup_helpers(contract):
     """Emit only passive capture and zero-clock serialization helpers."""
     contract=validate_startup_contract(contract)

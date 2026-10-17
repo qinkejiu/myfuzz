@@ -68,6 +68,7 @@ class NativeResetObservation:
                 'myfuzz.local_harness.native_reset_observation','myfuzz.local_harness.build','myfuzz.local_harness.wire',
                 'myfuzz.local_harness.apb3_register_session','myfuzz.local_harness.native_reset_producer_contract',
                 'myfuzz.local_harness.apb_storage_probe_contract','myfuzz.local_harness.apb_storage_source_contract',
+                'myfuzz.local_harness.apb_storage_startup',
                 'myfuzz.local_harness.native_physical_observation','myfuzz.local_harness.runtime_renderer',
                 'myfuzz.local_harness.renderer','myfuzz.local_harness.apb3_register_template')}
         self._configuration=dict(schema_version='native_reset_observation_configuration.v1',

@@ -214,3 +214,55 @@ def test_selected_driver_does_not_claim_reset_authority_or_command_continuity(ge
     assert cpp.index('replay.finish(command.sequence, terminal);')<cpp.index('++storage_startup_next_page;')
     assert 'if (local_ticks != 0' in cpp
     assert 'CommandSet::ApbStorageStartup' in cpp
+
+
+def test_startup_handoff_requires_persistent_storage_reset_not_readback():
+    h=helper()
+    last=dict.fromkeys(h.PORT_WIDTHS,0)|dict(storage_value=9,storage_reset=0,storage_pready=1)
+    pre=copy.deepcopy(last)|dict(storage_psel=1,storage_penable=1,storage_paddr=4,
+        storage_pwrite=1,storage_pwdata=27)
+    facts=h.validate_startup_handoff(last,pre,operation='ACCESS_APB3_REG',
+        fields=(1,4,27,15),reset_observed=True)
+    assert facts['namespace']=='startup_to_command'
+    assert facts['readback_not_storage'] is True
+    assert facts['startup_value']==9 and facts['command_value']==9
+    # Combinational readback/ack roles are explicitly free to change.
+    pre.update(storage_prdata=0xdead,storage_pready=1,storage_pslverr=0)
+    assert h.validate_startup_handoff(last,pre,operation='ACCESS_APB3_REG',
+        fields=(1,4,27,15),reset_observed=True)['command_value']==9
+    for field,value in [('storage_value',10),('storage_reset',1)]:
+        bad=copy.deepcopy(pre);bad[field]=value
+        with pytest.raises(ValueError):h.validate_startup_handoff(last,bad,
+            operation='ACCESS_APB3_REG',fields=(1,4,27,15),reset_observed=True)
+    for field,value in [('storage_paddr',8),('storage_pwrite',0),('storage_pwdata',1)]:
+        bad=copy.deepcopy(pre);bad[field]=value
+        with pytest.raises(ValueError):h.validate_startup_handoff(last,bad,
+            operation='ACCESS_APB3_REG',fields=(1,4,27,15),reset_observed=True)
+    # Readback is not storage: a free readback change is legal, but a readback
+    # that mirrors the old value cannot hide a changed storage value.
+    free=copy.deepcopy(pre);free['storage_prdata']=10
+    assert h.validate_startup_handoff(last,free,operation='ACCESS_APB3_REG',
+        fields=(1,4,27,15),reset_observed=True)['command_value']==9
+    bad=copy.deepcopy(pre);bad['storage_value']=10;bad['storage_prdata']=9
+    with pytest.raises(ValueError):h.validate_startup_handoff(last,bad,
+        operation='ACCESS_APB3_REG',fields=(1,4,27,15),reset_observed=True)
+    with pytest.raises(ValueError):h.validate_startup_handoff(last,pre,
+        operation='ACCESS_APB3_REG',fields=(1,4,27,15),reset_observed=False)
+    with pytest.raises(ValueError):h.validate_startup_handoff(None,pre,
+        operation='ACCESS_APB3_REG',fields=(1,4,27,15),reset_observed=True)
+    idle=dict.fromkeys(h.PORT_WIDTHS,0)|dict(storage_value=9,storage_reset=0,storage_pready=1)
+    assert h.validate_startup_handoff(last,idle,operation='STEP_APB3_REG',
+        fields=(),reset_observed=True)['command_value']==9
+    busy=copy.deepcopy(idle);busy['storage_psel']=1
+    with pytest.raises(ValueError):h.validate_startup_handoff(last,busy,
+        operation='STEP_APB3_REG',fields=(),reset_observed=True)
+
+
+def test_startup_handoff_refuses_synthesized_reset_release():
+    h=helper()
+    last=dict.fromkeys(h.PORT_WIDTHS,0)|dict(storage_value=0,storage_reset=1,storage_pready=1)
+    released=dict.fromkeys(h.PORT_WIDTHS,0)|dict(storage_value=0,storage_reset=0,storage_pready=1)
+    with pytest.raises(ValueError):h.validate_startup_handoff(last,released,
+        operation='STEP_APB3_REG',fields=(),reset_observed=True)
+    assert h.validate_startup_handoff(last,dict(last),operation='STEP_APB3_REG',
+        fields=(),reset_observed=True)['startup_reset']==1

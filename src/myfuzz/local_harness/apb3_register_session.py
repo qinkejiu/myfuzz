@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from collections import deque
 from collections.abc import Mapping
+from copy import deepcopy
+import json
 
 from .session import GeneratedLocalSession
 
@@ -42,6 +44,17 @@ class GeneratedApb3RegisterSession(GeneratedLocalSession):
         self._storage_last_access = None
         self._samples = deque()
         self.local_transactions = []
+        # A2 retrieval state is private and initialized before any command.
+        # Ordinary `_take` and `_samples` remain reserved for normal commands.
+        self._storage_startup_contract = None
+        self._storage_startup_required = False
+        self._storage_startup_complete = False
+        self._storage_startup_receipts = []
+        self._storage_startup_last_receipt = None
+        self._storage_startup_failure = None
+        self._storage_startup_ports = None
+        self._storage_startup_retrieving = False
+        self._storage_startup_bytes = 0
         self._dynamic = {}
         for index, row in enumerate(artifact.runtime_document['dynamic_physical_inputs']):
             name = row['input_name']
@@ -64,6 +77,19 @@ class GeneratedApb3RegisterSession(GeneratedLocalSession):
             if name in self._outputs:
                 raise ValueError(f'ambiguous {self.transport_error_label} physical observation')
             self._outputs[name] = (row['runtime_name'], row['width'])
+        document = self._artifact_document
+        if ('storage_startup_capture' in document
+                or document.get('driver_schema_version') ==
+                'local_driver_generation.apb_storage_startup.v2'):
+            from .apb_storage_startup import contract_from_document
+            self._storage_startup_contract = contract_from_document(document)
+            self._storage_startup_required = True
+            # The closed A2 producer is admitted only with empty setup/probe
+            # lists and no dynamic or bound inputs; page retrieval itself does
+            # not become a normal samples producer.
+            if setup_writes or probe_offsets or self._dynamic or self._bound:
+                raise ValueError('storage startup requires empty setup and probes')
+            self._storage_startup_ports = deepcopy(document['storage_probe_ports'])
         wait = artifact.runtime_document['effective_max_wait_cycles']
         self.max_local_ticks_per_register_access = 2 * wait + 5
         self.max_local_ticks_per_step = 1 + len(self._dynamic) + len(self._bound) + (
@@ -189,12 +215,100 @@ class GeneratedApb3RegisterSession(GeneratedLocalSession):
                 raise ValueError(f'{self.transport_error_label} bound input lacks exact real output route')
 
     def begin_case(self, testcase_id):
-        super().begin_case(testcase_id)
-        self._started = False
-        self._samples.clear()
-        self.local_transactions.clear()
-        self._dynamic_values = {name: 0 for name in self._dynamic}
-        self._bound_values = {name: 0 for name in self._bound}
+        if self._storage_startup_failure is not None:
+            # A lost or malformed startup page is permanently uncertain: never
+            # retry it on a fresh execution or a later sequence.
+            raise ValueError('storage startup scope is permanently poisoned')
+        self._storage_startup_complete = False
+        self._storage_startup_receipts.clear()
+        self._storage_startup_last_receipt = None
+        self._storage_startup_bytes = 0
+        retrieval_started = False
+        try:
+            super().begin_case(testcase_id)
+            self._started = False
+            self._samples.clear()
+            self.local_transactions.clear()
+            self._dynamic_values = {name: 0 for name in self._dynamic}
+            self._bound_values = {name: 0 for name in self._bound}
+            if self._storage_startup_required:
+                retrieval_started = True
+                self._read_storage_startup_pages()
+        except BaseException as primary:
+            if retrieval_started:
+                self._record_storage_startup_failure(primary)
+                try:
+                    self._abort()
+                except BaseException as cleanup:
+                    primary.add_note('storage startup cleanup failure: ' + repr(cleanup))
+            raise
+
+    def command(self, operation, fields):
+        if operation == 'READ_APB_STORAGE_STARTUP':
+            if (not self._storage_startup_required
+                    or not self._storage_startup_retrieving
+                    or self._storage_startup_complete
+                    or self._storage_startup_failure is not None):
+                raise ValueError('storage startup retrieval is not active')
+        elif self._storage_startup_required and not self._storage_startup_complete:
+            raise ValueError('storage startup pages are incomplete')
+        return super().command(operation, fields)
+
+    def _read_storage_startup_pages(self):
+        contract = self._storage_startup_contract
+        self._storage_startup_retrieving = True
+        try:
+            for page_index in range(contract['page_count']):
+                sequence = self._sequence + 1
+                receipt = self.command('READ_APB_STORAGE_STARTUP', (page_index,))
+                raw = self._last_wire_reply
+                self._storage_startup_last_receipt = receipt
+                self._storage_startup_receipts.append(dict(
+                    page_index=page_index, sequence=sequence, receipt=receipt, raw=raw))
+                self._validate_storage_startup_page(receipt, page_index, sequence)
+                page = receipt.payload['observations']['storage_startup']
+                self._storage_startup_bytes += len((raw or '').encode()) + len(
+                    json.dumps(page, sort_keys=True, separators=(',', ':'),
+                               allow_nan=False).encode())
+                if (self._storage_startup_bytes >
+                        self._storage_startup_contract['receipt_storage_bound_bytes']):
+                    raise ValueError('storage startup capture budget exceeded')
+        finally:
+            self._storage_startup_retrieving = False
+        self._storage_startup_complete = True
+
+    def _validate_storage_startup_page(self, receipt, page_index, sequence):
+        from .apb_storage_startup import validate_startup_page
+        if (receipt.status != 'result' or receipt.payload is None
+                or receipt.execution != self._execution or receipt.sequence != sequence
+                or receipt.tick_before != 0 or receipt.tick_after != 0
+                or receipt.new_ticks != 0):
+            raise ValueError('storage startup receipt identity or tick mismatch')
+        payload = receipt.payload
+        if (payload['samples'] != [] or payload['kind'] != self.artifact_kind
+                or set(payload['observations']) != {'storage_startup'}
+                or payload['rdata'] != 0 or payload['error'] != 0):
+            raise ValueError('storage startup payload mismatch')
+        validate_startup_page(payload['observations']['storage_startup'],
+                              self._storage_startup_contract,
+                              expected_page=page_index,
+                              ports=self._storage_startup_ports)
+
+    def _record_storage_startup_failure(self, error):
+        if self._storage_startup_failure is not None:
+            return
+        last = self._storage_startup_receipts[-1] if self._storage_startup_receipts else None
+        self._storage_startup_failure = dict(
+            schema_version='apb_storage_startup_host_failure.v1',
+            stage='retrieval', possible_effects=True, effect_certainty='unknown',
+            error=type(error).__name__ + ': ' + str(error),
+            raw_reply=self._last_wire_reply,
+            last_page_index=None if last is None else last['page_index'],
+            last_sequence=None if last is None else last['sequence'],
+            retained_receipts=list(self._storage_startup_receipts),
+            authority='observation_only', reset_authority=False,
+            version_authority=False, source_authority=False,
+            grants_reset_prerequisite=False)
 
     @property
     def pending_responses(self):

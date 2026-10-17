@@ -115,6 +115,9 @@ _OPERATIONS = {
 #: offer those operations, instead of relying on a hand-kept list agreeing.
 def registered_operations(kind: str) -> frozenset[str]:
     return frozenset(_OPERATIONS.get(kind, {}))
+#: A2-only retrieval command. It is never merged into the standard registry,
+#: so old callers of `registered_operations(kind)` keep the exact same set.
+_STORAGE_STARTUP_OPERATIONS = {'READ_APB_STORAGE_STARTUP': (63,)}
 _DIGEST = re.compile(r'[0-9a-f]{64}\Z')
 
 
@@ -143,6 +146,9 @@ class GeneratedLocalSession:
         self._case_id: str | None = None
         self._native_reset_observation = None
         self._native_reset_build_issuance = None
+        # Exact unparsed last reply, retained for host consumers that must keep
+        # the original wire context even after a parse/identity failure.
+        self._last_wire_reply: str | None = None
 
     @property
     def process(self) -> subprocess.Popen[str] | None:
@@ -213,9 +219,22 @@ class GeneratedLocalSession:
     def _expected_ready(self) -> tuple[str, int, int, str]:
         self._check_artifact_stable()
         document = self._artifact_document
-        ahb_startup = document.get('kind') == 'ahb_lite_cpu'
+        kind = document.get('kind')
+        ahb_startup = kind == 'ahb_lite_cpu'
+        storage_markers = ('storage_startup_selection' in document
+                           or 'storage_startup_capture' in document)
+        # Only the exact generic-APB A2 document may take the storage branch.
+        # Any marker on another runtime kind, or a partial/unknown capture, is
+        # refused instead of silently degrading to the ordinary v1 schema.
+        if kind != 'apb3_register_observe' and storage_markers:
+            raise ValueError('storage startup contract on another runtime kind')
+        storage_startup = (kind == 'apb3_register_observe' and (
+            storage_markers
+            or document.get('driver_schema_version') ==
+            'local_driver_generation.apb_storage_startup.v2'))
         driver_schema = ('local_driver_generation.ahb_startup.v2' if ahb_startup
-                         else 'local_driver_generation.v1')
+                         else 'local_driver_generation.apb_storage_startup.v2'
+                         if storage_startup else 'local_driver_generation.v1')
         if (document.get('schema_version') != 'local_runtime_artifact.v1'
                 or document.get('driver_schema_version') != driver_schema
                 or document.get('status') != 'driver_generated'
@@ -226,8 +245,13 @@ class GeneratedLocalSession:
             contract_from_document(document)
         elif 'ahb_startup_contract' in document:
             raise ValueError('AHB startup contract on another runtime kind')
+        elif storage_startup:
+            from .apb_storage_startup import contract_from_document
+            try:
+                contract_from_document(document)
+            except (KeyError, TypeError) as error:
+                raise ValueError('invalid storage startup contract') from error
         digest = document.get('artifact_digest')
-        kind = document.get('kind')
         reset = document.get('driver_reset')
         if (not isinstance(reset, dict)
                 or reset.get('schema_version') != 'generated_local_reset.v1'):
@@ -237,7 +261,8 @@ class GeneratedLocalSession:
         if (type(digest) is not str or _DIGEST.fullmatch(digest) is None
                 or kind not in _OPERATIONS
                 or type(asserted) is not int or asserted < 1
-                or type(released) is not int or released < (0 if ahb_startup else 1)):
+                or type(released) is not int
+                or released < (0 if ahb_startup or storage_startup else 1)):
             raise ValueError('invalid generated driver reset or identity contract')
         return digest, asserted, released, kind
 
@@ -320,6 +345,7 @@ class GeneratedLocalSession:
 
     def _command_impl(self, operation: str, fields: tuple[int, ...]) -> DriverReceipt:
         _NATIVE_RESET_OWNER_GUARD_PIN[0](self)
+        self._last_wire_reply = None
         storage_authority = _storage_version_authority(self)
         if storage_authority is not None:
             storage_authority._actual_begin(self, operation, fields)
@@ -333,6 +359,15 @@ class GeneratedLocalSession:
             raise
         _, _, _, kind = self._expected_ready()
         maxima = _OPERATIONS[kind].get(operation)
+        if maxima is None and kind == 'apb3_register_observe':
+            document = self._artifact_document
+            # Merge the private retrieval allowance only after the exact A2
+            # document was admitted by _expected_ready above.
+            if (document.get('driver_schema_version') ==
+                    'local_driver_generation.apb_storage_startup.v2'
+                    and 'storage_startup_selection' in document
+                    and 'storage_startup_capture' in document):
+                maxima = _STORAGE_STARTUP_OPERATIONS.get(operation)
         if (maxima is None or type(fields) is not tuple or len(fields) != len(maxima)
                 or any(type(value) is not int or not 0 <= value <= maximum
                        for value, maximum in zip(fields, maxima))
@@ -390,6 +425,7 @@ class GeneratedLocalSession:
                 answer = self._reader.readline(proc.stdout)
             if not answer:
                 raise RuntimeError('lost_reply: generated driver stdout EOF')
+            self._last_wire_reply = answer
             receipt = parse_driver_receipt(answer.strip(), execution=self._execution,
                                            sequence=sequence,
                                            current_tick=self.local_ticks - self._tick_base,
@@ -470,7 +506,9 @@ _NATIVE_RESET_BUILD_FUNCTIONS = {name: (getattr(_native_reset_build_module,name)
     ('build_local_harness','local_build_identity','_prepare','_prepared_if_current','_validate_cache','_host_sources')}
 _NATIVE_RESET_BUILD_ISSUANCES = WeakKeyDictionary()
 _NATIVE_RESET_BUILD_REGISTRY_PIN = _NATIVE_RESET_BUILD_ISSUANCES
-_NATIVE_RESET_OPERATIONS = (_OPERATIONS, json.dumps(_OPERATIONS, sort_keys=True))
+_NATIVE_RESET_OPERATIONS = (_OPERATIONS, json.dumps(_OPERATIONS, sort_keys=True),
+    _STORAGE_STARTUP_OPERATIONS, json.dumps(_STORAGE_STARTUP_OPERATIONS, sort_keys=True))
+_STORAGE_STARTUP_OPERATIONS_PIN = _STORAGE_STARTUP_OPERATIONS
 _NATIVE_RESET_POPEN = subprocess.Popen
 _NATIVE_RESET_POPEN_METHODS = {name:(getattr(subprocess.Popen,name),getattr(subprocess.Popen,name).__code__)
     for name in ('__init__','poll','wait','kill')}
@@ -534,7 +572,10 @@ def _native_reset_check_producers(owner):
             raise ValueError('native reset build function drift:'+name)
     if build_local_harness is not _NATIVE_RESET_BUILD_FUNCTIONS['build_local_harness'][0] or local_build_identity is not _NATIVE_RESET_BUILD_FUNCTIONS['local_build_identity'][0]:
         raise ValueError('native reset build facade drift')
-    if _OPERATIONS is not _NATIVE_RESET_OPERATIONS[0] or json.dumps(_OPERATIONS,sort_keys=True) != _NATIVE_RESET_OPERATIONS[1]:
+    if (_OPERATIONS is not _NATIVE_RESET_OPERATIONS[0]
+            or json.dumps(_OPERATIONS,sort_keys=True) != _NATIVE_RESET_OPERATIONS[1]
+            or _STORAGE_STARTUP_OPERATIONS is not _NATIVE_RESET_OPERATIONS[2]
+            or json.dumps(_STORAGE_STARTUP_OPERATIONS,sort_keys=True) != _NATIVE_RESET_OPERATIONS[3]):
         raise ValueError('native reset operation domain drift')
     if owner._native_reset_observation is not None:
         _NATIVE_RESET_OBSERVER_FUNCTIONS['_check_observer_methods'][0](owner._native_reset_observation)

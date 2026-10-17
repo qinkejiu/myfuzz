@@ -1,0 +1,19 @@
+Observed RED before implementation (same session, source-only):
+
+$ PYTHONPATH=src python3 -m pytest -q tests/local_harness/test_apb_storage_startup_host.py
+1 failed, 11 errors
+- real A2 artifact refused by v1-only _expected_ready
+- GeneratedApb3RegisterSession had no _storage_startup_required/contract attributes
+
+$ PYTHONPATH=src python3 -m pytest -q tests/local_harness/test_apb_storage_startup.py -k handoff
+FAILED ... AttributeError/ValueError: validate_startup_handoff absent
+
+$ PYTHONPATH=src python3 -m pytest -q tests/scenario/test_apb_storage_startup_issuer.py
+FAILED: validate_storage_startup_receipt absent; C startup-retrieval phase absent;
+host/C refusal-layer assertions red until the phase was implemented.
+
+Fixture defect found during RED (fixed in the new test fixture, not production):
+the software pipe fixture closed a TextIOWrapper from the main thread while the
+responder thread was blocked in readline. It now sends END to wake the reader and
+closes only in the responder thread. No fault parameter was skipped/removed or
+assertion relaxed; all 14 malformed/lost page controls and lost-ACK run.
