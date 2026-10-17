@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import stat
 import subprocess
 import sys
@@ -174,10 +175,11 @@ def evidence_map(root):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ('base-dir', 'freeze-map', 'output', 'client-binary', 'lock-file'):
+    for name in ('base-dir', 'freeze-map', 'output', 'client-binary', 'lock-file', 'tool-freeze'):
         parser.add_argument('--' + name, type=Path, required=True)
     parser.add_argument('--freeze-sha256', required=True)
     parser.add_argument('--client-sha256', required=True)
+    parser.add_argument('--tool-freeze-sha256', required=True)
     parser.add_argument('--pythonlib', type=Path,
                         help='explicit external dependency directory after snapshot imports')
     parser.add_argument('--expected-commit', required=True)
@@ -194,6 +196,8 @@ def main():
             'freeze_sha256': args.freeze_sha256, 'output': str(output),
             'client_binary': str(args.client_binary.absolute()),
             'client_sha256': args.client_sha256,
+            'tool_freeze': str(args.tool_freeze.absolute()),
+            'tool_freeze_sha256': args.tool_freeze_sha256,
             'pythonlib': str(args.pythonlib.absolute()) if args.pythonlib else None,
             'lock_file': str(args.lock_file.absolute()),
             'negative_selectors': dict(NEGATIVES),
@@ -207,7 +211,22 @@ def main():
     sys.path[:0] = [str(root / 'src'), str(root)]
     if digest(args.freeze_map) != args.freeze_sha256:
         parser.error('freeze map digest mismatch')
+    if digest(args.tool_freeze) != args.tool_freeze_sha256:
+        parser.error('tool freeze digest mismatch')
     expected = json.loads(args.freeze_map.read_bytes())
+    tools = json.loads(args.tool_freeze.read_bytes())
+    if not {'git', 'verilator', 'c++', 'ar'} <= set(tools):
+        parser.error('tool freeze must include git, verilator, c++, ar')
+    for name, pin in tools.items():
+        path = Path(pin['path']).resolve(strict=True)
+        selected = shutil.which(name)
+        if (selected is None or Path(selected).resolve() != path
+                or digest(path) != pin['sha256'] or not os.access(path, os.X_OK)):
+            parser.error('selected tool does not match freeze: ' + name)
+    if args.pythonlib and not args.pythonlib.resolve(strict=True).is_dir():
+        parser.error('pythonlib is not a directory')
+    if digest(args.client_binary.resolve(strict=True)) != args.client_sha256:
+        parser.error('client freeze mismatch')
     with args.lock_file.open('a+b') as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -215,6 +234,7 @@ def main():
             parser.error('canonical heavy worker lock occupied; no queued execution')
         output.mkdir(parents=True, exist_ok=False)
         write(output / 'plan.json', plan)
+        write(output / 'tool-freeze.json', tools)
         write(output / 'interpreter.json', {'executable': sys.executable,
               'resolved': str(Path(sys.executable).resolve()),
               'sha256': digest(Path(sys.executable).resolve()), 'version': sys.version})
@@ -226,6 +246,8 @@ def main():
             env['PYTHONPATH'] += ':' + str(args.pythonlib.resolve(strict=True))
         env.pop('PYTEST_ADDOPTS', None)
         env['PYTEST_DISABLE_PLUGIN_AUTOLOAD'] = '1'
+        for override in ('CC', 'CXX', 'AR', 'MAKEFLAGS', 'CFLAGS', 'CXXFLAGS', 'LDFLAGS'):
+            env.pop(override, None)
         # No ambient foreign-source PYTHONPATH is inherited.
         result = {'status': 'failed', 'formal_p7_complete': False, 'negative_results': {}}
         before = None
@@ -269,6 +291,13 @@ def main():
             result['error'] = type(error).__name__ + ': ' + str(error)
         finally:
             try:
+                tools_after = {}
+                for name, pin in tools.items():
+                    tools_after[name] = {'path': pin['path'], 'sha256': digest(Path(pin['path']).resolve(strict=True))}
+                    if tools_after[name]['sha256'] != pin['sha256']:
+                        result['status'] = 'failed'
+                        result['tool_mutation'] = True
+                write(output / 'tools-after.json', tools_after)
                 client_path = args.client_binary.resolve(strict=True)
                 client_after = digest(client_path)
                 write(output / 'client-after.json', {'path': str(client_path), 'sha256': client_after})

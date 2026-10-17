@@ -48,3 +48,14 @@ The output status is `collected_pending_independent_audit`, never a declaration
 of formal P7 completion. An occupied lock, mismatching source map, nonzero child
 exit, skipped fixture, source mutation, or invalid fresh/join document fails.
 The script has not been launched, including its plan-only mode.
+
+The mandatory `--tool-freeze` / `--tool-freeze-sha256` preflight checks, without
+executing any tool, a caller-reviewed JSON object keyed by executable name.
+Each entry contains absolute `path` and `sha256`; at minimum `git`, `verilator`,
+`c++`, and `ar` must be present. Resolved PATH selection, executability, and
+file hashes must match before any child launch. Compiler/archiver flag and
+command environment overrides are removed from children, tool hashes are
+checked again afterward, and generated actual build manifests remain required
+for the independent tool/provenance audit. The manifest checks named tool
+entry points, not every transitive executable or shared library. An unmet or
+unreviewed transitive closure still blocks operator execution authorization.
