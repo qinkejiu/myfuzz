@@ -129,15 +129,20 @@ $ PYTHONPATH=src python3 -m pytest \
 
 `tests/integration/test_cvw_derived_config.py` (pure profile/derivation controls): **7 passed, 1 failed** — `test_the_derivation_changes_only_the_named_parameters` fails on the committed `ZCD_SUPPORTED = 0` line not being listed in `DERIVED_PARAMETERS`. `git show HEAD:configs/cpus/cvw/config_extmem/config.vh` and `git show HEAD:tests/integration/test_cvw_derived_config.py` prove this failure predates and is unrelated to this change; it was not altered.
 
-Not re-run under the no-native boundary:
+Not admissible under the no-native boundary:
 
-- `tests/local_harness/test_ahb_lite_session.py`: an earlier pre-boundary run passed 13 tests together with the renderer-shape file, but that run may have built/executed the generated model; it is **not** treated as evidence here.
-- `tests/integration/test_cvw_ahb_runtime_generation.py`: contains verilator-gated build/elaboration/traffic cases; only its pure rendering assertions would be admissible, and the module was not re-run.
+- `tests/local_harness/test_ahb_lite_session.py`: its `_artifact()` helper calls `verify_local_source_lock` without a frontend monkeypatch, so even the five constructor/helper tests I selected as a "pure subset" executed Verilator elaboration. That follow-up run passed 5 tests but is **not** evidence and will not be repeated; the whole file is excluded. An earlier pre-boundary full run (13 combined session/renderer tests) is likewise not evidence.
+- `tests/integration/test_cvw_ahb_runtime_generation.py`: contains verilator-gated build/elaboration/traffic cases; only its pure rendering assertions would be admissible, and the module was not re-run after the boundary notice.
 - `tests/integration -k cvw`: contains native/elaboration cases; not run.
 
 ## 7. Boundary incident (reported honestly)
 
-Selecting the whole `tests/integration/test_cvw_ahb_runtime_generation.py` module caused its verilator-gated cases to run on this host (verilator is installed). It created `.superpowers/cache/cvw-ahb-elaboration/{wrapper,runtime}.sv`; those were deleted immediately, no process remained, and no result from that run is used as evidence. `test_ahb_lite_session.py` may likewise have exercised a generated model in the earlier run. No further build/elaboration/model/native case was run after the boundary notice. The `.build-extra-header-*` path was not present after the run and no cache remains.
+Two mistakes were made and are disclosed rather than hidden:
+
+1. Selecting the whole `tests/integration/test_cvw_ahb_runtime_generation.py` module caused its verilator-gated cases to run on this host (verilator is installed). It created `.superpowers/cache/cvw-ahb-elaboration/{wrapper,runtime}.sv`; those were deleted immediately and no process remained.
+2. After the boundary notice, I selected five tests from `tests/local_harness/test_ahb_lite_session.py` believing they were pure constructor/helper controls. That file's `_artifact()` calls `verify_local_source_lock` without a frontend monkeypatch, so it ran Verilator elaboration too (72 s, 5 passed). I stopped after that run. No further build/elaboration/model/native case was executed.
+
+Neither run's results are used as evidence here, and neither produced a retained build/elaboration cache: the generated `.superpowers/cache/cvw-ahb-elaboration` directory was deleted, no `.cvw-verify-*` directory newer than 2026-10-15 exists, no process remained, and no `.build-extra-header-*` path remained. The two old `.cvw-verify-*` directories in the checkout are dated 2026-10-15 and predate this work.
 
 ## 8. Open risks / boundaries
 

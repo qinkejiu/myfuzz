@@ -6,6 +6,10 @@
 
 ---
 
+> **2026-10-17 追加（不改变任何 P6 行结论）：** 本轮三项源码增量为 CVW AHB manager-domain 观察合同修正（`87bef94`＋`782b091`）、APB A2 启动页主机消费（`4c0a62c`＋`d4594e3`）与通用 F4 D1 封闭生产者选择（`cd4154a`）。它们分别是 CVW 事件观察、generic APB startup 与 P7 F4 的源码前置，**不是** P6 五行中任何一行的原生/持续会话验收，也不改变行 1–5 的既有结论。CVW 新 profile 未做原生验证、A2 未做真实 startup 门、D1 对 generic timer 仍在构造前拒绝（D2/D3 未做）。详见[汇总报告](../../reports/three-agent-source-increments-20261017.md)。
+
+---
+
 ## 1. 权威口径（实测）
 
 ### 1.1 已注册的 CPU 侧模板契约（`list_template_contracts()`，CPU 侧 6 个／全表 12 个）
