@@ -1,0 +1,8 @@
+{
+  "archive_sha256": "791cab0b534d5f7112e6be2fe36f0e617fe0f98727e6fa197e0773acc24719e8",
+  "archive_bytes": 2754210,
+  "members": 51,
+  "scope": "original preparation commands/maps/failures/receipts only, no native tests",
+  "source_archive_retained_at_remote": "/root/fanzehui/myfuzz/operations/p7-i5-independent-6b40ef4-20261018-attempt1/source-transfer.tar.gz",
+  "source_archive_sha256": "a3b5ba65700049ad73e47ccf239ddb6626d1c4777cb4b5018abbe91be9032b1f"
+}

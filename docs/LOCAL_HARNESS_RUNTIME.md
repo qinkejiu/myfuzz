@@ -301,3 +301,10 @@ BOOM 已有[生成式独立 CPU/RAM 入口](../configs/cpus/boom/README.md)：�
 ### 2026-10-17 BOOM 持久 Runner 真实链增量
 
 冻结提交 `8a3fed3` 的新持久驱动已完成 BOOM→标准 Runner/Router→PULP GPIO→CPU readback/branch→原生 RAM 门禁，覆盖先前“未接 CPU/IP”的缺口。两次 fresh 完整 20,597 事件前缀一致；改读值 53→52 导致 CPU 保存 52 和失败标志，抑制响应导致 CPU 等待。构建、主门及旧独立入口回归各自 exit0；[证据与边界](../configs/cpus/boom/evidence/persistent-runtime-20261017/README.md)。GPIO 程序只含 A/D，新持久 C/E 缓存路径补充尚待运行；IRQ、warm RAM retention、在线搜索、通用来源权威与 P6 整行仍未验收。此前 CPU/RAM 独立驱动的 C/E 证据不移作此新驱动证据。
+
+
+## 2026-10-18 native持久输入槽源码增量（未运行）
+
+GeneratedNativeMemorySession新增显式declare_instruction_slots/accept_instructions/waiting_instruction_address，只在admitted物理instruction marker下从上一POST观察未填请求并抑制ready；未启用时保留默认路径。新Pico native/PULP装配为同一CPU/GPIO/Router/RAM，32字节packet、真实PADOUT写/读回与PADIN读值共同计算RAM/GPIO，前后要求实际等待槽和pending排空。新online请求max_wait1024、每例128次CPU调度是显式新策略，旧fixture16不变；adapter实际timeout保留。
+
+源码52de02c及独立审查98d137f没有执行测试或原生模型，不授真实消费、认证前缀、四类反馈或P6完成。见[native源码审查](reports/p6-native-online-independent-review-20261018.md)；新远程[独立副本准备](reports/p7-i5-remote-independent-preparation-20261018.md)也只证明复制，不是运行门。

@@ -1,0 +1,16 @@
+{
+  "scope": "source+client transport only, no native operation",
+  "files": 15333,
+  "bytes": 798103129,
+  "freeze_sha256": "b6372fcdb7ca1e93c289f850b0d53bc421c571204a65b86bd828815eb1f13dd2",
+  "git_base_commit": "6b40ef4",
+  "explicit_overlays": {
+    "runner": "4b6fc42",
+    "native_boundary": "52de02c"
+  },
+  "client_sha256": "16434544a4a0712fa7716f6f3e3ff8e0dd949139f6a047780f4d08694ff31dcc",
+  "independent_full_map_verified": true,
+  "archive_bytes": 615937717,
+  "archive_sha256": "a3b5ba65700049ad73e47ccf239ddb6626d1c4777cb4b5018abbe91be9032b1f",
+  "status": "packaged_only_not_executed"
+}

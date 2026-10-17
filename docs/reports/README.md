@@ -721,3 +721,7 @@ Task3 unbound dependency source RED有效：`dispatch-source-dependency-red.stdo
 - [P7 I5验收采集脚本](p7-i5-gate-runner-source-20261018.md)及[独立源码审查](p7-i5-gate-runner-review-20261018.md)：未执行，M1已修复。
 - [P8标量测量脚本](p8-s1c-scalar-measurement-source-20261018.md)及[独立源码审查](p8-s1c-scalar-measurement-review-20261018.md)：未测量、不授5×。
 - [CV32闭环接纳独立审查](p6-cv32-closed-loop-admission-review-20261018.md)：提前拒绝不适用证据。
+
+- [P7 I5远程独立副本准备终态](p7-i5-remote-independent-preparation-20261018.md)：实际全文件映射通过，真实重跑待做。
+- [P6 native持久入口源码审查](p6-native-online-independent-review-20261018.md)：因果与边界守卫已闭合，未运行。
+- [P7 I5独立快照静态闭包](p7-i5-independent-snapshot-closure-20261018.md)：478个选定文件，无原生授予。

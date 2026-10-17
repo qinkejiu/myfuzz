@@ -1,0 +1,11 @@
+{
+  "bytes": 798103129,
+  "destination": "/tmp/myfuzz-p7-i5-source-6b40ef4",
+  "files": 15333,
+  "formal_p7_complete": false,
+  "freeze_sha256": "b6372fcdb7ca1e93c289f850b0d53bc421c571204a65b86bd828815eb1f13dd2",
+  "manifest_sha256": "8d07d8b5e95506778787525d49347b3e48ae514a9ec4190472cc83da24dca9f6",
+  "native_run": false,
+  "source": "/tmp/myfuzz-p7-i5-staging-6b40ef4",
+  "status": "copied_pending_closure_and_tool_review"
+}

@@ -2,6 +2,10 @@
 
 ## 2026-10-18 后续执行状态与证据口径
 
+- **独立远程源码副本已实际校验：** [准备终态](reports/p7-i5-remote-independent-preparation-20261018.md)，15,333文件/798,103,129字节，完整文件内容/模式映射一致；新operation不覆盖旧工作集。工具/Python闭包和N1–N8/新CPU+IP独立重跑尚未执行。
+- **P6 native持久在线源码增量：** f30c524接通实际PADOUT读回+PADIN联合计算，52de02c补齐实际packet边界和排空守卫；独立98d137f关闭源码问题。没有新的真实运行、P6整行或四类反馈授予。
+
+
 - P7 I5 N3 专项真实生成路径拒绝用例已提交 `1194b32`，未执行，故仍为 open；独立冻结快照重跑待完成。验收采集脚本已至8af55a3，独立源码复审75bcf56关闭fresh结构检查中项；脚本未执行，不授I5完成。
 - [CVW directed D4 会话](reports/cvw-directed-session-20261018.md)与[Vexii 固定 CPU/IP/IRQ](reports/vexiiriscv-cpu-ip-irq-20261018.md)已有真实门；二者均不等于在线 campaign。下文旧“会话未装配／IRQ未做”属于历史状态。
 - 独立审计对 P8 S3 的结论是“产物内容通过，进程退出不可验证”，不能据此声称已记录完整 pytest 通过。

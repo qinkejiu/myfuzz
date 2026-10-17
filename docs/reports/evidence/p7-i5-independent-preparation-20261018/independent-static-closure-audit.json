@@ -1,0 +1,185 @@
+{
+  "audit_scope": "Source and declared file/include/lock/proof read set only, not RTL elaboration or Python dependency/tool closure.",
+  "bytes_in_freeze": 798103129,
+  "errors": [],
+  "files_in_freeze": 15333,
+  "freeze_sha256": "b6372fcdb7ca1e93c289f850b0d53bc421c571204a65b86bd828815eb1f13dd2",
+  "negative_selectors": [
+    {
+      "definition_count": 1,
+      "freeze_matches": true,
+      "label": "N1",
+      "selector": "tests/integration/test_compiled_artifact_admission.py::test_similarly_named_cpu_profile_cannot_borrow_loaded_cpu",
+      "sha256": "7afab925c1861de7747657c168caff9534cf54e0bd0fd31a260f3bcced0b1c03"
+    },
+    {
+      "definition_count": 1,
+      "freeze_matches": true,
+      "label": "N2",
+      "selector": "tests/integration/test_auto_harness_test.py::test_an_explicit_capability_sidecar_is_matched_by_component_id",
+      "sha256": "996e06d2519b9c6e5ccdb4dce23bebbc7cb3a481dbc9ac40f6a61a8a6eb44fd4"
+    },
+    {
+      "definition_count": 1,
+      "freeze_matches": true,
+      "label": "N3",
+      "selector": "tests/onboarding/test_p7_n3_forced_apb3.py::test_forced_apb3_gpio_without_input_owner_emits_no_harness",
+      "sha256": "f841e5a44bd2aaacaec96678ddf10518652c9c768cb99fcbff3cd933be51af67"
+    },
+    {
+      "definition_count": 1,
+      "freeze_matches": true,
+      "label": "N4",
+      "selector": "tests/integration/test_compiled_f4_storage_producer.py::test_wrong_register_offset_width_mask_or_address_refused",
+      "sha256": "718be8f1956581025b52b7f0d67f96bb8311b1c33fa8cc8ae787e207b7074bf8"
+    },
+    {
+      "definition_count": 1,
+      "freeze_matches": true,
+      "label": "N5",
+      "selector": "tests/integration/test_generated_factory_consumption.py::test_supplied_artifact_kind_and_instance_are_checked_before_consumption",
+      "sha256": "c8839176272f4af5ce3485e6c736c7736a87dd7f371f9b9862e12b2dfd1eec08"
+    },
+    {
+      "definition_count": 1,
+      "freeze_matches": true,
+      "label": "N6",
+      "selector": "tests/local_harness/test_harness_set.py::test_an_undeclared_endpoint_is_refused_by_name",
+      "sha256": "6c9217dfa82abfbde5f2b10522e96dc0b2a0a3025132ece922551a19b6be203f"
+    },
+    {
+      "definition_count": 1,
+      "freeze_matches": true,
+      "label": "N7",
+      "selector": "tests/integration/test_compiled_artifact_admission.py::test_uncompiled_physical_source_is_refused_instead_of_silently_added",
+      "sha256": "7afab925c1861de7747657c168caff9534cf54e0bd0fd31a260f3bcced0b1c03"
+    },
+    {
+      "definition_count": 1,
+      "freeze_matches": true,
+      "label": "N8",
+      "selector": "tests/integration/test_auto_harness_test.py::test_a_composition_that_does_not_satisfy_the_family_is_refused",
+      "sha256": "996e06d2519b9c6e5ccdb4dce23bebbc7cb3a481dbc9ac40f6a61a8a6eb44fd4"
+    }
+  ],
+  "new_actual_missing_dependency_found": false,
+  "profiles": [
+    {
+      "declared_source_files": 43,
+      "id": "ibex_obi_local",
+      "include_roots": [
+        "vendor/lowrisc_ip/ip/prim/rtl",
+        "vendor/lowrisc_ip/ip/prim_generic/rtl",
+        "vendor/lowrisc_ip/dv/sv/dv_utils",
+        "vendor/pulp_common_cells/rtl"
+      ],
+      "literal_include_edges": 35,
+      "lock_artifacts": 71,
+      "lock_records": 1,
+      "missing_includes": [
+        {
+          "file": "third_party/rfuzz/upstream/ibex/rtl/ibex_icache.sv",
+          "include": "formal_tb_frag.svh"
+        },
+        {
+          "file": "third_party/rfuzz/upstream/ibex/rtl/ibex_multdiv_slow.sv",
+          "include": "formal_tb_frag.svh"
+        },
+        {
+          "file": "third_party/rfuzz/upstream/ibex/rtl/ibex_multdiv_fast.sv",
+          "include": "formal_tb_frag.svh"
+        }
+      ],
+      "recursively_read_source_files": 49,
+      "revision": "git:34b0705760ef3dfa00e99637432473d2be8f22f3",
+      "root": "third_party/rfuzz/upstream/ibex"
+    },
+    {
+      "declared_source_files": 31,
+      "id": "cv32e40p",
+      "include_roots": [
+        "rtl/include",
+        "bhv",
+        "bhv/include",
+        "sva"
+      ],
+      "literal_include_edges": 11,
+      "lock_artifacts": 33,
+      "lock_records": 1,
+      "missing_includes": [
+        {
+          "file": "external_designs/cv32e40p/bhv/cv32e40p_tracer.sv",
+          "include": "uvm_macros.svh"
+        }
+      ],
+      "recursively_read_source_files": 41,
+      "revision": "git:6033d2b1be3295ec774d17ac4cf226faacfdeb08",
+      "root": "external_designs/cv32e40p"
+    },
+    {
+      "declared_source_files": 28,
+      "id": "cv32e20",
+      "include_roots": [
+        "rtl",
+        "vendor/lowrisc_ip/ip/prim/rtl",
+        "vendor/lowrisc_ip/dv/sv/dv_utils"
+      ],
+      "literal_include_edges": 25,
+      "lock_artifacts": 29,
+      "lock_records": 1,
+      "missing_includes": [
+        {
+          "file": "third_party/cv32e20_upstream_reference/rtl/cve2_multdiv_slow.sv",
+          "include": "formal_tb_frag.svh"
+        },
+        {
+          "file": "third_party/cv32e20_upstream_reference/rtl/cve2_multdiv_fast.sv",
+          "include": "formal_tb_frag.svh"
+        },
+        {
+          "file": "third_party/cv32e20_upstream_reference/rtl/cve2_cs_registers.sv",
+          "include": "cve2_pmp_reset.svh"
+        }
+      ],
+      "recursively_read_source_files": 35,
+      "revision": "git:d079e8c8e6a08b330940ae123876ba0612bec18d",
+      "root": "third_party/cv32e20_upstream_reference"
+    },
+    {
+      "declared_source_files": 1,
+      "id": "pulp_gpio",
+      "include_roots": [],
+      "literal_include_edges": 0,
+      "lock_artifacts": 3,
+      "lock_records": 1,
+      "missing_includes": [],
+      "recursively_read_source_files": 1,
+      "revision": "git:f82caeb7f7d89427f05e9af5ed31e0675efe0d83",
+      "root": "third_party/soc-pulp-apb-gpio"
+    },
+    {
+      "declared_source_files": 2,
+      "id": "pulp_timer",
+      "include_roots": [],
+      "literal_include_edges": 0,
+      "lock_artifacts": 4,
+      "lock_records": 1,
+      "missing_includes": [],
+      "recursively_read_source_files": 2,
+      "revision": "git:03eba2e6965f5363df12621882bc70498c551a73",
+      "root": "third_party/soc-pulp-apb-timer"
+    }
+  ],
+  "snapshot": "/tmp/myfuzz-p7-i5-source-6b40ef4",
+  "timer_proof": {
+    "proof_digest": "a889c6eb699ecdbd2ad4959f3ca14a5762608edb5a8ce93523343e02fffbef85",
+    "schema_version": "apb_storage_probe_hierarchy_proof.v1",
+    "sha256": "85c1bec713b7012d42dd12565ca11706aba485a35036f8d88ec063558571aa2c",
+    "source_files": {
+      "src/apb_timer.sv": "22dce4e3ff8328bdd6e1621c20e2877e7f44cfecccc07203d09e994632cc1778",
+      "src/timer.sv": "d352fc4476da83658d361e8f500b5a73f857f0a11e9436ab47d5bf0ba0bc7fce"
+    }
+  },
+  "unique_files_checked": 478,
+  "unresolved_literal_includes_interpretation": "All seven textual occurrences are under unrequested macro guards: Ibex/CVE2 FORMAL+YOSYS, CV32E40P CV32E40P_TRACE_EXECUTION, CVE2 CVE2_CUSTOM_PMP_RESET_VALUES. Profiles do not request these macros; CVE2 only requests RVFI=1. Not a general preprocessor proof."
+}
