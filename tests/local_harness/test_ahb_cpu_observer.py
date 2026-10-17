@@ -8,7 +8,10 @@ from types import SimpleNamespace
 import pytest
 from myfuzz.local_harness import runtime_renderer as renderer
 from myfuzz.local_harness.ahb_lite_session import GeneratedAhbMemorySession
+from myfuzz.local_harness.ahb_manager_domain import software_manager_domain_contract
 from myfuzz.local_harness.native_session import GeneratedNativeMemorySession
+from tests.local_harness.ahb_domain_support import command_sample,start_measured_prefix
+from tests.local_harness.test_ahb_cpu_contract import generated
 from myfuzz.scenario.ahb_cpu_events import SHAPE,AhbCpuObserver
 from myfuzz.scenario.contracts import ProtocolEnvironmentError
 from myfuzz.scenario.memory import PersistentMemory,MemoryRegion
@@ -62,8 +65,10 @@ def fake():
  cpu=object.__new__(GeneratedAhbMemorySession)
  cpu._execution='issued';cpu._case_id='case';cpu.reset_epoch=0
  cpu.artifact=SimpleNamespace(plan=SimpleNamespace(request=SimpleNamespace(instance_id='cpu')))
+ cpu._ahb_manager_domain=software_manager_domain_contract(protocol_endpoint_id='bus')
  cpu._ahb_observer=AhbCpuObserver(component_id='cpu',endpoint_id='bus')
  cpu._ahb_observer.begin_scope(execution_id='issued',testcase_id='case',reset_epoch=0)
+ start_measured_prefix(cpu._ahb_observer)
  cpu.runtime_events=cpu._ahb_observer.events;cpu._ahb_signal_map={r:r for r in SHAPE}
  cpu._last_ahb_receipt=None;cpu._pending=None;cpu._sequence_memory=0;cpu._quiescing=False
  cpu._artifact_document={'physical_exports':[]};cpu.boot_base=0
@@ -76,7 +81,8 @@ def fake():
   b=dict(zip(('m_req_ready','m_rsp_valid','m_rsp_rdata','m_rsp_error'),fields))
   b.update(m_req_valid=0,m_rsp_ready=0,m_req_addr=0,m_req_write=0,m_req_be=15,m_req_wdata=0)
   row={k:0 for k in SHAPE};row.update(hready=1)
-  s=dict(local_tick=len(calls),pre=dict(backend=b,physical={},protocol_taps=row),post=dict(backend=copy.deepcopy(b),physical={},protocol_taps=copy.deepcopy(row)))
+  physical={'rt_lh_p_6_0_0':1,'rt_lh_p_8_0_0':1}
+  s=dict(local_tick=len(calls),pre=dict(backend=b,physical=physical,protocol_taps=row),post=dict(backend=copy.deepcopy(b),physical=copy.deepcopy(physical),protocol_taps=copy.deepcopy(row)))
   receipt=SimpleNamespace(status='result',new_ticks=1,payload=dict(pre_backend=b,samples=[s],observations=dict(physical={})))
   cpu._last_ahb_receipt=receipt
   return receipt
@@ -91,8 +97,9 @@ def test_noop_hook_base_is_callable():
 def test_actual_hook_before_service_and_long_lived_stream():
  cpu,calls,aborts=fake();stream=cpu.runtime_events
  cpu.step_local({});cpu.step_local({})
- assert cpu.runtime_events is stream and sum(e['kind']=='ahb_raw' for e in stream)==2
- assert stream[0]['raw_sample']==cpu.last_samples[0] | {'local_tick':1}
+ command_raw=[e for e in stream if e['kind']=='ahb_raw' and e['tick_namespace']=='command']
+ assert cpu.runtime_events is stream and len(command_raw)==2
+ assert command_raw[0]['raw_sample']==cpu.last_samples[0] | {'local_tick':1}
  assert not aborts
 
 
@@ -123,7 +130,8 @@ def test_untrusted_receipt_preserved_without_projection():
   receipt=command(*args);receipt.payload['samples'][0]['pre']['backend']={};return receipt
  cpu.command=bad
  with pytest.raises(ProtocolEnvironmentError):cpu.step_local({})
- assert not any(e['kind']=='ahb_raw' for e in cpu.runtime_events)
+ assert not any(e['kind']=='ahb_raw' and e['tick_namespace']=='command'
+                for e in cpu.runtime_events)
  assert cpu.runtime_events[-1]['diagnostic_receipt']['payload']['samples'][0]['pre']['backend']=={}
  assert aborts
 
@@ -139,7 +147,7 @@ def test_observer_failure_preserves_raw_and_no_service():
 
 def test_reset_cancel_precedes_transport(monkeypatch):
  cpu,calls,aborts=fake()
- cpu._ahb_observer.observe({'local_tick':1,'pre':dict.fromkeys(SHAPE,0)|dict(hready=1,hsel=1,htrans=2),'post':dict.fromkeys(SHAPE,0)|dict(hready=1,hsel=1,htrans=2)})
+ cpu._ahb_observer.observe(command_sample(1,manager_ready=1,hsel=1,htrans=2))
  def reset(self):
   assert self.runtime_events[-1]['kind']=='ahb_reset'
   assert self.runtime_events[-1]['cancelled'] is not None
@@ -149,21 +157,20 @@ def test_reset_cancel_precedes_transport(monkeypatch):
  assert cpu._ahb_observer.scope is None
 
 
-def test_binding_uses_declared_abi_and_rejects_legacy_shape():
+def test_binding_uses_declared_abi_and_rejects_legacy_shape(generated):
  from myfuzz.scenario.ahb_cpu_events import bind_ahb_trace
- from dataclasses import asdict
- from types import SimpleNamespace
- wires={r:'opaque_'+r for r in SHAPE};ports=[];statements=[];taps=[];traces=[]
- renderer._expose_cpu_ahb_trace('e','clk',wires,ports,statements,taps,traces)
- abi=[dict(endpoint_id='e',role=r,width=w,direction='input' if r in ('hrdata','hready','hresp') else 'output',wrapper_name='opaque_'+r,physical_port='port_'+r) for r,w in SHAPE.items()]
- # source_wire is an ABI-derived link, regardless of physical port spelling.
- for tap in taps:tap['source_wire']='link_'+tap['source_wire']
- doc=dict(base_protocol_traces=dict(sample_group='protocol_taps',sampling='pre_post',traces=traces),protocol_tap_ports=taps,structural_abi=dict(ports=abi))
- assert bind_ahb_trace(doc)[0]=='e'
- for broken in ({},dict(doc,protocol_tap_ports=taps[:-1])):
+ artifact,_cpu=generated;doc=artifact.runtime_document
+ assert bind_ahb_trace(doc)[0]==doc['base_protocol_traces']['traces'][0]['endpoint_id']
+ for broken in ({},dict(doc,protocol_tap_ports=doc['protocol_tap_ports'][:-1])):
   with pytest.raises(ValueError):bind_ahb_trace(broken)
  bad=copy.deepcopy(doc);bad['protocol_tap_ports'][0]['source_wire']='guessed_pin'
  with pytest.raises(ValueError):bind_ahb_trace(bad)
+ legacy=copy.deepcopy(doc);legacy.pop('manager_domain')
+ with pytest.raises(ValueError,match='manager-domain'):bind_ahb_trace(legacy)
+ substituted=copy.deepcopy(doc)
+ substituted['manager_domain']['roles']['manager_ready']=copy.deepcopy(
+     substituted['manager_domain']['roles']['bus_reset_n'])
+ with pytest.raises(ValueError):bind_ahb_trace(substituted)
 
 
 def test_poisoned_reset_refuses_before_transport(monkeypatch):

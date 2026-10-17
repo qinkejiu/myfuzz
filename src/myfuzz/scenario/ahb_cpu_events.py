@@ -145,14 +145,15 @@ class AhbCpuObserver:
         if self.tick or self._startup_contract is not None:
             raise ValueError('ahb_startup_state')
         from myfuzz.local_harness.ahb_startup import validate_startup_contract
+        validated=validate_startup_contract(contract)
         domain = contract.get('manager_domain') if isinstance(contract, dict) else None
-        self._startup_contract=validate_startup_contract(contract)
         if domain is None:
             configured=self.contract.get('domain_contract')
             if configured is None:
                 raise ValueError('ahb_manager_domain_missing')
             domain=configured
         self.declare_manager_domain(domain)
+        self._startup_contract=validated
 
     def observe_startup(self, record, *, rows):
         self.require_active()

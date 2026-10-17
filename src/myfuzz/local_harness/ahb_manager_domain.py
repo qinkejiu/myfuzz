@@ -213,6 +213,9 @@ def validate_manager_domain_contract(contract) -> dict:
     if (profile_endpoint['endpoint_id'] != endpoint_id
             or profile_endpoint['function'] != 'observation'):
         _error('profile-endpoint-identity')
+    if profile_endpoint['clock'] != contract['clock']['domain'] \
+            or profile_endpoint['reset'] != contract['reset']['external_command']['domain']:
+        _error('profile-endpoint-provenance')
     fields = profile_endpoint['fields']
     if not isinstance(fields, list) or len(fields) != 2:
         _error('profile-endpoint-fields')
@@ -416,11 +419,10 @@ def project_saved_manager_domain(artifact, profile_path) -> dict:
     """
     if not isinstance(artifact, dict) or not isinstance(artifact.get('plan'), dict):
         _error('saved-artifact')
+    from myfuzz.composition.component_profile import load_component_profile
     path = Path(profile_path)
     raw = path.read_bytes()
-    profile = __import__('myfuzz.composition.component_profile',
-                         fromlist=['load_component_profile']).load_component_profile(
-        json.loads(raw))
+    profile = load_component_profile(json.loads(raw))
     endpoint = manager_domain_endpoint(profile)
     if artifact.get('manager_domain') is not None:
         _error('saved-artifact-already-declared')
