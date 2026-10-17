@@ -29,14 +29,13 @@ from myfuzz.scenario.ibex_dma_uart_descriptor import (
     DESTINATION, ILLEGAL_TARGET, ISR, MAIN, MTVEC_BASE, SOURCE_RAM, UART_BASE,
     UART_RDATA, UART_WDATA, descriptor_uart_images)
 
-# Three cases cover every direction in one boot; multi-word RX/RAM/TX is
-# covered by the S4 prefix gate (RX len2) and the S3 gate (RAM_TO_RAM len2),
-# so this final-source gate keeps the full fresh replay inside the bounded
-# native window.  The earlier six-case boot remains in the S2 evidence.
+# Three multi-word cases cover every direction in one boot; the shorter boot
+# keeps the full fresh-prefix replay inside the bounded native window.  The
+# earlier six-case boot remains in the S2 evidence.
 CASES = (
-    DescriptorCase.create('RX_TO_RAM', dst_index=0, payload=0x5A, length=1),
-    DescriptorCase.create('RAM_TO_RAM', dst_index=2, payload=0x7E, length=1),
-    DescriptorCase.create('RAM_TO_TX', dst_index=0, payload=0x33, length=1),
+    DescriptorCase.create('RX_TO_RAM', dst_index=0, payload=0x5A, length=2),
+    DescriptorCase.create('RAM_TO_RAM', dst_index=2, payload=0x7E, length=2),
+    DescriptorCase.create('RAM_TO_TX', dst_index=0, payload=0x33, length=2),
 )
 EXPECTED_BEATS = tuple(2 * case.length for case in CASES)
 
