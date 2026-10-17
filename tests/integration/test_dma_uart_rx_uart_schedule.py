@@ -327,6 +327,30 @@ def test_before_after_only_removes_idle_uart_ticks(fake_runtime):
         case['source_byte'] for case in new_result.cases] == [0x5a]
 
 
+def test_fifo_depth_after_reads_the_latest_real_probe():
+    # S1c removes the idle UART ticks after the DMA pop, so the last tick sample
+    # can predate the pop. The saved DMA/CPU UART access captures still carry a
+    # real post-pop depth probe; the case evidence must use it instead of the
+    # stale pre-pop depth.
+    rows = [
+        {'kind': 'uart_tick_observation', 'event_id': 1,
+         'post': {'probe_uart_fifo_depth': 1}},
+        {'kind': 'uart_rdata_access', 'event_id': 2,
+         'read_capture': {
+             'pre': {'probe_uart_fifo_depth': 1},
+             'post': {'probe_uart_fifo_depth': 0}}},
+    ]
+    assert runtime._fifo_depth_after(rows) == 0
+    dma = [{'kind': 'dma_edge', 'event_id': 2,
+        'target_delivery': {'target_uart_access': {'read_capture': {
+            'pre': {'probe_uart_fifo_depth': 1},
+            'post': {'probe_uart_fifo_depth': 0}}}}}]
+    assert runtime._fifo_depth_after(dma) == 0
+    assert runtime._fifo_depth_after([]) is None
+    assert runtime._fifo_depth_after([{'kind': 'uart_tick_observation',
+        'post': {'probe_uart_fifo_depth': 3}}]) == 3
+
+
 def test_schedule_helper_keeps_uart_last_for_ready_or_conflicting_uart():
     def runner(*, ready, conflict):
         uart = SimpleNamespace(register_access_conflict=lambda: (

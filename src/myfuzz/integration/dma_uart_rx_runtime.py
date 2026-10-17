@@ -288,14 +288,39 @@ def _prefix_digest(commands, rows, ticks_before, ticks_after, execution_ids):
         .encode('utf-8')).hexdigest()
 
 
+def _capture_depth(capture, depth):
+    """Apply pre then post FIFO depth probes from one saved UART access."""
+    if not isinstance(capture, dict):
+        return depth
+    for phase in ('pre', 'post'):
+        sample = capture.get(phase)
+        if isinstance(sample, dict) and type(sample.get('probe_uart_fifo_depth')) is int:
+            depth = sample['probe_uart_fifo_depth']
+    return depth
+
+
 def _fifo_depth_after(rows):
-    """Last observed FIFO depth in the case slice, or None without a sample."""
+    """Last observed FIFO depth in the case slice, or None without a sample.
+
+    UART register-access captures (CPU STATUS reads, DMA RDATA reads) carry the
+    same real pre/post depth probes as a UART tick sample. After S1c the poll
+    schedule may take no further idle UART tick after the DMA pop, so the last
+    tick sample can predate the pop; use every saved probe and keep the latest
+    one in journal order instead of reporting a stale pre-pop depth.
+    """
     depth = None
     for event in rows:
-        if event.get('kind') == 'uart_tick_observation':
+        kind = event.get('kind')
+        if kind == 'uart_tick_observation':
             post = event.get('post')
             if isinstance(post, dict) and type(post.get('probe_uart_fifo_depth')) is int:
                 depth = post['probe_uart_fifo_depth']
+        elif kind == 'uart_rdata_access':
+            depth = _capture_depth(event.get('read_capture'), depth)
+        elif kind == 'dma_edge':
+            delivery = event.get('target_delivery') or {}
+            access = delivery.get('target_uart_access') or {}
+            depth = _capture_depth(access.get('read_capture'), depth)
     return depth
 
 
