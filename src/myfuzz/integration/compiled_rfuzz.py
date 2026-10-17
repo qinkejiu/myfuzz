@@ -50,6 +50,7 @@ from myfuzz.scenario.compiled_online_decoder import (
     CompiledCandidateRefused,
     CompiledOnlineDecoder,
 )
+from myfuzz.scenario.compiled_paths import compiled_document_sha256
 from myfuzz.scenario.feedback import CoverageTarget
 from myfuzz.scenario.rfuzz_decoder import RECORD_BYTES
 
@@ -65,8 +66,11 @@ COMMIT_OBSERVATION_LANE = 'storage_commit_after'
 
 
 def _canonical(value) -> bytes:
+    # The runtime's canonical form is the default ASCII-escaped JSON; every
+    # compiled-route digest that can be compared with a runtime digest (and the
+    # prefix/replay evidence digests) uses it so no second spelling can drift.
     return json.dumps(value, sort_keys=True, separators=(',', ':'),
-                      ensure_ascii=False, allow_nan=False).encode('utf-8')
+                      allow_nan=False).encode('utf-8')
 
 
 def _digest(value) -> str:
@@ -174,7 +178,7 @@ def join_compiled_receipts(receipts_path, compiled) -> dict:
         'rows': rows,
         'status_counts': dict(sorted(statuses.items())),
         'receipts_sha256': sha256(raw).hexdigest(),
-        'compiled_sha256': _digest(compiled),
+        'compiled_sha256': compiled_document_sha256(compiled),
     }
 
 

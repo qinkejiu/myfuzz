@@ -16,6 +16,7 @@ import re
 
 import pytest
 
+from myfuzz.integration import compiled_f4 as compiled_f4_module
 from myfuzz.integration.compiled_candidate_layout import compile_candidate_layout
 from myfuzz.integration.compiled_f4 import normalized_semantic_sha256
 from myfuzz.integration.compiled_rfuzz import (
@@ -87,6 +88,38 @@ def _decoder(inputs, path, *, result_address=0x3fffc, compiled_sha256=None):
 class _Ticks:
     def __init__(self):
         self.local_ticks = {'processor': 0, 'peripheral': 0}
+
+
+class _RuntimeDouble:
+    """The `from_runtime` surface, with the same compiled digest the real
+    CompiledF4Runtime computes (compiled_f4._digest), without RTL."""
+
+    def __init__(self, inputs, path):
+        self.inputs = inputs
+        self.path = path
+        self.layout = compile_candidate_layout(path)
+        self.compiled_digest = compiled_f4_module._digest(inputs['compiled'])
+        self.run_id = 'compiled-rfuzz-runtime'
+        self.cpu_id = 'processor'
+        self.rounds = 4
+        self.start = 0x10000
+        self.end = 0x40000
+        self.result = 0x3fffc
+        self.cursor = 0x10000
+        self.runner = _Ticks()
+        self.runner.sessions = {'processor': object(),
+                                'peripheral': object()}
+
+
+def _has_non_ascii(value):
+    if isinstance(value, str):
+        return any(ord(character) > 127 for character in value)
+    if isinstance(value, dict):
+        return any(_has_non_ascii(key) or _has_non_ascii(item)
+                   for key, item in value.items())
+    if isinstance(value, (list, tuple)):
+        return any(_has_non_ascii(item) for item in value)
+    return False
 
 
 class _FakeRuntime:
@@ -166,6 +199,48 @@ def test_a_narrow_compiled_candidate_consumes_the_declared_wire_prefix(timer):
     assert candidate.value == 0x55
     assert candidate.unbound_bytes == bytes.fromhex('12345678')
     assert candidate.document()['raw_sha256'] == sha256(raw).hexdigest()
+
+
+def test_a_real_non_ascii_compiled_document_binds_from_the_runtime(gpio):
+    """Regression: the decoder must use the runtime's canonical digest form.
+
+    The compiled document carries non-ASCII declaration text.  The runtime
+    binds it with ``compiled_f4._digest`` (ASCII-escaped JSON); a decoder that
+    used a different JSON spelling produced a different digest for the same
+    document and refused the real gate before RTL.
+    """
+    _, inputs, path = gpio
+    compiled = inputs['compiled']
+    assert _has_non_ascii(compiled), 'the fixture must exercise non-ASCII text'
+    assert compiled_document_sha256(compiled) == compiled_f4_module._digest(
+        compiled)
+    runtime = _RuntimeDouble(inputs, path)
+    decoder = CompiledOnlineDecoder.from_runtime(runtime)
+    assert decoder.compiled_sha256 == runtime.compiled_digest
+    candidate = decoder.decode_candidate(bytes.fromhex('78563412ddccbbaa'),
+                                         cursor=runtime.cursor, case_index=0)
+    assert candidate.source_id == 'peripheral.GPIOEN.value.mmio'
+
+    # A tampered document claiming the original runtime digest still refuses.
+    edited_inputs = {'request': inputs['request'],
+                     'compiled': deepcopy(compiled)}
+    edited_inputs['compiled']['identity']['cpu']['instance_id'] = 'edited'
+    tampered = _RuntimeDouble(edited_inputs, path)
+    tampered.compiled_digest = runtime.compiled_digest
+    with pytest.raises(CompiledCandidateRefused,
+                       match='compiled-document-mismatch'):
+        CompiledOnlineDecoder.from_runtime(tampered)
+
+    # A document edited after construction is refused on the next decode.
+    live_inputs = {'request': inputs['request'],
+                   'compiled': deepcopy(compiled)}
+    live = _RuntimeDouble(live_inputs, path)
+    live_decoder = CompiledOnlineDecoder.from_runtime(live)
+    live_inputs['compiled']['identity']['cpu']['instance_id'] = 'edited-live'
+    with pytest.raises(CompiledCandidateRefused,
+                       match='compiled-digest-identity-changed'):
+        live_decoder.decode_candidate(bytes.fromhex('78563412ddccbbaa'),
+                                      cursor=live.cursor, case_index=0)
 
 
 def test_forged_layout_or_edited_compiled_doc_never_admits(gpio):
@@ -283,6 +358,7 @@ def test_receipt_source_and_path_join_detects_a_tampered_row(tmp_path, timer):
     assert joined['rows'] == 2
     assert joined['path_id'] == path['path_id']
     assert joined['source_id'] == stream['source_id']
+    assert joined['compiled_sha256'] == compiled_f4_module._digest(compiled)
     bad_source = tmp_path / 'bad-source.jsonl'
     bad_source.write_text(json.dumps({**row, 'source_id': 'other.source'}) + '\n',
                           encoding='utf-8')

@@ -262,6 +262,26 @@ def _digest(value: object) -> str:
     return 'sha256:' + hashlib.sha256(_canonical(value)).hexdigest()
 
 
+def compiled_document_sha256(compiled: object) -> str:
+    """The one canonical digest of a ``compiled_paths.v1`` document.
+
+    ``CompiledF4Runtime`` binds the exact document with this digest and every
+    compiled-RFuzz consumer must compute the same bytes before comparing.  The
+    canonical form is sorted-key, compact JSON with the default ASCII escaping
+    (the runtime's historical form); it is deliberately separate from
+    ``_canonical`` above, whose non-ASCII form is already part of issued path
+    records.  A caller must not re-derive its own JSON form.
+    """
+    if not isinstance(compiled, dict):
+        raise ValueError('compiled-document-required')
+    try:
+        encoded = json.dumps(compiled, sort_keys=True, separators=(',', ':'),
+                             allow_nan=False)
+    except (TypeError, ValueError, RecursionError) as error:
+        raise ValueError('compiled-document-not-json') from error
+    return hashlib.sha256(encoded.encode('utf-8')).hexdigest()
+
+
 def _text(value: object, pointer: str, code: str) -> str:
     if not isinstance(value, str) or not value:
         _refuse(code, pointer, {'value': value})

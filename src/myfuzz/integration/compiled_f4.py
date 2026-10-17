@@ -19,7 +19,8 @@ import re
 from myfuzz.local_harness.compiled_artifact_admission import admit_compiled_artifacts, _difference
 from myfuzz.local_harness.generated_execution_admission import GeneratedExecutionRefused
 from myfuzz.local_harness.build import host_source_discovery_scope
-from myfuzz.scenario.compiled_paths import compile_paths
+from myfuzz.scenario.compiled_paths import (
+    compile_paths, compiled_document_sha256)
 from myfuzz.scenario.genome import MemoryImage, ScenarioGenome
 from myfuzz.scenario.memory import MemoryRegion, PersistentMemory
 from myfuzz.scenario.router import DataflowRouter, DeviceWindow
@@ -518,7 +519,7 @@ class CompiledF4Runtime:
                     'compiled-F4-generic-receipt-join-incomplete:'+missing)
             self.receipt_elements=support
         self.rounds=rounds_per_case;self.max_cases=max_cases;self.records=[];self.finished=False
-        self.closure=_closure(base_dir);self.compiled_digest=_digest(compiled_inputs['compiled'])
+        self.closure=_closure(base_dir);self.compiled_digest=compiled_document_sha256(compiled_inputs['compiled'])
         request=compiled_inputs['request'];self.cpu_id=request.cpu.instance_id
         self.stream=next(s for s in self.path['sources'] if s['kind']=='cpu_mmio_stream')
         self.access=self.stream['register_access'];self.target_id=self.access['target_component']
@@ -665,7 +666,7 @@ class CompiledF4Runtime:
             raise ValueError('compiled-F4-admission-changed')
         if binding!=self.producer_binding:
             raise ValueError('compiled-F4-producer-binding-changed')
-        if (_closure(self.base_dir)!=self.closure or _digest(self.inputs['compiled'])!=self.compiled_digest
+        if (_closure(self.base_dir)!=self.closure or compiled_document_sha256(self.inputs['compiled'])!=self.compiled_digest
                 or _difference(compile_paths(self.inputs['request']),self.inputs['compiled']) is not None):
             raise ValueError('compiled-F4-source-identity-changed')
 

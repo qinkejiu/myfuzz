@@ -105,13 +105,15 @@ All commands: `cd /home/qinkejiu/myfuzz && PYTHONPATH=src python3 -m pytest -q`.
 
 | command | result |
 |---|---|
-| `pytest -q tests/integration/test_compiled_online_decoder.py` | **14 passed, 0 failed** in 26.17 s |
-| `pytest -q tests/integration/test_compiled_online_decoder.py tests/integration/test_auto_harness_test.py` | **38 passed, 0 failed** in 122.51 s |
-| `pytest -q tests/integration/test_compiled_f4.py tests/integration/test_compiled_f4_storage_producer.py tests/integration/test_compiled_candidate_layout.py` | **104 passed, 1 skipped** in 199.35 s (the skip is the existing `MYFUZZ_COMPILED_F4_REAL=1` native gate, intentionally not run) |
-| `pytest -q tests/integration/test_compiled_execution_files.py tests/integration/test_compiled_execution_projection.py tests/integration/test_compiled_artifact_admission.py tests/integration/test_compiled_f4_layout_replay_audit.py` | **77 passed, 0 failed** in 89.01 s |
+| `pytest -q tests/integration/test_compiled_online_decoder.py` | **15 passed, 0 failed** in 29.58 s |
+| `pytest -q tests/integration/test_compiled_online_decoder.py tests/integration/test_auto_harness_test.py` | **39 passed, 0 failed** in 138.37 s |
+| `pytest -q tests/integration/test_compiled_f4.py tests/integration/test_compiled_f4_storage_producer.py tests/integration/test_compiled_candidate_layout.py` | **104 passed, 1 skipped** in 210.07 s (the skip is the existing `MYFUZZ_COMPILED_F4_REAL=1` native gate, intentionally not run) |
+| `pytest -q tests/integration/test_compiled_execution_files.py tests/integration/test_compiled_execution_projection.py tests/integration/test_compiled_artifact_admission.py tests/integration/test_compiled_f4_layout_replay_audit.py` | **77 passed, 0 failed** in 116.58 s (rerun after the digest fix) |
 | `python3 scripts/auto_harness_test.py --cpu configs/cpus/ibex_obi_local/component_profile.json --ip configs/peripherals/pulp_timer/component_profile.json --ip-capability configs/scenarios/compiled-f4-obi-apb-timer/test_capability.json --compose configs/scenarios/compiled-f4-obi-apb-timer/compose.json --output <new> --executor compiled-f4-rfuzz --skip-session` | exit 0; `status=complete`; `executor.status=ok`, name `compiled-f4-rfuzz`, `family_fallback=false`; session/fresh `not_requested` |
 
-The new test file covers: forged/edited compiled document and forged layout,
+The new test file covers: a real non-ASCII compiled document binding from the
+runtime's own canonical digest (with the tamper refusals below), forged/edited
+compiled document and forged layout,
 value outside mask/range/alignment, a record not sized by the wire, decoder
 metadata naming the exact D3 path/source/register/digests, receipt source/path
 join with tampered rows detected, `max_cases` and slot budget refused **before**
@@ -122,6 +124,37 @@ hash while the raw event hash differs, and the no-component-name-branch parse
 guard. The four CLI tests cover: no client ⇒ named absence (no family
 fallback), unknown executor ⇒ named refusal, executor + runtime ⇒ named
 refusal, and `--executor … --skip-session` ⇒ exit 0 with the selection visible.
+
+
+## Follow-up after the first real-gate attempt (`2a9e84b`, before RTL)
+
+The root session's first real-gate attempt on `2a9e84b` refused before RTL with
+`CompiledCandidateRefused: compiled-digest-mismatch`. Root cause: the decoder
+hashed the compiled document with `ensure_ascii=False`, while
+`compiled_f4._digest` (the runtime's `compiled_digest`) uses the default
+`ensure_ascii=True`. The compiled documents contain non-ASCII declaration text,
+so the same document produced two digests (`4c0a…` vs `c0b5…` in that run).
+
+Fix (this follow-up commit): one shared
+`myfuzz.scenario.compiled_paths.compiled_document_sha256` canonical form
+(sorted-key compact JSON, default ASCII escaping) is now used by
+`CompiledF4Runtime.compiled_digest`, `CompiledOnlineDecoder`, and
+`join_compiled_receipts`; `compiled_rfuzz`'s own canonical encoder no longer
+uses `ensure_ascii=False`. The runtime's digest value is unchanged (its form
+was already ASCII-escaped); only the consumers now match it.
+
+Regression tests added:
+`test_a_real_non_ascii_compiled_document_binds_from_the_runtime` asserts the
+real compiled document contains non-ASCII text, that
+`compiled_document_sha256(...) == compiled_f4._digest(...)`, binds that document
+through `from_runtime`, and proves a tampered document still refuses both at
+construction (`compiled-document-mismatch`) and after construction
+(`compiled-digest-identity-changed`). The join test now also asserts
+`compiled_receipt_join.v1.json`'s `compiled_sha256` equals the runtime's
+digest.
+
+The real gate must be rerun by the root session on the new commit; no gate
+result is claimed here.
 
 ## Real gate (NOT run here; for the root session)
 

@@ -35,7 +35,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
-import json
 from types import MappingProxyType
 
 from myfuzz.integration.compiled_candidate_layout import (
@@ -46,6 +45,8 @@ from myfuzz.integration.compiled_candidate_layout import (
 )
 from myfuzz.integration.generated_register_writer import declare_writer
 from myfuzz.scenario.batch import BatchAdvance
+from myfuzz.scenario.compiled_paths import (
+    compiled_document_sha256 as _compiled_document_sha256)
 from myfuzz.scenario.rfuzz_decoder import RECORD_BYTES
 from myfuzz.scenario.session_runtime import OnlineCase, OnlineInstruction
 
@@ -125,15 +126,14 @@ class CompiledCandidate:
 
 
 def compiled_document_sha256(compiled) -> str:
-    """Canonical digest of the whole compiled document the decoder consumes."""
-    if not isinstance(compiled, dict):
-        raise ValueError('compiled-document-required')
-    try:
-        encoded = json.dumps(compiled, sort_keys=True, separators=(',', ':'),
-                             ensure_ascii=False, allow_nan=False)
-    except (TypeError, ValueError, RecursionError) as error:
-        raise ValueError('compiled-document-not-json') from error
-    return sha256(encoded.encode('utf-8')).hexdigest()
+    """Canonical digest of the whole compiled document the decoder consumes.
+
+    This delegates to the one shared form used by ``CompiledF4Runtime`` so the
+    two sides can never drift: the compiled document contains non-ASCII
+    declaration text, and a second JSON spelling would produce a different
+    digest for the same document.
+    """
+    return _compiled_document_sha256(compiled)
 
 
 def _layout_document(layout: CandidateLayout) -> dict:
