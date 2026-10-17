@@ -1,0 +1,38 @@
+{
+  "schema_version": "p6_controlled_error_frozen_gate.v1",
+  "head": "d24da4d",
+  "head_note": "7e08913 is docs-only; run tree d24da4d",
+  "command": "MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src MYFUZZ_CONTROLLED_ERROR_OUTPUT=.superpowers/p6-error-frozen timeout 600 python3 -m pytest -q tests/integration/test_non_ibex_non_gpio_controlled_error_real.py",
+  "result": "1 passed in 127.97s",
+  "exit": 0,
+  "test_sha256": "a456c1263a33bddcd88980f30252daac0025ea372bc30c6fefc601e1eaa878a9",
+  "driver_sha256": "15cf8df4269def8a3a2ef1adfbb067ba22b9f2cb875821283adaa441c80db505",
+  "archive": {
+    "path": "attempt-13-frozen.tar.gz",
+    "sha256": "b64a4ebd322ff3bcd5b77a11ba7b02a2e2dacb58eada16be418fde491a5ae875"
+  },
+  "pids": [
+    7,
+    1385,
+    2649,
+    3913,
+    5177
+  ],
+  "sequence": [
+    "control run",
+    "fault run",
+    "control replay",
+    "fault replay",
+    "checker-only"
+  ],
+  "fault": {
+    "observation_boundary": "target_register_read_response_copy",
+    "rtl_internal_fault": false,
+    "real_rtl_rdata": 90,
+    "delivered_rdata": 91
+  },
+  "replays": {
+    "control": "full/matches=true",
+    "fault": "full/matches=true"
+  }
+}

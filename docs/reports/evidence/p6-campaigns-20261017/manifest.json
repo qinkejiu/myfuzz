@@ -1,0 +1,43 @@
+{
+  "schema_version": "p6_campaign_evidence.v1",
+  "runs": {
+    "row4": {
+      "bundle": "runs/scenario/campaign-pico-wb-g4-18cell-p6-row4-20261017",
+      "archive": "row4-campaign-pico-wb.tar.gz",
+      "provider": "src/myfuzz/integration/picorv32_wb_scenario_campaign.py",
+      "provider_commit": "fd9fb93",
+      "fixture": "src/myfuzz/scenario/picorv32_wb_two_gpio_example.py",
+      "command": "flock -w 10800 .superpowers/heavy-worker.lock env PYTHONPATH=src timeout 10800 python3 scripts/run_scenario_campaign.py --manifest configs/scenario/pico_wb_two_gpio_campaign_seed.json --baseline-manifest configs/scenario/pico_wb_two_gpio_campaign_baseline.json --seconds 200 --seed 20260927 --output runs/scenario/campaign-pico-wb-g4-18cell-p6-row4-20261017 --provider myfuzz.integration.picorv32_wb_scenario_campaign:PicoWbGpioBoundProvider",
+      "gate_status": "complete",
+      "cells": 18,
+      "effective": 3767.4699637450003,
+      "audit": "MYFUZZ_PICO_WB_CAMPAIGN_RUN=... pytest -q tests/integration/test_scenario_picorv32_wb_campaign.py",
+      "audit_result": "21 passed, 2 skipped",
+      "archive_sha256": "d432f4046842a814f34c60743689317fe8bb0a1c83f33378ea4f75f4c87aa806",
+      "provider_sha256": "1a8ff8d9f27c8f4a01593c697e420a0e1d60670b0c84b45db5c70dd5eb4251e6",
+      "fixture_sha256": "30d1d8f88be9b5ba0dbcb1dd37a50a6f3d27963b3ce41e35766da1716be6260a",
+      "report_sha256": "a459c1bc9aeb9c8e6b9e240f2785c20d1bfbf7725e8cb04665285f0f9862ca64",
+      "run_identity_sha256": "bc9b1a30ee5332f41f471731cc7059ac8cdb821efea5caf1748388490b280e4b"
+    },
+    "row5": {
+      "bundle": "runs/scenario/campaign-pico-native-g4-18cell-p6-row5-20261017",
+      "archive": "row5-campaign-pico-native.tar.gz",
+      "provider": "src/myfuzz/integration/picorv32_native_scenario_campaign.py",
+      "provider_commit": "ac5f564",
+      "fixture": "src/myfuzz/scenario/picorv32_native_cpu_example.py",
+      "command": "flock -w 10800 .superpowers/heavy-worker.lock env PYTHONPATH=src timeout 10800 python3 scripts/run_scenario_campaign.py --manifest configs/scenario/pico_native_gpio_campaign_seed.json --baseline-manifest configs/scenario/pico_native_gpio_campaign_baseline.json --seconds 150 --seed 20260927 --output runs/scenario/campaign-pico-native-g4-18cell-p6-row5-20261017 --provider myfuzz.integration.picorv32_native_scenario_campaign:PicoNativeGpioBoundProvider",
+      "gate_status": "complete",
+      "cells": 18,
+      "effective": 2862.573474041006,
+      "audit": "MYFUZZ_PICO_NATIVE_CAMPAIGN_RUN=... pytest -q tests/integration/test_scenario_picorv32_native_campaign.py",
+      "audit_result": "24 passed, 2 skipped",
+      "archive_sha256": "4dee6920d95eb8893caf68a821f2bf03ae403f5b59b8e9101060aa624d7486a5",
+      "provider_sha256": "e83abb0227c022da275cc338fef33cf0807b0e4d6a136cf052a8abede081b447",
+      "fixture_sha256": "c2d02c7c38d0d923025070a31b7f70e3fd6210c8848189fe2c13fd75a1bf6994",
+      "report_sha256": "ef68e092fe535c4cf692c379eb8fe5e5bb0d1d901fb3d72eedea8b53e043434e",
+      "run_identity_sha256": "9124bb113eb0fc1b8216201a0571a65381ff3d60df4a2f2f9cd2a1c7543992de"
+    }
+  },
+  "audit_note": "row4 audit verifier was corrected in d24da4d to count only complete/rounds=2 chains as completed_chains; an incomplete assessment is a legal search outcome. The campaign search/checker bytes are fd9fb93; the verifier fix is post-hoc and does not change saved data.",
+  "source_boundary": "fresh_genomes; no cross-case persistent RTL/RAM state; independent cells claim no causal chain; row4 uses OpenTitan GPIO only; row5 profile has no interrupt endpoint."
+}

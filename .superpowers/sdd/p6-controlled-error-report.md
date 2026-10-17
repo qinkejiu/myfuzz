@@ -1,10 +1,10 @@
 # P6 附加项：非 Ibex ＋ 非 GPIO 受控错误捕获与 fresh-process replay
 
 日期：2026-10-17。范围：CV32E40P（OBI）＋ OpenTitan UART（TL-UL）。
-状态：**链路选择、受控错误、同进程真实门、五阶段新进程真实门均已有实际运行证据**；
-但 `attempt-04` 之后出现 sibling 对 `src/myfuzz/scenario/compiled_paths.py` 的并发修改，
-因此**字节级冻结源码上的最终复跑仍待 root 宣布源码冻结后排队**。本报告不把
-105.12 秒的同进程结果冒充新进程门，也不把后续失败的复跑算作通过。
+状态：**链路选择、受控错误、同进程真实门、五阶段新进程真实门均已有实际运行证据**。
+源码冻结后又在当前树完成一次五阶段冻结复跑：`attempt-13-frozen`，1 passed / 127.97s，
+exit 0；绑定 HEAD `d24da4d`（`7e08913` 为 docs-only），测试/驱动 SHA 与 attempt-04 完全一致。
+本报告不把 105.12 秒的同进程结果冒充新进程门，也不把历史失败复跑算作通过。
 
 ---
 
@@ -220,10 +220,10 @@ attempt-04 之后没有对这两个文件做功能性修改。
 | `attempt-05-final` | 1 | 1 failed / 105.99s | 运行期间 sibling 修改 `src/myfuzz/scenario/compiled_paths.py`，control replay 正确拒绝 `replay manifest identity mismatch`；不是产品失败，也不能算通过 |
 | `attempt-06`–`attempt-11` | 1 | 未进 RTL / snapshot 构造失败 | 为隔离并发源码漂移而构建 HEAD 物化快照；依次遇到 external_designs 缺失、symlink、submodule git 身份、third_party 路径等问题，保留在 `runs/` |
 | `attempt-12-frozen-head-snapshot` | 1 | 2 failed / 4.18s | 快照无 `.git` 跟踪元数据，`configs/soc/closures/cv32e40p.json` 被 source-lock 判为 untracked；未启动 RTL |
+| **`attempt-13-frozen`** | **0** | **1 passed / 127.97s** | **源码冻结后的五阶段新进程复跑（HEAD d24da4d）；与 attempt-04 同测试/驱动 SHA，五 PID 顺序执行，control/fault 及两条 full replay 与 checker-only 全通过** |
 
-**结论边界：** attempt-04 的 162.03 秒通过是真实、独立进程、完整 RTL 的运行；
-它发生在观察到的并发源码修改之前（attempt-04 结束 15:25:37；`compiled_paths.py`
-首次被观察到修改为 15:29:28，之后 15:44:01 再次修改）。在 root 宣布源码冻结后，
-应以当前 commit 的完全相同测试/驱动再做一次五阶段冻结复跑；本报告不把该最终复跑预先声称通过。
-在此之前，P6 清单中的“非 Ibex＋非 GPIO 受控错误”项**不应**仅凭本报告就升级为最终验收，
-但本报告的 attempt-04 已足以证明该检测/新进程重放机制在真实 RTL 上成立。
+**结论边界：** attempt-04（162.03s）与 attempt-13-frozen（127.97s）都是真实、独立进程、
+完整 RTL 的运行；attempt-13 在 `d24da4d` 上重跑并通过，测试/驱动 SHA 与 attempt-04 完全一致。
+attempt-05–12 的并发漂移/快照失败保留为失败历史，不计为通过。
+`attempt-13-frozen.tar.gz` 收录 `fresh-process-6/` 五阶段日志、报告、checker 与两条完整 trace
+（sha256 `b64a4ebd…ae875`），因此本项的证据链已绑定到冻结源码与可复现命令。
