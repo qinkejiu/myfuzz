@@ -142,6 +142,7 @@ def _compare_prefixes(expected,actual):
         return result
     difference=_difference(normalized(expected),normalized(actual))
     return dict(matches=difference is None,first_difference=difference,
+        verification_scope='full',
         expected_semantic_hash=expected['semantic_hash'],actual_semantic_hash=actual['semantic_hash'])
 
 
