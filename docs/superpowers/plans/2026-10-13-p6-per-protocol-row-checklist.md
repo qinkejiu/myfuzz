@@ -18,6 +18,8 @@
 
 ---
 
+> **2026-10-18 行5持久定向增量：** [Pico native＋PULP GPIO 新门](../../reports/p6-native-persistent-directed-20261018.md)实际exit0，同一组进程连续三例CPU/IP/CPU，完整fresh和受控响应扰动经双独立审计通过。旧18格仍为fresh_genomes，不继承新门的持久范围；新门也不继承旧campaign的搜索成绩。来源仍有unknown/transport_candidates_only、RAM observation_only，无退休/IRQ/闭环证书、四类反馈或新持久campaign；本行仍不升级为P6整行通过。
+
 ## 1. 权威口径（实测）
 
 ### 1.1 已注册的 CPU 侧模板契约（`list_template_contracts()`，CPU 侧 6 个／全表 12 个）

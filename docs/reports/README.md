@@ -1,3 +1,5 @@
+2026-10-18 [P6 native 固定实例持久定向门通过](p6-native-persistent-directed-20261018.md)：同一CPU/GPIO三例双侧源；正向2,246、受控982事件的完整fresh分别精确相同，8个DUT均terminal0，进程/fresh和原始数据流双独立审计通过。仅关闭有界持久定向子门，RFuzz搜索/来源认证/四反馈及P6整体仍开放。P7 v2 staging已实测并审核，最终复制进行中。
+
 2026-10-18 [P6 native两轮启动前失败](evidence/p6-native-online-attempts-20261018/README.md)：先工具扫描子树不匹配，后gate PID3893459 exit1缺scripts/record_scenario.py；cases/processes为空、无原生通过。前后layout/tool与4个Git metadata通过；46份remote原始记录及本地inputs/control已归档。
 
 2026-10-18最新终态：[P7 I5远程独立准备/首轮失败](p7-i5-remote-independent-preparation-20261018.md)：工具9项元数据查询exit0；I5 attempt1在N1前因Ibex空refs目录缺失导致Git status128，负例结果为空，原始44文件+本地control已归档。601964f目录修正仅源码审查通过，未授P7或native通过。

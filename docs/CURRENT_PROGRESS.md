@@ -1,9 +1,15 @@
 # 当前工作进度与证据入口
 
-## 2026-10-18 P6 native 门启动前失败（最新）
+## 2026-10-18 P6 native 有界持久门通过（最新）
+
+- [真实门汇总](reports/p6-native-persistent-directed-20261018.md)：第三次gate PID4046776实际exit0，同CPU/GPIO进程连续3例、双侧源、真实下游消费与受控响应扰动检出；正向2,246事件、受控982事件的完整fresh分别精确相同，8个DUT均terminal0。两份独立原始数据审计通过。
+- 只关闭行5固定实例的有界持久定向门；来源仍有unknown/transport_candidates_only、RAM observation_only，无独立APB相位证据，不授退休/IRQ/闭环证书/四类反馈或RFuzz campaign。P6/P7/P8整体保持开放。
+- P7第二份工作集staging/规划已exit0并审核真实v2清单；最终prepare进程71779继续运行，尚未开始第二次N1–N8。
+
+## 2026-10-18 P6 native 两轮历史启动前失败
 
 - [两轮原始失败与独立归档](reports/evidence/p6-native-online-attempts-20261018/README.md)：首轮工具share扫描范围不匹配，未启动gate；第二轮gate PID3893459实际exit1，缺少host身份文件`scripts/record_scenario.py`，positive cases/processes均为空，controlled/fresh未进入。不是RTL失败，也不构成原生通过；工厂可能已前端查询。
-- 第二轮4个Git元数据检查、前后完整file+directory layout和工具检查通过；8,777文件/599目录freeze不变。旧source/失败记录保留，新完整scripts闭包副本待准备，不授P6/P7/P8完成。
+- 第二轮4个Git元数据检查、前后完整file+directory layout和工具检查通过；8,777文件/599目录freeze不变。旧source/失败记录保留；后续完整scripts副本与第三次真实门已完成，见顶部最新结果，不授P6/P7/P8整阶段完成。
 
 
 ## 2026-10-18 I5 首轮前置失败与工具查询实际结果

@@ -1,3 +1,5 @@
+2026-10-18 最新增量：[Pico native＋PULP GPIO 有界持久门实际通过](reports/p6-native-persistent-directed-20261018.md)。同PID/nonce/epoch三例CPU/IP/CPU，真实下游消费与受控响应扰动检出，完整fresh及8个DUT terminal0经两份独立审计；source/tool/file+directory前后不变。边界：钉定目标backend与GPIO物理采样，无独立APB相位抽头；来源仍unknown/transport_candidates_only、RAM observation_only，无退休/IRQ/闭环证书、四反馈、持续搜索或P6整行授予。
+
 # 生成式独立 Harness 的实际运行边界
 
 2026-10-18 P6 native在线门：[两次启动前失败归档](reports/evidence/p6-native-online-attempts-20261018/README.md)。第二轮真实gate PID3893459 exit1，缺少scripts/record_scenario.py，未形成DUT用例/进程记录，不能计作RTL结果；可能已有工厂前端查询。4个Git metadata和前后layout/tool检查通过仅授该前置范围，新source闭包仍待冻结运行。
