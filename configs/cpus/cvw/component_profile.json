@@ -2,7 +2,7 @@
   "schema_version": "component_profile.v1",
   "component_id": "cvw",
   "kind": "cpu",
-  "description": "CORE-V Wally (CVW) at the pinned upstream revision, declared at its AHB-Lite external bus. The CPU is the AHB manager: it drives HADDR/HWDATA/HWSTRB/HTRANS/HSIZE/HBURST/HPROT/HWRITE/HMASTLOCK and receives the subordinate's completion on HREADYEXT/HRDATAEXT/HRESPEXT. Read data is HRDATAEXT and not HRDATA because src/ebu/ebu.sv deliberately has no HRDATA port (\"HRDATA is sent to all controllers at the core level\"). HADDR is 34 bits while the data path is 32, so the address width is deliberately not the data width. The boundary is elaborated through the repository-authored typed top configs/cpus/cvw/cvw_ahb_cpu_top.sv, required because wallypipelinedsoc takes #(parameter cvw_t P) - a struct-typed localparam that cannot be overridden from the Verilator command line - and because CVW's own testbench/wallywrapper.sv declares these signals as internal wires instead of ports. Every port, width and direction below was produced by myfuzz.composition.source_elaboration.extract_physical_ports over the Verilator JSON run recorded in configs/soc/closures/cvw.json; none was written by hand. Integration configuration disables D-cache for aligned ordinary external data accesses; I-cache is retained. PMA nonidempotence and MMIO execute protection are not added. Keep instruction fetches and cache-line fills in declared RAM, away from MMIO. D and dependent Zcd are disabled while F/Zcf remain enabled, making FLEN=LLEN=XLEN=32 for the upstream no-D-cache passthrough lane wiring.",
+  "description": "CORE-V Wally (CVW) at the pinned upstream revision, declared at its AHB-Lite external bus. The CPU is the AHB manager: it drives HADDR/HWDATA/HWSTRB/HTRANS/HSIZE/HBURST/HPROT/HWRITE/HMASTLOCK and receives the subordinate's completion on HREADYEXT/HRDATAEXT/HRESPEXT. Read data is HRDATAEXT and not HRDATA because src/ebu/ebu.sv deliberately has no HRDATA port (\"HRDATA is sent to all controllers at the core level\"). HADDR is 34 bits while the data path is 32, so the address width is deliberately not the data width. A separate non-protocol observation endpoint, cpu.manager_domain, binds manager_ready to the aggregate HREADY output and bus_reset_n to the actual synchronized HRESETn output; the protocol hready role remains HREADYEXT and is never treated as manager acceptance. The boundary is elaborated through the repository-authored typed top configs/cpus/cvw/cvw_ahb_cpu_top.sv, required because wallypipelinedsoc takes #(parameter cvw_t P) - a struct-typed localparam that cannot be overridden from the Verilator command line - and because CVW's own testbench/wallywrapper.sv declares these signals as internal wires instead of ports. Every port, width and direction below was produced by myfuzz.composition.source_elaboration.extract_physical_ports over the Verilator JSON run recorded in configs/soc/closures/cvw.json; none was written by hand. Integration configuration disables D-cache for aligned ordinary external data accesses; I-cache is retained. PMA nonidempotence and MMIO execute protection are not added. Keep instruction fetches and cache-line fills in declared RAM, away from MMIO. D and dependent Zcd are disabled while F/Zcf remain enabled, making FLEN=LLEN=XLEN=32 for the upstream no-D-cache passthrough lane wiring.",
   "source": {
     "root": ".",
     "revision": "sha256:b7bf3670a10af4866b43c19c8667f2219023a41a3e06c26afd1fa4529d79d838",
@@ -384,6 +384,30 @@
           "width": 1
         }
       ]
+    },
+    {
+      "endpoint_id": "cpu.manager_domain",
+      "function": "observation",
+      "clock": "core",
+      "reset": "sys_rst",
+      "fields": [
+        {
+          "role": "manager_ready",
+          "aliases": [
+            "HREADY"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "bus_reset_n",
+          "aliases": [
+            "HRESETn"
+          ],
+          "direction": "output",
+          "width": 1
+        }
+      ]
     }
   ],
   "capabilities": {
@@ -406,16 +430,6 @@
       "port": "HCLK",
       "action": "observe",
       "reason": "SoC clock output of the AHB boundary; exported for passive monitoring, never driven."
-    },
-    {
-      "port": "HRESETn",
-      "action": "observe",
-      "reason": "active-low reset output of the AHB boundary; exported for passive monitoring, never driven."
-    },
-    {
-      "port": "HREADY",
-      "action": "observe",
-      "reason": "CPU-side ready output; the declaration's hready role binds HREADYEXT (the subordinate's ready input), so this output is observed only."
     }
   ],
   "elaboration_boundary": {

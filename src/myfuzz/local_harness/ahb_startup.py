@@ -44,10 +44,14 @@ def _bounded_contract(assert_ticks,release_ticks,size):
 
 def validate_startup_contract(contract):
     if not isinstance(contract,dict):raise ValueError('ahb_startup_contract')
-    expected=_bounded_contract(contract.get('assert_ticks'),contract.get('release_ticks'),
-        contract.get('snapshot_bound_bytes'))
-    if json.dumps(contract,sort_keys=True,separators=(',',':'),allow_nan=False)!=json.dumps(expected,sort_keys=True,separators=(',',':'),allow_nan=False):
+    core={key:value for key,value in contract.items() if key!='manager_domain'}
+    expected=_bounded_contract(core.get('assert_ticks'),core.get('release_ticks'),
+        core.get('snapshot_bound_bytes'))
+    if json.dumps(core,sort_keys=True,separators=(',',':'),allow_nan=False)!=json.dumps(expected,sort_keys=True,separators=(',',':'),allow_nan=False):
         raise ValueError('ahb_startup_contract')
+    if 'manager_domain' in contract:
+        from .ahb_manager_domain import validate_manager_domain_contract
+        validate_manager_domain_contract(contract['manager_domain'])
     return copy.deepcopy(expected)
 
 
@@ -124,8 +128,8 @@ static std::string ahb_startup_page(unsigned page) {
     return text
 
 
-def contract_from_document(document):
-    """Recompute the bounded AHB contract from exact generated snapshot roles."""
+def transport_contract_from_document(document):
+    """Recompute only the unchanged bounded capture/page transport contract."""
     if document.get('kind')!='ahb_lite_cpu' or document.get('driver_schema_version')!='local_driver_generation.ahb_startup.v2':
         raise ValueError('ahb_startup_driver_version')
     snapshot={'backend':{r['name']:(1<<r['width'])-1 for r in document['backend_ports']},
@@ -139,10 +143,22 @@ def contract_from_document(document):
     return expected
 
 
+def contract_from_document(document):
+    """Transport contract plus the authenticated measured-domain interpretation."""
+    from .ahb_manager_domain import authenticate_manager_domain
+    transport=transport_contract_from_document(document)
+    domain=authenticate_manager_domain(document)
+    return {**transport,'manager_domain':domain}
+
+
 def configure_observer_startup(observer,document):
-    contract=contract_from_document(document)
-    observer.contract.update(observer_version=2,startup_capture=contract,
-        startup_prefix='measured_only_after_contiguous_reset_release_and_first_command',
+    from .ahb_manager_domain import OBSERVER_VERSION,SAMPLING_DOMAIN
+    combined=contract_from_document(document)
+    transport={key:value for key,value in combined.items() if key!='manager_domain'}
+    observer.contract.update(observer_version=OBSERVER_VERSION,startup_capture=transport,
+        startup_prefix='observer_version_3_measured_manager_ready_and_bus_reset_pre_only',
+        sampling_domain=SAMPLING_DOMAIN,
+        domain_contract=copy.deepcopy(combined['manager_domain']),
         tick_namespaces={'startup':'original_native_startup_tick','command':'original_native_command_tick',
             'measurement_tick':'startup_total_plus_command_tick'})
-    return contract
+    return combined

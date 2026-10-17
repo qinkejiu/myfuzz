@@ -80,11 +80,11 @@ def test_strict_identity_mutations(generated,mutate):
 def test_runner_imports_stream_once(generated):
  from myfuzz.scenario.runner import ScenarioRunner
  from myfuzz.scenario.ownership import compile_ownership
- from myfuzz.scenario.ahb_cpu_events import SHAPE
+ from tests.local_harness.ahb_domain_support import command_sample,start_measured_prefix
  artifact,cpu=generated
  cpu._ahb_observer.begin_scope(execution_id='issued',testcase_id='case',reset_epoch=0)
- row=dict.fromkeys(SHAPE,0);row.update(hready=1,hsel=1,htrans=2)
- cpu._ahb_observer.observe(dict(local_tick=1,pre=row,post=row))
+ start_measured_prefix(cpu._ahb_observer)
+ cpu._ahb_observer.observe(command_sample(1,hready=1,hsel=1,htrans=2))
  runner=ScenarioRunner(sessions={'cpu':cpu},ownership=compile_ownership((),()),bindings=())
  runner._append_external_events('cpu',0);first=list(runner._events)
  runner._append_external_events('cpu',0)
@@ -97,21 +97,20 @@ def test_runner_journal_drain_keeps_global_raw_refs(generated):
  from myfuzz.scenario.runner import ScenarioRunner
  from myfuzz.scenario.ownership import compile_ownership
  from myfuzz.scenario.event_journal import EventJournal
- from myfuzz.scenario.ahb_cpu_events import SHAPE
+ from tests.local_harness.ahb_domain_support import command_sample,start_measured_prefix
  artifact,cpu=generated;observer=cpu._ahb_observer
  observer.begin_scope(execution_id='issued',testcase_id='case',reset_epoch=0)
- row=dict.fromkeys(SHAPE,0)|dict(hready=1,hsel=1,htrans=2)
- observer.observe(dict(local_tick=1,pre=row,post=row))
+ start_measured_prefix(observer)
+ observer.observe(command_sample(1,manager_ready=1,hready=1,hsel=1,htrans=2,haddr=0xc0000000))
  original=list(cpu.runtime_events)
  runner=ScenarioRunner(sessions={'cpu':cpu},ownership=compile_ownership((),()),bindings=())
  runner._events._records=EventJournal(chunk_size=2)
  runner._append_external_events('cpu',0)
  assert cpu.runtime_events==[]
- row=dict.fromkeys(SHAPE,0)|dict(hready=1,hrdata=42)
- observer.observe(dict(local_tick=2,pre=row,post=row))
+ observer.observe(command_sample(2,manager_ready=1,hready=1,hrdata=42))
  runner._append_external_events('cpu',0);n=len(runner._events)
  runner._append_external_events('cpu',0);assert len(runner._events)==n
  raw=[e for e in runner._events if e['kind']=='ahb_raw']
  complete=[e for e in runner._events if e['kind']=='ahb_complete'][0]
  assert complete['completion_ref']['raw_event']>complete['address_ref']['raw_event']
- assert complete['raw_event_refs']==[raw[0]['observer_record_index'],raw[1]['observer_record_index']]
+ assert complete['raw_event_refs']==[raw[-2]['observer_record_index'],raw[-1]['observer_record_index']]

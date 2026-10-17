@@ -78,11 +78,14 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
             raise ValueError('AHB-Lite CPU requires persistent memory')
         super().__init__(artifact, base_dir=base_dir, cache_dir=cache_dir,
                          memory=memory, **kwargs)
-        endpoint, self._ahb_signal_map, trace = bind_ahb_trace(artifact.runtime_document)
+        endpoint, self._ahb_signal_map, binding = bind_ahb_trace(artifact.runtime_document)
         self._ahb_observer = AhbCpuObserver(
             component_id=artifact.plan.request.instance_id, endpoint_id=endpoint)
-        self._ahb_observer.contract['trace_binding'] = trace
-        self._ahb_startup_contract = configure_observer_startup(self._ahb_observer, artifact.runtime_document)
+        self._ahb_observer.contract['trace_binding'] = binding
+        combined = configure_observer_startup(self._ahb_observer, artifact.runtime_document)
+        self._ahb_manager_domain = combined['manager_domain']
+        self._ahb_startup_contract = {key: value for key, value in combined.items()
+                                      if key != 'manager_domain'}
         self._ahb_startup_required = True
         self._ahb_startup_complete = False
         self._ahb_startup_receipts = []
@@ -266,9 +269,12 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
         self._ahb_observer.observe(sample, rows=self._ahb_rows(sample))
 
     def _ahb_rows(self, sample):
-        return {phase: {role: sample[phase]['protocol_taps'][name]
+        from .ahb_manager_domain import measured_domain_rows
+        rows = {phase: {role: sample[phase]['protocol_taps'][name]
                         for role, name in self._ahb_signal_map.items()}
                 for phase in ('pre', 'post')}
+        rows['domain'] = measured_domain_rows(sample, self._ahb_manager_domain)
+        return rows
 
     def step_local(self, inputs):
         try:

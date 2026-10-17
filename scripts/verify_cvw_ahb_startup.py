@@ -83,20 +83,26 @@ def assert_imported_once(events,runner_events):
            for row in runner_events if row.get('schema_version')==EVENT_SCHEMA]
  if imported!=events:raise ValueError('Runner observer import differs or repeats')
 
-def project_rows(sample,mapping):
+def project_rows(sample,mapping,domain=None):
  from myfuzz.scenario.ahb_cpu_events import SHAPE
  if set(mapping)!=set(SHAPE):raise ValueError('actual ABI lacks all thirteen AHB roles')
- return {p:{role:sample[p]['protocol_taps'][name] for role,name in mapping.items()}
-         for p in ('pre','post')}
+ rows={p:{role:sample[p]['protocol_taps'][name] for role,name in mapping.items()}
+       for p in ('pre','post')}
+ if domain is not None:
+  roles=domain['roles']
+  rows['domain']={p:{role:sample[p]['physical'][spec['runtime_name']]
+                     for role,spec in roles.items()} for p in ('pre','post')}
+ return rows
 
 def replay_actual_prefix(document):
  from myfuzz.scenario.ahb_cpu_events import AhbCpuObserver,bind_ahb_trace
  from myfuzz.local_harness.ahb_startup import configure_observer_startup,validate_startup_page
  artifact=document['artifact'];execution=document['native_execution']
- endpoint,mapping,trace=bind_ahb_trace(artifact)
+ endpoint,mapping,binding=bind_ahb_trace(artifact)
  observer=AhbCpuObserver(component_id='cpu',endpoint_id=endpoint)
- observer.contract['trace_binding']=trace
+ observer.contract['trace_binding']=binding
  contract=configure_observer_startup(observer,artifact)
+ domain=contract['manager_domain']
  observer.begin_scope(execution_id=execution,testcase_id=CASE_ID,reset_epoch=0)
  observer.begin_startup(contract)
  records=document['driver_receipts'];pages=contract['page_count']
@@ -117,14 +123,14 @@ def replay_actual_prefix(document):
     raise ValueError('startup zero clock receipt fields')
    observer.record_startup_receipt(receipt)
    for raw in validate_startup_page(payload['observations']['ahb_startup'],contract,expected_page=index-1):
-    observer.observe_startup(raw,rows=project_rows(raw['sample'],mapping))
+    observer.observe_startup(raw,rows=project_rows(raw['sample'],mapping,domain))
    if index==pages:observer.finish_startup()
   else:
    sample,=payload['samples'];backend=sample['pre']['backend']
    fields=[backend[k] for k in ('m_req_ready','m_rsp_valid','m_rsp_rdata','m_rsp_error')]
    if (record['fields']!=fields or sample['local_tick']!=before+1
        or payload['pre_backend']!=backend):raise ValueError('CPU command pre edge binding')
-   observer.observe(sample,rows=project_rows(sample,mapping))
+   observer.observe(sample,rows=project_rows(sample,mapping,domain))
  if (observer.events!=document['runtime_events'] or observer.counts!=document['counts']
      or observer.pending!=document['pending'] or not observer.measured_reset_to_command_prefix):
   raise ValueError('saved full raw prefix does not reproduce observer')

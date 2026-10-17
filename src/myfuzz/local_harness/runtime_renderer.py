@@ -692,6 +692,7 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw):
     base_protocol_trace = None
     cpu_protocol_traces = []
     protocol_tap_ports = []
+    manager_domain = None
     connections = ['.clk(clk)', '.reset(reset)']
     control_signals = {'clk', 'reset'}
     for row in (*clock_schedule['clocks'], *clock_schedule['resets']):
@@ -972,6 +973,16 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw):
         _expose_cpu_ahb_trace(endpoints[0].endpoint_id,
             clock_schedule['primary_clock_domain'], wires, ports, statements,
             protocol_tap_ports, cpu_protocol_traces)
+        # The thirteen trace roles above are the *external* boundary: hready is
+        # HREADYEXT. The manager's aggregate HREADY and the actual synchronized
+        # HRESETn are separate, already-exported physical outputs. Declare them as
+        # one non-protocol observation endpoint so the observer can authenticate
+        # the measured manager domain instead of falling back to the external
+        # subordinate's ready.
+        from .ahb_manager_domain import build_manager_domain_contract
+        manager_domain = build_manager_domain_contract(
+            plan.profile, clock_schedule, abi, exports,
+            protocol_endpoint_id=endpoints[0].endpoint_id)
         # The beat channel is 'm' like every other memory CPU, so the generated
         # driver's memory-CPU template binds without a second template.  The CPU's
         # request travels OUT to the service and the answer travels IN, which is
@@ -1213,6 +1224,8 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw):
     startup = startup_selection(plan,storage_probe)
     if startup is not None:
         document['storage_startup_selection'] = startup
+    if manager_domain is not None:
+        document['manager_domain'] = manager_domain
     if cpu_protocol_traces:
         document['base_protocol_traces'] = dict(schema_version='ip_protocol_trace_set.v1',
             sampling='pre_post', sample_group='protocol_taps', traces=cpu_protocol_traces)

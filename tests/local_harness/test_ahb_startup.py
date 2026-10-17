@@ -4,15 +4,31 @@ import json
 from pathlib import Path
 import subprocess
 import pytest
+from myfuzz.local_harness.ahb_manager_domain import software_manager_domain_contract
 from myfuzz.local_harness.ahb_startup import startup_contract,validate_startup_page
 from myfuzz.scenario.ahb_cpu_events import SHAPE,AhbCpuObserver
+from tests.local_harness.ahb_domain_support import (command_sample,domain_values,
+                                                    start_measured_prefix,startup_record)
 from tests.local_harness.test_ahb_cpu_contract import generated
 
 
-def record(index,asserted=1,**values):
+def record(index,asserted=1,*,bus_reset_n=0,manager_ready=0,**values):
  row=dict.fromkeys(SHAPE,0);row.update(hready=int(not asserted));row.update(values)
+ domain=domain_values(manager_ready=manager_ready,bus_reset_n=bus_reset_n)
  return dict(startup_edge_index=index,reset_pre=asserted,reset_post=asserted,
-  sample=dict(local_tick=index,pre=dict(protocol_taps=row),post=dict(protocol_taps=copy.deepcopy(row))))
+  sample=dict(local_tick=index,pre=dict(protocol_taps=row,domain=copy.deepcopy(domain)),
+              post=dict(protocol_taps=copy.deepcopy(row),domain=copy.deepcopy(domain))))
+
+
+def measured_contract(assert_ticks=1,release_ticks=1):
+ return {**startup_contract(assert_ticks=assert_ticks,release_ticks=release_ticks,snapshot_max={}),
+         'manager_domain':software_manager_domain_contract()}
+
+
+def measured_rows(record):
+ return {'pre':record['sample']['pre']['protocol_taps'],
+         'post':record['sample']['post']['protocol_taps'],
+         'domain':record['sample']['pre']['domain']}
 
 
 def test_bounds_and_maximum():
@@ -41,14 +57,13 @@ def test_page_validation_and_exact_raw_preservation():
 def test_observer_release_address_then_command_write_data():
  o=AhbCpuObserver(component_id='cpu',endpoint_id='bus')
  o.begin_scope(execution_id='issued',testcase_id='case',reset_epoch=0)
- c=startup_contract(assert_ticks=1,release_ticks=1,snapshot_max={})
- o.begin_startup(c)
- o.observe_startup(record(1),rows={'pre':record(1)['sample']['pre']['protocol_taps'],'post':record(1)['sample']['post']['protocol_taps']})
- r=record(2,0,hsel=1,htrans=2,hwrite=1,haddr=0x100,hwdata=1)
- o.observe_startup(r,rows={p:r['sample'][p]['protocol_taps'] for p in ('pre','post')})
+ o.begin_startup(measured_contract())
+ o.observe_startup(record(1),rows=measured_rows(record(1)))
+ r=record(2,0,bus_reset_n=1,manager_ready=1,hsel=1,htrans=2,hwrite=1,haddr=0x100,hwdata=1)
+ o.observe_startup(r,rows=measured_rows(r))
  o.finish_startup()
- row=dict.fromkeys(SHAPE,0)|dict(hready=1,hwdata=42,hwstrb=3)
- raw=dict(local_tick=1,pre=row,post=row);o.observe(raw)
+ raw=command_sample(1,manager_ready=1,hready=1,hwdata=42,hwstrb=3)
+ o.observe(raw)
  e=next(e for e in o.events if e['kind']=='ahb_complete')
  assert e['local_tick']==1 and e['measurement_tick']==3 and e['wdata']==42
  assert next(e for e in o.events if e['kind']=='ahb_raw' and e['tick_namespace']=='command')['raw_sample']==raw
@@ -60,10 +75,10 @@ def test_observer_release_address_then_command_write_data():
 def test_startup_counts_against_global_edges():
  o=AhbCpuObserver(component_id='cpu',endpoint_id='bus',max_edges=1)
  o.begin_scope(execution_id='e',testcase_id='c',reset_epoch=0)
- o.begin_startup(startup_contract(assert_ticks=1,release_ticks=1,snapshot_max={}))
+ o.begin_startup(measured_contract())
  for i in (1,2):
-  r=record(i,int(i==1))
-  try:o.observe_startup(r,rows={p:r['sample'][p]['protocol_taps'] for p in ('pre','post')})
+  r=record(i,int(i==1),bus_reset_n=int(i>1))
+  try:o.observe_startup(r,rows=measured_rows(r))
   except ValueError:break
  with pytest.raises(ValueError):o.require_active()
  assert o.events[-1]['possible_effects'] is True
@@ -117,6 +132,12 @@ def transport_fixture(cpu,monkeypatch,mutate=None,*,pipeline=False,execution='01
  from myfuzz.local_harness.native_session import GeneratedNativeMemorySession
  from myfuzz.local_harness.wire import parse_driver_receipt
  calls=[];aborts=[]
+ domain_roles=cpu._ahb_manager_domain['roles']
+ def measured_physical(manager_ready,bus_reset_n):
+  row={r['runtime_name']:0 for r in cpu._artifact_document['physical_exports']}
+  row[domain_roles['manager_ready']['runtime_name']]=int(manager_ready)
+  row[domain_roles['bus_reset_n']['runtime_name']]=int(bus_reset_n)
+  return row
  def begin(self,case):
   self._execution=execution;self._case_id=case
   self._sequence=0;self.local_ticks=0
@@ -127,9 +148,12 @@ def transport_fixture(cpu,monkeypatch,mutate=None,*,pipeline=False,execution='01
   if op=='READ_AHB_STARTUP':
    c=self._ahb_startup_contract;page=fields[0];records=[]
    for index in range(page*32+1,min((page+1)*32,c['total_ticks'])+1):
-    r=record(index,int(index<=c['assert_ticks']))
+    released=int(index>c['assert_ticks'])
+    r=record(index,int(index<=c['assert_ticks']),bus_reset_n=released,
+             manager_ready=released)
     if index==c['total_ticks'] and c['release_ticks']:
      for phase in ('pre','post'):r['sample'][phase]['protocol_taps'].update(hsel=1,htrans=2,haddr=0xc0000000)
+    physical=measured_physical(released,released)
     for phase in ('pre','post'):
      taps=r['sample'][phase]['protocol_taps']
      r['sample'][phase]=dict(protocol_taps={self._ahb_signal_map[k]:v for k,v in taps.items()},backend=copy.deepcopy(backend),physical=copy.deepcopy(physical))
@@ -145,6 +169,8 @@ def transport_fixture(cpu,monkeypatch,mutate=None,*,pipeline=False,execution='01
                    m_req_valid=int(step==2),m_rsp_ready=int(step==3))
     taps[self._ahb_signal_map['hready']]=int(step==3)
     taps[self._ahb_signal_map['hrdata']]=fields[2]
+   physical=measured_physical(int(taps[self._ahb_signal_map['hready']])
+                              if pipeline else 0,1)
    s=dict(backend=backend,physical=physical,protocol_taps=taps)
    post=copy.deepcopy(s)
    if pipeline:
@@ -223,12 +249,21 @@ def test_step_before_pages_refuses_transport(generated,monkeypatch):
 def test_zero_release_and_maximum_capture_no_tick_rewrite(asserted,released):
  c=startup_contract(assert_ticks=asserted,release_ticks=released,snapshot_max={})
  o=AhbCpuObserver(component_id='cpu',endpoint_id='bus')
- o.begin_scope(execution_id='e',testcase_id='c',reset_epoch=0);o.begin_startup(c)
+ o.begin_scope(execution_id='e',testcase_id='c',reset_epoch=0)
+ o.begin_startup({**c,'manager_domain':software_manager_domain_contract()})
  for index in range(1,c['total_ticks']+1):
-  r=record(index,int(index<=asserted))
-  o.observe_startup(r,rows={p:r['sample'][p]['protocol_taps'] for p in ('pre','post')})
- o.finish_startup();row=dict.fromkeys(SHAPE,0)|dict(hready=1)
- o.observe(dict(local_tick=1,pre=row,post=row))
+  released_n=int(index>asserted)
+  r=record(index,int(index<=asserted),bus_reset_n=released_n,manager_ready=released_n)
+  o.observe_startup(r,rows=measured_rows(r))
+ if not released:
+  # Without an actually observed assertion then release no bus-domain prefix
+  # can be claimed, even though the capture/page transport is valid.
+  with pytest.raises(ValueError,match='bus_reset_prefix_unmeasured'):o.finish_startup()
+  assert not o.measured_reset_to_command_prefix
+  assert len([e for e in o.events if e['kind']=='ahb_raw'])==c['total_ticks']
+  return
+ o.finish_startup()
+ o.observe(command_sample(1,manager_ready=1,bus_reset_n=1,hready=1))
  assert o.tick==c['total_ticks']+1
  assert o.measured_reset_to_command_prefix
  assert len([e for e in o.events if e['kind']=='ahb_raw'])==c['total_ticks']+1
@@ -402,18 +437,20 @@ def test_model_complete_prefix_fresh_and_actual_runner_drain(generated,monkeypat
 def test_observer_cannot_claim_prefix_without_measured_reset_or_contiguous_tick():
  o=AhbCpuObserver(component_id='cpu',endpoint_id='bus');o.begin_scope(execution_id='e',testcase_id='c',reset_epoch=0)
  with pytest.raises(ValueError):o.begin_startup(dict(assert_ticks=0,total_ticks=0))
- o.begin_startup(startup_contract(assert_ticks=1,release_ticks=0,snapshot_max={}))
- r=record(1);o.observe_startup(r,rows={p:r['sample'][p]['protocol_taps'] for p in ('pre','post')});o.finish_startup()
- row=dict.fromkeys(SHAPE,0)|dict(hready=1)
- with pytest.raises(ValueError,match='tick'):o.observe(dict(local_tick=2,pre=row,post=row))
+ o.begin_startup(measured_contract())
+ for index,reset_n in ((1,0),(2,1)):
+  r=record(index,int(index<=1),bus_reset_n=reset_n)
+  o.observe_startup(r,rows=measured_rows(r))
+ o.finish_startup()
+ with pytest.raises(ValueError,match='tick'):o.observe(command_sample(2,manager_ready=1))
  assert o.measured_reset_to_command_prefix is False
 
 
 def test_startup_raw_tick_must_match_native_index():
  o=AhbCpuObserver(component_id='cpu',endpoint_id='bus');o.begin_scope(execution_id='e',testcase_id='c',reset_epoch=0)
- o.begin_startup(startup_contract(assert_ticks=1,release_ticks=0,snapshot_max={}))
+ o.begin_startup(measured_contract(assert_ticks=1,release_ticks=1))
  r=record(1);r['sample']['local_tick']=2
- with pytest.raises(ValueError):o.observe_startup(r,rows={p:r['sample'][p]['protocol_taps'] for p in ('pre','post')})
+ with pytest.raises(ValueError):o.observe_startup(r,rows=measured_rows(r))
 
 
 def test_real_ready_admission_accepts_only_ahb_version(generated):
