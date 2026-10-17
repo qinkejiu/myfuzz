@@ -20,3 +20,7 @@
 4. 确认当前共享worker锁位置；锁非阻塞，失败即退出，不排队。运行超时只观察同一个PID，不重启。
 
 文档增量可以同步到新工作集的独立evidence目录，不能把新增文档改写为42a9ce9的历史证据。P6/P7/P8开放项不变。
+
+## 文档增量同步完成
+
+11份具名文档/审计报告已复制到 `/root/fanzehui/myfuzz/evidence/docs-followup-dd9684a-20261018/contents/`。独立bundle的SHA256为 `7745cdc45429f5a99593a7e52c4b2a8e0558d0596c7069e9e9a2d5d5c7f3bd40`；远程解包前逐文件验证大小/哈希、拒绝链接及越界路径。`copy-receipt.json`记录实际manifest本地HEAD46d2798。目录名dd9684a只是此次操作标签，不代表整个bundle绑定该提交。project与旧system原件未覆盖。此次同步是文档副本，不是独立native重跑。后续新增报告仍以本地为准。

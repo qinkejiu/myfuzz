@@ -6,7 +6,8 @@
 - [CVW directed D4 会话](reports/cvw-directed-session-20261018.md)与[Vexii 固定 CPU/IP/IRQ](reports/vexiiriscv-cpu-ip-irq-20261018.md)已有真实门；二者均不等于在线 campaign。下文旧“会话未装配／IRQ未做”属于历史状态。
 - 独立审计对 P8 S3 的结论是“产物内容通过，进程退出不可验证”，不能据此声称已记录完整 pytest 通过。
 - P8 S1c 的 1.3699×是 UART tick 减少比，搜索墙钟72.352s→58.919s约1.228×，有效搜索时间52.233s→41.105s约1.271×；5×性能目标仍未达到。
-- P6 共享持久会话／RuntimePathContract／closed-loop 机制已有代码，部分协议provider接入与整行实测验收仍开放。BOOM保留历史资产，当前工具链/运行可用性按具体快照核验。
+- P6 共享持久会话／RuntimePathContract／closed-loop 机制已有代码，部分协议provider接入与整行实测验收仍开放。CV32 启动前拒绝不适用的闭环生产者（74119a6），独立源码审查d158a82无阻塞项，未执行测试。BOOM保留历史资产，当前工具链/运行可用性按具体快照核验。
+- P8 新增标量传输耗时脚本46d2798，独立源码审查043f8bd无高/中项，尚未执行测量。[新远程工作集核对](reports/remote-myfuzz-readiness-20261018.md)记录脏快照及旧环境路径，文档已增量复制、源码未覆盖。
 
 ## 2026-10-18 P7 I3/I4 与 P8 S2/S3/S4 真实门（当前源码）
 

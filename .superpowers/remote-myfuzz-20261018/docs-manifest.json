@@ -1,0 +1,50 @@
+{
+  "scope": "documentation-only current bytes; no source/artifact synchronization",
+  "local_head": "46d27984250a811f1f405c88d4acdbc7637c3c01",
+  "files": {
+    "docs/CURRENT_PROGRESS.md": {
+      "sha256": "5145f3337ae35023287a9e923830c47e68cc5869cb6f69fc60353d9a7d3e6e64",
+      "bytes": 253665
+    },
+    "docs/LOCAL_HARNESS_RUNTIME.md": {
+      "sha256": "a8a99a57cf606d63e30ec5b56178c967b557707a3308d214f08bbc43bbba7796",
+      "bytes": 90642
+    },
+    "docs/reports/README.md": {
+      "sha256": "0f43b35fc0fc26eb5acebb5787e17e96c3e0ae3c302200925f0be19134dc9455",
+      "bytes": 201284
+    },
+    "docs/reports/p7-p8-real-gates-20261018.md": {
+      "sha256": "c09271556a5678479fafdf9dd85df6e9389bdd35a8518c9d29d8983c3706ab1c",
+      "bytes": 6251
+    },
+    "docs/reports/p7-i5-candidate-20261018.md": {
+      "sha256": "c272354523b16f3f1268b56ce18b3549c556b7a665a88e075072ab8e6cda4487",
+      "bytes": 4167
+    },
+    "docs/reports/cvw-directed-session-20261018.md": {
+      "sha256": "130dd95994585eb588268c730544bf1036570ebfe76bb9fd2b94426c109f2599",
+      "bytes": 9954
+    },
+    "docs/reports/vexiiriscv-cpu-ip-irq-20261018.md": {
+      "sha256": "da500b7863c82aa75505eb36ab3c3856be099d21221ad13b2b60a530057a9b93",
+      "bytes": 10806
+    },
+    "docs/reports/remote-myfuzz-readiness-20261018.md": {
+      "sha256": "b70b29bc50eacd8db2f6f19a8908f5485dd95148225f84bdab071317b5633b72",
+      "bytes": 2204
+    },
+    "docs/reports/p6-next-implementation-20261018.md": {
+      "sha256": "0f291d2e18e93b23a7cf01efd7f1346f7d323b9c09138158aca811622f290e92",
+      "bytes": 9735
+    },
+    "docs/reports/p8-s1c-batching-plan-20261018.md": {
+      "sha256": "5d08e18780ab5bc8dafc761fd5cd1818da5dcba7f271daf3d11282d64a133369",
+      "bytes": 15725
+    },
+    ".superpowers/sdd/p7-p8-independent-audit-20261018.md": {
+      "sha256": "85ad505ecbcef22add176a96a858e1c65aaa9bc9611679151a0288653b4d7a51",
+      "bytes": 35917
+    }
+  }
+}

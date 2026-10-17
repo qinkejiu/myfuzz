@@ -4093,3 +4093,10 @@ BOOM cached supplement2a9e4b5 remains prepared-not-run; script/module/binary pin
 - CVW attempt1 actual terminal1 preserved bc9d4fe; original16edges show wrong globalready/busreset projection, no ordinarySTEP/fresh. Source-domain correction17ddf8b design/saved regression, no rerunGO.
 - APB C M1 fixed053ff9c, guarded253pass50skip; independentab592ef closes source finding, privatejournal/native limitations unchanged. Root authorized BOOM owner source-only A2host135a06a integration after clean review; no nativeGO. F4owner read-onlyD integration designaf3fff9/3cda0a2, no sharedsource ownership.
 - Public CURRENT_PROGRESS and P6 checklist updated with actual CVW failure and current genericAPB source status. Entire system/P6/P7/P8 remain OPEN.
+
+### 2026-10-18 new remote workspace continuation
+- User supplied canonicalnewworkspace /root/fanzehui/myfuzz; readonlyREADME/.copy-done verified. ActualprojectHEAD42a9ce9 dirtymanyproductionfiles; environment.sh/PATH/PYTHONPATH/TMPDIR+bin/c++ retainoldsystempaths. No model/build/test/versionquery run. Localreceipt remote-myfuzz-20261018/readiness-observation.txt and publicreadinessreport.
+- P7N3 dedicatedrealadmissionfixture1194b32 sourceonly/unexecuted; P7I5 staysopen. GenericI5runner beingimplemented byp7_negative; noexecutionGO.
+- P6plan3873be1 correctssharedmechanisms/BOOMassetboundary. CV32earlyunsupportedclosedloopguard74119a6 independentlyd158a82 sourceclean; no tests/native.
+- P8batchplan4fbe4d7: measured1.3699isUARTtickratio, searchwall~1.228x. Task1scalarmeasurement46d2798 independently043f8bd nohighmedium; noexecution, no5xclaim. Task2protocol/Runnerbatchingnotauthorizedyet pendingactualattribution.
+- Rootdocscorrectiondd9684a fixesP8S3artifactpassvsunverifiableexit,staleI3README,CVW/Vexii/BOOM/P6boundaries. 11docs+audit copied/hashverified underremoteevidence/docs-followup-dd9684a-20261018, bundle7745cdc45429f5a99593a7e52c4b2a8e0558d0596c7069e9e9a2d5d5c7f3bd40; actualmanifestlocalHEAD46d2798. Source/cache/originalsystemuntouched. Entiregoal/P6/P7/P8 OPEN.
