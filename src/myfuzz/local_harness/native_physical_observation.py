@@ -25,6 +25,11 @@ def native_physical_observation_mapping(plan, kind, exports, primary_clock):
     """Describe aliases used by the admitted native executor, never by names alone."""
     projected = deepcopy(exports)
     clocks = {e.endpoint_id: e.clock or primary_clock for e in plan.profile.endpoints}
+    if kind == 'native_memory_cpu':
+        # Native memory has no implied IRQ input or aliases. The independent
+        # completion contract binds its own declared instruction sideband.
+        return dict(schema_version='native_physical_observation_mapping.v1',
+                    aliases=[], physical_exports=projected, endpoint_clock_domains=clocks)
     if kind == 'obi_cpu':
         cpu = plan.profile.cpu
         rows = [row for row in projected if row['endpoint_id'] == cpu.irq_entry_endpoint
@@ -68,15 +73,23 @@ def verify_native_physical_observation(artifact):
     document = artifact.runtime_document
     recorded = document.get('native_physical_observation_contract')
     requested = native_physical_observation_requested(artifact.plan.request)
+    if 'native_completion_observation' in document and document.get('kind') != 'native_memory_cpu':
+        raise ValueError('native-completion-observation-kind-mismatch')
     if recorded is None and not requested:
+        if document.get('kind') == 'native_memory_cpu' and any(key in document for key in (
+                'native_completion_observation', 'base_protocol_traces', 'protocol_tap_ports')):
+            raise ValueError('native-completion-observation-not-requested')
         return False
-    if (not requested or document.get('kind') not in ('obi_cpu', 'apb_gpio')
+    if (not requested or document.get('kind') not in ('obi_cpu', 'apb_gpio', 'native_memory_cpu')
             or document.get('base_event_schema_version') != 'ip_base_event.v1'
             or document.get('raw_observation_schema_version') != 'ip_raw_observation.v1'
             or not isinstance(document.get('physical_exports'), list)
             or not isinstance(document.get('native_physical_observation_mapping'), dict)):
         raise ValueError('native-physical-observation-contract-mismatch')
-    if 'base_protocol_traces' in document or 'protocol_tap_ports' in document:
+    if document.get('kind') == 'native_memory_cpu':
+        from .native_contract import verify_native_completion_observation
+        verify_native_completion_observation(artifact)
+    elif 'base_protocol_traces' in document or 'protocol_tap_ports' in document:
         verify_cpu_obi_protocol_traces(artifact)
     mapping = native_physical_observation_mapping(artifact.plan, document['kind'],
         document['physical_exports'], document['clock_schedule']['primary_clock_domain'])

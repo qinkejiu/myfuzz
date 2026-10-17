@@ -926,6 +926,15 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw):
                               else f'assign {wires[role]} = {name};')
     elif kind == 'native_memory_cpu':
         wires = _shape(endpoints[0], _NATIVE, abi)
+        if native_raw:
+            from .native_contract import native_completion_observation_binding
+            observation = native_completion_observation_binding(
+                plan, structural.abi_document, exports, clock_schedule['primary_clock_domain'])
+            for tap in observation['ports']:
+                ports.append((tap['name'], 'output', tap['width']))
+                statements.append(f"assign {tap['name']} = {tap['source_wire']};")
+                protocol_tap_ports.append(tap)
+            cpu_protocol_traces.append(observation['trace'])
         beat_ports('m', True)
         for name, width in [('m_fault', 1), ('m_fault_code', 2)]:
             ports.append((name, 'output', width))
@@ -1245,7 +1254,7 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw):
             sampling='pre_post', sample_group='protocol_taps', traces=cpu_protocol_traces)
         document['protocol_tap_ports'] = protocol_tap_ports
     if native_raw:
-        if kind not in ('obi_cpu', 'apb_gpio'):
+        if kind not in ('obi_cpu', 'apb_gpio', 'native_memory_cpu'):
             raise ValueError('native-physical-observation-runtime-unsupported')
         from .native_physical_observation import (native_physical_observation_contract,
                                                 native_physical_observation_mapping)
@@ -1357,6 +1366,8 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw):
             if len(rows) != 1:
                 raise ValueError('runtime-cpu-instruction-observation')
             document['instruction_identity_observation'] = rows[0]['runtime_name']
+    if kind == 'native_memory_cpu' and native_raw:
+        document['native_completion_observation'] = observation['contract']
     if kind == 'wishbone_dma':
         document['dma_edge_contract'] = dma_edge_contract()
         protocol_path = 'src/myfuzz/protocols/plugins/wishbone_pipelined.json'
@@ -1408,6 +1419,9 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw):
     if native_raw:
         name = 'src/myfuzz/local_harness/native_physical_observation.py'
         implementation_sources.append({'path':name,'sha256':hashlib.sha256((implementation_root/name).read_bytes()).hexdigest()})
+        if kind == 'native_memory_cpu':
+            name = 'src/myfuzz/local_harness/native_contract.py'
+            implementation_sources.append({'path':name,'sha256':hashlib.sha256((implementation_root/name).read_bytes()).hexdigest()})
     if uart_fifo_observation is not None:
         name = 'src/myfuzz/local_harness/opentitan_uart_fifo_contract.py'
         implementation_sources.append({'path':name,'sha256':hashlib.sha256((implementation_root/name).read_bytes()).hexdigest()})
