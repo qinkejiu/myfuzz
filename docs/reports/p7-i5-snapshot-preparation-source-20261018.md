@@ -73,3 +73,37 @@ local filesystem operations when explicitly invoked; the implementation has
 not been launched even in planning/help mode. A failed copy preserves its
 partial new destination and failure receipt for inspection, without cleanup
 or retry. A new destination is required for another attempt.
+
+## Independent source review fixes
+
+Review of `6580766` found that aliasing freeze and receipt paths could turn a
+completed copy into a publication error, and a failure-receipt write could
+mask the original copy exception. Manifest, freeze and receipt paths now must
+be distinct. Preflight, destination mkdir, copy and publication errors reach
+one outer handler, which attempts one bounded new failure receipt at a safe
+external path and re-raises the original exception. If no safe writable path
+is available it attempts a bounded stderr diagnostic instead; receipt creation
+is best effort, not guaranteed. Existing artifacts are never overwritten.
+
+The manifest also explicitly records an empty private
+`.superpowers/sdd/stage2-heavy-worker.lock` as a generated file when the source
+selection does not already supply an empty one. This exact code-owned file is
+created before the final whole map; it prevents the inner CLI's lock creation
+from changing frozen source. The runner's outer canonical heavy-worker lock
+remains separate and must be held across execution; creating an empty file
+does not grant permission or establish that either lock is unoccupied.
+
+Git config include/includeIf, promisor, partialclone, hooksPath, nonempty
+alternates/common metadata and `.promisor` packs are refused. The root-owned
+independent Ibex materialization must therefore exclude the old Ibex `.git`
+from selection, preserve source identity and original metadata, and overlay
+only separately audited independent metadata. That intentional overlay
+requires a **new final whole map and receipt** superseding the pre-overlay
+freeze; no unchanged-map claim survives it. This script does not perform the
+overlay, shallow clone or any Git subprocess.
+
+The actual timer source admission additionally requires the small
+`docs/reports/evidence/verilog-probe-pulp-apb-timer` directory. Include it
+explicitly alongside the candidate roots above. Source-level fixture/frontend
+cache writes remain subject to independent readiness review; neither the
+private lock nor this copy establishes that the eventual run is mutation-free.

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import configparser
 import hashlib
 import json
 import os
@@ -12,6 +13,8 @@ import stat
 import sys
 
 sys.dont_write_bytecode = True
+PRIVATE_LOCK = '.superpowers/sdd/stage2-heavy-worker.lock'
+EMPTY_PIN = {'sha256': hashlib.sha256(b'').hexdigest(), 'bytes': 0, 'mode': 0o600}
 
 
 def sha(path):
@@ -108,6 +111,18 @@ def validate_git(root, files):
         if (name.endswith('/objects/info/alternates')
                 or name.endswith('/commondir')) and path.read_bytes().strip():
             raise ValueError('git-shared-object-or-worktree-store:' + name)
+        if name.endswith('.promisor'):
+            raise ValueError('git-promisor-pack-not-materialized:' + name)
+        if path.name == 'config' and ('/.git/' in '/' + name or name.startswith('.git/')):
+            config = configparser.ConfigParser(interpolation=None, strict=False)
+            config.read_string(path.read_text())
+            for section in config.sections():
+                normalized = section.lower()
+                if normalized == 'include' or normalized.startswith('includeif '):
+                    raise ValueError('git-external-config-include:' + name)
+                if any(key.lower() in ('promisor', 'partialclone', 'hookspath')
+                       for key in config[section]):
+                    raise ValueError('git-lazy-or-external-config:' + name)
     result = {}
     for directory in sorted(gitdirs):
         head = directory / 'HEAD'
@@ -136,20 +151,11 @@ def full_map(root):
     return dict(sorted(result.items()))
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--source', type=Path, required=True)
-    parser.add_argument('--destination', type=Path, required=True)
-    parser.add_argument('--manifest', type=Path, required=True)
-    parser.add_argument('--freeze-map', type=Path, required=True)
-    parser.add_argument('--receipt', type=Path, required=True)
-    parser.add_argument('--include', action='append', default=[])
-    parser.add_argument('--exclude', action='append', default=[])
-    parser.add_argument('--prepare', action='store_true')
-    parser.add_argument('--manifest-sha256')
-    args = parser.parse_args()
+def run(args, parser):
     source = args.source.absolute()
     destination = args.destination.absolute()
+    if len({path.absolute() for path in (args.manifest, args.freeze_map, args.receipt)}) != 3:
+        raise ValueError('manifest-freeze-receipt-paths-must-be-distinct')
     if '..' in source.parts or '..' in destination.parts:
         parser.error('normalized source/destination paths required')
     no_path_links(source)
@@ -165,6 +171,47 @@ def main():
         no_path_links(absolute)
         if absolute.is_relative_to(source) or absolute.is_relative_to(destination):
             parser.error('manifest/freeze/receipt must be outside source and destination')
+    return prepare(args, parser, source, destination)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--source', type=Path, required=True)
+    parser.add_argument('--destination', type=Path, required=True)
+    parser.add_argument('--manifest', type=Path, required=True)
+    parser.add_argument('--freeze-map', type=Path, required=True)
+    parser.add_argument('--receipt', type=Path, required=True)
+    parser.add_argument('--include', action='append', default=[])
+    parser.add_argument('--exclude', action='append', default=[])
+    parser.add_argument('--prepare', action='store_true')
+    parser.add_argument('--manifest-sha256')
+    args = parser.parse_args()
+    try:
+        return run(args, parser)
+    except BaseException as primary:
+        # A diagnostic failure must never replace the original preflight,
+        # mkdir, copy or publication exception. One bounded write attempt only.
+        try:
+            receipt = args.receipt.absolute()
+            no_path_links(receipt)
+            if ('..' in receipt.parts or receipt.exists()
+                    or receipt in {args.manifest.absolute(), args.freeze_map.absolute()}
+                    or receipt.is_relative_to(args.source.absolute())
+                    or receipt.is_relative_to(args.destination.absolute())):
+                raise ValueError('no-safe-new-failure-receipt-path')
+            write_new(receipt, {'status': 'failed', 'phase': 'planning' if not args.prepare else 'preparation',
+                      'error': type(primary).__name__ + ': ' + str(primary)[:4096],
+                      'source': str(args.source), 'destination': str(args.destination),
+                      'manifest_sha256': args.manifest_sha256, 'native_run': False})
+        except BaseException as diagnostic:
+            try:
+                sys.stderr.write('failure-receipt-unavailable: ' + repr(diagnostic)[:1024] + '\n')
+            except BaseException:
+                pass
+        raise
+
+
+def prepare(args, parser, source, destination):
     if not args.prepare:
         if not args.include:
             parser.error('planning requires explicit --include prefixes')
@@ -172,10 +219,14 @@ def main():
         excludes = sorted({str(relative(name)) for name in args.exclude})
         files = selection_map(source, includes, excludes)
         git_heads = validate_git(source, files)
+        generated = {} if PRIVATE_LOCK in files else {PRIVATE_LOCK: EMPTY_PIN}
+        if PRIVATE_LOCK in files and files[PRIVATE_LOCK]['bytes'] != 0:
+            raise ValueError('selected-private-lock-must-be-empty')
         document = {'schema_version': 'p7_i5_snapshot_selection.v1',
                     'source': str(source), 'destination': str(destination),
                     'includes': includes, 'excludes': excludes, 'files': files,
-                    'git_head_files': git_heads, 'closure_reviewed': False}
+                    'git_head_files': git_heads, 'generated_files': generated,
+                    'closure_reviewed': False}
         write_new(args.manifest, document)
         print(json.dumps({'status': 'planned_not_copied', 'files': len(files),
                           'manifest_sha256': sha(args.manifest),
@@ -193,6 +244,15 @@ def main():
     includes = [str(relative(name)) for name in document['includes']]
     excludes = [str(relative(name)) for name in document['excludes']]
     expected = document['files']
+    generated = document.get('generated_files')
+    if generated not in ({}, {PRIVATE_LOCK: EMPTY_PIN}):
+        parser.error('only-reviewed-empty-private-lock-generation-is-supported')
+    if PRIVATE_LOCK in expected and generated:
+        parser.error('private-lock-cannot-be-both-copied-and-generated')
+    if PRIVATE_LOCK not in expected and PRIVATE_LOCK not in generated:
+        parser.error('private-operation-lock-must-exist-before-freeze')
+    if PRIVATE_LOCK in expected and expected[PRIVATE_LOCK]['bytes'] != 0:
+        parser.error('selected-private-lock-must-be-empty')
     for name in expected:
         relative(name)
     current = selection_map(source, includes, excludes)
@@ -220,8 +280,15 @@ def main():
                 raise ValueError('copy-or-source-race:' + name)
         if selection_map(source, includes, excludes) != expected:
             raise ValueError('selected-source-changed-during-copy')
+        for name, pin in generated.items():
+            target = destination / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with target.open('xb') as stream:
+                stream.flush()
+                os.fsync(stream.fileno())
+            target.chmod(pin['mode'])
         actual = full_map(destination)
-        if actual != expected:
+        if actual != {**expected, **generated}:
             raise ValueError('whole-destination-map-differs')
         if validate_git(destination, actual) != document['git_head_files']:
             raise ValueError('copied-git-topology-differs')
@@ -230,8 +297,7 @@ def main():
                        bytes=sum(row['bytes'] for row in actual.values()),
                        freeze_sha256=sha(args.freeze_map), native_run=False)
     except BaseException as error:
-        receipt['error'] = type(error).__name__ + ': ' + str(error)
-        write_new(args.receipt, receipt)
+        # main() records one best-effort failure without masking this exception.
         raise
     write_new(args.receipt, receipt)
     print(json.dumps(receipt, sort_keys=True))
