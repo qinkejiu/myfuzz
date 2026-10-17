@@ -6,14 +6,18 @@ from the real UART RX FIFO, decodes them, materializes the RAM source words and
 writes the real DMA registers; a real native IRQ reaches the real ISR, which
 reads the real DMA status/length registers.
 
-This module makes no source-authority claim: ``fifo_origin`` stays ``unknown``
-and every case is explicitly ``source_authority='incomplete'``.  Admission,
-typed normalizers and certified prefix replay are S4 work.  S3 adds the one
+S4 installs the declared UART RX FIFO source graph before the first RTL command
+(``compile_dma_source_provenance``), admits every external serial byte with a
+typed ``SourceAdmission``, and joins the tracker's accepted retention and
+read-consumption rows to this case's certified FIFO entries and pops.  A case
+claims ``fifo_origin='accepted_uart_fifo_entry'`` only when that join is exact;
+otherwise it stays ``unknown`` and names the missing element.  The raw
+``uart_frame_validation.fifo_origin`` field is never rewritten.  S3 adds the
 declared illegal descriptor: the real ``wbdmac`` takes its bus-error path, the
 real native IRQ reaches the CPU, and the ISR records the real status/length/
 mcause/counter.  That case is certified as ``environment_error`` (never as a
-successful dataflow).  The per-case evidence here is a bounded historical chain
-over real journal rows, never a host-signed token.
+successful dataflow).  The per-case evidence is a bounded chain over real
+journal rows, never a host-signed token.
 """
 from __future__ import annotations
 
@@ -27,6 +31,8 @@ from myfuzz.local_harness.build import host_source_discovery_scope
 from myfuzz.scenario.batch import (BatchAdvance, BatchSourceEvent,
     ScenarioBatchCodec, ScenarioBatchPlan, ScenarioBatchRecorder)
 from myfuzz.scenario.contracts import ResourceBudget
+from myfuzz.scenario.dma_runtime_paths import (DmaSourceProvenance,
+    NOT_INSTALLED, compile_dma_source_provenance, register_case_admissions)
 from myfuzz.scenario.genome import ScenarioGenome
 from myfuzz.scenario.ibex_dma_example import DMA_BASE
 from myfuzz.scenario.ibex_dma_uart_descriptor import (
@@ -37,7 +43,10 @@ from myfuzz.scenario.ibex_dma_uart_descriptor import (
     UART_STATUS_OFFSET, UART_WDATA, UART_WDATA_OFFSET, WITNESS,
     WITNESS_POINTER, descriptor_program, dma_status_fields,
     make_descriptor_runner)
+from myfuzz.scenario.replay_normalize import (first_difference_normalized,
+    first_replay_difference)
 from myfuzz.scenario.runner import ScenarioRunner
+from myfuzz.scenario.uart_fifo_authority import source_authority_evidence
 
 from .dma_uart_rx_runtime import (_capture, _case_boundaries, _close,
     _execution_ids, _fifo_depth_after, _normalize, _poll_schedule, _source_pins)
@@ -47,6 +56,7 @@ CASE_SCHEMA = 'descriptor_dma_case.v1'
 SOURCE_PORT = 'uart_rx_byte'
 SOURCE_COMPONENT = 'uart'
 ACTION_PREFIX = 'descriptor'
+CASE_ID_PREFIX = 'descriptor-case-'
 OUTCOMES = ('complete', 'environment_error')
 DMA_IRQ_MCAUSE = 0x8000000B
 UART_TX_CLOCKS_PER_BIT = 32
@@ -395,6 +405,7 @@ class CaseWitnesses:
     error_responses: tuple[dict, ...]
     error_irq_edges: tuple[dict, ...]
     dma_rdata_accesses: tuple[dict, ...]
+    rows: tuple[dict, ...] = ()
 
 
 def extract_case_witnesses(rows):
@@ -486,6 +497,7 @@ def extract_case_witnesses(rows):
                 grouped['tick_pushes'].append(event)
     grouped['cpu_pops'] = _merge_cpu_pops(grouped['cpu_pops'],
         grouped['uart_rdata_mmio'])
+    grouped['rows'] = tuple(rows)
     return CaseWitnesses(**{name: tuple(value) for name, value in grouped.items()})
 
 
@@ -984,8 +996,55 @@ def _settled_pop_access_ids(evidence):
     return ids
 
 
+def _attach_source_authority(evidence, witnesses, case, *, action_ids,
+                             frame_ids, source_authority):
+    """Join accepted UART FIFO proofs (S4) or keep the case explicitly unknown.
+
+    The join input is this case's certified FIFO order: one admitted entry per
+    serial byte and every real pop in FIFO order.  ``source_authority_evidence``
+    only says ``accepted_uart_fifo_entry`` when the tracker's accepted retention
+    and read-consumption rows agree exactly with those real rows; otherwise the
+    case keeps ``unknown`` and names the missing element.  A contradictory
+    accepted row raises instead of degrading to unknown.
+    """
+    if not isinstance(evidence, dict):
+        raise ValueError('certified case evidence is required')
+    authority = NOT_INSTALLED if source_authority is None else source_authority
+    admissions = {row['action_id']: row for row in authority.get('admissions', ())
+                  } if authority.get('installed') is True else {}
+    entries = tuple(dict(index=index, action_id=action_ids[index],
+        admission_id=(admissions[action_ids[index]].get('admission_id')
+                      if action_ids[index] in admissions else None),
+        frame_id=frame_ids[index], value=case.source_bytes[index])
+        for index in range(case.source_count))
+    pops = tuple((evidence.get('fifo') or {}).get('pops') or ())
+    reads = []
+    for index, pop in enumerate(pops):
+        access_id = pop.get('access_id')
+        read_value = pop.get('read_value')
+        if (not isinstance(access_id, str) or not access_id
+                or type(read_value) is not int):
+            raise RuntimeError('a certified FIFO pop lacks a real access identity')
+        kind = pop.get('kind')
+        if kind not in ('cpu', 'dma'):
+            raise RuntimeError('a certified FIFO pop has an unknown consumer')
+        reads.append(dict(access_id=access_id, entry_index=index,
+            value=read_value, route='dma_master' if kind == 'dma' else 'router'))
+    if len(reads) > len(entries):
+        raise RuntimeError('a case popped more FIFO entries than it admitted')
+    document = source_authority_evidence(witnesses.rows, entries=entries,
+        admissions=authority.get('admissions'), reads=tuple(reads),
+        authority=authority)
+    evidence.update(fifo_origin=document['fifo_origin'],
+        source_authority=document['source_authority'],
+        proof_grade=document['proof_grade'],
+        source_authority_evidence=document)
+    return evidence
+
+
 def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
-                            action_ids=None, settled_access_ids=None):
+                            action_ids=None, settled_access_ids=None,
+                            source_authority=None):
     """Join one real journal slice into a completed descriptor case.
 
     The expected program is derived from the declared case, never read back from
@@ -1103,12 +1162,15 @@ def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
         raise RuntimeError('witness pointer must be committed before the DMA start')
 
     if case.expect == 'environment_error':
-        return _certify_environment_error(witnesses, case, case_index=case_index,
-            program=program, action_ids=ids, frame_ids=frame_ids,
-            push_chain=push_chain, push_depths=push_depths,
+        evidence = _certify_environment_error(witnesses, case,
+            case_index=case_index, program=program, action_ids=ids,
+            frame_ids=frame_ids, push_chain=push_chain, push_depths=push_depths,
             cpu_pops=cpu_pops, cpu_fifo=cpu_fifo, cpu_values=cpu_values,
             settled_pops=settled_pops, settled=settled,
             witness_pointer_store=witness_store[0], tx_captures=tx_captures)
+        return _attach_source_authority(evidence, witnesses, case,
+            action_ids=ids, frame_ids=frame_ids,
+            source_authority=source_authority)
 
     # -- real master beats: read then write for every declared word ----------
     if len(witnesses.beats) != 2 * case.length:
@@ -1376,6 +1438,8 @@ def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
         outcome='complete', completed=True, sealed=True,
         fifo_origin='unknown', source_authority='incomplete',
         proof_grade='bounded_historical_chain')
+    return _attach_source_authority(evidence, witnesses, case,
+        action_ids=ids, frame_ids=frame_ids, source_authority=source_authority)
 
 
 # ---------------------------------------------------------------------------
@@ -1397,17 +1461,25 @@ class DescriptorBoot:
     """
 
     def __init__(self, runner: ScenarioRunner, *, budget: ResourceBudget,
-                 template: ScenarioGenome, source_pins: dict) -> None:
+                 template: ScenarioGenome, source_pins: dict,
+                 source_provenance: DmaSourceProvenance | None = None) -> None:
         if not isinstance(budget, ResourceBudget):
             raise ValueError('ResourceBudget is required')
         if not isinstance(template, ScenarioGenome):
             raise ValueError('ScenarioGenome template is required')
         if not isinstance(source_pins, dict) or not source_pins:
             raise ValueError('host source pins are required')
+        if source_provenance is not None and not isinstance(
+                source_provenance, DmaSourceProvenance):
+            raise ValueError('source provenance must be installed provenance')
+        if source_provenance is not None and not getattr(
+                runner, 'provenance_enabled', False):
+            raise ValueError('installed source provenance requires configured runner provenance')
         self.runner = runner
         self.budget = budget
         self.template = template
         self.source_pins = dict(source_pins)
+        self.source_provenance = source_provenance
         self.recorder = ScenarioBatchRecorder(template, runner)
         self.cases: list[dict] = []
         self.phase = 'boot'
@@ -1465,6 +1537,20 @@ class DescriptorBoot:
         runner, recorder = self.runner, self.recorder
         uart = runner.sessions['uart']
         tx_before = len(uart.peer.captured)
+        # S4: the external serial bytes are admitted before the first source
+        # command.  Registration order is the declared serial order, so a fresh
+        # replay that recomputes the same admissions reproduces this prefix.
+        admissions = ()
+        if self.source_provenance is not None:
+            admissions = register_case_admissions(runner,
+                self.source_provenance,
+                case_id=f'{CASE_ID_PREFIX}{case_index}',
+                case_index=case_index, action_ids=action_ids,
+                source_bytes=case.source_bytes)
+        source_authority = None
+        if self.source_provenance is not None:
+            source_authority = dict(self.source_provenance.document(),
+                admissions=[admission.document() for admission in admissions])
         for action_id, byte in zip(action_ids, case.source_bytes):
             recorder.submit_source_event(BatchSourceEvent(action_id,
                 SOURCE_COMPONENT, SOURCE_PORT, byte, width=8))
@@ -1545,9 +1631,13 @@ class DescriptorBoot:
         self.phase = 'case_check'
         captures = tuple(uart.peer.captured[tx_before:])
         rows = runner.events_since(start)
-        evidence = certify_descriptor_case(extract_case_witnesses(rows), case,
-            case_index=case_index, tx_captures=captures, action_ids=action_ids,
+        certification = dict(case_index=case_index, tx_captures=captures,
+            action_ids=action_ids,
             settled_access_ids=self.settled_access_ids)
+        if source_authority is not None:
+            certification['source_authority'] = source_authority
+        evidence = certify_descriptor_case(extract_case_witnesses(rows),
+            case, **certification)
         self.settled_access_ids.update(_settled_pop_access_ids(evidence))
         evidence.update(_case_boundaries(commands=recorder.commands, rows=rows,
             command_start=command_start, command_end=len(recorder.commands),
@@ -1676,17 +1766,29 @@ def run_descriptor_cases(cases, *, cache_dir: Path,
         budget: ResourceBudget | None = None,
         factory: Callable[[], ScenarioRunner] | None = None,
         max_rounds_per_case: int = 4096,
-        windows: Mapping[str, tuple[int, int]] | None = None) -> DescriptorResult:
-    """Execute all cases in one boot; every refusal precedes any RTL command."""
+        windows: Mapping[str, tuple[int, int]] | None = None,
+        provenance: bool = True) -> DescriptorResult:
+    """Execute all cases in one boot; every refusal precedes any RTL command.
+
+    ``provenance`` installs the declared S4 UART-FIFO source graph and
+    admissions on the fresh Runner *before* the first RTL command.  It is on by
+    default because a descriptor run without it can never claim source
+    authority; disabling it is a diagnostic mode that keeps every case
+    ``unknown``.
+    """
+    if type(provenance) is not bool:
+        raise ValueError('provenance must be boolean')
     specs = _validate_specs(cases, windows)
     _positive_int(max_rounds_per_case, 'max_rounds_per_case', maximum=8192)
     source_pins = _source_pins()
     runner = factory() if factory else make_descriptor_runner(cache_dir=cache_dir)
     selected_budget = budget or ResourceBudget(max_wall_time_ms=600000)
     runner.set_resource_budget(selected_budget)
+    source_provenance = (compile_dma_source_provenance(runner)
+                         if provenance else None)
     template = _template(specs, max_rounds_per_case=max_rounds_per_case)
     boot = DescriptorBoot(runner, budget=selected_budget, template=template,
-        source_pins=source_pins)
+        source_pins=source_pins, source_provenance=source_provenance)
     try:
         boot.boot()
         for index, spec in enumerate(specs, 1):
@@ -1730,6 +1832,37 @@ def replay_descriptor_cases(reference: DescriptorResult, *, cache_dir: Path,
         budget=budget, factory=factory)
 
 
+def _source_runs(commands):
+    """Maximal contiguous runs of source events: one run per executed case.
+
+    The boot registers every admission of a case immediately before its first
+    source command, so a run boundary is exactly an admission-registration
+    boundary.  Reconstructing runs (instead of trusting saved case claims) also
+    covers a failed case that has no certificate.
+    """
+    runs, current = [], None
+    for index, command in enumerate(commands):
+        if isinstance(command, BatchSourceEvent):
+            if current is None:
+                current = (index, [])
+                runs.append(current)
+            current[1].append(command)
+        else:
+            current = None
+    return tuple((start, tuple(items)) for start, items in runs)
+
+
+def _reference_had_provenance(reference):
+    """Whether the recorded run installed the S4 source graph (mirror exactly)."""
+    for case in reference.cases:
+        evidence = case.get('source_authority_evidence')
+        if (isinstance(evidence, dict)
+                and isinstance(evidence.get('authority'), dict)
+                and evidence['authority'].get('installed') is True):
+            return True
+    return False
+
+
 def _replay_descriptor_cases(reference, *, cache_dir, budget=None, factory=None):
     if not isinstance(reference, DescriptorResult):
         raise ValueError('DescriptorResult is required')
@@ -1741,12 +1874,19 @@ def _replay_descriptor_cases(reference, *, cache_dir, budget=None, factory=None)
                   for case in reference.cases)
     _validate_specs(specs)
     assert_plan_matches_cases(reference.plan, specs)
+    install_provenance = _reference_had_provenance(reference)
     runner = factory() if factory else make_descriptor_runner(cache_dir=cache_dir)
     runner.set_resource_budget(reference.budget)
+    source_provenance = (compile_dma_source_provenance(runner)
+                         if install_provenance else None)
     if reference.trace is not None:
         from myfuzz.scenario.replay import _install_batch_wall_cut
         _install_batch_wall_cut(runner, reference.trace)
     recorder = ScenarioBatchRecorder(reference.plan.template, runner)
+    runs = _source_runs(reference.plan.commands)
+    run_starts = {start: items for start, items in runs}
+    run_ordinals = {start: ordinal for ordinal, (start, _) in enumerate(runs, 1)}
+    case_admissions: dict[int, tuple] = {}
     caught = None
     command_count = 0
     source_starts: dict[int, tuple[int, dict]] = {}
@@ -1762,10 +1902,22 @@ def _replay_descriptor_cases(reference, *, cache_dir, budget=None, factory=None)
             if execution_ids == reference.execution_ids:
                 raise ValueError('replay requires fresh native processes and Runner')
             for index, command in enumerate(reference.plan.commands):
-                command_count += 1
-                if isinstance(command, BatchSourceEvent):
+                if index in run_starts:
+                    # Capture the case boundary before the admissions, exactly
+                    # like DescriptorBoot.run_case does for the original run.
                     source_starts[index] = (runner.event_count,
                         dict(runner.local_ticks))
+                    if source_provenance is not None:
+                        items = run_starts[index]
+                        ordinal = run_ordinals[index]
+                        case_admissions[ordinal] = register_case_admissions(
+                            runner, source_provenance,
+                            case_id=f'{CASE_ID_PREFIX}{ordinal}',
+                            case_index=ordinal,
+                            action_ids=tuple(item.action_id for item in items),
+                            source_bytes=tuple(item.value for item in items))
+                command_count += 1
+                if isinstance(command, BatchSourceEvent):
                     recorder.submit_source_event(command)
                 elif isinstance(command, BatchAdvance):
                     recorder.advance(command.schedule)
@@ -1786,14 +1938,25 @@ def _replay_descriptor_cases(reference, *, cache_dir, budget=None, factory=None)
             source_pins=reference.source_pins)
         if actual.identities != reference.identities:
             raise RuntimeError('fresh native identity documents differ')
-        if (actual.local_ticks != reference.local_ticks
-                or _normalize(actual.events, actual.execution_ids)
-                != _normalize(reference.events, reference.execution_ids)
-                or _normalize(actual.uncertain_status, actual.execution_ids)
-                != _normalize(reference.uncertain_status, reference.execution_ids)
-                or (actual.trace.status if actual.trace else None)
+        if actual.local_ticks != reference.local_ticks:
+            difference = first_difference_normalized(reference.local_ticks,
+                actual.local_ticks)
+            raise RuntimeError('fresh replay local ticks differ at '
+                f'{difference["path"]}')
+        for label, left, right in (
+                ('events', reference.events, actual.events),
+                ('uncertain state', reference.uncertain_status,
+                 actual.uncertain_status)):
+            difference = first_replay_difference(left, right,
+                reference_execution_ids=reference.execution_ids,
+                actual_execution_ids=actual.execution_ids)
+            if difference is not None:
+                raise RuntimeError(
+                    'fresh replay differs from full finalized original prefix '
+                    f'({label}) at {difference["path"]}: {difference["reason"]}')
+        if ((actual.trace.status if actual.trace else None)
                 != (reference.trace.status if reference.trace else None)):
-            raise RuntimeError('fresh replay differs from full finalized original prefix')
+            raise RuntimeError('fresh replay trace status differs')
         assert_plan_matches_cases(actual.plan, specs)
         uart = runner.sessions['uart']
         captured = tuple(uart.peer.captured)
@@ -1815,10 +1978,19 @@ def _replay_descriptor_cases(reference, *, cache_dir, budget=None, factory=None)
             tx_length = len(expected_case['tx_captures'])
             tx_captures = captured[capture_cursor:capture_cursor + tx_length]
             capture_cursor += tx_length
+            authority = None
+            if source_provenance is not None:
+                admissions = case_admissions.get(position)
+                if admissions is None:
+                    raise RuntimeError('replay lost a recorded case admission boundary')
+                authority = dict(source_provenance.document(),
+                    admissions=[admission.document()
+                                for admission in admissions])
             case = certify_descriptor_case(extract_case_witnesses(rows), spec,
                 case_index=position, tx_captures=tx_captures,
                 action_ids=tuple(expected_case['action_ids']),
-                settled_access_ids=settled_access_ids)
+                settled_access_ids=settled_access_ids,
+                source_authority=authority)
             settled_access_ids.update(_settled_pop_access_ids(case))
             case.update(_case_boundaries(commands=reference.plan.commands, rows=rows,
                 command_start=first,
@@ -1832,7 +2004,13 @@ def _replay_descriptor_cases(reference, *, cache_dir, budget=None, factory=None)
                                     else len(reference.plan.commands)),
                 source_count=spec.source_count)
             if case != expected_case:
-                raise RuntimeError('replay per-case descriptor evidence differs')
+                difference = first_replay_difference(expected_case, case,
+                    reference_execution_ids=reference.execution_ids,
+                    actual_execution_ids=actual.execution_ids)
+                detail = (f' at {difference["path"]}: {difference["reason"]}'
+                          if difference is not None else '')
+                raise RuntimeError(
+                    'replay per-case descriptor evidence differs' + detail)
             cases.append(case)
         if capture_cursor != len(captured):
             raise RuntimeError('replay produced undeclared UART TX captures')

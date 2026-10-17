@@ -4,9 +4,33 @@ import json
 import hashlib
 import re
 
+from .cpu_retirement import _KEY, _uint
+
 
 def _equal(left,right):
     return json.dumps(left,sort_keys=True,allow_nan=False)==json.dumps(right,sort_keys=True,allow_nan=False)
+
+
+#: A DMA master read of UART RDATA carries the DMA master channel identity, not
+#: the CPU ``data`` channel.  Requiring the channel explicitly keeps a CPU
+#: routed read from ever masquerading as the DMA master pop.
+_DMA_MASTER_CHANNEL = 'dma-memory'
+
+
+def _dma_master_key(value):
+    """Validate one typed DMA master transaction key without trusting a token."""
+    if not isinstance(value,dict) or set(value)!=set(_KEY):
+        return None
+    if any(type(value[n]) is not str or not value[n].strip()
+           for n in _KEY if n not in ('source_epoch','source_sequence')):
+        return None
+    if (value['channel_id']!=_DMA_MASTER_CHANNEL
+            or not value['source_component'].strip()
+            or not _uint(value['source_epoch'],64)
+            or not _uint(value['source_sequence'],64)
+            or value['source_sequence']==0):
+        return None
+    return tuple(value[n] for n in _KEY)
 
 
 class UartConsumptionTracker:
@@ -417,10 +441,12 @@ class UartConsumptionTracker:
                        proof_scope='uart_fifo_retention',**common))
         if pending.get('read') and not pending.get('read_proven'):
             pending['read_proven']=True
+            mode=pending['read'].get('route_context_mode')
+            certified=self.edge_index is not None and mode in ('router','dma_master')
             out.append(self._record(e,'uart_consumption_match',status='accepted',
                 proof_scope='uart_fifo_read_consumption',
-                **dict(common,graph_path_certified=self.edge_index is not None and pending['read']['route_context_mode']=='router',
-                       path_id=common['path_id'] if pending['read']['route_context_mode']=='router' else None),**pending['read']))
+                **dict(common,graph_path_certified=certified,
+                       path_id=common['path_id'] if certified else None),**pending['read']))
         return out
 
 
@@ -432,7 +458,13 @@ class UartConsumptionTracker:
                                 reason='unrouted_uart_access',proof_scope='uart_fifo_read_consumption'),)
         if any(type(e.get(k)) is not int for k in ('raw_offset','byte_enable','request_tick','response_tick','read_value','error')):
             return self._fail(e,'malformed_uart_rdata_access')
-        key=_key(e.get('source_transaction'))
+        mode=e.get('route_context_mode')
+        if mode=='dma_master':
+            key=_dma_master_key(e.get('source_transaction'))
+        elif mode in ('router','direct'):
+            key=_key(e.get('source_transaction'))
+        else:
+            key=None
         if key is None or e.get('write') is not False or e.get('raw_offset')!=24 or e.get('byte_enable')!=15:
             return self._fail(e,'unproven_uart_routed_access')
         request,response=e.get('read_capture'),e.get('response_capture')
@@ -470,17 +502,27 @@ class UartConsumptionTracker:
         delivery=e.get('delivery_context')
         if (type(address) is not int or type(base) is not int or not 0<=base<=address<(1<<64)
             or base!=address-24 or base%0x1000 or not isinstance(delivery,dict)
-            or mode not in ('router','direct')):
+            or mode not in ('router','direct','dma_master')):
             return self._fail(e,'unproven_uart_router_window')
         if mode=='direct':
             if size is not None or delivery:return self._fail(e,'unproven_uart_router_window')
-        else:
+        elif mode=='router':
             if (type(size) is not int or size<28 or size%4 or base+size>(1<<64)
                 or type(delivery.get('value')) is not int or not 0<=delivery['value']<(1<<32)
                 or not _equal(delivery,dict(source_transaction=e['source_transaction'],device_id=e['component'],
                     address=address,offset=24,write=False,value=delivery.get('value'),be=15,
                     window_base=base,window_size=size))):
                 return self._fail(e,'unproven_uart_router_window')
+        else:
+            # A DMA master read is not a routed CPU access: the CPU ``data``
+            # channel is never reused.  The proof is the declared master
+            # aperture, the fixed RDATA offset/strobe, and a delivery context
+            # that matches this exact master request field by field.
+            if (type(size) is not int or size<28 or size%4 or base+size>(1<<64)
+                or not _equal(delivery,dict(source_transaction=e['source_transaction'],
+                    device_id=e['component'],address=address,offset=24,write=False,
+                    value=0,be=15,window_base=base,window_size=size))):
+                return self._fail(e,'unproven_uart_dma_master_window')
         a={k.removeprefix('probe_uart_'):v for k,v in pop['pre'].items()}
         b={k.removeprefix('probe_uart_'):v for k,v in pop['post'].items()}
         d={k.removeprefix('probe_uart_'):v for k,v in last['pre'].items()}

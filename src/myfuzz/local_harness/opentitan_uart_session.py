@@ -201,6 +201,11 @@ class GeneratedOpentitanUartSession(GeneratedLocalSession):
         return 'uart_fifo_observation_contract' in getattr(self, '_artifact_document', {})
 
     @property
+    def source_provenance_enabled(self):
+        """Whether declared source provenance was enabled before scheduling."""
+        return getattr(self, '_source_provenance', False)
+
+    @property
     def routed_register_access_enabled(self):
         return self.uart_fifo_observation_enabled
 
@@ -665,6 +670,84 @@ class GeneratedOpentitanUartSession(GeneratedLocalSession):
             observed = deepcopy(getattr(self, '_last_uart_access', None)) if offset == 0x18 else None
             return {'rdata': result, **({'target_uart_access': observed,
                     'target_access_id': observed['access_id']} if observed is not None else {})}
+        finally:
+            self._routed_uart_transaction = None
+            self._routed_uart_context = None
+
+    def master_target_access(self, source_transaction, *, address, offset, write,
+                             value, be, delivery_context):
+        """One DMA master read of RDATA carrying the DMA transaction identity.
+
+        This is the same measured TL-UL access as a routed CPU read, but the
+        context is the declared DMA master channel (``route_context_mode =
+        'dma_master'``): the real FIFO pop stays in ``uart_rdata_access`` and no
+        data is synthesized.  Only a read is declared; a DMA WDATA write keeps
+        the ordinary register write path (the TX serial pin is the evidence).
+        """
+        from myfuzz.scenario.ledger import TransactionKey
+        if not self.uart_fifo_observation_enabled:
+            raise ValueError('DMA master UART observation requires explicit variant')
+        if not self.source_provenance_enabled:
+            raise ValueError('DMA master UART access requires enabled source provenance')
+        if getattr(self, '_routed_uart_transaction', None) is not None:
+            raise RuntimeError('nested routed UART access')
+        if (type(source_transaction) is not TransactionKey
+                or any(type(getattr(source_transaction, name)) is not str
+                       or not getattr(source_transaction, name).strip()
+                       for name in ('execution_id', 'testcase_id',
+                                    'source_component', 'channel_id'))
+                or source_transaction.channel_id != 'dma-memory'
+                or type(source_transaction.source_epoch) is not int
+                or not 0 <= source_transaction.source_epoch < 1 << 64
+                or type(source_transaction.source_sequence) is not int
+                or not 0 < source_transaction.source_sequence < 1 << 64):
+            raise ValueError('invalid DMA master UART transaction identity')
+        self._offset(offset)
+        if (type(address) is not int or offset != 0x18 or write is not False
+                or type(value) is not int or value != 0
+                or type(be) is not int or be != 15):
+            raise ValueError('DMA master UART access must read RDATA with be=15')
+        component = self._artifact_document['plan']['instance_id']
+        expected = {'source_transaction': asdict(source_transaction),
+                    'device_id': component, 'address': address, 'offset': offset,
+                    'write': False, 'value': 0, 'be': 15}
+        if type(delivery_context) is not dict:
+            raise ValueError('DMA master UART delivery context mismatch')
+        actual = deepcopy(delivery_context)
+        if set(actual) != set(expected) | {'window_base', 'window_size'}:
+            raise ValueError('DMA master UART delivery context mismatch')
+        window_base = actual.pop('window_base')
+        window_size = actual.pop('window_size')
+        if (type(window_base) is not int or window_base != address - offset
+                or type(window_size) is not int or window_size < offset + 4
+                or window_size % 4 or window_base % 0x1000
+                or window_base + window_size > 1 << 64):
+            raise ValueError('DMA master UART window context mismatch')
+        try:
+            matches = json.dumps(actual, sort_keys=True, allow_nan=False) == json.dumps(
+                expected, sort_keys=True, allow_nan=False)
+        except (TypeError, ValueError):
+            matches = False
+        if not matches:
+            raise ValueError('DMA master UART delivery context mismatch')
+        context = {'address': address, 'window_base': window_base,
+                   'window_size': window_size,
+                   'route_context_mode': 'dma_master',
+                   'delivery_context': deepcopy(delivery_context)}
+        self._routed_uart_transaction = asdict(source_transaction)
+        self._routed_uart_context = context
+        try:
+            result = self.read_register(offset)
+            observed = deepcopy(getattr(self, '_last_uart_access', None))
+            if (not isinstance(observed, dict)
+                    or observed.get('kind') != 'uart_rdata_access'
+                    or observed.get('status') != 'observed'
+                    or observed.get('source_transaction') is None
+                    or observed.get('route_context_mode') != 'dma_master'
+                    or observed.get('read_value') != result):
+                raise RuntimeError('DMA master UART read lacks a real measured access')
+            return {'rdata': result, 'target_uart_access': observed,
+                    'target_access_id': observed['access_id']}
         finally:
             self._routed_uart_transaction = None
             self._routed_uart_context = None

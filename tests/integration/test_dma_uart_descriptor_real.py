@@ -102,9 +102,12 @@ def test_descriptor_three_directions_multiword_and_fresh_replay(tmp_path):
             destination=DESTINATION, illegal_target=ILLEGAL_TARGET,
             images={hex(address): len(image) for address, image
                     in descriptor_uart_images().items()}),
-        claim=dict(fifo_origin='unknown', source_authority='incomplete',
+        claim=dict(fifo_origin='accepted_uart_fifo_entry',
+            source_authority='accepted_uart_fifo_entry',
+            proof_grade='accepted_uart_fifo_chain',
             error_isr='separate S3 gate: test_dma_error_isr_real.py',
-            prefix_replay='S4 not implemented')
+            prefix_replay='typed fresh prefix '
+                          '(tests/integration/test_dma_prefix_replay_real.py)')
     ), sort_keys=True, indent=1), encoding='utf-8')
 
     assert result.phase == 'complete' and result.error is None
@@ -121,8 +124,14 @@ def test_descriptor_three_directions_multiword_and_fresh_replay(tmp_path):
         assert case['isr']['payload'] == spec.payload
         assert case['isr']['counter'] == case['case_index']
         assert case['irq']['edge_tick'] == case['irq']['source_tick']
-        assert case['source_authority'] == 'incomplete'
-        assert case['fifo_origin'] == 'unknown'
+        assert case['source_authority'] == 'accepted_uart_fifo_entry'
+        assert case['fifo_origin'] == 'accepted_uart_fifo_entry'
+        assert case['proof_grade'] == 'accepted_uart_fifo_chain'
+        authority = case['source_authority_evidence']
+        assert authority['missing'] == []
+        assert authority['authority']['installed'] is True
+        assert len(authority['retention']) == len(spec.source_bytes)
+        assert len(authority['reads']) == len(spec.source_bytes)
         assert case['fifo']['depth_after'] == 0
         assert case['fifo']['pushes'] == len(spec.source_bytes)
         # The real serial frames, FIFO pushes and pops cover the whole stream.
@@ -169,6 +178,11 @@ def test_descriptor_three_directions_multiword_and_fresh_replay(tmp_path):
     fresh = replay_descriptor_cases(loaded, cache_dir=cache)
     _save(evidence, 'fresh', fresh.to_document())
     assert fresh.cases == result.cases
+    from myfuzz.integration.dma_prefix_replay import (
+        compare_dma_prefix, prefix_reference)
+    reference = prefix_reference(result)
+    for case_count in range(1, len(CASES) + 1):
+        compare_dma_prefix(reference, fresh, case_count=case_count)
     assert fresh.local_ticks == result.local_ticks
     assert fresh.plan.commands == result.plan.commands
     assert fresh.identities == result.identities

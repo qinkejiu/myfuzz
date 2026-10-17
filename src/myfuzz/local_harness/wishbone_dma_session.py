@@ -132,26 +132,52 @@ class GeneratedWishboneDmaSession(GeneratedLocalSession):
         before_tick = target.endpoint.local_ticks
         before_events = len(target.endpoint.uart_events)
         rdata = 0
+        observation = None
+        route_mode = None
         if write:
             target.endpoint.write_register(address-target.base, value, be=15)
         else:
-            rdata = target.endpoint.read_register(address-target.base)
-            new_reads = [row for row in target.endpoint.uart_events[before_events:]
-                if row.get('kind') == 'uart_rdata_access']
-            observation = new_reads[0] if len(new_reads) == 1 else None
-            if (type(rdata) is not int or not 0 <= rdata <= 255
-                    or type(observation) is not dict
-                    or observation.get('status') != 'observed'
-                    or observation.get('read_value') != rdata
-                    or type(observation.get('access_id')) is not str
-                    or not observation['access_id']
-                    or observation.get('read_capture', {}).get('pre', {}).get(
-                        'probe_uart_fifo_rvalid') != 1
-                    or observation.get('read_capture', {}).get('pre', {}).get(
-                        'probe_uart_fifo_rdata_re') != 1
-                    or observation.get('read_capture', {}).get('pre', {}).get(
-                        'probe_uart_fifo_under_rst') != 0):
-                raise RuntimeError('DMA UART RDATA read lacks real FIFO pop proof')
+            master_access = (getattr(target.endpoint, 'master_target_access', None)
+                if getattr(target.endpoint, 'source_provenance_enabled', False)
+                else None)
+            if callable(master_access):
+                # S4: the DMA master read carries its own transaction identity,
+                # so the UART pop can be authenticated instead of being an
+                # unattributed ``read_register``.  The endpoint returns the very
+                # same measured ``uart_rdata_access`` record.
+                delivery_context = dict(source_transaction=asdict(key),
+                    device_id=target.component, address=address,
+                    offset=address-target.base, write=False, value=0, be=15,
+                    window_base=target.base, window_size=target.size)
+                reply = master_access(key, address=address,
+                    offset=address-target.base, write=False, value=0, be=15,
+                    delivery_context=delivery_context)
+                rdata = reply['rdata']
+                observation = reply.get('target_uart_access')
+                route_mode = 'dma_master'
+                if (not isinstance(observation, dict)
+                        or observation.get('status') != 'observed'
+                        or observation.get('read_value') != rdata):
+                    raise RuntimeError(
+                        'DMA UART RDATA read lacks real FIFO pop proof')
+            else:
+                rdata = target.endpoint.read_register(address-target.base)
+                new_reads = [row for row in target.endpoint.uart_events[before_events:]
+                    if row.get('kind') == 'uart_rdata_access']
+                observation = new_reads[0] if len(new_reads) == 1 else None
+                if (type(rdata) is not int or not 0 <= rdata <= 255
+                        or type(observation) is not dict
+                        or observation.get('status') != 'observed'
+                        or observation.get('read_value') != rdata
+                        or type(observation.get('access_id')) is not str
+                        or not observation['access_id']
+                        or observation.get('read_capture', {}).get('pre', {}).get(
+                            'probe_uart_fifo_rvalid') != 1
+                        or observation.get('read_capture', {}).get('pre', {}).get(
+                            'probe_uart_fifo_rdata_re') != 1
+                        or observation.get('read_capture', {}).get('pre', {}).get(
+                            'probe_uart_fifo_under_rst') != 0):
+                    raise RuntimeError('DMA UART RDATA read lacks real FIFO pop proof')
         target_receipt = dict(source_transaction=asdict(key),
             target_component=target.component, address=address,
             offset=address-target.base, write=write,
@@ -163,6 +189,7 @@ class GeneratedWishboneDmaSession(GeneratedLocalSession):
         if not write:
             target_receipt['target_access_id'] = observation['access_id']
             target_receipt['target_uart_access'] = observation
+            target_receipt['target_route_context_mode'] = route_mode
         return rdata, target_receipt
 
     def step_local(self, *, cyc=0, stb=0, we=0, adr=0, data=0):

@@ -157,8 +157,18 @@ def test_error_isr_valid_and_invalid_cases_one_boot_and_fresh_replay(tmp_path):
         assert case['isr']['mcause'] == 0x8000000B
         assert case['isr']['counter'] == case['case_index']
         assert case['irq']['edge_tick'] == case['irq']['source_tick']
-        assert case['source_authority'] == 'incomplete'
-        assert case['fifo_origin'] == 'unknown'
+        # S4: every admitted serial byte has an accepted retention and every
+        # real FIFO pop an accepted read-consumption proof joined to it.
+        assert case['source_authority'] == 'accepted_uart_fifo_entry'
+        assert case['fifo_origin'] == 'accepted_uart_fifo_entry'
+        assert case['proof_grade'] == 'accepted_uart_fifo_chain'
+        authority = case['source_authority_evidence']
+        assert authority['missing'] == []
+        assert len(authority['retention']) == len(spec.source_bytes)
+        assert len(authority['reads']) == len(spec.source_bytes)
+        assert authority['authority']['installed'] is True
+        assert authority['authority']['path_id']
+        assert authority['authority']['edge_index_sha256']
         assert case['fifo']['pushes'] == len(spec.source_bytes)
         assert case['fifo']['depth_after'] == 0
         if spec.expect == 'complete':
@@ -220,8 +230,11 @@ def test_error_isr_valid_and_invalid_cases_one_boot_and_fresh_replay(tmp_path):
             illegal_target=ILLEGAL_TARGET,
             images={hex(address): len(image) for address, image
                     in descriptor_uart_images().items()}),
-        claim=dict(fifo_origin='unknown', source_authority='incomplete',
-            prefix_replay='S4 not implemented')))
+        claim=dict(fifo_origin='accepted_uart_fifo_entry',
+            source_authority='accepted_uart_fifo_entry',
+            proof_grade='accepted_uart_fifo_chain',
+            prefix_replay='typed fresh prefix (tests/integration/'
+                          'test_dma_prefix_replay_real.py)')))
 
     # Fresh full-prefix replay: new native processes, identical plan/events/
     # ticks and identical per-case certificates (including the measured status).
@@ -230,6 +243,12 @@ def test_error_isr_valid_and_invalid_cases_one_boot_and_fresh_replay(tmp_path):
     fresh = replay_descriptor_cases(loaded, cache_dir=cache)
     _save(evidence, 'fresh', fresh.to_document())
     assert fresh.cases == result.cases
+    # S4 typed prefix comparison: every real event/tick/case of every prefix.
+    from myfuzz.integration.dma_prefix_replay import (
+        compare_dma_prefix, prefix_reference)
+    reference = prefix_reference(result)
+    for case_count in range(1, len(CASES) + 1):
+        compare_dma_prefix(reference, fresh, case_count=case_count)
     assert fresh.local_ticks == result.local_ticks
     assert fresh.plan.commands == result.plan.commands
     assert fresh.identities == result.identities
