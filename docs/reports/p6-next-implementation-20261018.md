@@ -75,3 +75,30 @@ CVW 最新 directed session 与 Vexii 固定 CPU/IP/IRQ 报告同样应覆盖旧
 修正仅限 `src/myfuzz/integration/cv32e40p_pulp_online.py:make_cv32e40p_pulp_online_runtime`：增加可选 `closed_loop_energy`，复用原 `_closed_loop_switch` 的布尔/环境解析及参数优先级，在 generated-artifact admission、bootstrap、factory、begin 之前拒绝真值。将解析后的 false 显式传给共享 builder，避免后续再次读取环境。非法环境仍使用原 resolver 错误，显式 false 按原规则覆盖环境 true。共享 Ibex builder/executor/producer 均未改动，也没有新增 producer 注入入口。
 
 行为边界：CV32 默认在线及已有 partial/交互反馈路径保留；该 wrapper 的关闭状态现在明确作为 constructor 参数传递，因此 executor 决策来源字段会标 constructor，不再区分 default/environment 关闭来源。拒绝能力不授任何新的认证、退休/IRQ观察或 P6通过。按本次任务限制未新增/运行测试、原生模型或远程命令；本节是源码追踪和差异说明，尚无执行验证结论。
+
+## 6. Stage B bounded native online 源码增量（未执行）
+
+本轮新增 `scenario/picorv32_native_online.py` 和 `integration/picorv32_native_online.py`，并只在实际 `local_harness/native_session.py` 与 `scenario/picorv32_native_cpu_example.py` 增加共享 opt-in 取指门。未新增/运行测试，未启动 frontend/build/native/remote；不是 P6 运行验收。
+
+### 实际请求和等待合同
+
+- 物理来源是 profile 的 `capabilities.instruction_identity_port=mem_instr`，由 runtime_renderer 验证唯一1bit observed output 后生成 `instruction_identity_observation`。不按地址猜测取指，也不把 read 当 retirement。
+- declare_instruction_slots 必须在进程/测试启动前且有该认证 marker；调用 PersistentMemory 的原始 reserve。accept_instructions 使用 MemoryService 原始一次写入/指令白名单/不覆盖规则，保留 instruction_source 事件，不推进时钟。
+- waiting_instruction_address 只来自上一真实 receipt 的 POST backend `m_req_valid/m_req_write/m_req_addr` 与同相 physical marker；未填满的声明字返回地址。该地址是 offered/unaccepted fetch，不是已消费指令。
+- 原生下一次 STEP_MEMORY readiness 对该请求置0，既不 MemoryService.read 也不随机 materialize；真实 ticks 照常，adapter 的请求稳定性和 REQUEST/RESPONSE 有限超时全部保留。实际数据 read 不因地址相同被当作取指；未填声明区域仍由原内存权限/InstructionNotReady 路径拒绝，数据 write 保留原真实 STORE 权限并会使后续 instruction admission 因已确定字节拒绝。
+- 来源可在 CPU 尚未到达槽时先提交。若首次启动就已出现未观察 POST 的未填请求，该通用 hook 不声称能预知它；新在线 bootstrap 的起始取指0已有初始映像，在线槽起始0x200须经实际 bootstrap 后到达。其他使用者须独立验收其启动窗口。
+- 原 `native_completion_memory_adapter.sv` 在 IDLE 锁存请求并在 REQUEST 等 backend ready，期间检查 valid/address/strobes/写数据稳定；Pico mem_state1在 mem_xfer 前保持 mem_instr，profile 禁压缩且单 outstanding。hook 不修改这些 RTL。host 采用 POST 决定下一次输入，而非预先合成 PRE。
+
+### 新构建与跨例对象合同
+
+在线 CPU 请求显式 max_wait_cycles=1024，GPIO请求仍16；原 fixture 的16和已有请求字节不改。新 artifact/build identity 必须独立构建；不能借旧 binary 授新等待能力。新 case 固定128 CPU +128 GPIO实际 ticks，初始化最多512个CPU/GPIO轮次；这些是前瞻声明边界，尚无实测证明足够或性能通过，失败必须如实保留，不自动加额。adapter1024是本地时钟界限，不是主机无限等待许可。
+
+factory 每次创建独立的 CPU/GPIO/Router/PersistentMemory/MemoryService/ledger；一个 runtime 仅调用一次 factory 并创建一个 ScenarioSession，所有 submit 共用它，不调用旧 PicoNativeGpioPair.runner、不重置/替换内存或 Router。fresh replay 才调用同 factory 建新实例。declare槽范围0x200..0xe00，RAM0..0x1000/seed7；bootstrap 在0由实际 CPU store 配置 PADDIR/GPIOEN，随后实际 JAL 到槽。固定 end 自环仅在槽末0xe00，未给新 IP 注入 readback、reset、状态或 IRQ。
+
+runtime.begin 才 begin/start/build 并有界 warmup，真实 POST 出现首个等待槽后停止 warmup。submit 解码一个 source，在同 session.submit_case 执行后 commit decoder；执行中任何异常使 runtime 永久 terminal并尝试原 runner.finalize，保留尝试计划/原始事件。无自动重试、标量替代或换进程继续。finish_export 保存原始完整计划/trace；replay 使用原 replay_online_session。最终化使用原 Runner，已接受 queuedMMIO/pending 仍按既有规则排空或失败，不将未接受的等待请求计作已交付响应。
+
+### 声明与证据上限
+
+decoder 声明 CPU instruction 与 GPIO低8bit source 两种来源，按原 weighted decoder 选择，不强制方向轮换；GPIO高24bit固定0。CPU可产生合法算术/NOP或仅 PADOUT4字节/PADIN只读窗口的 LW/SW；SB被拒绝。IP源只有一个固定NOP support，不自动塞入一条为“命中”准备的读取。选择/接受字节不证明 fetch/CPU消费；未观察下游消费仅 stage/partial。
+
+显式 RuntimePathContract 绑定实际cpu↔gpio0窗口0x40000000/4KiB与原ownership，在begin前安装原provenance；此静态路由不授 terminal证明。入口不创建默认 Ibex ChainCertificates，不授 IRQ/retirement/source权威、四类反馈认证、RFuzz搜索或P6整行能力。真实3例、两侧实际消费、全fresh、受控负例和source/tool/build联合验收均待审查后另行运行。

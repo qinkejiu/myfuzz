@@ -385,7 +385,7 @@ class DeferredNativeMemorySession(GeneratedNativeMemorySession):
             raise ValueError('native memory CPU has no declared external inputs')
         pending = self._pending
         queued = self._queued_mmio
-        controls = (int(pending is None and not queued and not self._quiescing),
+        controls = (self._native_request_ready(pending is None and not queued and not self._quiescing),
                     int(pending is not None), pending[0] if pending else 0, 0)
         receipt = self.command('STEP_MEMORY', controls)
         if receipt.status != 'result' or receipt.new_ticks != 1:
@@ -409,6 +409,7 @@ class DeferredNativeMemorySession(GeneratedNativeMemorySession):
         if accepted:
             if pending is not None or queued:
                 raise ProtocolEnvironmentError('native concurrent request')
+            self._check_native_online_acceptance(pre,payload['samples'][0])
             address = pre['m_req_addr']
             write = pre['m_req_write']
             be = pre['m_req_be']

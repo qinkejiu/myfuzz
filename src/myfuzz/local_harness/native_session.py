@@ -63,6 +63,49 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
         self.native_instruction_fetch_count=0
         self.accepted_addresses=[]
         self.last_samples=()
+        self._online_instruction_slots=False
+
+    def declare_instruction_slots(self, address, count=1):
+        """Opt in before startup; only an authenticated physical marker may gate fetches."""
+        if self.process is not None or self._case_id is not None:
+            raise RuntimeError('native instruction slots require pre-start declaration')
+        marker=self._artifact_document.get('instruction_identity_observation')
+        if not marker:
+            raise ValueError('native online instructions require physical instruction identity')
+        self.memory.declare_instruction_slots(address,count)
+        self._online_instruction_slots=True
+
+    @property
+    def waiting_instruction_address(self):
+        """Actual POST offered, not accepted, fetch waiting for a declared word."""
+        if not self._online_instruction_slots or not self.last_samples:
+            return None
+        post=self.last_samples[-1]['post']
+        backend=post['backend']
+        marker=self._artifact_document['instruction_identity_observation']
+        if (backend['m_req_valid'] and not backend['m_req_write']
+                and post['physical'][marker] == 1
+                and self.memory.instruction_slot_unmaterialized(backend['m_req_addr'])):
+            return backend['m_req_addr']
+        return None
+
+    def accept_instructions(self,address,data,*,source_event_id):
+        if not self._online_instruction_slots:
+            raise ValueError('native instruction slots were not declared')
+        self.service.accept_instructions(address,data,source_event_id=source_event_id)
+
+    def _native_request_ready(self,available):
+        # Withheld readiness leaves the real adapter in REQUEST. Its original
+        # finite timeout and request-stability checks still run on every tick.
+        return int(bool(available) and self.waiting_instruction_address is None)
+
+    def _check_native_online_acceptance(self,pre,sample):
+        if not self._online_instruction_slots:
+            return
+        marker=self._artifact_document['instruction_identity_observation']
+        if sample['pre']['physical'][marker] == 1:
+            if pre['m_req_write'] or (self.router is not None and self.router.owns(pre['m_req_addr'])):
+                raise ProtocolEnvironmentError('native instruction fetch cannot write or reach MMIO')
 
     def identity_document(self):
         return {**super().identity_document(),
@@ -131,7 +174,7 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
         if not isinstance(inputs,Mapping) or inputs:
             raise ValueError('native memory CPU has no declared external inputs')
         pending=self._pending
-        controls=(int(pending is None and not self._quiescing),int(pending is not None),pending[0] if pending else 0,0)
+        controls=(self._native_request_ready(pending is None and not self._quiescing),int(pending is not None),pending[0] if pending else 0,0)
         receipt=self.command('STEP_MEMORY',controls)
         if receipt.status!='result' or receipt.new_ticks!=1:
             self._abort()
@@ -151,6 +194,7 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
             self._pending=None
         if accepted:
             if pending is not None:raise ProtocolEnvironmentError('native concurrent request')
+            self._check_native_online_acceptance(pre,payload['samples'][0])
             address=pre['m_req_addr'];write=pre['m_req_write'];be=pre['m_req_be'];value=pre['m_req_wdata']
             if address%4 or (not write and be!=self.read_request_be):
                 self._abort();raise ProtocolEnvironmentError('native unaligned or incomplete read')
