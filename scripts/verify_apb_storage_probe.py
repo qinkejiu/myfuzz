@@ -173,6 +173,10 @@ def _negative_controls(work, runtime_sv, wrapper_path, source_paths,
             cwd=work, timeout=300)
         if result.returncode == 0:
             raise VerificationError(f'negative-control-not-refused: {name}')
+        diagnostics = (result.stderr or '') + (result.stdout or '')
+        if "Can't find definition" not in diagnostics:
+            raise VerificationError(
+                f'negative-control-wrong-failure: {name}')
         controls.append(dict(mutation=name, exit_code=result.returncode,
                              refused=True))
     return controls

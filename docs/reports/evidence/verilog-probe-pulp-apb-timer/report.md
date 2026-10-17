@@ -28,7 +28,9 @@ Generator input: the committed scenario config, D2 generation only via
 are byte-identical to the I3 run: runtime `3ec91be8…`, wrapper `7bffa340…`).
 
 Verilator lint (`--lint-only --top-module local_runtime_peripheral`) exits 0.
-Three mutated runtimes containing an unbound expression all exit 1:
+Three mutated runtimes containing an unbound expression all exit 1 with a
+Verilator `Can't find definition` resolution error (an unrelated lint failure
+does not count as a refused control):
 
 | negative control | mutation | result |
 |---|---|---|
