@@ -1478,7 +1478,12 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
 
     requested = [name for name, stage in summary['stages'].items()
                  if stage['status'] != NOT_REQUESTED]
-    if all(summary['stages'][name]['status'] == OK for name in requested):
+    # A driver-level refusal is recorded outside ``stages`` (there is no driver
+    # stage in the published map).  It must still prevent a vacuous "all
+    # requested stages are ok" completion, otherwise an early driver exception
+    # reports complete/exit 0 with a refusal in the same document.
+    if not summary['refusals'] and all(
+            summary['stages'][name]['status'] == OK for name in requested):
         if summary['fresh_replay'] is not None and not summary['fresh_replay']['matches']:
             summary['status'] = RUN_DIFFERENCE
         else:

@@ -567,3 +567,31 @@ def test_the_help_text_matches_the_shipped_stages():
         'longer performs')
     assert missing_documented_artifacts(result.stdout) == [], (
         'the help text no longer names every artifact a run writes')
+
+
+def test_a_driver_exception_can_never_report_complete(tmp_path, monkeypatch):
+    """A refusal outside ``stages`` must still make the run incomplete.
+
+    ``refuse('driver', ...)`` records a refusal but there is no driver stage in
+    the published map.  The completion predicate used to be vacuously true when
+    no stage was requested, so an early driver exception produced
+    ``status=complete`` and exit 0 alongside a refusal.  The predicate now also
+    requires the refusal list to be empty; this pins it without starting RTL.
+    """
+    from myfuzz.local_harness import auto_harness_test as driver
+    from myfuzz.local_harness.auto_harness_test import (
+        AutoHarnessRefused, run_auto_harness_test)
+
+    def refuse_d2(*args, **kwargs):
+        raise AutoHarnessRefused('synthetic-driver-refusal', '/harness_set')
+
+    monkeypatch.setattr(driver, 'generate_harness_set', refuse_d2)
+    summary = run_auto_harness_test(
+        cpu=ROOT / IBEX_CPU, ips=[ROOT / GPIO],
+        compose=ROOT / SOLO_COMPOSE, output=tmp_path / 'run',
+        base_dir=ROOT, skip_session=True, label='driver-refusal')
+    assert summary['status'] != 'complete', summary
+    assert summary['exit_code'] != 0
+    assert any(row.get('stage') == 'driver'
+               and row.get('code') == 'synthetic-driver-refusal'
+               for row in summary['refusals']), summary['refusals']
