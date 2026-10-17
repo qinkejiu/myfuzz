@@ -2,6 +2,8 @@
 
 ## 2026-10-18 I5 首轮前置失败与工具查询实际结果
 
+- **第二份工作集已启动 staging/规划，尚未 ready：** 601964f v2 保留空目录，root 实际新建独立 operation；复制同一进程继续中，未启动第二次负例/RTL门。见[活动记录](reports/evidence/p7-i5-attempt2-preparation-20261018/operation.json)。
+
 - **工具元数据查询实际通过：**9个版本/身份查询子进程均exit0，source/tools unchanged；不属于frontend/build/test/native。
 - **I5 attempt1在N1前失败：** before/after Git status均exit128，Ibex `.git/refs`空目录在file-only复制/传输中遗漏；negative_results为空。独立归档两份15,333文件map相同，不能据此证明目录结构完整。
 - [完整终态与原始证据](reports/p7-i5-remote-independent-preparation-20261018.md)：44个remote记录文件及本地control已归档；外层I5 exit1为root报告，归档无独立父进程exit回执。旧attempt保留；601964f目录修复仅源码审查通过，新副本/重跑待门禁。P7 I5和整体P6/P7/P8仍开放。

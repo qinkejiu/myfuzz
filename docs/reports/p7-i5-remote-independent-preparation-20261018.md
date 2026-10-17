@@ -56,3 +56,11 @@ Ibex提交`34b0705760ef3dfa00e99637432473d2be8f22f3`；GPIO提交`f82caeb7f7d894
 - `independent-summary.json`：离线JSON/哈希核对结果及外层exit回执缺口。初次离线核对误用python3.12 executable basename定位stdout，已改为实际编号前缀匹配；未改变原归档或运行项目代码。
 
 归档齐全范围是上述两个remote目录及当前本地control目录；不是整个远程operation/source/tools包，外层I5退出记录仍需root控制器另行补齐。采集仅经jumpserver只读tar流下载，没有修改远程run、测试、构建或重跑。P7 I5、P6/P8与整个系统继续开放。
+
+## 第二份工作集：实际 staging/规划进行中
+
+601964f 的 v2 准备器及两份外围控制脚本经独立源码审查后，root 已启动新 operation `p7-i5-independent-601964f-20261018-attempt2` 的纯文件 staging/规划。源是保留的首轮 project；先核旧15,333文件 freeze，仅在新 staging 恢复原材料化中实际存在的 Ibex `refs`、`refs/heads`、`refs/tags` 三个0755目录，并覆盖精确601964f准备器。原 source 的文件/目录清单前后均需一致。
+
+截至本次检查，复制仍运行（SSH session19867，最近观察1,470个 staging 文件），**尚无已审核 v2 selection、最终 project 或 ready 标记**；尚未执行第二次 N1–N8/原生门。控制脚本不会自动从 plan 进入 prepare；root 必须审查实际 manifest 后单独调用 v2 prepare，再核最终文件及目录清单。新验收父进程控制器增加实际 PID/退出和 stdout/stderr SHA 回执、运行前后独立目录核验，但仍未启动。
+
+[第二轮控制输入与活动操作记录](evidence/p7-i5-attempt2-preparation-20261018/operation.json)保存已审查控制脚本、精确目录 recipe 和上传结果。复制耗时不触发重启；继续观察同一进程。此记录不是复制完成或 P7 通过。

@@ -1,0 +1,12 @@
+{
+  "status": "stage_plan_running_not_ready",
+  "ssh_session_id": 19867,
+  "new_operation": "/root/fanzehui/myfuzz/operations/p7-i5-independent-601964f-20261018-attempt2",
+  "inputs": "/root/fanzehui/myfuzz/operations/p7-i5-attempt2-inputs-20261018",
+  "archive_sha256": "6596a61cf46d00acb4e225f42f59128f2a5d7c76acc515a06418354632cd2e50",
+  "source_attempt1_immutable": true,
+  "latest_observation_staging_files": 1470,
+  "prepare_executed": false,
+  "negatives_executed": false,
+  "formal_p7_complete": false
+}
