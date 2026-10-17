@@ -635,14 +635,23 @@ def _synthetic_rows(case, case_index=1):
         write=False, read_value=0)
     descriptor = case.source_bytes[:4]
     drained = case.source_bytes[4:]
-    for byte in descriptor + (drained if case.direction != 'RX_TO_RAM' else ()):
+    for pop_index, byte in enumerate(
+            descriptor + (drained if case.direction != 'RX_TO_RAM' else ())):
         depth -= 1
-        rows.add('uart_rdata_access', source_transaction={'channel_id': 'data'},
+        # The real journal carries the same routed access twice: a top-level
+        # uart_rdata_access external event and the nested target_uart_access of
+        # the CPU mmio_delivery.  On a step boundary the top-level copy can be
+        # absent, so both shapes are real CPU-pop sources.
+        access = dict(access_id=f'cpu-access-{pop_index}',
+            source_transaction={'channel_id': 'data'},
             raw_offset=firmware.UART_RDATA_OFFSET, status='observed',
-            read_value=byte, read_capture={'pre': _fifo(depth + 1, byte, phase='pre'),
+            read_value=byte, read_capture={
+                'pre': _fifo(depth + 1, byte, phase='pre'),
                 'post': _fifo(depth, 0, phase='post')})
+        rows.add('uart_rdata_access', **access)
         rows.add('mmio_delivery', device_id='uart',
-            offset=firmware.UART_RDATA_OFFSET, write=False, read_value=byte)
+            offset=firmware.UART_RDATA_OFFSET, write=False, read_value=byte,
+            target_uart_access=dict(access, kind='uart_rdata_access'))
     rows.add('memory_write', component='cpu', address=firmware.WITNESS_POINTER,
         value=program['witness'], version=[0, 1])
     for offset, value in ((8, program['source']), (12, program['destination']),
@@ -774,10 +783,17 @@ def test_synthetic_journal_certifies_every_direction(direction, dst_index,
     if direction == 'RX_TO_RAM':
         assert [pop['kind'] for pop in evidence['fifo']['pops']] == ['cpu'] * 4 \
             + ['dma'] * length
+        # Both real copies exist for every CPU pop in the journal and must be
+        # deduplicated by access_id, not counted twice.
+        assert [pop['source'] for pop in evidence['fifo']['pops']
+                if pop['kind'] == 'cpu'] == ['top_level'] * 4
+        assert all(pop['source'] == 'dma-master'
+                   for pop in evidence['fifo']['pops'] if pop['kind'] == 'dma')
         assert [pop['pre_depth'] for pop in evidence['fifo']['pops']][-length:] \
             == list(range(length, 0, -1))
     else:
         assert [pop['kind'] for pop in evidence['fifo']['pops']] == ['cpu'] * (4 + length)
+        assert [pop['source'] for pop in evidence['fifo']['pops']] == ['top_level'] * (4 + length)
     if direction == 'RAM_TO_RAM':
         assert [commit['version'] for commit in evidence['ram_commits']] == [
             [0, 10 + index] for index in range(length)]
@@ -792,7 +808,9 @@ def _drop(rows, predicate):
 @pytest.mark.parametrize('predicate,message', [
     (lambda row: row.get('kind') == 'uart_frame_validation',
      'matched native serial frame'),
-    (lambda row: row.get('kind') == 'uart_rdata_access',
+    (lambda row: row.get('kind') == 'uart_rdata_access'
+        or (row.get('kind') == 'mmio_delivery'
+            and row.get('offset') == firmware.UART_RDATA_OFFSET),
      'CPU must pop exactly'),
     (lambda row: row.get('kind') == 'dma_edge'
         and isinstance(row.get('accepted'), dict) and row['accepted'].get('write'),
@@ -934,6 +952,62 @@ def test_certifier_refuses_a_tx_capture_that_does_not_match_the_payload():
                 payload=0x5A, length=1))),
             DescriptorCase.create('RX_TO_RAM', dst_index=0, payload=0x5A, length=1),
             case_index=1, tx_captures=(0x5A,))
+
+
+def _remove_last_top_level_pop(rows):
+    indices = [index for index, row in enumerate(rows)
+               if row.get('kind') == 'uart_rdata_access'
+               and (row.get('source_transaction') or {}).get('channel_id') == 'data']
+    del rows[indices[-1]]
+    return rows
+
+
+def _strip_last_nested_copy(rows, *, drop_access_id=False):
+    deliveries = [row for row in rows
+                  if row.get('kind') == 'mmio_delivery'
+                  and row.get('offset') == firmware.UART_RDATA_OFFSET
+                  and row.get('write') is False]
+    nested = deliveries[-1]['target_uart_access']
+    if drop_access_id:
+        nested.pop('access_id', None)
+    else:
+        deliveries[-1].pop('target_uart_access', None)
+    return rows
+
+
+def test_certifier_uses_a_nested_target_uart_access_when_top_level_is_absent():
+    # Exact real-journal shape from the second gate failure: the fourth CPU
+    # RDATA pop (tx13) exists only as mmio_delivery.target_uart_access.
+    case = DescriptorCase.create('RX_TO_RAM', dst_index=0, payload=0x5A, length=1)
+    rows = _remove_last_top_level_pop(_synthetic_rows(case))
+    witnesses = extract_case_witnesses(rows)
+    assert len(witnesses.cpu_pops) == 4
+    assert [event.get('_pop_source') for event in witnesses.cpu_pops] == [
+        'top_level', 'top_level', 'top_level', 'nested']
+    evidence = certify_descriptor_case(witnesses, case, case_index=1)
+    assert evidence['beat_count'] == 2
+    assert [pop['read_value'] for pop in evidence['fifo']['pops']
+            if pop['kind'] == 'cpu'] == list(case.source_bytes[:4])
+    assert [pop['source'] for pop in evidence['fifo']['pops']
+            if pop['kind'] == 'cpu'] == ['top_level', 'top_level', 'top_level',
+                                         'nested']
+
+
+def test_certifier_refuses_a_cpu_pop_with_neither_top_level_nor_nested_copy():
+    case = DescriptorCase.create('RX_TO_RAM', dst_index=0, payload=0x5A, length=1)
+    rows = _strip_last_nested_copy(_remove_last_top_level_pop(_synthetic_rows(case)))
+    with pytest.raises(RuntimeError, match='CPU must pop exactly'):
+        certify_descriptor_case(extract_case_witnesses(rows), case, case_index=1)
+
+
+def test_certifier_requires_a_real_access_id_on_the_nested_copy():
+    # Without the real access identity the copy cannot be joined to the FIFO
+    # evidence, so it is not guessed into the pop count.
+    case = DescriptorCase.create('RX_TO_RAM', dst_index=0, payload=0x5A, length=1)
+    rows = _remove_last_top_level_pop(_synthetic_rows(case))
+    rows = _strip_last_nested_copy(rows, drop_access_id=True)
+    with pytest.raises(RuntimeError, match='CPU must pop exactly'):
+        certify_descriptor_case(extract_case_witnesses(rows), case, case_index=1)
 
 
 def test_witness_extraction_never_reclassifies_a_dma_pop_as_cpu():

@@ -1,5 +1,6 @@
 {
  "claims": {
+  "cpu_pop_sources": "top-level uart_rdata_access and nested mmio_delivery.target_uart_access are deduplicated by real access_id; count remains 4+len",
   "fifo_origin": "unknown",
   "firmware_expectations": "none; the ISR compares no expected value",
   "host_writes": "refused; every guarded store is CPU or DMA",
@@ -8,7 +9,7 @@
   "source_authority": "incomplete",
   "status_readback": "ISR status bit29/28 must equal the written CONTROL inc bits"
  },
- "created_utc": "2026-10-17T12:08:48Z",
+ "created_utc": "2026-10-17T12:16:43Z",
  "deviations": {
   "control_word": {
    "design": "0x0fed0001 for every direction",
@@ -23,13 +24,14 @@
   "tx_drain_bound": "320*len + 320 ticks (one idle-frame alignment margin)"
  },
  "files": {
-  "README.md": "9044d0f04c74af7e2b6675fa7a54755c416dfb15f42138a0a5c370d3bec5a9b1",
+  "README.md": "09875f470424d5da8090fea4f9231d5ef0d777d54a1d2a9ef88b535b614c5f82",
   "descriptor-program.json": "db0a4daf48bd188a9f6a7c3fb712f0988abd8cf19e5f06e764db474765e778c1",
   "generate_software_evidence.py": "2584f527f3b8e06ec2e3e2e8b1a065145a1adb6a0b000a7d50d3208c66672efb",
   "real-gate-attempt-8dd3e70.md": "ba94dc515aa32732863a215bc023eb5d142b8c05553550f70c293caf31bdaa23",
-  "software-descriptor-unit.txt": "c7e9f282e8c61086ffe2bf0e2df56000b512010cf412177a35e25ee97729ad48",
-  "software-focused-gate.txt": "2850050cf08e048eca0ad83298d8cf1d4fada0cf1432fbb75ef6e2e09f40c797",
-  "software-search-regression.txt": "5e9541144397287e5ab9d9c11c8da2902d74aaa9ca32108cc9dda0a8c1939186"
+  "real-gate-attempt-90652e9.md": "ed87f18684b4c9b080cee8932f7695601332095c81a4cf698b0320d95d59bcd1",
+  "software-descriptor-unit.txt": "cba4541c6103ea95fd9c58e8e510bacfa38f32ffe843520f112cc13b6ff7fbcc",
+  "software-focused-gate.txt": "a00030009be98789e0ceb113f945ba6889df86e31f5d15113fc3e2c4666e9d1b",
+  "software-search-regression.txt": "8d69023db83f80e949949b3163717adf58b37b59863d7ae3b9aa8e728a79aed3"
  },
  "increment": "P8 S2 external serial descriptor firmware + three directions + multi-word FIFO",
  "real_gate": {
@@ -55,9 +57,18 @@
    "first_case": "RX_TO_RAM len=1 source_count=5 commands=4793",
    "fix": "push-tick depths must be exactly 0..n-1; next tick = +1; chain contiguous",
    "record": "real-gate-attempt-8dd3e70.md",
-   "record_values": "push tick pre==post depth 0,1,2,3,4 at event_id 3595/7062/10521/13988/17447 (main-session probe log); +1 on the next tick (saved S1 journal event 3591)",
+   "record_values": "push tick pre==post depth 0,1,2,3,4 at event_id 3595/7062/10521/13988/17447; +1 on the next tick",
    "result": "failed",
    "snapshot": "8dd3e70f48d7694309a86a92506b716769b4e032"
+  },
+  {
+   "failure": "RuntimeError: CPU must pop exactly the descriptor and drained payload bytes",
+   "first_case": "RX_TO_RAM len=1; depth check passed",
+   "fix": "merge top-level uart_rdata_access and nested mmio_delivery.target_uart_access by access_id",
+   "record": "real-gate-attempt-90652e9.md",
+   "record_values": "3 top-level pops (events 18476/18621/18766) + 1 nested-only pop inside mmio_delivery event 18849 (read_value=90, no event_id)",
+   "result": "failed",
+   "snapshot": "90652e9"
   }
  ],
  "schema_version": "dma_s2_evidence_manifest.v1",
@@ -66,20 +77,20 @@
    "command": "the same focused list plus test_dma_uart_rx_boot_object.py and test_dma_uart_rx_uart_schedule.py",
    "failed": 0,
    "note": "re-run after the push-depth fix",
-   "passed": 92,
+   "passed": 95,
    "skipped": 3
   },
   "descriptor_unit": {
    "command": "PYTHONPATH=src python3 -m pytest -q tests/integration/test_dma_uart_descriptor.py",
    "failed": 0,
-   "passed": 51,
+   "passed": 54,
    "skipped": 0
   },
   "focused": {
    "command": "design section 6.2 list (9 files) + tests/integration/test_dma_uart_descriptor.py + tests/integration/test_dma_uart_descriptor_real.py",
    "failed": 0,
    "note": "the 4 skips are the three pre-existing explicit-native gates plus the new queued descriptor gate",
-   "passed": 71,
+   "passed": 74,
    "skipped": 4
   },
   "search_regression": {
@@ -92,8 +103,8 @@
  "status": {
   "p8_passed": false,
   "real_rtl_evidence_present": false,
-  "real_rtl_gate": "attempt_failed_on_8dd3e70_fixed_requeued",
-  "reason": "first frozen-snapshot attempt failed on the real push-depth sampling semantics; the certifier was fixed and the gate must be re-run on a frozen snapshot",
+  "real_rtl_gate": "two_attempts_failed_fixed_requeued",
+  "reason": "attempt 1 (8dd3e70) failed on real push-depth sampling; attempt 2 (90652e9) failed on a CPU RDATA pop recorded only as the nested mmio_delivery.target_uart_access; both were fixed and the gate is re-queued on a frozen snapshot",
   "uncovered": [
    "S3 invalid descriptors + real CPU error ISR",
    "S4 source admission, typed normalizer and certified prefix replay"

@@ -2,7 +2,7 @@
 
 - 增量：P8 S2（只做 S2；不做 S3 真实 error ISR、不做 S4 认证/typed normalizer/前缀 replay）
 - 日期：2026-10-18
-- 状态：源码 + 纯软件测试已提交。真实门曾在冻结快照 `8dd3e70` 上尝试并失败（FIFO push depth 字段位置），已按真实 journal 语义修复并补负例锁字段；**修复后的真实门重新排队，尚未在冻结快照重跑**。P8 整体仍不通过。
+- 状态：源码 + 纯软件测试已提交。真实门已尝试两次并均失败：`8dd3e70`（FIFO push depth 采样语义，§7.4）、`90652e9`（CPU RDATA pop 只在 mmio_delivery 内嵌 `target_uart_access`，§7.5）。两次都已按真实 journal 修复并补负例锁字段；**修复后的真实门重新排队，尚未在冻结快照重跑**。P8 整体仍不通过。
 - 证据目录：`docs/reports/evidence/dma-s2-20261018/`（仅软件证据，明确标注无 RTL 观测）
 
 ## 1. 结论摘要
@@ -129,7 +129,7 @@
 `certify_descriptor_case` 只接受 real journal rows（`CaseWitnesses`），强制以下 join；任一缺失即 RuntimeError：
 
 - **源**：每个 action id 恰好一个 `uart_frame_validation(waveform_matched=True)`，字节/顺序与 spec 完全一致；frame id 唯一；`source_injection` 计数与值一致；
-- **FIFO**：每个串行字节恰好一次 `uart_tick_observation` post `wvalid&wready` push；push 的**真实深度按 pinned 采样语义从下一个 tick 样本读取**——push strobe 那个 tick 的 `post.probe_uart_fifo_depth` 仍是压入前占用（真实样本：push tick post depth=0/data=90，下一 tick post depth=1/head=90），证书要求“下一 tick 的 depth = 本 tick 的 depth+1”、`push.post.probe_uart_fifo_data == byte`、相邻 push 的深度链连续；CPU pop 数 = 4（RX）或 4+len（RAM/TX）；RX 的 DMA pop 数 = len；每个 pop 都有 `pre/post` 真实 depth/head/rvalid/rdata_re 探针，`post.depth = pre.depth-1`、`pre.head = byte`；总 push = 总 pop = 4+len；
+- **FIFO**：每个串行字节恰好一次 `uart_tick_observation` post `wvalid&wready` push；push 的**真实深度按 pinned 采样语义从下一个 tick 样本读取**——push strobe 那个 tick 的 `post.probe_uart_fifo_depth` 仍是压入前占用（真实样本：push tick post depth=0/data=90，下一 tick post depth=1/head=90），证书要求“push tick 深度流恰为 0..n-1、下一 tick 的 depth = 本 tick 的 depth+1”、`push.post.probe_uart_fifo_data == byte`、相邻 push 的深度链连续；CPU pop 数 = 4（RX）或 4+len（RAM/TX），pop 来源同时接受**顶层 `uart_rdata_access`** 与**CPU `mmio_delivery.target_uart_access` 内嵌副本**，按真实 `access_id` 去重（真实 journal 的 4 次 RDATA 可能只有 3 个顶层事件，第 4 次只在 delivery 内嵌对象里），`fifo.pops[].source` 记录 top_level/nested；RX 的 DMA pop 数 = len；每个 pop 都有 `pre/post` 真实 depth/head/rvalid/rdata_re 探针，`post.depth = pre.depth-1`、`pre.head = byte`；总 push = 总 pop = 4+len；
 - **CPU 真实配置**：DMA 的 `mmio_delivery` 写序列必须是 `(8,SOURCE),(12,DEST),(4,LEN),(0,CONTROL)`，值与 `descriptor_program` 完全一致；CONTROL key=`0xfed`；witness 指针 store 早于 CONTROL；RX 无 RAM 源写，RAM/TX 有 len 次真实 CPU store 且早于首个 DMA read；
 - **DMA beats**：恰好 `2*len` 个 accepted beat，逐字 read→write；地址等于声明源/目的 beat 地址；read/write 的 transaction 身份同源、`source_sequence` 相邻且全程严格递增不重复（“不重复执行”）；RAM 源读的 response `rdata == payload`；RX 读的 target delivery 带真实 UART FIFO pop 证明；TX 写的 target delivery 地址 WDATA、值 payload；
 - **RAM commit**：目的方向恰好 len 个 `memory_write(component='dma')`，值 payload、`version` 存在且严格递增、是 accepted write 的真实效果；TX 方向无目的 RAM commit；
@@ -154,7 +154,7 @@
 ```sh
 cd /home/qinkejiu/myfuzz
 PYTHONPATH=src python3 -m pytest -q tests/integration/test_dma_uart_descriptor.py
-# 51 passed
+# 54 passed
 
 PYTHONPATH=src python3 -m pytest -q \
   tests/scenario/test_ibex_dma_example.py \
@@ -168,7 +168,7 @@ PYTHONPATH=src python3 -m pytest -q \
   tests/integration/test_dma_uart_rx_replay_state_edges.py \
   tests/integration/test_dma_uart_descriptor.py \
   tests/integration/test_dma_uart_descriptor_real.py
-# 71 passed, 4 skipped
+# 74 passed, 4 skipped
 
 PYTHONPATH=src python3 -m pytest -q \
   tests/integration/test_dma_uart_rx_search.py \
@@ -177,19 +177,20 @@ PYTHONPATH=src python3 -m pytest -q \
 # 30 passed
 ```
 
-4 个 skip = 3 个既有 explicit-native 门 + 新的 queued descriptor 门。focused 列表并入 S1a/S1c 的 `test_dma_uart_rx_boot_object.py`、`test_dma_uart_rx_uart_schedule.py` 后为 `92 passed, 3 skipped`（数量只增不减）。
+4 个 skip = 3 个既有 explicit-native 门 + 新的 queued descriptor 门。focused 列表并入 S1a/S1c 的 `test_dma_uart_rx_boot_object.py`、`test_dma_uart_rx_uart_schedule.py` 后为 `95 passed, 3 skipped`（数量只增不减）。
 
 ### 7.3 软件测试覆盖
 
 - 固件布局/控制字/窗口/程序表；`MAIN+main<=MTVEC`、`ISR` 在 RAM 内；
 - **RV32I 模型**（仅测试用解释器 + UART/DMA 行为模型，不是 RTL）：六组方向/多字参数各跑一次，断言 CPU 真实写出的 DMA 四寄存器、beats 地址/值、pop 序列、RAM 源字、TX 字节、ISR 五字；一次 boot 连跑三方向 + 多字四例，counter 单调；direction code 3 走声明非法目标（无 beat、status bit30、真实 IRQ/ISR）；`len` 未入队 payload 时模型在 DMA 空 pop 处失败（证明 pre-RTL 守卫的必要性）；
 - 描述符解码掩码/长度/payload 相等/非法字段构造拒绝；窗口收窄、非法 offset 声明缺失、未知窗口、半开窗口语义；
+- CPU pop 形状锁：默认 fixture 同时含顶层与内嵌副本（按 `access_id` 去重后仍为 4 个 CPU pop）；“只有第 4 次内嵌 `target_uart_access`”正例；两种副本都缺、内嵌缺 `access_id` 两个负例；
 - push 深度字段锁：合成 journal 的 push tick 深度写 0..N-1（与真实 pinned 采样一致），证书要求整条 push tick 流恰为 0..n-1、下一 tick = +1 且链连续；负例覆盖“深度不递增”“push 数据字段不符”“push 后缺少 tick 样本”“跳号”“重复”“起点非空”“push 缺失”，防止退回把 push tick 深度当压入后深度或用 host 计数；
 - plan↔spec 硬 join（值/action id/分量/端口/位宽）；
 - 合成 journal 正例（三方向、len 1/2/3/4）与负例：缺 frame/pop/beat/RAM commit/source_start/cpu take/external take 必失败；篡改 counter/payload store/frame/pop 必失败；host 写被测地址必失败；TX 捕获不匹配必失败；DMA pop 不得被洗成 CPU pop；
 - fake-runner boot 机制：一次 boot 两例的 plan 源字节/action id 完全一致、command/event/tick 边界链接、拒绝不消费、ISR 不完成时保留尝试边界与 prefix digest。
 
-### 7.4 真实门失败与修复（8dd3e70）
+### 7.4 真实门第一次失败与修复（8dd3e70）
 
 主会话在冻结快照 `8dd3e70` 上首次运行真实门，第一例 `RX_TO_RAM len=1` 在 4793 commands 后失败：
 
@@ -213,6 +214,28 @@ dma_uart_descriptor_runtime.py:571  push_depths=... event['post'].get('probe_uar
 新增负例：push 后深度不递增、push 数据字段不符、push 后缺少 tick 样本、深度跳号、深度重复、case 起点 FIFO 非空（整体 0..n-1 被平移）、push 缺失都必须失败；正例的 push tick 深度写成 0..N-1（与真实 0,1,2,3,4 完全一致），若实现退回把 push tick 的深度当压入后深度会立即失败。这锁住了正确字段与语义，且证据仍全部来自真实 RTL 采样。
 
 **说明**：S1b 的 `dma_chain_feedback` 把 `fifo_push_depth_*` 直接建在 push tick 的 `post.probe_uart_fifo_depth` 上，该桶在真实证据里恒为 0；它只是搜索 feature，不是 authority，S2 未改它（避免动 S1b 证据），留给 S4 typed feedback 统一修正。
+
+### 7.5 真实门第二次失败与修复（90652e9）
+
+第二次真实门（快照 `90652e9`，复用 cache）通过了 push-depth 检查，但第一例 `RX_TO_RAM len=1` 又失败：
+
+```
+RuntimeError: CPU must pop exactly the descriptor and drained payload bytes
+```
+
+**根因（真实 journal 形状）**：4 次 CPU UART RDATA 只有 3 个顶层 `uart_rdata_access`（tx7/9/11，event 18476/18621/18766）；第 4 次（tx13，`read_value=90`，`mmio_delivery` event 18849）只存在于 `mmio_delivery.target_uart_access` 内嵌对象（`kind='uart_rdata_access'`、`read_value=90`、`read_capture` 齐全、**无 event_id**）。`extract_case_witnesses` 只数顶层事件，于是得到 3 个 pop。
+
+**修复（不降级、不用 host 计数）**：`_merge_cpu_pops` 同时读取两种真实形状：
+
+1. 顶层 `uart_rdata_access`（`source_transaction.channel_id='data'`）；
+2. CPU `mmio_delivery`（`device_id='uart'`、`offset=0x18`、`write=false`）里的 `target_uart_access`（`kind='uart_rdata_access'`）；
+3. 按真实 `access_id` 去重，同一次访问只计一次；内嵌-only 的 pop 以承载它的 `mmio_delivery.event_id` 作为 journal 锚点并参与顺序排序；
+4. 内嵌对象缺真实 `access_id` 时**忽略而不猜测**，计数会不足并在证书里明确报 top_level/nested 计数；
+5. 计数断言不变：`4 + len`（RX 为 4，RAM/TX 为 4+len）；`fifo.pops[].source` 记录 `top_level`/`nested`。
+
+**测试**：合成 fixture 现在对每个 CPU pop 同时写顶层与内嵌副本（默认路径正例断言 4 个 CPU pop 且 source 全为 top_level，证明按 access_id 去重而非按值/计数）；新增“只有第 4 次内嵌副本”的正例（source 为 top_level×3 + nested，pop 值仍完整）；新增“两种副本都缺”“内嵌缺 access_id”两个负例。`54 passed`。
+
+**状态**：修复后真实门重新排队；两次失败记录都是失败证据，不是通过证据。
 
 ## 8. 真实 RTL 门（排队，未运行）
 
@@ -247,7 +270,7 @@ PYTHONPATH=src timeout 1800 python3 -m pytest -xq \
 ## 10. 审计清单（真实门跑完后按此复核）
 
 - [ ] 六例方向覆盖（每方向 ≥1）且 ≥2 个 `len>1`；`beat_count` 与 `2*len` 相符；
-- [ ] 每例 FIFO push=pop=`4+len`；push 深度来自 push 后第一个真实 tick（+1 且链连续）；RX 的 DMA pop pre-depth 递减 `len..1`；
+- [ ] 每例 FIFO push=pop=`4+len`；push 深度来自 push 后第一个真实 tick（+1 且链连续）；CPU pop 来自顶层+内嵌两种真实形状并按 `access_id` 去重；RX 的 DMA pop pre-depth 递减 `len..1`；
 - [ ] 每例 CPU DMA 四寄存器写值与 `descriptor_program` 相等；CONTROL key=`0xfed`；
 - [ ] 每例 `mcause=0x8000000b`、`status_error=0`、payload/counter 正确；`status/nread/blocklen/length` 原样记录；
 - [ ] 每例 status bit29/28 与 CONTROL 的 inc_s_n/inc_d_n 一致（多字固定端回读）；

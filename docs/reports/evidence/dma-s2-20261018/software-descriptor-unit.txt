@@ -1,5 +1,5 @@
 # P8 S2 pure-software gates (no RTL built or started)
-# date: 2026-10-17T12:08:26Z
+# date: 2026-10-17T12:16:48Z
 # command: PYTHONPATH=src python3 -m pytest -q tests/integration/test_dma_uart_descriptor.py
-...................................................                      [100%]
-51 passed in 0.38s
+......................................................                   [100%]
+54 passed in 0.41s

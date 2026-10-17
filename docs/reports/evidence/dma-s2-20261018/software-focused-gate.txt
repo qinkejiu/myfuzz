@@ -1,6 +1,6 @@
 # P8 S2 focused software gate (design section 6.2 list plus both new files)
-# date: 2026-10-17T12:08:27Z
+# date: 2026-10-17T12:16:50Z
 # command: PYTHONPATH=src python3 -m pytest -q tests/scenario/test_ibex_dma_example.py tests/local_harness/test_wishbone_dma_scenario_session.py tests/local_harness/test_wishbone_dma_session.py tests/local_harness/test_wishbone_dma_error_recovery.py tests/integration/test_dma_uart_rx_runtime.py tests/integration/test_dma_uart_rx_boot_contract.py tests/integration/test_dma_uart_rx_cursor.py tests/integration/test_dma_uart_rx_failure_document.py tests/integration/test_dma_uart_rx_replay_state_edges.py tests/integration/test_dma_uart_descriptor.py tests/integration/test_dma_uart_descriptor_real.py
-......s......s.s........................................................ [ 96%]
-..s                                                                      [100%]
-71 passed, 4 skipped in 1.32s
+......s......s.s........................................................ [ 92%]
+.....s                                                                   [100%]
+74 passed, 4 skipped in 1.31s

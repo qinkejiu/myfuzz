@@ -378,6 +378,7 @@ def extract_case_witnesses(rows):
         elif kind == 'uart_rdata_access':
             transaction = event.get('source_transaction')
             if isinstance(transaction, dict) and transaction.get('channel_id') == 'data':
+                event = dict(event, _pop_source='top_level')
                 grouped['cpu_pops'].append(event)
         elif kind == 'mmio_delivery':
             device = event.get('device_id')
@@ -423,7 +424,45 @@ def extract_case_witnesses(rows):
             if (post.get('probe_uart_fifo_wvalid') == 1
                     and post.get('probe_uart_fifo_wready') == 1):
                 grouped['tick_pushes'].append(event)
+    grouped['cpu_pops'] = _merge_cpu_pops(grouped['cpu_pops'],
+        grouped['uart_rdata_mmio'])
     return CaseWitnesses(**{name: tuple(value) for name, value in grouped.items()})
+
+
+def _merge_cpu_pops(top_level, deliveries):
+    """Authoritative CPU RDATA pops from both real journal shapes.
+
+    A routed CPU RDATA read is recorded twice in the real journal: a top-level
+    ``uart_rdata_access`` external event and the same access nested as
+    ``mmio_delivery.target_uart_access``.  On a step boundary the top-level copy
+    can be absent while the nested copy (with its real ``read_capture``) is
+    present.  Both are real RTL access facts, so a pop is counted once, keyed by
+    its real ``access_id``; a nested-only pop is anchored at the delivery event
+    that carried it.  A nested object without a real access id is ignored, which
+    leaves the real pop count short and fails certification instead of guessing.
+    """
+    seen = set()
+    merged = []
+    for row in top_level:
+        access_id = row.get('access_id')
+        if isinstance(access_id, str) and access_id:
+            seen.add(access_id)
+        merged.append(row)
+    for delivery in deliveries:
+        nested = delivery.get('target_uart_access')
+        if not isinstance(nested, dict):
+            continue
+        if nested.get('kind') != 'uart_rdata_access':
+            continue
+        access_id = nested.get('access_id')
+        if not isinstance(access_id, str) or not access_id or access_id in seen:
+            continue
+        row = dict(nested, _pop_source='nested',
+            event_id=delivery.get('event_id'))
+        merged.append(row)
+        seen.add(access_id)
+    return sorted(merged, key=lambda row: (row.get('event_id') is None,
+        row.get('event_id')))
 
 
 def _one(rows, message):
@@ -490,7 +529,8 @@ def _cpu_pop_fifo(event, payload, name):
         raise RuntimeError(f'{name} CPU RDATA read is not a real FIFO pop of the byte')
     return dict(pre_depth=pre['probe_uart_fifo_depth'], pre_head=pre['probe_uart_fifo_head'],
         post_depth=post['probe_uart_fifo_depth'], read_value=event['read_value'],
-        access_id=event.get('access_id'), tick=event.get('local_tick'))
+        access_id=event.get('access_id'), tick=event.get('local_tick'),
+        source=event.get('_pop_source', 'top_level'))
 
 
 def _retire(retires, pc, *, mem_addr=None, wmask=15, wdata=None, rmask=15,
@@ -625,7 +665,11 @@ def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
         raise RuntimeError('UART RX FIFO push lacks a real post-push depth')
     cpu_consumed = DESCRIPTOR_WORDS + (0 if case.direction == 'RX_TO_RAM' else case.length)
     if len(witnesses.cpu_pops) != cpu_consumed:
-        raise RuntimeError('CPU must pop exactly the descriptor and drained payload bytes')
+        top_level = sum(1 for event in witnesses.cpu_pops
+                        if event.get('_pop_source') == 'top_level')
+        raise RuntimeError('CPU must pop exactly the descriptor and drained payload '
+            f'bytes ({cpu_consumed} pops; top_level={top_level}, '
+            f'nested={len(witnesses.cpu_pops) - top_level})')
     descriptor = case.source_bytes[:DESCRIPTOR_WORDS]
     drained = case.source_bytes[DESCRIPTOR_WORDS:]
     cpu_values = tuple(event.get('read_value') for event in witnesses.cpu_pops)
@@ -872,7 +916,8 @@ def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
 
     fifo_pops = [dict(kind='cpu', **fifo) for fifo in cpu_fifo]
     if case.direction == 'RX_TO_RAM':
-        fifo_pops.extend(dict(kind='dma', **beat['fifo']) for beat in beat_rows)
+        fifo_pops.extend(dict(kind='dma', source='dma-master', **beat['fifo'])
+                         for beat in beat_rows)
     depths = [pop['post_depth'] for pop in fifo_pops]
     return dict(schema_version=CASE_SCHEMA, case_index=case_index,
         spec=case.to_document(), direction=case.direction,
