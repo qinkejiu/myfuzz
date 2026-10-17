@@ -22,6 +22,14 @@ def save(path, document):
             'gzip_sha256': hashlib.sha256(Path(path).read_bytes()).hexdigest()}
 
 
+def trace_document(trace):
+    document = asdict(trace)
+    # Online traces retain an immutable EventJournalSnapshot; asdict correctly
+    # preserves that view, so explicitly export every event to JSON's list ABI.
+    document['events'] = list(trace.events)
+    return document
+
+
 def select_raw(decoder, wanted, *, forbidden_values=()):
     """Bounded pure proposals; these are directed gate inputs, not search hits."""
     for attempt in range(4096):
@@ -199,13 +207,15 @@ def run_gate(output, cache_dir, *, corrupt):
                     break
             plan, trace = runtime.finish()
             (output / 'plan.json').write_bytes(plan)
-            result['first_bundle'] = save(output / 'first.json.gz', asdict(trace))
+            result['first_bundle'] = save(output / 'first.json.gz', trace_document(trace))
             result['source_selection'] = [row['selected_source'] for row in records]
             expected = ['cpu.instructions'] if corrupt else ['cpu.instructions', 'gpio0.pin_byte', 'cpu.instructions']
             if result['source_selection'] != expected:
                 raise ValueError('directed-source-selection-incomplete')
             comparison = runtime.replay(plan, trace)
-            result['fresh_bundle'] = save(output / 'fresh-comparison.json.gz', asdict(comparison))
+            comparison_document = asdict(comparison)
+            comparison_document['actual_trace'] = trace_document(comparison.actual_trace)
+            result['fresh_bundle'] = save(output / 'fresh-comparison.json.gz', comparison_document)
             if (comparison.matches is not True or comparison.first_difference is not None
                     or comparison.verification_scope != 'full'):
                 raise ValueError('complete-full-prefix-fresh-mismatch')
