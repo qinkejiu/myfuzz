@@ -1,0 +1,18 @@
+{
+  "remote-records.tar.gz": {
+    "bytes": 1836224,
+    "sha256": "3cfe517b4f262fdabda080ecbebc6dba339b90d9b7bb3bbe47f4eb931ee71e99"
+  },
+  "remote-members.json": {
+    "bytes": 7152,
+    "sha256": "38c274cd9d433723d3afa6fd541c2be0432fc13ad5d6619805f217846076cd34"
+  },
+  "local-control-records.tar.gz": {
+    "bytes": 45093,
+    "sha256": "4cca2972891bc6e350d372ea178ab45f8c9715f1936560742898b02796f9ed96"
+  },
+  "independent-summary.json": {
+    "bytes": 676,
+    "sha256": "895804449a51c5be08978a4114508d25047ff6962bf7ddf270679354c61e5399"
+  }
+}

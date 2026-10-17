@@ -1,0 +1,15 @@
+{
+  "source_before_after_equal": true,
+  "source_files_before": 15333,
+  "source_files_after": 15333,
+  "negative_results": {},
+  "result_status": "failed",
+  "query_status": "terminal0",
+  "query_child_count": 9,
+  "query_all_children_exit0": true,
+  "query_all18_stdout_stderr_hashes_match": true,
+  "query_tools_unchanged": true,
+  "query_source_unchanged": true,
+  "outer_i5_process_exit_receipt": "not included; root reported terminal1, archived runner result failed",
+  "offline_collection_note": "initial stdlib audit used executable basename python3.12 rather than recorded stdout prefix8-python3; corrected unique numeric-prefix matching; no DUT/project execution"
+}

@@ -1,5 +1,8 @@
 # 生成式独立 Harness 的实际运行边界
 
+2026-10-18补记：[I5独立工作集attempt1](reports/p7-i5-remote-independent-preparation-20261018.md)在Git status前置检查exit128（Ibex空refs目录遗漏），N1–N8及新CPU/IP门未开始；9个工具版本/身份查询实际exit0仅授元数据范围。文件map一致不授Git目录完整性、native运行或P7完成；新目录修复/传输/重跑仍待验收。
+
+
 ## 2026-10-17 最新连续 DMA 冻结证据
 
 [标准 Runner 连续 UART RX DMA](reports/dma-continuous-runner-20261017.md)实际 attempt6：native 1 passed／277.19 秒，native/worker exit0；一次启动连续处理 0x5a、0、0xa5、0xa5。四例均通过实际 FIFO 读取、DMA RAM 提交、CPU 版本读取和 IRQ/状态/完成计数检查；JSON 往返后 fresh 完整前缀相等。另有 max_source_ticks=1 的真实失败及 fresh 重放。根代理独立重算正例两份各 34,794 事件、失败两份各 200 事件，并核对每份 source_pins 与 426 文件启动预检完全一致。预算仍为 300 秒。

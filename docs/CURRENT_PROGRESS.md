@@ -1,8 +1,15 @@
 # 当前工作进度与证据入口
 
+## 2026-10-18 I5 首轮前置失败与工具查询实际结果
+
+- **工具元数据查询实际通过：**9个版本/身份查询子进程均exit0，source/tools unchanged；不属于frontend/build/test/native。
+- **I5 attempt1在N1前失败：** before/after Git status均exit128，Ibex `.git/refs`空目录在file-only复制/传输中遗漏；negative_results为空。独立归档两份15,333文件map相同，不能据此证明目录结构完整。
+- [完整终态与原始证据](reports/p7-i5-remote-independent-preparation-20261018.md)：44个remote记录文件及本地control已归档；外层I5 exit1为root报告，归档无独立父进程exit回执。旧attempt保留；601964f目录修复仅源码审查通过，新副本/重跑待门禁。P7 I5和整体P6/P7/P8仍开放。
+
+
 ## 2026-10-18 后续执行状态与证据口径
 
-- **独立远程源码副本已实际校验：** [准备终态](reports/p7-i5-remote-independent-preparation-20261018.md)，15,333文件/798,103,129字节，完整文件内容/模式映射一致；新operation不覆盖旧工作集。工具/Python闭包和N1–N8/新CPU+IP独立重跑尚未执行。
+- **独立远程源码副本已实际校验：** [准备终态](reports/p7-i5-remote-independent-preparation-20261018.md)，15,333文件/798,103,129字节，完整文件内容/模式映射一致；新operation不覆盖旧工作集。后续工具元数据查询已通过，但独立重跑在Git前置检查失败；N1–N8/新CPU+IP门尚未开始，见顶部最新终态。
 - **P6 native持久在线源码增量：** f30c524接通实际PADOUT读回+PADIN联合计算，52de02c补齐实际packet边界和排空守卫；独立98d137f关闭源码问题。没有新的真实运行、P6整行或四类反馈授予。
 
 

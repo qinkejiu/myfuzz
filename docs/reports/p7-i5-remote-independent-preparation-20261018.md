@@ -36,3 +36,23 @@ Ibex提交`34b0705760ef3dfa00e99637432473d2be8f22f3`；GPIO提交`f82caeb7f7d894
 ## 原始记录
 
 [准备证据](evidence/p7-i5-independent-preparation-20261018/archive-receipt.json)定位51项原始命令、清单、失败、stderr、材料化、覆盖及复制回执；归档SHA256为`791cab0b534d5f7112e6be2fe36f0e617fe0f98727e6fa197e0773acc24719e8`。完整source传输包在远程operation中，不将大包重复提交到Git。
+
+## 最新实际结果：工具查询通过，I5 attempt1 在负例前失败
+
+本节覆盖上文“尚未调用版本查询”的准备阶段状态；保留原失败副本，不代表目录修复后的第二次操作已运行。
+
+- **工具元数据查询实际terminal0：** controller PID2936380，canonical锁内9个具名子进程均exit0：Verilator `--version`/`-V`、verilator_bin版本、c++/make/ar/git/perl/Python版本。实测Verilator5.051 devel、GCC13.3.0、Make4.3、ar2.42、Git2.43.0、Perl5.38.2、Python3.12.3，runtime root为 `/root/fanzehui/myfuzz/tools/verilator-5.051/share/verilator`。独立核对归档18份stdout/stderr均与operation中的SHA一致；operation记录tools/source unchanged。仅元数据查询，不是frontend、build、测试或native门。
+- **I5 attempt1 已失败，N1尚未开始：** 归档 `result.json status=failed`、`negative_results={}`、`formal_p7_complete=false`；before/after Git rev-parse子进程分别PID3115908/3121937均exit0，Git status分别PID3115913/3121942均exit128，均报Ibex `.git` not recognized。原始error=`git-receipt-failed:before-git-dirty`，采集阶段另记after-git-dirty失败，未隐藏首个错误。根代理报告外层运行terminal1；本次归档未包含独立外层父进程exit回执，因此不补造其PID/退出证明。
+- **失败原因及边界：** 只读目录诊断显示Ibex `.git/HEAD`与`objects/`存在、空`refs/`缺失。之前15,333文件哈希/权限一致不能证明空目录完整；此次独立重算source-before/source-after两份15,333文件映射全等，仍不能替代目录结构证明。该问题发生于Git身份/脏状态前置检查，不是N1失败或DUT错误，不能计为任何负例/原生通过。
+- **修正仅源码通过审查：** preparer601964f的v2 manifest记录空目录/祖先权限，要求Git objects+refs，源与目标目录清单双向检查；独立2cfc8d8审查通过。传输必须显式携带目录条目及权限，并核对新解包目录manifest；未禁用Git status、未忽略submodule错误、未改旧attempt1。新操作仍需独立copy/工具/GO及真实门。
+
+### 独立原始归档
+
+[本轮归档回执](evidence/p7-i5-attempt1-terminal-20261018/archive-receipt.json)包含：
+
+- `remote-records.tar.gz`：只读打流获取整个remote `run-attempt1`和`control/tool-query-attempt1`，44个普通文件、原始6,038,161字节，压缩1,836,224字节，SHA256 `3cfe517b4f262fdabda080ecbebc6dba339b90d9b7bb3bbe47f4eb931ee71e99`。
+- `remote-members.json`：逐文件长度/SHA清单；原Git子进程回执、stdout/stderr、完整before/after文件map、query原始日志均保留。
+- `local-control-records.tar.gz`：保存 `/tmp/myfuzz-tool-inventory-20261018`现有本地inventory、环境准备、launch、观察、query、目录诊断等原始记录，未重新执行其中脚本。
+- `independent-summary.json`：离线JSON/哈希核对结果及外层exit回执缺口。初次离线核对误用python3.12 executable basename定位stdout，已改为实际编号前缀匹配；未改变原归档或运行项目代码。
+
+归档齐全范围是上述两个remote目录及当前本地control目录；不是整个远程operation/source/tools包，外层I5退出记录仍需root控制器另行补齐。采集仅经jumpserver只读tar流下载，没有修改远程run、测试、构建或重跑。P7 I5、P6/P8与整个系统继续开放。

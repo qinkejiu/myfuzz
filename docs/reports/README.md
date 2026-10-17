@@ -1,3 +1,5 @@
+2026-10-18最新终态：[P7 I5远程独立准备/首轮失败](p7-i5-remote-independent-preparation-20261018.md)：工具9项元数据查询exit0；I5 attempt1在N1前因Ibex空refs目录缺失导致Git status128，负例结果为空，原始44文件+本地control已归档。601964f目录修正仅源码审查通过，未授P7或native通过。
+
 2026-10-18 VexiiRiscv 固定实例 IRQ：[真实 CPU→PULP GPIO APB3→外部 IRQ→ISR→RAM 报告](vexiiriscv-cpu-ip-irq-20261018.md)。派生 `vexiiriscv_irq` profile 以精确声明差分暴露真实 `int_m_external`（同一生成 RTL 字节）；8 个重复 case 的每例真实 IRQ 上升/下降、`mtvec` 取指、`PADOUT`/`INTSTATUS`/`PADOUTCLR` APB 事务与 RAM 校验全部通过，两进程 fresh replay 原始样本与证据一致（[summary](evidence/vexi-irq-fixed-20261018/summary.json) + `first/fresh.json.gz`）。边界：脉冲转电平/GPIO 环回为声明的宿主导线，程序镜像每行固定、case 数据来自预置 RAM 表；不是 P6 campaign，中断控制器 RTL、多目标、在线搜索与认证前缀 replay 未验收。
 
 2026-10-18 P7 I3/I4 与 P8 S2/S3/S4 真实门汇总：[P7/P8 real-gate record](p7-p8-real-gates-20261018.md)。P7 I3 timer F4 3 值连续+probe 层级证明+fresh full；P7 I4 CV32E20+timer RFuzz 4 tests/4 certified、Coverage-guided=3；P8 S2 三方向多字单 boot 1 passed/465.88s；P8 S3 2 valid+2 invalid、实测 status `0x40000000`；P8 S4 accepted FIFO authority+typed prefix replay 1 passed/529.76s。边界：P6 仍为固定实例 `fresh_genomes`，P7 I5 负例/独立复核、P8 S1c 5×、CVW/Vexii/BOOM 未完成。
