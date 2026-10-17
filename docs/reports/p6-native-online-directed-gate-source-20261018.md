@@ -1,0 +1,32 @@
+# Pico native/PULP persistent directed gate source
+
+Status: source implementation only. `scripts/verify_picorv32_native_online.py` has not been invoked, imported, compiled, or tested. No frontend/build/model/remote work was performed for this increment. It consumes the bounded runtime/source hooks frozen at `52de02c`; P6 remains open.
+
+## Actual gate contract
+
+- This is an explicit script, not pytest or an import-time gate. CLI requires a new external output directory, external cache, and root-supplied canonical heavy lock. `LOCK_EX|LOCK_NB` is acquired once before project imports/construction. An occupied worker refuses without waiting/queuing. Do not launch it under an already-held controller lock; root must separately approve source/tool/transitive closure and execute the new frozen copy.
+- The positive gate uses one runtime, `begin`, three `submit` calls and `finish_export` through runtime.finish. Directed order is CPU instruction / IP pin / CPU instruction. Up to4096 pure decoder proposals select each raw8-byte candidate; selected bytes, complete OnlineCase and actual receipt are retained. Nonzero payloads and a payload differing from the previous joint are selected; this is directed fixture selection, never coverage-guided search or a mutation throughput metric.
+- Runtime's real offered-fetch/packet-boundary and pending-drain checks apply. The gate additionally rechecks actual next slot after each completed case. There are no extra bootstrap/case clocks, resets, target setup writes or bound changes. Actual same PID, driver nonce, reset epoch and artifact digest must persist over all three cases.
+- Independent check_case requires exactly four actual mmio_delivery rows per packet: PADOUT write, PADOUT read, PADIN read, derived PADOUT write, all full-word/BE15 to actual gpio0. PADOUT actual read must equal the prior CPU write; CPU-source value must equal its actual decoded ADDI payload; an IP-source actual PADIN read must equal the admitted pin byte. It computes A XOR B from the two actual IP returned values and compares both the actual CPU RAM write at0x100 and final actual IP-directed write, preserving event ordering.
+- Both read deliveries must have exactly one later actual CPU response-consumed observation joined by reset epoch and source sequence, with the actual returned value preserved. The actual Runner's ordinary CPU step records have no `kind` field; the checker reads their real outputs, not a made-up step event schema. This is response consumption, not retirement/source authentication.
+- Full original plan and complete ScenarioTrace are saved. runtime.replay calls the original replay_online_session with fresh real sessions and the saved full plan; success requires matches=true, first_difference=None and full scope. Existing typed receipt/reference semantics and complete event equality are retained: no generic removal of IDs, receipts, clocks or build hashes is added. All fresh data remains in the saved comparison's actual_trace.
+
+## Actual process evidence
+
+A read-only observer uses the existing `(operation, elapsed_seconds)` command timing callback solely to capture actual live session process handles/nonces/epochs. No session command, receipt parser, build function or producer is replaced. The fresh factory is wrapped only to retain the actual runner object, returning it unchanged. The observer checks actual fields and retains capture errors; callback failure cannot silently grant a pass.
+
+Original/fresh must yield four actual model handles (two each), distinct PID/nonces per component, equal artifact digests and all terminal/reaped0. ProcessCapture retains Popen objects after session.end_case clears the session pointer, allowing terminal poll verification. The actual Runner identity includes profile/runtime/build inputs. This is documentary lifecycle evidence, not a native producer token or a replacement for tool/build closure audit.
+
+## Controlled response calibration
+
+A separate new runtime deliberately wraps its actual Router.enqueue completion callback. Exactly the first actual PADOUT read response has bit0 toggled **after** the original enqueue/target access/ledger has executed; original target readbacks and raw samples remain untouched. CPU receives that altered response through the existing single-outstanding path. The independent checker must find precisely routed_read_response_mismatch, joint_ram_mismatch and joint_gpio_mismatch. It is a controlled harness response perturbation, not a naturally discovered DUT bug.
+
+The controlled run stops after its first CPU packet, exports its complete actual prefix, and performs another fresh replay with the same documented callback perturbation. Original and fresh must each inject exactly once and reaped0. No target operation is retried and no fake native-positive token/certificate is issued. Its recorded actual target response and altered delivered response are both retained.
+
+## Output and limitations
+
+Per positive/controlled directory: case-N.json.gz (raw input/case/receipt/relations), plan.json, first.json.gz, fresh-comparison.json.gz, result.json.gz; root summary.json.gz reports bounded directed status and false flags for formal P6, coverage search, source and retirement authority. Gzip and uncompressed JSON SHA256 are retained for full trace/comparison bundles. Observed errors retain partial events/ticks/attempted plan/boundary failure where available, without replacing the original primary error if plan serialization fails.
+
+Failures before runtime construction finishes can precede result.json.gz, and fatal interruption/disk errors may prevent evidence serialization; the external operation controller must retain stdout/stderr/actual PID/exit and wait on the same process. The script never kills/restarts native work or hides a failed first attempt. It contains no timeout-based retry and no new native budget.
+
+This source gate does not establish actual success, sufficiency of128 CPU operations, simultaneous all-protocol coverage, universal onboarding, source authority, retirement, P6 closed-loop certificates,18-cell campaign performance or final acceptance. Source/tool/build freeze, independent review and new actual gate are prerequisites for any such measured claim. Existing archived scalar/native evidence cannot certify this new runtime/script automatically.
