@@ -142,8 +142,17 @@ def test_the_declared_shape_matches_the_real_profiles():
     config_text = CVW_DERIVED_CONFIG.read_text(encoding='utf-8')
 
     cpu_endpoints = cpu['endpoints']
-    assert [row['function'] for row in cpu_endpoints] == ['memory_master']
-    cpu_endpoint = cpu_endpoints[0]
+    # The manager-domain observation endpoint is a separate passive declaration;
+    # the bus itself remains the profile's only memory master.
+    bus_endpoints = [row for row in cpu_endpoints
+                     if row['function'] != 'observation']
+    assert [row['function'] for row in bus_endpoints] == ['memory_master']
+    observations = [row for row in cpu_endpoints
+                    if row['function'] == 'observation']
+    assert len(observations) == 1
+    assert {field['role'] for field in observations[0]['fields']} == {
+        'manager_ready', 'bus_reset_n'}
+    cpu_endpoint = bus_endpoints[0]
     assert cpu_endpoint['endpoint_id'] == 'cpu.external_bus'
     assert cpu_endpoint['protocol'] == ['ahb-lite', '1']
     haddr = [field for field in cpu_endpoint['fields'] if field['role'] == 'haddr']

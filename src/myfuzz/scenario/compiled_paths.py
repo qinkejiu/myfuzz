@@ -923,11 +923,17 @@ def load_path_compile_request(document_or_path: object, *,
         # endpoint legitimately fills both role pointers.  Accepting it only when
         # it is the profile's sole master keeps the pointer unambiguous; refusing
         # it would reject every accurate unified-memory declaration.
-        unified = [item for item in cpu_profile.endpoints
+        # Count only endpoints that can actually be a bus master.  A profile
+        # may additionally declare non-master endpoints (observation,
+        # configuration, interrupts); those do not make the unified memory
+        # port ambiguous.
+        masters = [item for item in cpu_profile.endpoints
+                   if item.function in MASTER_FUNCTIONS]
+        unified = [item for item in masters
                    if item.function in UNIFIED_MASTER_FUNCTIONS]
         accept_unified = (endpoint is not None
                           and endpoint.function in UNIFIED_MASTER_FUNCTIONS
-                          and len(cpu_profile.endpoints) == 1
+                          and len(masters) == 1
                           and len(unified) == 1)
         if endpoint is None or (endpoint.function != function and not accept_unified):
             _refuse('cpu-master-role-pointer-mismatch', f'/cpu/{name}',
@@ -1224,8 +1230,9 @@ def _cpu_master(assessment: _Assessment, cpu: PathComponent, function: str, code
         # one.
         if function in (FUNCTION_INSTRUCTION_MASTER, FUNCTION_DATA_MASTER):
             everything = cpu.endpoints()
-            unified = [row for row in everything if row.function in UNIFIED_MASTER_FUNCTIONS]
-            if len(everything) == 1 and len(unified) == 1:
+            masters = [row for row in everything if row.function in MASTER_FUNCTIONS]
+            unified = [row for row in masters if row.function in UNIFIED_MASTER_FUNCTIONS]
+            if len(masters) == 1 and len(unified) == 1:
                 matches = unified
     if not matches:
         assessment.need(code, '/cpu/profile/endpoints',

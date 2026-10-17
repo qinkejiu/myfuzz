@@ -130,7 +130,14 @@ def test_the_cvw_profile_declares_its_bus_as_a_unified_master():
     functions = [row['function'] for row in document['endpoints']]
     assert functions == ['memory_master'], functions
     profile = json.loads(CVW_PROFILE.read_text(encoding='utf-8'))
-    assert [row['function'] for row in profile['endpoints']] == ['memory_master']
+    # The manager-domain observation endpoint is deliberately separate from the
+    # bus.  Only master-capable endpoints participate in the unified-master
+    # rule; an observation endpoint must not make the single bus ambiguous.
+    from myfuzz.scenario.compiled_paths import MASTER_FUNCTIONS
+    masters = [row['function'] for row in profile['endpoints']
+               if row['function'] in MASTER_FUNCTIONS]
+    assert masters == ['memory_master'], profile['endpoints']
+    assert [row['function'] for row in profile['endpoints']].count('observation') == 1
     assert profile['cpu']['master_endpoints'] == ['cpu.external_bus']
     # The bus is still AHB-Lite, and it is still the manager side.
     assert document['endpoints'][0]['protocol'] == ['ahb-lite', '1']
