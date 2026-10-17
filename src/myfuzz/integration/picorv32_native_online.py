@@ -1,7 +1,9 @@
 """One bounded native/PULP session across cases; explicit begin and full replay.
 
-This source entry has no RFuzz/closed-loop certificate grant. Decoded bytes are
-admitted source inputs, not proof of instruction fetch, retirement or terminal
+This source entry has no RFuzz/closed-loop certificate grant. The guarded
+session protects direct submit calls; generic executor commit-refusal notification
+and guarded fresh reconstruction remain separate integration requirements.
+Decoded bytes are admitted source inputs, not proof of instruction fetch, retirement or terminal
 consumption. The actual Runner journal remains the observation source.
 """
 from __future__ import annotations
@@ -10,47 +12,33 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from myfuzz.scenario.picorv32_native_online import (
-    ROOT, SCHEDULE, PACKET_COUNT, PACKET_BYTES, GPIO_COMPONENT,
+    ROOT, SCHEDULE, PACKET_COUNT,
     make_picorv32_native_online_bootstrap,
     make_picorv32_native_online_decoder, make_picorv32_native_online_factory)
-from myfuzz.scenario.session_runtime import ScenarioSession, replay_online_session
+from myfuzz.scenario.session_runtime import replay_online_session
+from myfuzz.scenario.native_packet_session import NativePacketSession
 
 
 @dataclass
 class PicoNativeOnlineRuntime:
-    session: ScenarioSession
+    session: NativePacketSession
     decoder: object
     factory: object
     max_cases: int
     _begun: bool = field(default=False, init=False)
     _terminal: bool = field(default=False, init=False)
     _case_count: int = field(default=0, init=False)
-    boundary_failure: dict | None = field(default=None, init=False)
+
+    @property
+    def boundary_failure(self):
+        return self.session.boundary_failure
 
     def _require_packet_boundary(self, expected_address, *, phase):
-        cpu = self.session.runner.sessions['cpu']
-        gpio = self.session.runner.sessions[GPIO_COMPONENT]
-        observed = dict(phase=phase, expected_address=expected_address,
-            actual_offered_instruction_address=cpu.waiting_instruction_address,
-            cpu_pending_responses=cpu.pending_responses,
-            router_pending_targets=cpu.router.pending_targets,
-            target_pending_responses=gpio.pending_responses,
-            target_pending_events=gpio.pending_events,
-            local_ticks=dict(self.session.runner.local_ticks))
-        if (observed['actual_offered_instruction_address'] != expected_address
-                or observed['cpu_pending_responses'] != 0
-                or observed['router_pending_targets']
-                or observed['target_pending_responses'] != 0
-                or observed['target_pending_events'] != 0):
-            self.boundary_failure = observed
-            raise RuntimeError('native online packet boundary not reached: ' + repr(observed))
+        return self.session.require_packet_boundary(expected_address, phase=phase)
 
     def _fail(self, primary):
         self._terminal = True
-        try:
-            self.session.runner.finalize()
-        except BaseException as cleanup:
-            primary.add_note(f'native online cleanup failed: {cleanup!r}')
+        self.session.abort_packet_submission(primary)
 
     def begin(self):
         if self._begun or self._terminal:
@@ -89,17 +77,12 @@ class PicoNativeOnlineRuntime:
         # candidate. Any exception once submit starts permanently stops this
         # runtime, preserving the original attempted plan and actual prefix.
         case = self.decoder.decode(raw, coverage_hints=coverage_hints)
-        next_address = self.decoder.instruction_cursor + PACKET_BYTES
         try:
             receipt = self.session.submit_case(case)
-            if receipt.status != 'running' or receipt.violations:
-                raise RuntimeError('native online case failed before packet boundary')
-            # No extra clocks or speculative completion: if128 operations did
-            # not reach the next real unfilled fetch, retain the actual prefix
-            # and fail permanently without committing the decoder cursor.
-            self._require_packet_boundary(next_address, phase='after_case')
+            # NativePacketSession owns the actual pre/post guard and packet
+            # cursor. The directed wrapper owns the decoder commit exactly once.
             self.decoder.commit(case)
-            self._case_count += 1
+            self._case_count = self.session.accepted_packet_count
             return receipt
         except BaseException as primary:
             self._fail(primary)
@@ -137,9 +120,7 @@ def make_picorv32_native_online_runtime(*, cache_dir: Path, base_dir: Path = ROO
     decoder = make_picorv32_native_online_decoder()
     factory = make_picorv32_native_online_factory(cache_dir=cache_dir, base_dir=base_dir)
     runner = factory()
-    session = ScenarioSession(bootstrap.template, runner)
-    for address in bootstrap.instruction_slots:
-        session.declare_instruction_slots('cpu', address, 1)
+    session = NativePacketSession(bootstrap.template, runner, max_cases=max_cases)
     session.configure_runtime_paths(decoder.graph, decoder.runtime_contract,
         decoder.runtime_paths, source_ownership=decoder.ownership)
     return PicoNativeOnlineRuntime(session, decoder, factory, max_cases)
