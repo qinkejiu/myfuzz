@@ -1,0 +1,88 @@
+{
+ "claims": {
+  "fifo_origin": "unknown",
+  "firmware_expectations": "none; the ISR compares no expected value",
+  "host_writes": "refused; every guarded store is CPU or DMA",
+  "proof_grade": "bounded_historical_chain",
+  "source_authority": "incomplete",
+  "status_readback": "ISR status bit29/28 must equal the written CONTROL inc bits"
+ },
+ "created_utc": "2026-10-17T12:01:27Z",
+ "deviations": {
+  "control_word": {
+   "design": "0x0fed0001 for every direction",
+   "implementation": {
+    "RAM_TO_RAM": "0x0fed0001",
+    "RAM_TO_TX": "0x1fed0001 (bit28 inc_d_n)",
+    "RX_TO_RAM": "0x2fed0001 (bit29 inc_s_n)"
+   },
+   "reason": "wbdmac.v cfg_incs <= !s_data[29], cfg_incd <= !s_data[28]; a fixed incrementing word makes the second RX beat read 0x5000001c and the second TX beat write 0x50000020, i.e. environment errors instead of multi-word data"
+  },
+  "payload_stream": "4 descriptor bytes + len payload bytes for every direction; RAM/TX cases drain the payload bytes with real CPU RDATA pops so the next descriptor never reads stale data",
+  "tx_drain_bound": "320*len + 320 ticks (one idle-frame alignment margin)"
+ },
+ "files": {
+  "README.md": "cbb76bda391b575f418414e0605f81befc57e5d07f28613e3cfddd2aeabad891",
+  "descriptor-program.json": "db0a4daf48bd188a9f6a7c3fb712f0988abd8cf19e5f06e764db474765e778c1",
+  "generate_software_evidence.py": "2584f527f3b8e06ec2e3e2e8b1a065145a1adb6a0b000a7d50d3208c66672efb",
+  "software-descriptor-unit.txt": "368f3272061c8ac7a85be24e597f40eaa19ea285a7cfa2cb93bd27e4e26650ae",
+  "software-focused-gate.txt": "a475ccb39f8486fde1a208471ef301f92b68a13590cc5c73fac80c6fa279cd19",
+  "software-search-regression.txt": "8ae1ed0eec3e528ef9740ed35f9f1e65cf9515ef85c33aba6dca11f1b971b5bd"
+ },
+ "increment": "P8 S2 external serial descriptor firmware + three directions + multi-word FIFO",
+ "real_gate": {
+  "command": "PYTHONPATH=src timeout 1800 python3 -m pytest -xq tests/integration/test_dma_uart_descriptor_real.py",
+  "env": [
+   "MYFUZZ_DMA_DESCRIPTOR_REAL=1",
+   "MYFUZZ_DMA_DESCRIPTOR_CACHE=<cache>",
+   "MYFUZZ_DMA_DESCRIPTOR_EVIDENCE=<evidence>"
+  ],
+  "expected": "1 passed; 6 cases, every direction >=1, >=2 multi-word, fresh full-prefix replay equal",
+  "saves": [
+   "descriptor.json.gz",
+   "fresh.json.gz",
+   "cases.json",
+   "multiword-readings.json",
+   "source_pins.json",
+   "manifest.json"
+  ]
+ },
+ "schema_version": "dma_s2_evidence_manifest.v1",
+ "software_gates": {
+  "broader_focused": {
+   "command": "the same focused list plus test_dma_uart_rx_boot_object.py and test_dma_uart_rx_uart_schedule.py",
+   "failed": 0,
+   "passed": 85,
+   "skipped": 3
+  },
+  "descriptor_unit": {
+   "command": "PYTHONPATH=src python3 -m pytest -q tests/integration/test_dma_uart_descriptor.py",
+   "failed": 0,
+   "passed": 44,
+   "skipped": 0
+  },
+  "focused": {
+   "command": "design section 6.2 list (9 files) + tests/integration/test_dma_uart_descriptor.py + tests/integration/test_dma_uart_descriptor_real.py",
+   "failed": 0,
+   "note": "the 4 skips are the three pre-existing explicit-native gates plus the new queued descriptor gate",
+   "passed": 64,
+   "skipped": 4
+  },
+  "search_regression": {
+   "command": "PYTHONPATH=src python3 -m pytest -q tests/integration/test_dma_uart_rx_search.py tests/scenario/test_dma_chain_feedback.py tests/integration/test_dma_uart_rx_discovery_scope.py",
+   "failed": 0,
+   "passed": 30,
+   "skipped": 0
+  }
+ },
+ "status": {
+  "p8_passed": false,
+  "real_rtl_evidence_present": false,
+  "real_rtl_gate": "queued_after_source_freeze",
+  "reason": "S1/P7 gates share the build cache; S2 must not shift the frozen build identity",
+  "uncovered": [
+   "S3 invalid descriptors + real CPU error ISR",
+   "S4 source admission, typed normalizer and certified prefix replay"
+  ]
+ }
+}
