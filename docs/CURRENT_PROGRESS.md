@@ -1,5 +1,14 @@
 # 当前工作进度与证据入口
 
+## 2026-10-18 P7 I3/I4 与 P8 S2/S3/S4 真实门（当前源码）
+
+- **P7 I3（PULP timer generic APB storage F4）通过：** `report.json status=completed`，3 条记录 `0x55/0xaa/0x12345678` 连续 certified，commit `0→85→170→305419896`；探针 `hierarchy_verified=true`/`native_verified=true`（proof `a889c6eb…`）；fresh `matches=true`/`verification_scope=full`。证据：`docs/reports/evidence/p7-i3-timer-f4-20261017/outputs/timer-ade3fe6/`。
+- **P7 I4（CV32E20 + PULP timer，compiled RFuzz）通过：** `status=complete`、client rc0、4 tests/4 certified、receipt join ok、`Coverage-guided searched=3`、`RTL operational=3`、fresh `matches=true/full`。证据：`runs/p7-i4-real-ade3fe6/`。
+- **P8 S2（单 boot 三方向多字）通过：** 3 个多字用例，RX→RAM/RAM→RAM/RAM→TX，accepted UART FIFO authority，`1 passed in 465.88s`；fresh cases/plan/ticks/identities 全等、execution ids 新。证据：`docs/reports/evidence/dma-s2-real-ade3fe6/`。
+- **P8 S3（真实 error ISR）通过：** 2 valid + 2 invalid；实测 status `0x40000000`（bit30=1）、真实 environment_error_receipt、无目标交付/目的 commit、真实 CPU take/ISR；fresh 全等。证据：`docs/reports/evidence/dma-s3-real-ade3fe6/`。
+- **P8 S4（来源认证 + typed prefix replay）通过：** `1 passed in 529.76s`；每例 accepted `uart_fifo_retention/read_consumption`，DMA pop 带 `dma_master`；typed prefix 比较 plan/events/ticks/cases。证据：`docs/reports/evidence/dma-prefix-s4-real-9cbc323/`。
+- **汇总与本轮边界：** 见 [P7/P8 real-gate record](reports/p7-p8-real-gates-20261018.md)。P6 仍为固定实例 `fresh_genomes`；P7 I5 负例组/独立复核未完成；P8 S1c 实测 1.37×（5× 未达）；CVW/Vexii/BOOM 未完全适配。**P6/P7/P8 整体仍未宣布通过。**
+
 ## 2026-10-17 P6 固定实例 campaign 完成（附边界）/ P7 I2 / P8 S1
 
 - **P6 五行固定实例 campaign 已完成当前源码真实 RTL 证据：** 行1 CV32E40P `online_cases` 200 例（audit 10）；行2 CVA6 18/18、`effective=1323.83`、1226 例/406 链（audit 10）；行3 AXIL 18/18、`effective=2123.20`、714 例/300 链（audit 10）；行4 Wishbone 18/18、`effective=3767.47`、1615 例/871 链（audit 21/2）；行5 native 18/18、`effective=2862.57`、1711 例/1141 链（audit 24/2，saved-run 9/9）。非 Ibex+非 GPIO 受控错误五进程门 **1 passed/127.97s**，control 静默、fault `uart_rxdata_source_mismatch`、两条 full replay。汇总见[P6 验收记录](reports/p6-fixed-instance-campaign-acceptance-20261017.md)，campaign 归档见 `docs/reports/evidence/p6-campaigns-20261017/`。**边界：行2–5 均为 `fresh_genomes`（每例新 harness），非单一持久会话；`legacy_unchecked`、closed_loop/path_switch disabled。若按字面要求持久 harness/RuntimePathContract/四类命中，行2–5 仍未满足。**
