@@ -10,7 +10,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from myfuzz.scenario.picorv32_native_online import (
-    ROOT, SCHEDULE, PACKET_COUNT, make_picorv32_native_online_bootstrap,
+    ROOT, SCHEDULE, PACKET_COUNT, PACKET_BYTES, GPIO_COMPONENT,
+    make_picorv32_native_online_bootstrap,
     make_picorv32_native_online_decoder, make_picorv32_native_online_factory)
 from myfuzz.scenario.session_runtime import ScenarioSession, replay_online_session
 
@@ -24,6 +25,25 @@ class PicoNativeOnlineRuntime:
     _begun: bool = field(default=False, init=False)
     _terminal: bool = field(default=False, init=False)
     _case_count: int = field(default=0, init=False)
+    boundary_failure: dict | None = field(default=None, init=False)
+
+    def _require_packet_boundary(self, expected_address, *, phase):
+        cpu = self.session.runner.sessions['cpu']
+        gpio = self.session.runner.sessions[GPIO_COMPONENT]
+        observed = dict(phase=phase, expected_address=expected_address,
+            actual_offered_instruction_address=cpu.waiting_instruction_address,
+            cpu_pending_responses=cpu.pending_responses,
+            router_pending_targets=cpu.router.pending_targets,
+            target_pending_responses=gpio.pending_responses,
+            target_pending_events=gpio.pending_events,
+            local_ticks=dict(self.session.runner.local_ticks))
+        if (observed['actual_offered_instruction_address'] != expected_address
+                or observed['cpu_pending_responses'] != 0
+                or observed['router_pending_targets']
+                or observed['target_pending_responses'] != 0
+                or observed['target_pending_events'] != 0):
+            self.boundary_failure = observed
+            raise RuntimeError('native online packet boundary not reached: ' + repr(observed))
 
     def _fail(self, primary):
         self._terminal = True
@@ -42,6 +62,7 @@ class PicoNativeOnlineRuntime:
             # offered fetch to an unfilled slot; do not clock a guessed PC.
             for _ in range(512):
                 if self.session.runner.sessions['cpu'].waiting_instruction_address is not None:
+                    self._require_packet_boundary(self.decoder.instruction_cursor, phase='bootstrap')
                     return
                 receipt = self.session.advance_initial(SCHEDULE)
                 if receipt.status != 'running' or receipt.violations:
@@ -56,17 +77,25 @@ class PicoNativeOnlineRuntime:
             raise RuntimeError('native online requires an active session')
         if self._case_count >= self.max_cases:
             raise ValueError('native online case bound exhausted before admission')
+        # Refuse before decode/admission: an IP input must never change pins
+        # while the previous packet is still reading them. The marker names an
+        # actual offered fetch, and single-outstanding service must be drained.
+        self._require_packet_boundary(self.decoder.instruction_cursor, phase='before_input')
         # Pure decode refusal has no effects; the caller may supply another
         # candidate. Any exception once submit starts permanently stops this
         # runtime, preserving the original attempted plan and actual prefix.
         case = self.decoder.decode(raw, coverage_hints=coverage_hints)
+        next_address = self.decoder.instruction_cursor + PACKET_BYTES
         try:
             receipt = self.session.submit_case(case)
+            if receipt.status != 'running' or receipt.violations:
+                raise RuntimeError('native online case failed before packet boundary')
+            # No extra clocks or speculative completion: if128 operations did
+            # not reach the next real unfilled fetch, retain the actual prefix
+            # and fail permanently without committing the decoder cursor.
+            self._require_packet_boundary(next_address, phase='after_case')
             self.decoder.commit(case)
             self._case_count += 1
-            if receipt.status != 'running' or receipt.violations:
-                self._terminal = True
-                self.session.finish()
             return receipt
         except BaseException as primary:
             self._fail(primary)

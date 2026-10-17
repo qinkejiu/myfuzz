@@ -118,3 +118,11 @@ NativePacketDecoder沿用weighted选源、proposal/commit和runtime路径校验�
 根代理源码审查指出 fee3e52 虽写入CPU候选A，但随后RAM/派生PADOUT只依赖PADIN输入B，不能提供所声明 CPU→IP→CPU 的真实返回路径。已保持7条tail/32字节stride/128 CPU操作边界，改为：`SW x10,PADOUT; LW x12,PADOUT; LW x11,PADIN; XOR x10,x12,x11; SW x10,RAM[0x100]; SW x10,PADOUT; NOP`。PADOUT返回A与PADIN返回B都由实际IP应答，CPU执行XOR后写RAM和GPIO；不以主机payload代替IP读回。
 
 bootstrap已将x1设为GPIO_BASE；CPUsource仅写x10，IPsource为NOP，所有tail不写x1，故不需每packet重复LUI。x11/x12在XOR前均由实际load赋值，最终值依赖两个真实IP读取；此前x10初始化0仍保留用于首例选IP源的明确起态。此修正只建立源码上的可运行因果路径，尚无实际读取、CPU消费、fresh或closed-loop命中证据，不能据此授任何P6通过。未运行测试/模型/远程。
+
+### Stage B 实际 packet 边界守卫（阻止前例未完成时改后例输入）
+
+根代理进一步指出固定128次CPU操作本身不是packet完成证明，不能在前例尚读PADIN时提交后例pin输入。runtime现于decode/input前要求 `cpu.waiting_instruction_address == decoder.instruction_cursor`；bootstrap首次等待同样必须是首槽。该地址取自真实POST request和physical instruction marker，而非程序计数器猜测或RAM值。
+
+每例128轮执行后，必须实际观察下一未填slot地址等于旧cursor+32，并且CPU pending_responses=0、Router pending_targets为空、GPIO pending_responses=0及pending_events=0；满足后才commit decoder和case计数。若未达到，保存phase/期待地址/实际offered地址/四类pending/local_ticks到runtime.boundary_failure，永久terminal并尝试原finalize，不额外加CPU时钟、不合成完成、不允许下例输入。原ScenarioSession已保存的尝试case和真实事件保持；decoder未commit不能被解释为没有发生前例物理效果。decode前守卫拒绝本身不改变候选/RTL，且仍保留此前已执行前缀。
+
+这一守卫只证明单outstanding环境已到达下一个真实未接受取指边界，不能代替实际MMIO/CPU来源逐边认证、全fresh或吞吐验收。128轮可能诚实失败，未提高边界；本修正仍仅源码审查，未运行测试/模型。
