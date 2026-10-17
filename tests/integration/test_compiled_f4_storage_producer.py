@@ -965,3 +965,46 @@ def test_stable_storage_version_keeps_only_process_independent_fields():
     tampered = dict(witness, caller_value=0)
     with pytest.raises(ValueError, match='compiled-F4-storage-witness-shape'):
         stable_storage_version(tampered)
+
+
+def test_storage_consumer_accepts_an_actual_tuple_receipt_without_relaxing(
+        timer_generated, tmp_path):
+    """OnlineCaseReceipt.events is a tuple in real runs; content checks stay."""
+    from myfuzz.integration.generated_storage_consumer import (
+        check_storage_observation)
+    artifacts, inputs, binding, target, authority = generic_authority(
+        timer_generated, tmp_path / 'first')
+    artifact = artifacts['peripheral']
+    declaration = timer_declaration(timer_generated, 0x55)
+    receipt = timer_receipt(artifact, declaration)
+    receipt.events = tuple(receipt.events)
+    install_writes(authority, [timer_commit(artifact, declaration)])
+    with pytest.raises(ValueError,
+                       match='storage-version-actual-native-build-required'):
+        check_storage_observation(declaration, receipt,
+            target_artifact=artifact, authority=authority, token=object(),
+            register='TIMER0_CTRL', reset_epoch=0,
+            before=version_witness(artifact), prior_writes=0)
+    # A tuple receipt is not a content bypass: a missing native pre sample
+    # still refuses by name.
+    artifacts, inputs, binding, target, tampered_authority = generic_authority(
+        timer_generated, tmp_path / 'second')
+    tampered = timer_receipt(artifact, declaration)
+    events = list(tampered.events)
+    events[2]['kind'] = 'other_tick'
+    tampered.events = tuple(events)
+    install_writes(tampered_authority, [timer_commit(artifact, declaration)])
+    with pytest.raises(ValueError,
+                       match='compiled-F4-storage-native-transfer-missing'):
+        check_storage_observation(declaration, tampered,
+            target_artifact=artifact, authority=tampered_authority,
+            token=object(), register='TIMER0_CTRL', reset_epoch=0,
+            before=version_witness(artifact), prior_writes=0)
+    # A non-dict member is still refused as an invalid receipt, not accepted.
+    broken = timer_receipt(artifact, declaration)
+    broken.events = (dict(broken.events[0]), 'not-an-event')
+    with pytest.raises(ValueError, match='compiled-F4-storage-receipt-required'):
+        check_storage_observation(declaration, broken,
+            target_artifact=artifact, authority=tampered_authority,
+            token=object(), register='TIMER0_CTRL', reset_epoch=0,
+            before=version_witness(artifact), prior_writes=0)

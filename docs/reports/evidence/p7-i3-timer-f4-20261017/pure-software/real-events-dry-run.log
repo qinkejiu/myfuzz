@@ -1,0 +1,7 @@
+scope: pure software dry run on the preserved real gate partial_events.json
+native build/model/Verilator: False
+token: forged object; the C issuer must fail closed
+accepted write pre sample index 6 tick 15 storage_value 0
+RESULT: refused at storage-version-actual-native-build-required
+meaning: the event chain, C journal join and before witness passed;
+only the genuine native eligibility/token boundary refused.

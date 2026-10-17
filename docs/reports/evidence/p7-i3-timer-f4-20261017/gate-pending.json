@@ -1,7 +1,16 @@
 {
   "schema_version": "compiled_F4_gate_pending.v1",
-  "status": "pending_frozen_source_window",
-  "reason": "The real timer F4 native gate is serialized by the root session on a frozen source tree after the parallel P8 S2 source edit and the P6 row2/3 campaigns. It was not executed for this I3 commit.",
+  "status": "pending_frozen_source_rerun",
+  "reason": "The real timer F4 native gate is serialized by the root session on a frozen source tree. The first attempt at frozen snapshot 53a9b7b failed in the compiled checker with 'compiled-F4-storage-receipt-required' because OnlineCaseReceipt.events is a tuple while the consumer accepted only a list; the follow-up I3 commit accepts tuple/list without relaxing content checks and is ready for the root rerun.",
+  "first_attempt": {
+    "snapshot": "53a9b7b",
+    "log": "docs/reports/evidence/p7-i3-timer-f4-20261017/outputs/timer-gate.log (root-owned run evidence, not committed by the I3 agent)",
+    "failure": "compiled-dataflow-refused: compiled-F4-protocol-checker-failed:('compiled-F4-storage-receipt-required',)",
+    "root_cause": "generated_storage_consumer required isinstance(receipt.events, list); the real receipt is tuple[dict, ...]",
+    "fix_commit": "follow-up I3 commit reported in the handoff (source/test/evidence only; no gate change)",
+    "pure_software_lock": "tests/integration/test_compiled_f4_storage_producer.py::test_storage_consumer_accepts_an_actual_tuple_receipt_without_relaxing",
+    "real_events_dry_run": "pure-software/real-events-dry-run.log refused only at storage-version-actual-native-build-required"
+  },
   "executor": "compiled_f4_obi_apb",
   "base_commit_at_handoff": "f9fc9b0",
   "inputs": {

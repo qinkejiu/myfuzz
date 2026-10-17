@@ -234,3 +234,48 @@ final I3 bytes above.
 ## 7. Commit
 
 Commit message starts with `P7 I3`; SHA is reported in the handoff message.
+
+## Addendum: first frozen-snapshot real gate attempt (snapshot `53a9b7b`)
+
+The root session ran the queued timer gate on frozen snapshot `53a9b7b`.  The
+run started the native processes and reached the compiled checker, then
+failed:
+
+```
+compiled-dataflow-refused: compiled-F4-protocol-checker-failed:('compiled-F4-storage-receipt-required',)
+```
+
+**Root cause**: `OnlineCaseReceipt.events` is a `tuple[dict, ...]`; the
+consumer's receipt guard accepted only `list`, so the real receipt was
+misclassified as missing before any chain join ran.
+
+**Fix (this follow-up commit)**: the guard now accepts `list`/`tuple`,
+requires the sequence to be non-empty, and additionally requires every member
+to be a `dict`.  No content check (delivery/acceptance/native sample/probe/
+journal/token) was relaxed.  New pure control
+`test_storage_consumer_accepts_an_actual_tuple_receipt_without_relaxing` locks
+the tuple case, a tampered tuple still refuses
+`native-transfer-missing`, and a non-dict member is refused as an invalid
+receipt.
+
+**Validation**:
+
+- tuple control RED before the fix: 1 failed
+  (`compiled-F4-storage-receipt-required`) in 16.50s; GREEN after: 1 passed
+  in 16.08s;
+- focused file `test_compiled_f4_storage_producer.py`: 67 passed;
+- three-file gate: 107 passed, 1 skipped in 168.99s;
+- adjacent `-k "compiled_f4 or compiled_storage"`: 98 passed, 1 skipped,
+  3136 deselected in 197.84s;
+- **non-native dry run on the preserved real `partial_events.json`**: the
+  consumer passed the whole event chain (real accepted write pre sample index
+  6 at tick 15, value 0→85; read pre at tick 22 with prdata 85; RAM write at
+  `0x3fffc`) and the shaped C journal join, and refused only at
+  `storage-version-actual-native-build-required`.  This is a software
+  cross-check, **not** a gate pass.
+
+The real timer gate must be rerun by the root session on a frozen tree; no
+native build/token/certificate/fresh result is claimed by this fix.  P7
+overall remains unpassed (I4/I5 open).  Root-run evidence stays under
+`docs/reports/evidence/p7-i3-timer-f4-20261017/outputs/` (not committed by
+this agent).

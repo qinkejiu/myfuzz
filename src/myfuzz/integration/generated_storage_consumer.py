@@ -463,7 +463,10 @@ def check_storage_observation(declaration, receipt, *, target_artifact, authorit
             'compiled-F4-storage-native-APB-observation-required')
     receipt_events = getattr(receipt, 'events', None)
     case_id = getattr(receipt, 'case_id', None)
-    if (not isinstance(receipt_events, list) or not receipt_events
+    # OnlineCaseReceipt.events is a tuple in real runs; a plain list is also
+    # accepted.  Membership and per-event content are still checked.
+    if (not isinstance(receipt_events, (list, tuple)) or not receipt_events
+            or any(not isinstance(row, dict) for row in receipt_events)
             or type(case_id) is not str or not case_id):
         raise ValueError('compiled-F4-storage-receipt-required')
     source = access['source_component']

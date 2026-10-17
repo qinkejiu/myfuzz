@@ -1,0 +1,29 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____ test_storage_consumer_accepts_an_actual_tuple_receipt_without_relaxing ____
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x75168f3ecb60>, 'physical_port_map': {}})
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-0/test_storage_consumer_accepts_0')
+
+    def test_storage_consumer_accepts_an_actual_tuple_receipt_without_relaxing(
+            timer_generated, tmp_path):
+        """OnlineCaseReceipt.events is a tuple in real runs; content checks stay."""
+        from myfuzz.integration.generated_storage_consumer import (
+            check_storage_observation)
+        artifacts, inputs, binding, target, authority = generic_authority(
+            timer_generated, tmp_path / 'first')
+        artifact = artifacts['peripheral']
+        declaration = timer_declaration(timer_generated, 0x55)
+        receipt = timer_receipt(artifact, declaration)
+        receipt.events = tuple(receipt.events)
+        install_writes(authority, [timer_commit(artifact, declaration)])
+>       with pytest.raises(ValueError,
+                           match='storage-version-actual-native-build-required'):
+E                          AssertionError: Regex pattern did not match.
+E                            Expected regex: 'storage-version-actual-native-build-required'
+E                            Actual message: 'compiled-F4-storage-receipt-required'
+
+tests/integration/test_compiled_f4_storage_producer.py:982: AssertionError
+=========================== short test summary info ============================
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_storage_consumer_accepts_an_actual_tuple_receipt_without_relaxing
+1 failed, 66 deselected in 16.50s

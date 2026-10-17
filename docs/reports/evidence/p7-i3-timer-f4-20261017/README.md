@@ -39,8 +39,12 @@ All runs use `PYTHONPATH=src python3 -m pytest -q` from the repository root.
 | id | command | result | artifact |
 |---|---|---|---|
 | red | `pytest -q tests/integration/test_compiled_f4_storage_producer.py -k "storage_consumer or generic_producer_is_supported or generic_support or stable_storage"` with the four I3 source files stashed at base `f9fc9b0` | **38 failed, 28 deselected** in 18.26s | `pure-software/red.log` |
-| green | `pytest -q tests/integration/test_compiled_f4_storage_producer.py tests/integration/test_compiled_f4.py tests/integration/test_compiled_execution_files.py` | **106 passed, 1 skipped** in 170.42s | `pure-software/green.log` |
-| adjacent | `pytest -q tests/integration -k "compiled_f4 or compiled_storage"` | **97 passed, 1 skipped, 3133 deselected** in 198.89s | `pure-software/adjacent-compiled-f4.log` |
+| green (pre-tuple-fix, first commit) | `pytest -q tests/integration/test_compiled_f4_storage_producer.py tests/integration/test_compiled_f4.py tests/integration/test_compiled_execution_files.py` | **106 passed, 1 skipped** in 170.42s | superseded |
+| tuple red | `pytest -q tests/integration/test_compiled_f4_storage_producer.py -k tuple_receipt` before accepting tuple receipts | **1 failed** in 16.50s (`compiled-F4-storage-receipt-required`, same failure as the real gate) | `pure-software/tuple-red.log` |
+| tuple green | same focused command after the tuple fix | **1 passed** in 16.08s | `pure-software/tuple-green.log` |
+| green (final, tuple fix) | `pytest -q tests/integration/test_compiled_f4_storage_producer.py tests/integration/test_compiled_f4.py tests/integration/test_compiled_execution_files.py` | **107 passed, 1 skipped** in 168.99s | `pure-software/green.log` |
+| adjacent (final) | `pytest -q tests/integration -k "compiled_f4 or compiled_storage"` | **98 passed, 1 skipped, 3136 deselected** in 197.84s | `pure-software/adjacent-compiled-f4.log` |
+| real-events dry run | pure-software replay of the preserved real gate `outputs/timer/partial_events.json` through the consumer with a forged token | refused only at **`storage-version-actual-native-build-required`** | `pure-software/real-events-dry-run.log` |
 
 The single skip is the existing `MYFUZZ_COMPILED_F4_REAL=1` native gate.  It
 was intentionally **not** run and is not claimed.
@@ -49,6 +53,24 @@ RED method: the four I3 source files were temporarily saved with
 `git stash push -u` so the new tests executed against the pre-I3 tree at
 `f9fc9b0`; the stash was popped immediately after the RED run and the source
 hashes below were re-recorded.  No test was skipped or relaxed.
+
+## First real timer gate attempt (frozen snapshot 53a9b7b)
+
+The root session's first frozen-snapshot run reached the compiled checker and
+failed with:
+
+```
+compiled-dataflow-refused: compiled-F4-protocol-checker-failed:('compiled-F4-storage-receipt-required',)
+```
+
+Root cause: `OnlineCaseReceipt.events` is a `tuple[dict, ...]`, while the
+consumer accepted only `list`.  The fix accepts `list`/`tuple` and additionally
+requires every member to be a `dict`; no content check was relaxed.  The
+non-native dry run then fed the preserved real `partial_events.json` through
+the consumer (real accepted write pre sample index 6 at tick 15, real value
+0 → 85, real read at tick 22) and it refused only at the genuine-native token
+boundary, not at a shape/join check.  The real gate itself must be rerun by
+the root session on a frozen source tree and is not claimed here.
 
 ## Real timer F4 gate (queued, not run)
 
