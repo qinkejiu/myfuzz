@@ -2,8 +2,8 @@
 
 ## 2026-10-18 P6 native 有界持久门通过（最新）
 
-- [真实门汇总](reports/p6-native-persistent-directed-20261018.md)：第三次gate PID4046776实际exit0，同CPU/GPIO进程连续3例、双侧源、真实下游消费与受控响应扰动检出；正向2,246事件、受控982事件的完整fresh分别精确相同，8个DUT均terminal0。两份独立原始数据审计通过。
-- 只关闭行5固定实例的有界持久定向门；来源仍有unknown/transport_candidates_only、RAM observation_only，无独立APB相位证据，不授退休/IRQ/闭环证书/四类反馈或RFuzz campaign。P6/P7/P8整体保持开放。
+- [真实门汇总](reports/p6-native-persistent-directed-20261018.md)：第三次gate PID4046776实际exit0，同CPU/GPIO进程连续3例、双侧源、真实后端响应、RAM/GPIO结果与受控响应扰动检出；正向2,246事件、受控982事件的完整fresh分别精确相同，8个DUT均terminal0。两份独立原始数据审计通过。
+- 只关闭行5固定实例的有界持久定向门；来源仍有unknown/transport_candidates_only、RAM observation_only；native未采样mem_ready，response consumed仅adapter/backend握手，无独立APB相位证据，不授退休/IRQ/闭环证书/四类反馈或RFuzz campaign。P6/P7/P8整体保持开放。
 - P7第二份工作集staging/规划已exit0并审核真实v2清单；最终prepare进程71779继续运行，尚未开始第二次N1–N8。
 
 ## 2026-10-18 P6 native 两轮历史启动前失败

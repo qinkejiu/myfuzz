@@ -1,4 +1,4 @@
-2026-10-18 最新增量：[Pico native＋PULP GPIO 有界持久门实际通过](reports/p6-native-persistent-directed-20261018.md)。同PID/nonce/epoch三例CPU/IP/CPU，真实下游消费与受控响应扰动检出，完整fresh及8个DUT terminal0经两份独立审计；source/tool/file+directory前后不变。边界：钉定目标backend与GPIO物理采样，无独立APB相位抽头；来源仍unknown/transport_candidates_only、RAM observation_only，无退休/IRQ/闭环证书、四反馈、持续搜索或P6整行授予。
+2026-10-18 最新增量：[Pico native＋PULP GPIO 有界持久门实际通过](reports/p6-native-persistent-directed-20261018.md)。同PID/nonce/epoch三例CPU/IP/CPU，真实后端响应、RAM/GPIO结果与受控响应扰动检出，完整fresh及8个DUT terminal0经两份独立审计；source/tool/file+directory前后不变。边界：钉定目标backend与GPIO物理采样，未导出native mem_ready，response_consumed仅adapter/backend握手；无独立APB相位抽头；来源仍unknown/transport_candidates_only、RAM observation_only，无退休/IRQ/闭环证书、四反馈、持续搜索或P6整行授予。
 
 # 生成式独立 Harness 的实际运行边界
 
