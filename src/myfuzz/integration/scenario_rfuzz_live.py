@@ -84,6 +84,19 @@ def _online_decision_for_receipt(executor: ScenarioRfuzzExecutor, receipt):
     return decision
 
 
+def _compiled_cycle_fields(decision) -> dict:
+    """The compiled route's per-test wire/candidate counts, when it declared them.
+
+    The field is conditional so every non-compiled online receipt stays
+    byte-identical; a compiled receipt row states the whole wire-cycle count and
+    the capped candidate count that actually reached the RTL.
+    """
+    if not isinstance(decision, dict) or 'wire_cycle_count' not in decision:
+        return {}
+    return {'wire_cycle_count': decision['wire_cycle_count'],
+            'candidate_count': decision.get('candidate_count')}
+
+
 def _source_action_gate_record(executor: ScenarioRfuzzExecutor) -> dict | None:
     """Record the opt-in source-action gate and its bounded tracker state.
 
@@ -325,6 +338,7 @@ def _run_scenario_rfuzz_live(*, executor: ScenarioRfuzzExecutor,
                     "wall_cut": receipt.wall_cut,
                     "online_raw_records_hex": (decision.get("raw_records_hex")
                                                if decision is not None else None),
+                    **_compiled_cycle_fields(decision),
                     "case_id": decision.get("case_id") if decision is not None else None,
                     "direction": decision.get("direction") if decision is not None else None,
                     "flow_id": decision.get("flow_id") if decision is not None else None,

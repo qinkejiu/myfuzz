@@ -52,6 +52,7 @@ from myfuzz.integration.scenario_rfuzz import (
     ScenarioRfuzzReceipt,
 )
 from myfuzz.scenario.compiled_online_decoder import (
+    MAX_CANDIDATE_RECORDS,
     CompiledCandidateRefused,
     CompiledOnlineDecoder,
 )
@@ -69,23 +70,27 @@ FRESH_VERIFICATION_SCHEMA = 'fresh_verification.v1'
 COMMIT_TARGET_BITS = tuple(range(24, 32))
 COMMIT_OBSERVATION_LANE = 'storage_commit_after'
 
-#: The real native RFuzz scenario test is the eight declared decision fields:
-#: one eight-byte record per cycle/field.  The transport must therefore accept
-#: up to eight cycles for one test; a ninth is refused, never silently clipped.
-COMPILED_WIRE_CYCLES = 8
+#: The native scenario test can carry a longer wire sequence than the eight
+#: decision fields (the legacy genome decoder accepts up to 200 records).  The
+#: parser therefore uses the legacy bound and never clips it.
+COMPILED_WIRE_MAX_CYCLES = 200
+#: Only the first eight records of one test are compiled candidates; every
+#: further record is an unreferenced transport lane and is recorded as such.
+COMPILED_CANDIDATE_CYCLES = MAX_CANDIDATE_RECORDS
 SEQUENCE_SCHEMA = 'compiled_online_sequence.v1'
 
 
 def parse_compiled_input_buffer(data):
-    """Parse one RFuzz input buffer with the compiled route's real bound.
+    """Parse one RFuzz input buffer with the legacy 200-record bound.
 
     The shipped ``process_owned_pair`` used
     ``online_decoder.max_input_bytes // RECORD_BYTES`` (8 // 8 = 1) for this
-    bound, which refuses the eight-cycle scenario test the native client really
-    sends.  One to eight cycles are the declared fields; more is refused.
+    bound, which refuses the real native scenario test.  The wire parser
+    accepts 1..200 records, exactly like ``GenomeRecordDecoder.max_records``;
+    the candidate count is capped separately by the executor.
     """
     return parse_input_buffer(data, input_bytes=RECORD_BYTES,
-                              max_cycles=COMPILED_WIRE_CYCLES)
+                              max_cycles=COMPILED_WIRE_MAX_CYCLES)
 
 
 def _canonical(value) -> bytes:
@@ -106,21 +111,36 @@ def _sequence_digest(candidates) -> str:
                            for candidate in candidates)).hexdigest()
 
 
-def _sequence_document(candidates) -> dict:
-    """The one-candidate document, or the ordered-sequence document."""
+def _sequence_document(candidates, *, wire_cycle_count=None,
+                       unreferenced=()) -> dict:
+    """The one-candidate document, or the ordered-sequence document.
+
+    ``wire_cycle_count`` is the whole test's record count; ``unreferenced``
+    holds the records beyond the eight-candidate cap, which never reach the
+    RTL and are retained only as transport-lane evidence.
+    """
+    total = (len(candidates) + len(unreferenced)
+             if wire_cycle_count is None else wire_cycle_count)
     if len(candidates) == 1:
-        return candidates[0].document()
-    return {
-        'schema_version': SEQUENCE_SCHEMA,
-        'path_id': candidates[0].path_id,
-        'source_id': candidates[0].source_id,
-        'register': candidates[0].register,
-        'compiled_sha256': candidates[0].compiled_sha256,
-        'layout_digest': candidates[0].layout_digest,
-        'candidate_count': len(candidates),
-        'candidates': [candidate.document() for candidate in candidates],
-        'values': [candidate.value for candidate in candidates],
-    }
+        document = dict(candidates[0].document())
+    else:
+        document = {
+            'schema_version': SEQUENCE_SCHEMA,
+            'path_id': candidates[0].path_id,
+            'source_id': candidates[0].source_id,
+            'register': candidates[0].register,
+            'compiled_sha256': candidates[0].compiled_sha256,
+            'layout_digest': candidates[0].layout_digest,
+            'candidates': [candidate.document() for candidate in candidates],
+            'values': [candidate.value for candidate in candidates],
+        }
+    document.update(
+        wire_cycle_count=total,
+        candidate_count=len(candidates),
+        unreferenced_wire_cycle_count=len(unreferenced),
+        unreferenced_wire_records_hex=[record.hex()
+                                       for record in unreferenced])
+    return document
 
 
 def compiled_commit_targets(path) -> tuple:
@@ -386,7 +406,10 @@ class CompiledRfuzzExecutor(ScenarioRfuzzExecutor):
         coverages = []
         before_batch = len(self.receipts)
         for slot, records in enumerate(batch.tests):
-            raw = b''.join(records)
+            wire_records = tuple(records)
+            candidate_records = wire_records[:COMPILED_CANDIDATE_CYCLES]
+            unreferenced = wire_records[COMPILED_CANDIDATE_CYCLES:]
+            raw = b''.join(wire_records)
             raw_hash = sha256(raw).hexdigest()
             identity = (batch.buffer_id, slot)
             previous = self._completed.get(identity)
@@ -399,7 +422,11 @@ class CompiledRfuzzExecutor(ScenarioRfuzzExecutor):
                 continue
             coverage = bytes(self.counter_count)
             decision = self._new_decision(batch, slot, records, raw, raw_hash)
-            decision['cycle_count'] = len(records)
+            decision['wire_cycle_count'] = len(wire_records)
+            decision['candidate_count'] = 0
+            decision['unreferenced_wire_cycle_count'] = len(unreferenced)
+            decision['unreferenced_wire_records_hex'] = [
+                record.hex() for record in unreferenced]
             self.online_decisions.append(decision)
             self._online_decisions_by_slot[identity] = decision
             if self._session_stop_reason is None and self._duration_reached():
@@ -413,11 +440,13 @@ class CompiledRfuzzExecutor(ScenarioRfuzzExecutor):
                 coverages.append(coverage)
                 continue
             receipt = None
+            planned = None
             try:
                 decode_started = time.monotonic()
                 planned = self.online_decoder.decode_sequence(
-                    tuple(records), cursor=self.runtime.cursor,
+                    candidate_records, cursor=self.runtime.cursor,
                     case_index=len(self.runtime.records))
+                decision['candidate_count'] = len(planned)
                 self._check_case_budget(len(planned))
                 select_seconds = time.monotonic() - decode_started
                 before_ticks = self._local_ticks()
@@ -440,7 +469,9 @@ class CompiledRfuzzExecutor(ScenarioRfuzzExecutor):
                 self._target_hits.update(hits)
                 receipt = self._build_receipt(
                     batch, slot, raw_hash, planned, status='certified',
-                    coverage=coverage, ticks=ticks, error=None)
+                    coverage=coverage, ticks=ticks, error=None,
+                    wire_cycle_count=len(wire_records),
+                    unreferenced=unreferenced)
                 self._observe_cost(select_seconds, submit_seconds)
                 decision.update(
                     source_id=planned[0].source_id,
@@ -454,7 +485,9 @@ class CompiledRfuzzExecutor(ScenarioRfuzzExecutor):
                     candidate_disposition='admitted',
                     candidate_disposition_reason='rtl_case_committed',
                     admitted_status='submit_attempted', committed=True,
-                    candidate=_sequence_document(planned),
+                    candidate=_sequence_document(
+                        planned, wire_cycle_count=len(wire_records),
+                        unreferenced=unreferenced),
                     candidate_count=len(planned),
                     phase_timing_seconds={
                         'selection_decode': select_seconds,
@@ -476,9 +509,11 @@ class CompiledRfuzzExecutor(ScenarioRfuzzExecutor):
                                'code': error.code, 'pointer': error.pointer,
                                'detail': deepcopy(error.detail)})
                 receipt = self._build_receipt(
-                    batch, slot, raw_hash, None, status='input_invalid',
+                    batch, slot, raw_hash, planned, status='input_invalid',
                     coverage=coverage, ticks={}, error=str(error),
-                    rejection=decision['rejection'])
+                    rejection=decision['rejection'],
+                    wire_cycle_count=len(wire_records),
+                    unreferenced=unreferenced)
                 if error.code in ('slot-budget-exhausted',
                                   'case-budget-exhausted'):
                     self._session_stop_reason = error.code
@@ -494,7 +529,9 @@ class CompiledRfuzzExecutor(ScenarioRfuzzExecutor):
                 receipt = self._build_receipt(
                     batch, slot, raw_hash, None, status='environment_error',
                     coverage=coverage, ticks={},
-                    error=f'{type(error).__name__}: {error}')
+                    error=f'{type(error).__name__}: {error}',
+                    wire_cycle_count=len(wire_records),
+                    unreferenced=unreferenced)
                 self._session_stop_reason = 'environment_error'
                 self._save_failure(batch, slot, raw, decision, error)
             self._receipts_append(identity, raw_hash, coverage, receipt)
@@ -565,22 +602,38 @@ class CompiledRfuzzExecutor(ScenarioRfuzzExecutor):
             'closed_loop_feedback': None,
             'admitted_status': 'not_admitted', 'committed': False,
             'wire_record_sha256': raw_hash,
+            'wire_cycle_count': len(records),
+            'candidate_count': 0,
+            'unreferenced_wire_cycle_count': max(
+                0, len(records) - COMPILED_CANDIDATE_CYCLES),
+            'unreferenced_wire_records_hex': [
+                record.hex()
+                for record in records[COMPILED_CANDIDATE_CYCLES:]],
         }
 
     def _build_receipt(self, batch, slot, raw_hash, candidates, *, status,
-                       coverage, ticks, error, rejection=None):
+                       coverage, ticks, error, rejection=None,
+                       wire_cycle_count=None, unreferenced=()):
         if candidates:
             source_id = candidates[0].source_id
             path_id = candidates[0].path_id
             genome_sha256 = _sequence_digest(candidates)
-            source_document = {'source': _sequence_document(candidates)}
+            source_document = {'source': _sequence_document(
+                candidates, wire_cycle_count=wire_cycle_count,
+                unreferenced=unreferenced)}
         else:
             source_id = self.online_decoder.source_id
             path_id = self.online_decoder.path_id
             genome_sha256 = None
             source_document = {'source': {
                 'schema_version': 'compiled_online_candidate.v1',
-                'source_id': source_id, 'path_id': path_id}}
+                'source_id': source_id, 'path_id': path_id,
+                'wire_cycle_count': (wire_cycle_count
+                                     if wire_cycle_count is not None else 0),
+                'candidate_count': 0,
+                'unreferenced_wire_cycle_count': len(unreferenced),
+                'unreferenced_wire_records_hex': [
+                    record.hex() for record in unreferenced]}}
         total = sum(ticks.values())
         return ScenarioRfuzzReceipt(
             self.run_id, batch.buffer_id, slot, raw_hash,
@@ -785,7 +838,8 @@ def run_compiled_f4_rfuzz_session(*, artifacts, compiled_inputs, base_dir,
     # The client stops on test receipts; one test may carry up to eight
     # declared decision records, so the runtime must have case headroom for
     # every record the transport can still admit before that stop.
-    limit = min(max_tests * COMPILED_WIRE_CYCLES + COMPILED_WIRE_CYCLES, 65536)
+    limit = min(max_tests * COMPILED_CANDIDATE_CYCLES
+                + COMPILED_CANDIDATE_CYCLES, 65536)
     runtime = None
     error = None
     try:

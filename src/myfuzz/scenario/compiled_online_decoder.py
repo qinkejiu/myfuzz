@@ -55,6 +55,9 @@ CANDIDATE_SCHEMA = 'compiled_online_candidate.v1'
 
 #: The RFuzz decision wire allocates whole eight byte records per test.
 WIRE_RECORD_BYTES = RECORD_BYTES
+#: One test may carry a longer wire sequence (the legacy decoder accepts up to
+#: 200 records); only the first eight are compiled candidates for this route.
+MAX_CANDIDATE_RECORDS = 8
 
 
 class CompiledCandidateRefused(ValueError):
@@ -346,7 +349,7 @@ class CompiledOnlineDecoder:
 
     def decode_sequence(self, records, *, cursor, case_index
                         ) -> tuple[CompiledCandidate, ...]:
-        """Decode one whole RFuzz test (1..8 declared decision records).
+        """Decode one whole RFuzz test (at most eight candidate records).
 
         Every record is validated and its exact future cursor is planned here,
         before the caller issues any native command.  The first record must
@@ -361,6 +364,11 @@ class CompiledOnlineDecoder:
         if (not isinstance(records, tuple) or not records
                 or any(type(record) is not bytes for record in records)):
             raise CompiledCandidateRefused('sequence-record-required')
+        if len(records) > MAX_CANDIDATE_RECORDS:
+            raise CompiledCandidateRefused(
+                'candidate-cycle-limit-exceeded',
+                detail={'records': len(records),
+                        'max_candidates': MAX_CANDIDATE_RECORDS})
         planned = []
         current = cursor
         for offset, raw in enumerate(records):

@@ -21,7 +21,8 @@ from myfuzz.integration import compiled_f4 as compiled_f4_module
 from myfuzz.integration.compiled_candidate_layout import compile_candidate_layout
 from myfuzz.integration.compiled_f4 import normalized_semantic_sha256
 from myfuzz.integration.compiled_rfuzz import (
-    COMPILED_WIRE_CYCLES,
+    COMPILED_CANDIDATE_CYCLES,
+    COMPILED_WIRE_MAX_CYCLES,
     CompiledRfuzzExecutor,
     compiled_commit_targets,
     fresh_verification_document,
@@ -37,6 +38,7 @@ from myfuzz.local_harness.auto_harness_test import (
 from myfuzz.local_harness.generated_artifact_admission import load_generated_artifacts
 from myfuzz.local_harness.harness_set import generate_harness_set, load_compose
 from myfuzz.scenario.compiled_online_decoder import (
+    MAX_CANDIDATE_RECORDS,
     CompiledCandidateRefused,
     CompiledOnlineDecoder,
     compiled_document_sha256,
@@ -490,24 +492,88 @@ def test_fresh_verification_scope_comes_from_the_full_prefix_replay():
     assert absent['matches'] is False
 
 
-def test_the_compiled_wire_cycle_limit_matches_the_scenario_fields():
+def test_the_compiled_wire_bounds_match_the_legacy_and_candidate_limits():
+    import inspect
     from myfuzz.integration.scenario_rfuzz_live import _DECISION_FIELDS
-    assert COMPILED_WIRE_CYCLES == len(_DECISION_FIELDS) == 8
+    from myfuzz.scenario.rfuzz_decoder import GenomeRecordDecoder
+    assert COMPILED_WIRE_MAX_CYCLES == 200
+    assert (inspect.signature(GenomeRecordDecoder.__init__)
+            .parameters['max_records'].default == 200)
+    assert (COMPILED_CANDIDATE_CYCLES == MAX_CANDIDATE_RECORDS
+            == len(_DECISION_FIELDS) == 8)
 
 
-def test_one_and_eight_cycle_tests_parse_and_more_is_refused():
+def test_one_eight_nine_sixty_four_and_200_cycle_tests_parse():
     one = parse_compiled_input_buffer(_wire((bytes(8),)))
     assert len(one.tests) == 1
     assert one.tests[0] == (bytes(8),)
-
-    records = _high_byte_records(8)
-    eight = parse_compiled_input_buffer(_wire(records))
-    assert len(eight.tests) == 1
-    assert eight.tests[0] == records
-
-    nine = _wire(tuple(bytes(8) for _ in range(9)))
+    for count in (8, 9, 64, 200):
+        records = _high_byte_records(count)
+        batch = parse_compiled_input_buffer(_wire(records))
+        assert len(batch.tests) == 1
+        assert batch.tests[0] == records
+    too_many = _wire(tuple(bytes(8) for _ in range(201)))
     with pytest.raises(ValueError, match='test cycle count outside bound'):
-        parse_compiled_input_buffer(nine)
+        parse_compiled_input_buffer(too_many)
+
+
+def test_a_64_cycle_test_uses_eight_candidates_and_records_the_rest(gpio):
+    _, inputs, path = gpio
+    runtime = _FakeRuntime(path, inputs['compiled'], max_cases=16)
+    executor = _executor(inputs, path, runtime)
+    records = _high_byte_records(64)
+    coverages = executor.execute_batch(InputBatch(7, WIRE, (records,)))
+    assert len(runtime.submits) == 8
+    assert len(runtime.records) == 8
+    assert len(coverages) == 1 and int(coverages[0].hex(), 16) != 0
+    receipt = executor.receipts[0]
+    assert receipt.status == 'certified'
+    source = receipt.online_case['source']
+    assert source['wire_cycle_count'] == 64
+    assert source['candidate_count'] == 8
+    assert source['unreferenced_wire_cycle_count'] == 56
+    assert len(source['unreferenced_wire_records_hex']) == 56
+    assert source['unreferenced_wire_records_hex'] == [
+        record.hex() for record in records[8:]]
+    decision = executor._online_decisions_by_slot[(7, 0)]
+    assert decision['wire_cycle_count'] == 64
+    assert decision['candidate_count'] == 8
+    assert decision['unreferenced_wire_cycle_count'] == 56
+    assert decision['unreferenced_wire_records_hex'] == [
+        record.hex() for record in records[8:]]
+    assert decision['candidate_disposition_reason'] == 'rtl_case_committed'
+
+
+def test_a_nine_cycle_test_uses_eight_candidates_and_one_unreferenced_record(gpio):
+    _, inputs, path = gpio
+    runtime = _FakeRuntime(path, inputs['compiled'], max_cases=16)
+    executor = _executor(inputs, path, runtime)
+    records = _high_byte_records(9)
+    executor.execute_batch(InputBatch(8, WIRE, (records,)))
+    assert len(runtime.submits) == 8
+    source = executor.receipts[0].online_case['source']
+    assert source['wire_cycle_count'] == 9
+    assert source['candidate_count'] == 8
+    assert source['unreferenced_wire_cycle_count'] == 1
+    assert source['unreferenced_wire_records_hex'] == [records[8].hex()]
+
+
+def test_nine_candidate_records_are_refused_by_the_candidate_api(gpio):
+    _, inputs, path = gpio
+    decoder = _decoder(inputs, path)
+    records = tuple(bytes(8) for _ in range(9))
+    with pytest.raises(CompiledCandidateRefused,
+                       match='candidate-cycle-limit-exceeded'):
+        decoder.decode_sequence(records, cursor=0x10000, case_index=0)
+
+
+def test_compiled_receipt_rows_declare_wire_and_candidate_counts():
+    from myfuzz.integration.scenario_rfuzz_live import _compiled_cycle_fields
+    assert _compiled_cycle_fields(
+        {'wire_cycle_count': 64, 'candidate_count': 8}) == {
+            'wire_cycle_count': 64, 'candidate_count': 8}
+    assert _compiled_cycle_fields({'candidate_count': 8}) == {}
+    assert _compiled_cycle_fields(None) == {}
 
 
 def test_an_eight_cycle_test_executes_every_record_with_one_receipt(gpio):
@@ -531,7 +597,7 @@ def test_an_eight_cycle_test_executes_every_record_with_one_receipt(gpio):
     assert source['values'] == [int.from_bytes(record[:4], 'little')
                                 for record in records]
     decision = executor._online_decisions_by_slot[(5, 0)]
-    assert decision['cycle_count'] == 8
+    assert decision['wire_cycle_count'] == 8
     assert decision['candidate_count'] == 8
     assert decision['candidate_disposition_reason'] == 'rtl_case_committed'
     assert decision['source_id'] == 'peripheral.GPIOEN.value.mmio'

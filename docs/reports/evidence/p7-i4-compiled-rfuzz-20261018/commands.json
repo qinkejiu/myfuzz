@@ -5,25 +5,25 @@
       "command": "PYTHONPATH=src python3 -m pytest -q tests/integration/test_compiled_online_decoder.py",
       "counts": {
         "failed": 0,
-        "passed": 21,
+        "passed": 25,
         "skipped": 0
       },
       "cwd": "/home/qinkejiu/myfuzz",
       "id": "new-decoder-and-bridge",
       "result": "passed",
-      "seconds": 31.62
+      "seconds": 28.66
     },
     {
       "command": "PYTHONPATH=src python3 -m pytest -q tests/integration/test_compiled_online_decoder.py tests/integration/test_auto_harness_test.py",
       "counts": {
         "failed": 0,
-        "passed": 54,
+        "passed": 58,
         "skipped": 0
       },
       "cwd": "/home/qinkejiu/myfuzz",
       "id": "new-plus-auto-harness",
       "result": "passed",
-      "seconds": 161.95
+      "seconds": 162.42
     },
     {
       "command": "PYTHONPATH=src python3 -m pytest -q tests/integration/test_compiled_f4.py tests/integration/test_compiled_f4_storage_producer.py tests/integration/test_compiled_candidate_layout.py",
@@ -68,6 +68,19 @@
       "id": "auto-harness-full",
       "result": "passed",
       "seconds": 136.24
+    },
+    {
+      "command": "PYTHONPATH=src python3 -m pytest -q tests/integration/test_scenario_rfuzz_live_client.py tests/integration/test_scenario_rfuzz_terminal_identity.py tests/integration/test_scenario_rfuzz_transport.py tests/integration/test_scenario_rfuzz_acceptance.py",
+      "counts": {
+        "failed": 0,
+        "passed": 39,
+        "skipped": 4,
+        "subtests_passed": 4
+      },
+      "cwd": "/home/qinkejiu/myfuzz",
+      "id": "scenario-live-suite",
+      "result": "passed",
+      "seconds": 0.76
     }
   ],
   "executor": "compiled-f4-rfuzz",
@@ -96,7 +109,7 @@
       "then": "ValueError: test cycle count outside bound in ScenarioRfuzzExecutor.process_owned_pair"
     },
     "path": "runs/rfuzz_client_native_build/target/debug/kfuzz",
-    "scenario_test": "eight decision records (eight cycles, one eight-byte record per field)",
+    "scenario_test": "can exceed eight records (eight declared fields may span 64 records); the legacy max_records bound is 200",
     "why": "the bounded client build enforces a minimum 256 runs per batch, while the shipped transport accepts only --max-runs-per-batch 1..8; the native client is used for this gate",
     "wire_cycle_limit": 8
   },
@@ -145,15 +158,42 @@
   },
   "schema_version": "p7_i4_pure_software_handoff.v1",
   "status": "pure_software_only_real_gate_not_run",
+  "wire_cycle_model": {
+    "candidate_cap": 8,
+    "candidate_selection": "first eight records of one wire test",
+    "legacy_max_records": 200,
+    "parse_bound": 200,
+    "receipt_fields": [
+      "wire_cycle_count",
+      "candidate_count",
+      "unreferenced_wire_cycle_count",
+      "unreferenced_wire_records_hex"
+    ],
+    "tests": [
+      "test_the_compiled_wire_bounds_match_the_legacy_and_candidate_limits",
+      "test_one_eight_nine_sixty_four_and_200_cycle_tests_parse",
+      "test_a_64_cycle_test_uses_eight_candidates_and_records_the_rest",
+      "test_a_nine_cycle_test_uses_eight_candidates_and_one_unreferenced_record",
+      "test_nine_candidate_records_are_refused_by_the_candidate_api",
+      "test_compiled_receipt_rows_declare_wire_and_candidate_counts"
+    ],
+    "top_level_receipt_fields": [
+      "wire_cycle_count",
+      "candidate_count"
+    ],
+    "unreferenced": "records after the first eight are transport lanes: not executed and not counted as coverage"
+  },
   "wire_follow_up": {
-    "fix": "CompiledRfuzzExecutor.process_owned_pair overrides the parse bound to parse_compiled_input_buffer (1..8 cycles); a test's records are decoded as an ordered candidate sequence before any native command, executed in the same runtime, and represented by one aggregate coverage/receipts row for the test; the runtime case budget is max_tests*8+8; >8 cycles are refused, not clipped",
+    "fix": "parse with the legacy 200-record bound, use only the first eight records as candidates, record the rest as unreferenced wire lanes, and carry wire_cycle_count/candidate_count in the receipt/decision; a ninth candidate is refused by the candidate API; >200 wire cycles are refused",
     "gate_rerun_required": true,
     "regression_tests": [
-      "test_the_compiled_wire_cycle_limit_matches_the_scenario_fields",
-      "test_one_and_eight_cycle_tests_parse_and_more_is_refused",
-      "test_an_eight_cycle_test_executes_every_record_with_one_receipt",
-      "test_an_eight_cycle_test_over_max_cases_refuses_before_any_submit"
+      "test_the_compiled_wire_bounds_match_the_legacy_and_candidate_limits",
+      "test_one_eight_nine_sixty_four_and_200_cycle_tests_parse",
+      "test_a_64_cycle_test_uses_eight_candidates_and_records_the_rest",
+      "test_a_nine_cycle_test_uses_eight_candidates_and_one_unreferenced_record",
+      "test_nine_candidate_records_are_refused_by_the_candidate_api",
+      "test_compiled_receipt_rows_declare_wire_and_candidate_counts"
     ],
-    "root_cause": "the inherited process_owned_pair derived max_cycles from online_decoder.max_input_bytes // RECORD_BYTES = 1, refusing the real eight-cycle scenario test"
+    "root_cause": "the inherited process_owned_pair derived max_cycles from online_decoder.max_input_bytes // RECORD_BYTES = 1, refusing the real native scenario test; an 8-cycle bound was still too small (the test may carry 64 records)"
   }
 }
