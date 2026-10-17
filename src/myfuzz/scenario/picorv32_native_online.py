@@ -23,7 +23,7 @@ from .online_case_decoder import OnlineCaseDecoder, OnlineDependencyGraph, Onlin
 from .session_runtime import OnlineInstruction
 from .picorv32_native_cpu_example import (ROOT, CPU_PROFILE, GPIO_PROFILE,
     GPIO_BASE, GPIO_WINDOW, GPIO_COMPONENT, GPIO_INPUT, PADDIR, GPIOEN, PADIN,
-    PADOUT, DeferredNativeMemorySession, gpio_ownership, _lui, _addi, _sw, _lw)
+    PADOUT, DeferredNativeMemorySession, gpio_ownership, _lui, _addi, _sw, _lw, _xor)
 from .router import DataflowRouter, DeviceWindow
 from .runner import ScenarioRunner
 from .runtime_path_contract import RuntimeNode, RuntimeEdgeContract, RuntimePathContract
@@ -65,10 +65,12 @@ def make_picorv32_native_online_bootstrap():
     # Every packet has one source slot and seven immutable instructions. Both
     # source choices therefore reach a real PADIN load/CPU RAM store/derived
     # PADOUT store, rather than making an IP case only execute a NOP forever.
-    # Registers1/11 are fixed support; x10 is the CPU source/derived byte.
-    tail = [_lui(1, GPIO_BASE >> 12), _sw(10, 1, PADOUT), _lw(11, 1, PADIN),
-            _sw(11, 0, 0x100), (1 << 20) | (11 << 15) | (4 << 12) | (10 << 7) | 0x13,
-            _sw(10, 1, PADOUT), 0x13]
+    # x1 is initialized by bootstrap and never modified by either source or
+    # tail. Read actual PADOUT back before joining it with the actual PADIN
+    # read: the resulting RAM/GPIO value depends on both sources, not merely
+    # on a host-side copy of the CPU payload.
+    tail = [_sw(10, 1, PADOUT), _lw(12, 1, PADOUT), _lw(11, 1, PADIN),
+            _xor(10, 12, 11), _sw(10, 0, 0x100), _sw(10, 1, PADOUT), 0x13]
     images = (MemoryImage('native.online.bootstrap', 'cpu', 0, encode(words)),
               *(MemoryImage(f'native.online.tail.{index}', 'cpu', address + 4, encode(tail))
                 for index, address in enumerate(range(INSTRUCTION_START, INSTRUCTION_END, PACKET_BYTES))))

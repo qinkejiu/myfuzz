@@ -112,3 +112,9 @@ CPU source仅一条 `ADDI x10,x0,u8`；IP source只提交一个NOP支持字。�
 NativePacketDecoder沿用weighted选源、proposal/commit和runtime路径校验，但显式固定单词输入及32字节stride。仅在原commit成功且恰好提交4字节后跨过immutable尾部；所有decode入口在reservation耗尽/错位前拒绝，不允许IP输入继续接受却没有支持代码。decoder.document标明 native_online_packet.v1、自定义stride和不支持generic contiguous重建；不把它冒充通用decoder/RFuzz接入。runtime最多96例。
 
 每例是128次CPU操作（实际每次1tick）与128次GPIO调度操作；GPIO queued ACCESS仍有真实多tick且使用原Runner间接边界记账，不能宣称每例恰好128GPIO物理tick。没有新增/跳过/虚构这些访问的时钟。CPU128预算未增加；不足则保留实际失败，不据静态指令数宣布通过。IP方向的声明图也补齐 CPU read→GPIO state 的真实MMIO route，仍只是声明，不是closed-loop hit。
+
+### Stage B 因果尾程序修正（取代fee3e52的tail）
+
+根代理源码审查指出 fee3e52 虽写入CPU候选A，但随后RAM/派生PADOUT只依赖PADIN输入B，不能提供所声明 CPU→IP→CPU 的真实返回路径。已保持7条tail/32字节stride/128 CPU操作边界，改为：`SW x10,PADOUT; LW x12,PADOUT; LW x11,PADIN; XOR x10,x12,x11; SW x10,RAM[0x100]; SW x10,PADOUT; NOP`。PADOUT返回A与PADIN返回B都由实际IP应答，CPU执行XOR后写RAM和GPIO；不以主机payload代替IP读回。
+
+bootstrap已将x1设为GPIO_BASE；CPUsource仅写x10，IPsource为NOP，所有tail不写x1，故不需每packet重复LUI。x11/x12在XOR前均由实际load赋值，最终值依赖两个真实IP读取；此前x10初始化0仍保留用于首例选IP源的明确起态。此修正只建立源码上的可运行因果路径，尚无实际读取、CPU消费、fresh或closed-loop命中证据，不能据此授任何P6通过。未运行测试/模型/远程。
