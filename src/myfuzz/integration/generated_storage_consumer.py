@@ -19,6 +19,8 @@ import json
 import re
 from pathlib import Path
 
+from myfuzz.local_harness.apb_storage_probe_verification import (
+    verified_storage_observation)
 from myfuzz.local_harness.native_physical_observation import (
     verify_apb_register_trace)
 from myfuzz.local_harness.runtime_artifact import LocalRuntimeArtifact
@@ -410,8 +412,7 @@ def check_storage_observation(declaration, receipt, *, target_artifact, authorit
             != 'generated_expression_source_mapped'
             or observation.get('sample_group') != 'storage_probes'
             or any(observation.get(key) is not False for key in
-                   ('hierarchy_verified', 'native_verified',
-                    'reset_authority', 'version_authority',
+                   ('reset_authority', 'version_authority',
                     'source_authority'))
             or not isinstance(observation.get('source_contract'), dict)
             or not isinstance(ports, list) or len(ports) != len(PROBE_WIDTHS)
@@ -440,6 +441,18 @@ def check_storage_observation(declaration, receipt, *, target_artifact, authorit
             or contract['decode'].get('value') != ALIAS_VALUE):
         raise ValueError(
             'compiled-F4-storage-observation-contract-mismatch')
+    try:
+        # Prospective (false) observations pass with no evidence.  Verified
+        # observations must carry a digest-bound native hierarchy proof; a
+        # bare flag flip or a tampered evidence reference is refused here.
+        verified_storage_observation(observation,
+            runtime_sv=target_artifact.runtime_sv,
+            wrapper_sha256=(document.get('structural_build') or {}).get(
+                'wrapper_sha256'),
+            base_dir=Path(__file__).resolve().parents[3])
+    except ValueError as error:
+        raise ValueError(
+            'compiled-F4-storage-observation-contract-mismatch') from error
     access, value = _check_declaration(
         declaration, target_artifact=target_artifact, register=register)
     if target.reset_epoch != reset_epoch:

@@ -1197,6 +1197,14 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw):
                + '\n'.join('  '+line for line in [*locals_, *statements]) + '\n'
                + '  ' + structural.module_name + ' u_component (\n    '
                + ',\n    '.join(connections) + '\n  );\n  ' + '\n  '.join(instances) + '\nendmodule\n')
+    if storage_probe is not None:
+        # A committed native hierarchy proof is bound by digest to these exact
+        # runtime bytes and wrapper bytes.  No proof means no claimed binding.
+        from .apb_storage_probe_verification import attach_native_proof
+        storage_probe = attach_native_proof(
+            storage_probe, runtime_sv=runtime,
+            wrapper_sha256=structural.build_document.get('wrapper_sha256'),
+            base_dir=root)
     flags = list(structural.build_document['lint_argv'])
     flags[flags.index('--top-module')+1] = module
     adapter_hashes = [dict(path=name, sha256=hashlib.sha256((root/name).read_bytes()).hexdigest()) for name in adapters]

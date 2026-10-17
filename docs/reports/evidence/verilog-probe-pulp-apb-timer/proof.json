@@ -1,0 +1,470 @@
+{
+  "checks": {
+    "all_ten_ports_sample_live": true,
+    "expression_resolves_elaboration": true,
+    "readback_matches_storage_prdata": true,
+    "reset_value_zero": true,
+    "ten_probe_ports_declared": true,
+    "timer0_write_commits": true,
+    "timer1_write_does_not_commit": true,
+    "unbound_expression_refused": true
+  },
+  "commands": {
+    "lint": [
+      "verilator",
+      "--lint-only",
+      "-Wno-fatal",
+      "--top-module",
+      "local_runtime_peripheral",
+      "generated/peripheral/runtime.sv",
+      "generated/peripheral/wrapper.sv",
+      "third_party/soc-pulp-apb-timer/src/apb_timer.sv",
+      "third_party/soc-pulp-apb-timer/src/timer.sv",
+      "src/myfuzz/protocols/rtl/beat_to_apb.sv"
+    ],
+    "native": [
+      "verilator",
+      "--cc",
+      "--exe",
+      "--build",
+      "-Wno-fatal",
+      "--top-module",
+      "local_runtime_peripheral",
+      "--prefix",
+      "Vtop",
+      "generated/peripheral/runtime.sv",
+      "generated/peripheral/wrapper.sv",
+      "third_party/soc-pulp-apb-timer/src/apb_timer.sv",
+      "third_party/soc-pulp-apb-timer/src/timer.sv",
+      "src/myfuzz/protocols/rtl/beat_to_apb.sv",
+      "tests/native/apb_storage_probe_tb.cpp"
+    ],
+    "run": [
+      "obj/Vtop"
+    ]
+  },
+  "expression": "u_component.u_dut.TIMER_GEN[0].timer_i.regs_q[1]",
+  "inputs": {
+    "compose": "f41d3314f7fccd8ff3319836cd6df59bbd9935c10fd964a2006b4d951c33ea72",
+    "execution_supplement": "7b651bc2f7dc8c8861fad08dc86d274b90f9a9b9a88ad8b8ec8edd553d5461df",
+    "peripheral_request": "a5f6b64bdf9907f06b1b4ce2a68e512d9f552cc827d41ed97f5534f0f1ba6195",
+    "test_capability": "71b65a8c72946d602c46f64e9d0c89503c4980777588dd18c3ebdcc633a0fec4"
+  },
+  "negative_controls": [
+    {
+      "exit_code": 1,
+      "mutation": "out-of-range-generate-index",
+      "refused": true
+    },
+    {
+      "exit_code": 1,
+      "mutation": "unknown-instance-name",
+      "refused": true
+    },
+    {
+      "exit_code": 1,
+      "mutation": "unknown-register-name",
+      "refused": true
+    }
+  ],
+  "parameters": {
+    "APB_ADDR_WIDTH": 12,
+    "TIMER_CNT": 2
+  },
+  "ports": [
+    {
+      "direction": "output",
+      "expression": "u_component.u_dut.TIMER_GEN[0].timer_i.regs_q[1]",
+      "name": "storage_value",
+      "role": "value",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "expression": "reset",
+      "name": "storage_reset",
+      "role": "reset",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "expression": "link_lh_p_2_11_0",
+      "name": "storage_paddr",
+      "role": "paddr",
+      "width": 12
+    },
+    {
+      "direction": "output",
+      "expression": "link_lh_p_6_0_0",
+      "name": "storage_psel",
+      "role": "psel",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "expression": "link_lh_p_3_0_0",
+      "name": "storage_penable",
+      "role": "penable",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "expression": "link_lh_p_9_0_0",
+      "name": "storage_pwrite",
+      "role": "pwrite",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "expression": "link_lh_p_8_31_0",
+      "name": "storage_pwdata",
+      "role": "pwdata",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "expression": "link_lh_p_4_31_0",
+      "name": "storage_prdata",
+      "role": "prdata",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "expression": "link_lh_p_5_0_0",
+      "name": "storage_pready",
+      "role": "pready",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "expression": "link_lh_p_7_0_0",
+      "name": "storage_pslverr",
+      "role": "pslverr",
+      "width": 1
+    }
+  ],
+  "probe_binding_digest": "fc2056da3f3857290b8e06428d32939229be3788544d7fe9eede32bea83117a3",
+  "proof_digest": "a889c6eb699ecdbd2ad4959f3ca14a5762608edb5a8ce93523343e02fffbef85",
+  "runtime_sv_sha256": "3ec91be8df7b19a154821c74d3a64508f2ed991f389b3d8d91f7fe7dc13842a6",
+  "sample_digest": "155028cedf0b31be0fe8b09ff1a900832178be8c34ebf37664fa445b2723201e",
+  "samples": [
+    {
+      "cycle": 1,
+      "paddr": 0,
+      "penable": 0,
+      "prdata": 0,
+      "pready": 1,
+      "psel": 0,
+      "pslverr": 0,
+      "pwdata": 0,
+      "pwrite": 0,
+      "reset": 1,
+      "value": 0
+    },
+    {
+      "cycle": 2,
+      "paddr": 0,
+      "penable": 0,
+      "prdata": 0,
+      "pready": 1,
+      "psel": 0,
+      "pslverr": 0,
+      "pwdata": 0,
+      "pwrite": 0,
+      "reset": 1,
+      "value": 0
+    },
+    {
+      "cycle": 3,
+      "paddr": 0,
+      "penable": 0,
+      "prdata": 0,
+      "pready": 1,
+      "psel": 0,
+      "pslverr": 0,
+      "pwdata": 0,
+      "pwrite": 0,
+      "reset": 1,
+      "value": 0
+    },
+    {
+      "cycle": 4,
+      "paddr": 0,
+      "penable": 0,
+      "prdata": 0,
+      "pready": 1,
+      "psel": 0,
+      "pslverr": 0,
+      "pwdata": 0,
+      "pwrite": 0,
+      "reset": 0,
+      "value": 0
+    },
+    {
+      "cycle": 5,
+      "paddr": 20,
+      "penable": 0,
+      "prdata": 0,
+      "pready": 1,
+      "psel": 1,
+      "pslverr": 0,
+      "pwdata": 1515870810,
+      "pwrite": 1,
+      "reset": 0,
+      "value": 0
+    },
+    {
+      "cycle": 6,
+      "paddr": 20,
+      "penable": 1,
+      "prdata": 0,
+      "pready": 1,
+      "psel": 1,
+      "pslverr": 0,
+      "pwdata": 1515870810,
+      "pwrite": 1,
+      "reset": 0,
+      "value": 0
+    },
+    {
+      "cycle": 7,
+      "paddr": 0,
+      "penable": 0,
+      "prdata": 0,
+      "pready": 1,
+      "psel": 0,
+      "pslverr": 0,
+      "pwdata": 0,
+      "pwrite": 0,
+      "reset": 0,
+      "value": 0
+    },
+    {
+      "cycle": 8,
+      "paddr": 0,
+      "penable": 0,
+      "prdata": 0,
+      "pready": 1,
+      "psel": 0,
+      "pslverr": 0,
+      "pwdata": 0,
+      "pwrite": 0,
+      "reset": 0,
+      "value": 0
+    },
+    {
+      "cycle": 9,
+      "paddr": 4,
+      "penable": 0,
+      "prdata": 0,
+      "pready": 1,
+      "psel": 1,
+      "pslverr": 0,
+      "pwdata": 2781020161,
+      "pwrite": 1,
+      "reset": 0,
+      "value": 0
+    },
+    {
+      "cycle": 10,
+      "paddr": 4,
+      "penable": 1,
+      "prdata": 0,
+      "pready": 1,
+      "psel": 1,
+      "pslverr": 0,
+      "pwdata": 2781020161,
+      "pwrite": 1,
+      "reset": 0,
+      "value": 0
+    },
+    {
+      "cycle": 11,
+      "paddr": 0,
+      "penable": 0,
+      "prdata": 0,
+      "pready": 1,
+      "psel": 0,
+      "pslverr": 0,
+      "pwdata": 0,
+      "pwrite": 0,
+      "reset": 0,
+      "value": 2781020161
+    },
+    {
+      "cycle": 12,
+      "paddr": 0,
+      "penable": 0,
+      "prdata": 0,
+      "pready": 1,
+      "psel": 0,
+      "pslverr": 0,
+      "pwdata": 0,
+      "pwrite": 0,
+      "reset": 0,
+      "value": 2781020161
+    },
+    {
+      "cycle": 13,
+      "paddr": 4,
+      "penable": 0,
+      "prdata": 0,
+      "pready": 1,
+      "psel": 1,
+      "pslverr": 0,
+      "pwdata": 0,
+      "pwrite": 0,
+      "reset": 0,
+      "value": 2781020161
+    },
+    {
+      "cycle": 14,
+      "paddr": 4,
+      "penable": 1,
+      "prdata": 2781020161,
+      "pready": 1,
+      "psel": 1,
+      "pslverr": 0,
+      "pwdata": 0,
+      "pwrite": 0,
+      "reset": 0,
+      "value": 2781020161
+    },
+    {
+      "cycle": 15,
+      "paddr": 0,
+      "penable": 0,
+      "prdata": 0,
+      "pready": 1,
+      "psel": 0,
+      "pslverr": 0,
+      "pwdata": 0,
+      "pwrite": 0,
+      "reset": 0,
+      "value": 2781020161
+    },
+    {
+      "cycle": 16,
+      "paddr": 0,
+      "penable": 0,
+      "prdata": 0,
+      "pready": 1,
+      "psel": 0,
+      "pslverr": 0,
+      "pwdata": 0,
+      "pwrite": 0,
+      "reset": 0,
+      "value": 2781020161
+    },
+    {
+      "cycle": 17,
+      "paddr": 4,
+      "penable": 0,
+      "prdata": 0,
+      "pready": 1,
+      "psel": 1,
+      "pslverr": 0,
+      "pwdata": 324478056,
+      "pwrite": 1,
+      "reset": 0,
+      "value": 2781020161
+    },
+    {
+      "cycle": 18,
+      "paddr": 4,
+      "penable": 1,
+      "prdata": 0,
+      "pready": 1,
+      "psel": 1,
+      "pslverr": 0,
+      "pwdata": 324478056,
+      "pwrite": 1,
+      "reset": 0,
+      "value": 2781020161
+    },
+    {
+      "cycle": 19,
+      "paddr": 0,
+      "penable": 0,
+      "prdata": 0,
+      "pready": 1,
+      "psel": 0,
+      "pslverr": 0,
+      "pwdata": 0,
+      "pwrite": 0,
+      "reset": 0,
+      "value": 324478056
+    },
+    {
+      "cycle": 20,
+      "paddr": 0,
+      "penable": 0,
+      "prdata": 0,
+      "pready": 1,
+      "psel": 0,
+      "pslverr": 0,
+      "pwdata": 0,
+      "pwrite": 0,
+      "reset": 0,
+      "value": 324478056
+    },
+    {
+      "cycle": 21,
+      "paddr": 4,
+      "penable": 0,
+      "prdata": 0,
+      "pready": 1,
+      "psel": 1,
+      "pslverr": 0,
+      "pwdata": 0,
+      "pwrite": 0,
+      "reset": 0,
+      "value": 324478056
+    },
+    {
+      "cycle": 22,
+      "paddr": 4,
+      "penable": 1,
+      "prdata": 324478056,
+      "pready": 1,
+      "psel": 1,
+      "pslverr": 0,
+      "pwdata": 0,
+      "pwrite": 0,
+      "reset": 0,
+      "value": 324478056
+    },
+    {
+      "cycle": 23,
+      "paddr": 0,
+      "penable": 0,
+      "prdata": 0,
+      "pready": 1,
+      "psel": 0,
+      "pslverr": 0,
+      "pwdata": 0,
+      "pwrite": 0,
+      "reset": 0,
+      "value": 324478056
+    }
+  ],
+  "schema_version": "apb_storage_probe_hierarchy_proof.v1",
+  "source": {
+    "defines": {},
+    "files": {
+      "src/apb_timer.sv": "22dce4e3ff8328bdd6e1621c20e2877e7f44cfecccc07203d09e994632cc1778",
+      "src/timer.sv": "d352fc4476da83658d361e8f500b5a73f857f0a11e9436ab47d5bf0ba0bc7fce"
+    },
+    "identity_basis": "declared_pinned_revision_and_exact_reviewed_bytes_not_new_git_or_elaboration_verification",
+    "include_roots": [],
+    "revision": "git:03eba2e6965f5363df12621882bc70498c551a73",
+    "root": "third_party/soc-pulp-apb-timer",
+    "top_module": "apb_timer"
+  },
+  "status": "verified",
+  "verilator": {
+    "top_module": "local_runtime_peripheral",
+    "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67"
+  },
+  "wrapper_sha256": "7bffa340977a2c002abd0f43fc16b4fc06afe420f772ec9d31c5e31e905e38f3"
+}

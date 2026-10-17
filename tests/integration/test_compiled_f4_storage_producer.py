@@ -118,9 +118,21 @@ def test_registered_generic_timer_is_admitted_by_closed_producer_selection(timer
         'src/apb_timer.sv': '22dce4e3ff8328bdd6e1621c20e2877e7f44cfecccc07203d09e994632cc1778',
         'src/timer.sv': 'd352fc4476da83658d361e8f500b5a73f857f0a11e9436ab47d5bf0ba0bc7fce'}
     artifact = artifacts['peripheral']
-    assert document['probe']['digest'] == artifact.runtime_document['storage_observation']['digest']
+    observation = artifact.runtime_document['storage_observation']
+    assert observation['hierarchy_verified'] is True
+    assert observation['native_verified'] is True
+    assert observation['hierarchy_evidence']['reference'] == \
+        'docs/reports/evidence/verilog-probe-pulp-apb-timer/proof.json'
+    assert document['probe']['digest'] == observation['digest']
     assert document['probe']['source_contract_digest'] == \
-        artifact.runtime_document['storage_observation']['source_contract']['digest']
+        observation['source_contract']['digest']
+    assert document['probe']['hierarchy_verified'] is True
+    assert document['probe']['native_verified'] is True
+    assert document['probe']['hierarchy_evidence']['binding_digest'] == \
+        observation['hierarchy_evidence']['binding_digest']
+    assert document['probe']['reset_authority'] is False
+    assert document['probe']['version_authority'] is False
+    assert document['probe']['source_authority'] is False
     producer = document['producer']
     assert producer['session_class'] == \
         'myfuzz.local_harness.apb3_register_session.GeneratedApb3RegisterSession'
@@ -339,7 +351,11 @@ def test_wrong_register_offset_width_mask_or_address_refused(timer_generated, mu
 
 
 @pytest.mark.parametrize('mutation', ('outer_digest', 'contract_digest', 'contract',
-                                      'probe_digest', 'missing_observation'))
+                                      'probe_digest', 'missing_observation',
+                                      'verification_flag_mismatch',
+                                      'verification_evidence_missing',
+                                      'verification_evidence_digest',
+                                      'verification_evidence_runtime'))
 def test_missing_or_tampered_source_probe_identity_refused(timer_generated, mutation):
     artifacts, inputs = timer_generated
     artifact = artifacts['peripheral']
@@ -353,6 +369,14 @@ def test_missing_or_tampered_source_probe_identity_refused(timer_generated, muta
         observation['ports'][0]['expression'] = '1\'b0'
     elif mutation == 'contract_digest':
         observation['source_contract']['digest'] = '0' * 64
+    elif mutation == 'verification_flag_mismatch':
+        observation['native_verified'] = False
+    elif mutation == 'verification_evidence_missing':
+        observation.pop('hierarchy_evidence')
+    elif mutation == 'verification_evidence_digest':
+        observation['hierarchy_evidence']['proof_digest'] = '0' * 64
+    elif mutation == 'verification_evidence_runtime':
+        observation['hierarchy_evidence']['runtime_sv_sha256'] = '0' * 64
     else:
         observation['source_contract']['register']['name'] = 'TIMER1_CTRL'
     with pytest.raises(ValueError, match='compiled-F4-producer'):

@@ -38,6 +38,8 @@ from myfuzz.integration.generated_storage_consumer import (
     check_storage_observation, storage_consumer_support)
 from myfuzz.local_harness.apb3_register_session import GeneratedApb3RegisterSession
 from myfuzz.local_harness.apb_storage_probe_contract import storage_probe_selection
+from myfuzz.local_harness.apb_storage_probe_verification import (
+    verified_storage_observation)
 from myfuzz.local_harness.apb_storage_source_contract import (
     apb_storage_address_matches, validate_apb_storage_source_contract)
 from myfuzz.local_harness.gpio_session import GeneratedPulpGpioSession
@@ -103,6 +105,7 @@ _DEPENDENCIES = {
     'verify_native_physical_observation': verify_native_physical_observation,
     'verify_apb_register_trace': verify_apb_register_trace,
     'storage_probe_selection': storage_probe_selection,
+    'verified_storage_observation': verified_storage_observation,
     'validate_apb_storage_source_contract': validate_apb_storage_source_contract,
     'apb_storage_address_matches': apb_storage_address_matches,
     'declare_writer': declare_writer,
@@ -220,6 +223,21 @@ def _register_access(access, register, offset, width_bytes, profile, read_mask):
         window_base=access['window_base'], window_size=window,
         byte_enables=[15], operation='write',
         value_origin='cpu_transaction_wdata')
+
+
+def _probe_binding_document(observation, verification):
+    """Project the observation identity; verified flags require evidence."""
+    probe = dict(schema_version=observation['schema_version'],
+        digest=observation['digest'],
+        source_contract_digest=observation['source_contract']['digest'],
+        sample_group=observation['sample_group'],
+        port_names=sorted(row['name'] for row in observation['ports']),
+        hierarchy_verified=observation['hierarchy_verified'],
+        native_verified=observation['native_verified'],
+        reset_authority=False, version_authority=False, source_authority=False)
+    if verification is not None:
+        probe['hierarchy_evidence'] = verification
+    return probe
 
 
 def _bound_input(path, target_component, endpoint_id, register):
@@ -359,14 +377,22 @@ def _generic_apb_document(*, artifacts, compiled_inputs, path, image, stream, ac
             or observation.get('sample_group') != 'storage_probes'
             or observation.get('selection') != selection
             or any(observation.get(key) is not False for key in (
-                'hierarchy_verified', 'native_verified', 'reset_authority',
-                'version_authority', 'source_authority'))):
+                'reset_authority', 'version_authority',
+                'source_authority'))):
         raise ValueError('compiled-F4-producer-observation-contract-mismatch')
     if base_dir is None:
         raise ValueError('compiled-F4-producer-source-inputs-required')
     try:
         registered = validate_apb_storage_source_contract(
             observation.get('source_contract'), artifact.plan.profile, base_dir=base_dir)
+    except ValueError as error:
+        raise ValueError('compiled-F4-producer-observation-contract-mismatch') from error
+    try:
+        verification = verified_storage_observation(observation,
+            runtime_sv=artifact.runtime_sv,
+            wrapper_sha256=(document.get('structural_build') or {}).get(
+                'wrapper_sha256'),
+            base_dir=base_dir)
     except ValueError as error:
         raise ValueError('compiled-F4-producer-observation-contract-mismatch') from error
     contract_id = registered['contract_id']
@@ -429,13 +455,7 @@ def _generic_apb_document(*, artifacts, compiled_inputs, path, image, stream, ac
             profile_fingerprint=artifact.plan.profile.profile_fingerprint,
             source_verification_sha256=_digest(artifact.source_verification),
             source_closure=dict(registered['source']['files'])),
-        probe=dict(schema_version=observation['schema_version'],
-            digest=observation['digest'],
-            source_contract_digest=observation['source_contract']['digest'],
-            sample_group=observation['sample_group'],
-            port_names=sorted(row['name'] for row in observation['ports']),
-            hierarchy_verified=False, native_verified=False,
-            reset_authority=False, version_authority=False, source_authority=False),
+        probe=_probe_binding_document(observation, verification),
         producer=producer,
         bound_input=_bound_input(path, target_component, target_endpoint,
                                  contract['name']),
