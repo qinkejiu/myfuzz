@@ -383,6 +383,7 @@ class ApbStorageRegisterVersionAuthority:
                     or live['scope']!=(target.process,target._execution,target.reset_epoch,target._tick_base)
                     or target._sequence!=pending[2]-1
                     or live['last_wire_sequence']!=target._sequence
+                    or pending[:3]!=(operation,fields,receipt.sequence)
                     or receipt.execution!=target._execution
                     or receipt.sequence!=pending[2]):
                 raise ValueError('storage-version-receipt-mismatch')
@@ -393,7 +394,6 @@ class ApbStorageRegisterVersionAuthority:
                 self._complete_startup_page(target,receipt,pending,live)
             else:
                 if (json.dumps(target._storage_active_context,sort_keys=True,allow_nan=False)!=json.dumps(pending[4],sort_keys=True,allow_nan=False)
-                        or pending[:3]!=(operation,fields,receipt.sequence)
                         or receipt.status!='result' or receipt.payload is None or receipt.payload['error']!=0
                         or receipt.tick_before+target._tick_base!=pending[3]
                         or receipt.tick_after-receipt.tick_before!=len(receipt.payload['samples'])):
@@ -408,6 +408,7 @@ class ApbStorageRegisterVersionAuthority:
         if (startup is None or type(startup) is not dict or set(startup)!=_STARTUP_KEYS
                 or pending[4] is not None or pending[0]!=_STARTUP_OPERATION):
             raise ValueError('storage-startup-page-state')
+        if startup['complete']:raise ValueError('storage-startup-pages-complete')
         page_index=pending[1][0]
         if page_index!=startup['next_page']:
             raise ValueError('storage-startup-page-order')

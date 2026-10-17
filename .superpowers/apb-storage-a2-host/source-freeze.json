@@ -6,9 +6,9 @@
   "src/myfuzz/local_harness/native_reset_observation.py": "ac8a90fcc7832e752d34106b30709871820dded26cc6dc2d61f372b91437a1c7",
   "src/myfuzz/local_harness/native_reset_producer_contract.py": "5a5ed8171d878ab6357ed36384372f1665a857556f664366691fa56933975073",
   "src/myfuzz/local_harness/session.py": "45c74705730498ab96cb3e007deed3a623eb34c458f8424cac8fe48c28a0be1a",
-  "src/myfuzz/scenario/apb_storage_register_version.py": "46cbf228625eeaf3e37409a4e6f0a1280ca0210b61640e1318137fb35f6b0e5d",
+  "src/myfuzz/scenario/apb_storage_register_version.py": "79c19050ae68533b37a89ba4f9e6f9ae4f78dfbbe098fe6df8c5bcd4c336c113",
   "tests/local_harness/test_apb_storage_startup.py": "5e5d4036aeb99d820be23063fe37fe9698d855e46fdd7c8379f27a6450ca622b",
-  "tests/local_harness/test_apb_storage_startup_host.py": "6936be13fb8c2abe1b7989342f3dd567ca791350a59e5e1eb489662d6184799e",
+  "tests/local_harness/test_apb_storage_startup_host.py": "f57b12feaee8d5ab4a6cc747082ff4244e8866a7b499330817418311c7721b7d",
   "tests/scenario/test_apb_storage_startup_issuer.py": "ce7654a51c990e8e0086c44c04fa09e0f0a661a6d17129e757d2acc33f464360"
  },
  "hierarchy_verified": false,

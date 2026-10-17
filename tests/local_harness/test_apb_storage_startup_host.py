@@ -459,6 +459,9 @@ def test_pages_precede_first_command_and_keep_zero_command_ticks(
         ('READ_APB_STORAGE_STARTUP', (1,))]
     assert [row[2] for row in engine.commands] == [1, 2]
     assert session.local_ticks == 0 and session._sequence == 2
+    assert session._case_id == 'case' and session.reset_epoch == 0
+    assert session._tick_base == 0 and session.process is engine
+    assert engine.pid == 424242 and engine.execution == session._execution
     assert session._storage_startup_complete is True
     assert len(session._storage_startup_receipts) == 2
     for index, row in enumerate(session._storage_startup_receipts):
