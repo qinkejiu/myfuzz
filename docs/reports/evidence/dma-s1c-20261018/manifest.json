@@ -1,0 +1,392 @@
+{
+ "after_counts": {
+  "commands": 4776,
+  "events": 29636,
+  "local_ticks": {
+   "cpu": 1316,
+   "dma": 1396,
+   "uart": 3496
+  },
+  "uart_local_tick_samples_post": 3496
+ },
+ "audit": {
+  "document": "audit-throughput.json",
+  "five_x_conclusion": "not_met: only poll-phase idle UART ticks were removed; the real waveform/idle-margin ticks and the one-command-per-tick harness granularity remain. 5x requires the bounded multi-tick harness command that the design explicitly excludes from S1c.",
+  "five_x_uart_ticks_met": false,
+  "ok": true,
+  "script": "audit_s1c_throughput.py",
+  "sha256": "c392d3ebc169aff65b6c637401680885ece22aa599d98b65b843c7b70f607566"
+ },
+ "before": {
+  "cases": [
+   {
+    "command_end": 1204,
+    "command_start": 16,
+    "counter": 1,
+    "event_end": 8839,
+    "event_start": 185,
+    "fifo_depth_after": 0,
+    "prefix_sha256": "700b5c69676c66f00e758e59abb36f56917baf7ca61a8fbe91c3beeaeb0dc02a",
+    "source_byte": 90,
+    "ticks_after": {
+     "cpu": 342,
+     "dma": 362,
+     "uart": 1199
+    },
+    "ticks_before": {
+     "cpu": 16,
+     "dma": 16,
+     "uart": 0
+    }
+   },
+   {
+    "command_end": 2394,
+    "command_start": 1204,
+    "counter": 2,
+    "event_end": 17496,
+    "event_start": 8839,
+    "fifo_depth_after": 0,
+    "prefix_sha256": "259518cbe3a3f8124818463a81748d6aa0c37554524abf43e4f7a878cf030836",
+    "source_byte": 0,
+    "ticks_after": {
+     "cpu": 666,
+     "dma": 706,
+     "uart": 2396
+    },
+    "ticks_before": {
+     "cpu": 342,
+     "dma": 362,
+     "uart": 1199
+    }
+   },
+   {
+    "command_end": 3584,
+    "command_start": 2394,
+    "counter": 3,
+    "event_end": 26145,
+    "event_start": 17496,
+    "fifo_depth_after": 0,
+    "prefix_sha256": "81151b2a133b5bee9931621b70ef9b74b8f54f278ad1a83784aafb732a6c1bd2",
+    "source_byte": 165,
+    "ticks_after": {
+     "cpu": 990,
+     "dma": 1050,
+     "uart": 3593
+    },
+    "ticks_before": {
+     "cpu": 666,
+     "dma": 706,
+     "uart": 2396
+    }
+   },
+   {
+    "command_end": 4774,
+    "command_start": 3584,
+    "counter": 4,
+    "event_end": 34794,
+    "event_start": 26145,
+    "fifo_depth_after": 0,
+    "prefix_sha256": "b373ed64ca0aca7eed6056389d8ce2afe2f2cd4e5f05c42cde02f1e72b4dde40",
+    "source_byte": 165,
+    "ticks_after": {
+     "cpu": 1314,
+     "dma": 1394,
+     "uart": 4790
+    },
+    "ticks_before": {
+     "cpu": 990,
+     "dma": 1050,
+     "uart": 3593
+    }
+   }
+  ],
+  "continuous_command": "MYFUZZ_DMA_CONTINUOUS_REAL=1 MYFUZZ_DMA_CONTINUOUS_CACHE=.superpowers/cache/local-harness MYFUZZ_DMA_CONTINUOUS_EVIDENCE=docs/reports/evidence/dma-continuous-s1-20261018/continuous PYTHONPATH=src timeout 900 python3 -m pytest -xq tests/integration/test_dma_uart_rx_runtime.py::test_continuous_native_uart_dma_prefix_and_failure",
+  "continuous_counts": {
+   "commands": 4774,
+   "events": 34794,
+   "local_ticks": {
+    "cpu": 1314,
+    "dma": 1394,
+    "uart": 4790
+   },
+   "uart_local_tick_samples_post": 4790
+  },
+  "continuous_result": "1 passed in 173.26s",
+  "origin": "docs/reports/evidence/dma-continuous-s1-20261018 (S1a/S1b, HEAD 7e08913)",
+  "search_command": "MYFUZZ_DMA_SEARCH_REAL=1 ... MYFUZZ_DMA_SEARCH_SECONDS=120 MYFUZZ_DMA_SEARCH_SEED=5a17c0de0badf00d0e0d010203040506 ... tests/integration/test_dma_uart_rx_search_real.py",
+  "search_result": "1 passed, 1 skipped in 237.00s"
+ },
+ "continuous_gate": {
+  "command": "flock -w 14400 .superpowers/heavy-worker.lock env MYFUZZ_DMA_CONTINUOUS_REAL=1 MYFUZZ_DMA_CONTINUOUS_CACHE=.superpowers/cache/local-harness MYFUZZ_DMA_CONTINUOUS_EVIDENCE=docs/reports/evidence/dma-s1c-20261018/after/continuous PYTHONPATH=src timeout 900 python3 -m pytest -xq tests/integration/test_dma_uart_rx_runtime.py::test_continuous_native_uart_dma_prefix_and_failure",
+  "end_utc": "2026-10-17T11:38:39Z",
+  "exit": 0,
+  "files": {
+   "failure-fresh.json.gz": "79a2c4d7362ab65157347cfb8ac24cf53a6751356b0f77b5a3264b3e88c1dc9d",
+   "failure.json.gz": "a1f8552774f420d62c9c6565e1396ad01bc9949ca2895c6f8deea13f27800053",
+   "fresh.json.gz": "a232c340166db458fed485148e3cbf875f8b5fdc908db081c8c5d22571580e17",
+   "positive.json.gz": "c119b7410e22e0a31fda00d626bfe67918cb4f74b061fb8053aee2ad4d803c57"
+  },
+  "result": "1 passed in 133.85s",
+  "start_utc": "2026-10-17T11:36:19Z"
+ },
+ "files": {
+  "__pycache__/audit_s1c_throughput.cpython-312.pyc": "f784cd20768ed4df4d2dca068460e4a773f9eb5c18f197f1f69ede5af3de148d",
+  "after/continuous/failure-fresh.json.gz": "79a2c4d7362ab65157347cfb8ac24cf53a6751356b0f77b5a3264b3e88c1dc9d",
+  "after/continuous/failure.json.gz": "a1f8552774f420d62c9c6565e1396ad01bc9949ca2895c6f8deea13f27800053",
+  "after/continuous/fresh.json.gz": "a232c340166db458fed485148e3cbf875f8b5fdc908db081c8c5d22571580e17",
+  "after/continuous/positive.json.gz": "c119b7410e22e0a31fda00d626bfe67918cb4f74b061fb8053aee2ad4d803c57",
+  "after/search/decisions.jsonl": "0a2d5f1bb1cb94bebc0446899e28851a6b3f487802d5fd3c308cc617b4e47a80",
+  "after/search/failure-fresh.json.gz": "d4c7b2186712861a62867c040c25b0b76d2230a330a9beb7aa7378e3e08a9e57",
+  "after/search/failure.json.gz": "e904ceaee69e96362a76fe536cb0753e1d5d8dc044bd2467fe00b98ac9d5b792",
+  "after/search/fresh.json.gz": "54d0dcd640259b5e428452361fa77c6f7af6b13b8826c22c1224eac3d91a7f68",
+  "after/search/positive.json.gz": "3658e697433ca866381791b99a0561c500a95eb6ee685c77d1d604c4161d4c68",
+  "after/search/search.json.gz": "effcacfa48f42d87f79c32ee828e7f8591a6f0e9fa71c188b5530bacc1d43430",
+  "after/search/source_pins.json": "69fff832d11a8a16fb52ce68a68d1a7df561ba2048e8d130c71b63d1dd164253",
+  "after/search/stats.json": "307f7428c666fece44c113391c0747a62937f4eae1e753347d3c6d433a7249e2",
+  "audit-throughput.json": "c392d3ebc169aff65b6c637401680885ece22aa599d98b65b843c7b70f607566",
+  "audit_s1c_throughput.py": "23de4b486e8353068a6731cda6e6e5d3bec0e288ded0eb3d6628ca1250d45688",
+  "before/continuous-fresh.json.gz": "a6972c7059a0332234d452958952a1c7627d547d25d8bcf9055223a49cd704e5",
+  "before/continuous-positive.json.gz": "6ef08d16f1a23b115e54e8430967348106b68c928d17ed35acb3fd071f7f7444",
+  "before/search-guided-search.json.gz": "24286e2a0ab237f0cccce94b18b10fd5a7bcf8e34b60c250e621b8d1edc2d947",
+  "before/search-guided-stats.json": "a1ed0c4633e2c2d67bc993b51028490135df4d53c1ea3b319ad249f02d82d0aa"
+ },
+ "local_logs": {
+  "continuous": ".superpowers/p8-s1c-20261018/live-continuous.log",
+  "pre_fix_continuous_run": ".superpowers/p8-s1c-20261018/pre-fix-continuous (first c00642c run; fifo_depth_after=1 sampling artifact; superseded by the b721a9d rerun)",
+  "search": ".superpowers/p8-s1c-20261018/live-search.log"
+ },
+ "schema_version": "dma_continuous_s1c_evidence.v1",
+ "search_gate": {
+  "command": "flock -w 14400 .superpowers/heavy-worker.lock env MYFUZZ_DMA_SEARCH_REAL=1 MYFUZZ_DMA_SEARCH_CACHE=.superpowers/cache/local-harness MYFUZZ_DMA_SEARCH_EVIDENCE=docs/reports/evidence/dma-s1c-20261018/after/search MYFUZZ_DMA_SEARCH_SECONDS=120 MYFUZZ_DMA_SEARCH_SEED=5a17c0de0badf00d0e0d010203040506 PYTHONPATH=src timeout 1800 python3 -m pytest -xq tests/integration/test_dma_uart_rx_search_real.py",
+  "end_utc": "2026-10-17T11:42:26Z",
+  "exit": 0,
+  "files": {
+   "decisions.jsonl": "0a2d5f1bb1cb94bebc0446899e28851a6b3f487802d5fd3c308cc617b4e47a80",
+   "failure-fresh.json.gz": "d4c7b2186712861a62867c040c25b0b76d2230a330a9beb7aa7378e3e08a9e57",
+   "failure.json.gz": "e904ceaee69e96362a76fe536cb0753e1d5d8dc044bd2467fe00b98ac9d5b792",
+   "fresh.json.gz": "54d0dcd640259b5e428452361fa77c6f7af6b13b8826c22c1224eac3d91a7f68",
+   "positive.json.gz": "3658e697433ca866381791b99a0561c500a95eb6ee685c77d1d604c4161d4c68",
+   "search.json.gz": "effcacfa48f42d87f79c32ee828e7f8591a6f0e9fa71c188b5530bacc1d43430",
+   "source_pins.json": "69fff832d11a8a16fb52ce68a68d1a7df561ba2048e8d130c71b63d1dd164253",
+   "stats.json": "307f7428c666fece44c113391c0747a62937f4eae1e753347d3c6d433a7249e2"
+  },
+  "result": "1 passed, 1 skipped in 199.43s",
+  "start_utc": "2026-10-17T11:38:57Z"
+ },
+ "search_stats": {
+  "case_count": {
+   "after": 8,
+   "before": 8
+  },
+  "completed_chains": {
+   "after": 8,
+   "before": 8
+  },
+  "distinct_effective_specs": {
+   "after": 7,
+   "before": 7
+  },
+  "effective_search_seconds": {
+   "after": 41.10528351500034,
+   "before": 52.23320100800083
+  },
+  "executed_cases": {
+   "after": 8,
+   "before": 8
+  },
+  "feedback_influenced": {
+   "after": true,
+   "before": true
+  },
+  "search_status": {
+   "after": "ok",
+   "before": "ok"
+  },
+  "search_wall_seconds": {
+   "after": 58.91937562199746,
+   "before": 72.35216834899984
+  }
+ },
+ "source_commits": {
+  "fifo_depth_evidence": "b721a9dddfcdfaf51039deee9737169e0b465c6c",
+  "schedule": "c00642c76a1c7ae9a96694a88928c2dd9b3df870"
+ },
+ "source_head": "b721a9dddfcdfaf51039deee9737169e0b465c6c",
+ "source_pins": {
+  "count_after": 453,
+  "count_before": 453,
+  "only_changed": [
+   "src/myfuzz/integration/dma_uart_rx_runtime.py"
+  ],
+  "scope": "src/myfuzz/**/*.py as saved by each gate",
+  "sha256_after": "573baa331e30a0f61d34f0cf028bd34d35621aa3d96add8ffad05fc0f57758dc",
+  "sha256_before": "b2a49ffff22835a32263ca75793646286213a909e0cf2214e41a659b91246ad9"
+ },
+ "throughput": {
+  "case_structure": {
+   "case_count_equal": true,
+   "case_keys_added": [],
+   "case_keys_removed": [],
+   "event_index_fields_changed": [
+    {
+     "changed_event_ids": [
+      "fifo_read_event_id",
+      "dma_write_event_id",
+      "irq_event_id",
+      "cpu_load_event_id",
+      "completed_event_id",
+      "dma_irq_edge_event_id",
+      "bound_source_event_id",
+      "bound_take_event_id",
+      "status_delivery_event_id",
+      "status_cpu_load_event_id",
+      "status_cpu_store_event_id"
+     ],
+     "counter": 1
+    },
+    {
+     "changed_event_ids": [
+      "fifo_read_event_id",
+      "dma_write_event_id",
+      "irq_event_id",
+      "cpu_load_event_id",
+      "completed_event_id",
+      "dma_irq_edge_event_id",
+      "bound_source_event_id",
+      "bound_take_event_id",
+      "status_delivery_event_id",
+      "status_cpu_load_event_id",
+      "status_cpu_store_event_id"
+     ],
+     "counter": 2
+    },
+    {
+     "changed_event_ids": [
+      "fifo_read_event_id",
+      "dma_write_event_id",
+      "irq_event_id",
+      "cpu_load_event_id",
+      "completed_event_id",
+      "dma_irq_edge_event_id",
+      "bound_source_event_id",
+      "bound_take_event_id",
+      "status_delivery_event_id",
+      "status_cpu_load_event_id",
+      "status_cpu_store_event_id"
+     ],
+     "counter": 3
+    },
+    {
+     "changed_event_ids": [
+      "fifo_read_event_id",
+      "dma_write_event_id",
+      "irq_event_id",
+      "cpu_load_event_id",
+      "completed_event_id",
+      "dma_irq_edge_event_id",
+      "bound_source_event_id",
+      "bound_take_event_id",
+      "status_delivery_event_id",
+      "status_cpu_load_event_id",
+      "status_cpu_store_event_id"
+     ],
+     "counter": 4
+    }
+   ],
+   "fifo_origin": [
+    "unknown",
+    "unknown",
+    "unknown",
+    "unknown"
+   ],
+   "prefix_sha256_changed": true,
+   "proof_grade": [
+    "bounded_historical_chain",
+    "bounded_historical_chain",
+    "bounded_historical_chain",
+    "bounded_historical_chain"
+   ],
+   "semantic_diff": [],
+   "semantic_fields_equal": true
+  },
+  "commands": {
+   "after": 4776,
+   "before": 4774,
+   "ratio": 0.9996
+  },
+  "commands_per_case": {
+   "after": [
+    1190,
+    1190,
+    1190,
+    1190
+   ],
+   "before": [
+    1188,
+    1190,
+    1190,
+    1190
+   ]
+  },
+  "five_x_commands_met": false,
+  "five_x_conclusion": "not_met: only poll-phase idle UART ticks were removed; the real waveform/idle-margin ticks and the one-command-per-tick harness granularity remain. 5x requires the bounded multi-tick harness command that the design explicitly excludes from S1c.",
+  "five_x_uart_ticks_met": false,
+  "local_ticks": {
+   "after": {
+    "cpu": 1316,
+    "dma": 1396,
+    "uart": 3496
+   },
+   "before": {
+    "cpu": 1314,
+    "dma": 1394,
+    "uart": 4790
+   }
+  },
+  "poll_uart_steps": {
+   "after": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "before": [
+    326,
+    324,
+    324,
+    324
+   ],
+   "ratio": 324.5,
+   "removed": 1294
+  },
+  "uart_ticks_per_case": {
+   "after": 874.0,
+   "before": 1197.5,
+   "ratio": 1.3701
+  },
+  "uart_ticks_per_case_list": {
+   "after": [
+    874,
+    874,
+    874,
+    874
+   ],
+   "before": [
+    1199,
+    1197,
+    1197,
+    1197
+   ],
+   "ratios": [
+    1.3719,
+    1.3696,
+    1.3696,
+    1.3696
+   ]
+  },
+  "waveform_uart_only_commands": {
+   "after": 3456,
+   "before": 3456
+  }
+ }
+}

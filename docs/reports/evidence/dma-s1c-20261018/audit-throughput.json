@@ -1,0 +1,549 @@
+{
+ "after": {
+  "case_joins": [],
+  "counts": {
+   "commands": 4776,
+   "error": null,
+   "events": 29636,
+   "local_ticks": {
+    "cpu": 1316,
+    "dma": 1396,
+    "uart": 3496
+   },
+   "per_case": [
+    {
+     "commands": 1190,
+     "counter": 1,
+     "events": 7372,
+     "poll_advance_commands": 328,
+     "poll_uart_steps": 1,
+     "source_byte": 90,
+     "uart_local_tick_samples": 874,
+     "uart_only_waveform_commands": 861,
+     "uart_register_access_ticks": 12,
+     "uart_tick_observation": 866,
+     "uart_ticks": 874
+    },
+    {
+     "commands": 1190,
+     "counter": 2,
+     "events": 7365,
+     "poll_advance_commands": 324,
+     "poll_uart_steps": 1,
+     "source_byte": 0,
+     "uart_local_tick_samples": 874,
+     "uart_only_waveform_commands": 865,
+     "uart_register_access_ticks": 8,
+     "uart_tick_observation": 874,
+     "uart_ticks": 874
+    },
+    {
+     "commands": 1190,
+     "counter": 3,
+     "events": 7357,
+     "poll_advance_commands": 324,
+     "poll_uart_steps": 1,
+     "source_byte": 165,
+     "uart_local_tick_samples": 874,
+     "uart_only_waveform_commands": 865,
+     "uart_register_access_ticks": 8,
+     "uart_tick_observation": 874,
+     "uart_ticks": 874
+    },
+    {
+     "commands": 1190,
+     "counter": 4,
+     "events": 7357,
+     "poll_advance_commands": 324,
+     "poll_uart_steps": 1,
+     "source_byte": 165,
+     "uart_local_tick_samples": 874,
+     "uart_only_waveform_commands": 865,
+     "uart_register_access_ticks": 8,
+     "uart_tick_observation": 874,
+     "uart_ticks": 874
+    }
+   ],
+   "phase": "complete",
+   "poll_advance_commands": 1316,
+   "poll_uart_steps": 4,
+   "source_events": 4,
+   "uart_local_tick_samples": 6992,
+   "uart_local_tick_samples_post": 3496,
+   "uart_local_tick_samples_pre": 3496,
+   "uart_only_waveform_commands": 3456,
+   "uart_tick_observation": 3488
+  },
+  "fresh_equality": {
+   "cases": true,
+   "distinct_execution_ids": true,
+   "error": true,
+   "identities": true,
+   "local_ticks": true,
+   "normalized_events": true,
+   "phase": true,
+   "plan_commands": true
+  }
+ },
+ "before": {
+  "counts": {
+   "commands": 4774,
+   "error": null,
+   "events": 34794,
+   "local_ticks": {
+    "cpu": 1314,
+    "dma": 1394,
+    "uart": 4790
+   },
+   "per_case": [
+    {
+     "commands": 1188,
+     "counter": 1,
+     "events": 8654,
+     "poll_advance_commands": 326,
+     "poll_uart_steps": 326,
+     "source_byte": 90,
+     "uart_local_tick_samples": 1199,
+     "uart_only_waveform_commands": 861,
+     "uart_register_access_ticks": 12,
+     "uart_tick_observation": 1199,
+     "uart_ticks": 1199
+    },
+    {
+     "commands": 1190,
+     "counter": 2,
+     "events": 8657,
+     "poll_advance_commands": 324,
+     "poll_uart_steps": 324,
+     "source_byte": 0,
+     "uart_local_tick_samples": 1197,
+     "uart_only_waveform_commands": 865,
+     "uart_register_access_ticks": 8,
+     "uart_tick_observation": 1197,
+     "uart_ticks": 1197
+    },
+    {
+     "commands": 1190,
+     "counter": 3,
+     "events": 8649,
+     "poll_advance_commands": 324,
+     "poll_uart_steps": 324,
+     "source_byte": 165,
+     "uart_local_tick_samples": 1197,
+     "uart_only_waveform_commands": 865,
+     "uart_register_access_ticks": 8,
+     "uart_tick_observation": 1197,
+     "uart_ticks": 1197
+    },
+    {
+     "commands": 1190,
+     "counter": 4,
+     "events": 8649,
+     "poll_advance_commands": 324,
+     "poll_uart_steps": 324,
+     "source_byte": 165,
+     "uart_local_tick_samples": 1197,
+     "uart_only_waveform_commands": 865,
+     "uart_register_access_ticks": 8,
+     "uart_tick_observation": 1197,
+     "uart_ticks": 1197
+    }
+   ],
+   "phase": "complete",
+   "poll_advance_commands": 1314,
+   "poll_uart_steps": 1298,
+   "source_events": 4,
+   "uart_local_tick_samples": 9580,
+   "uart_local_tick_samples_post": 4790,
+   "uart_local_tick_samples_pre": 4790,
+   "uart_only_waveform_commands": 3456,
+   "uart_tick_observation": 4790
+  },
+  "fresh_equality": {
+   "cases": true,
+   "distinct_execution_ids": true,
+   "error": true,
+   "identities": true,
+   "local_ticks": true,
+   "normalized_events": true,
+   "phase": true,
+   "plan_commands": true
+  }
+ },
+ "comparison": {
+  "case_structure": {
+   "case_count_equal": true,
+   "case_keys_added": [],
+   "case_keys_removed": [],
+   "event_index_fields_changed": [
+    {
+     "changed_event_ids": [
+      "fifo_read_event_id",
+      "dma_write_event_id",
+      "irq_event_id",
+      "cpu_load_event_id",
+      "completed_event_id",
+      "dma_irq_edge_event_id",
+      "bound_source_event_id",
+      "bound_take_event_id",
+      "status_delivery_event_id",
+      "status_cpu_load_event_id",
+      "status_cpu_store_event_id"
+     ],
+     "counter": 1
+    },
+    {
+     "changed_event_ids": [
+      "fifo_read_event_id",
+      "dma_write_event_id",
+      "irq_event_id",
+      "cpu_load_event_id",
+      "completed_event_id",
+      "dma_irq_edge_event_id",
+      "bound_source_event_id",
+      "bound_take_event_id",
+      "status_delivery_event_id",
+      "status_cpu_load_event_id",
+      "status_cpu_store_event_id"
+     ],
+     "counter": 2
+    },
+    {
+     "changed_event_ids": [
+      "fifo_read_event_id",
+      "dma_write_event_id",
+      "irq_event_id",
+      "cpu_load_event_id",
+      "completed_event_id",
+      "dma_irq_edge_event_id",
+      "bound_source_event_id",
+      "bound_take_event_id",
+      "status_delivery_event_id",
+      "status_cpu_load_event_id",
+      "status_cpu_store_event_id"
+     ],
+     "counter": 3
+    },
+    {
+     "changed_event_ids": [
+      "fifo_read_event_id",
+      "dma_write_event_id",
+      "irq_event_id",
+      "cpu_load_event_id",
+      "completed_event_id",
+      "dma_irq_edge_event_id",
+      "bound_source_event_id",
+      "bound_take_event_id",
+      "status_delivery_event_id",
+      "status_cpu_load_event_id",
+      "status_cpu_store_event_id"
+     ],
+     "counter": 4
+    }
+   ],
+   "fifo_origin": [
+    "unknown",
+    "unknown",
+    "unknown",
+    "unknown"
+   ],
+   "prefix_sha256_changed": true,
+   "proof_grade": [
+    "bounded_historical_chain",
+    "bounded_historical_chain",
+    "bounded_historical_chain",
+    "bounded_historical_chain"
+   ],
+   "semantic_diff": [],
+   "semantic_fields_equal": true
+  },
+  "commands": {
+   "after": 4776,
+   "before": 4774,
+   "ratio": 0.9996
+  },
+  "commands_per_case": {
+   "after": [
+    1190,
+    1190,
+    1190,
+    1190
+   ],
+   "before": [
+    1188,
+    1190,
+    1190,
+    1190
+   ]
+  },
+  "five_x_commands_met": false,
+  "five_x_conclusion": "not_met: only poll-phase idle UART ticks were removed; the real waveform/idle-margin ticks and the one-command-per-tick harness granularity remain. 5x requires the bounded multi-tick harness command that the design explicitly excludes from S1c.",
+  "five_x_uart_ticks_met": false,
+  "local_ticks": {
+   "after": {
+    "cpu": 1316,
+    "dma": 1396,
+    "uart": 3496
+   },
+   "before": {
+    "cpu": 1314,
+    "dma": 1394,
+    "uart": 4790
+   }
+  },
+  "poll_uart_steps": {
+   "after": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "before": [
+    326,
+    324,
+    324,
+    324
+   ],
+   "ratio": 324.5,
+   "removed": 1294
+  },
+  "uart_ticks_per_case": {
+   "after": 874.0,
+   "before": 1197.5,
+   "ratio": 1.3701
+  },
+  "uart_ticks_per_case_list": {
+   "after": [
+    874,
+    874,
+    874,
+    874
+   ],
+   "before": [
+    1199,
+    1197,
+    1197,
+    1197
+   ],
+   "ratios": [
+    1.3719,
+    1.3696,
+    1.3696,
+    1.3696
+   ]
+  },
+  "waveform_uart_only_commands": {
+   "after": 3456,
+   "before": 3456
+  }
+ },
+ "evidence_root": "/home/qinkejiu/myfuzz/docs/reports/evidence/dma-s1c-20261018",
+ "ok": true,
+ "schema_version": "dma_s1c_throughput_audit.v1",
+ "search": {
+  "after": {
+   "case_count": 8,
+   "case_limit": 8,
+   "completed_chains": 8,
+   "corpus_entries": 8,
+   "distinct_effective_specs": 7,
+   "effective_search_seconds": 41.10528351500034,
+   "executed_cases": 8,
+   "failure_replay": null,
+   "feedback_influenced": true,
+   "findings": [],
+   "firmware_sha256": "b3d319b04c520c7ba2035ff64f6650fb8bbcb72da56be4be4fd14955f9587c5c",
+   "hard_findings": [],
+   "max_cases": 8,
+   "min_cases": 3,
+   "new_features_total": 43,
+   "operators": [
+    "byte_bitflip",
+    "byte_interesting",
+    "byte_addsub",
+    "byte_splice",
+    "descriptor_field"
+   ],
+   "post_seed_cases": 7,
+   "post_seed_completed_chains": 7,
+   "rejected_prertl": 0,
+   "search_status": "ok",
+   "search_wall_seconds": 58.91937562199746,
+   "seconds": 120.0,
+   "seed_byte": 90,
+   "seed_hex": "5a17c0de0badf00d0e0d010203040506",
+   "session_failed": 0,
+   "spec_independent_runner": true,
+   "strategy": "guided",
+   "windows": {
+    "uart_rx_byte": [
+     0,
+     255
+    ]
+   }
+  },
+  "before": {
+   "case_count": 8,
+   "case_limit": 8,
+   "completed_chains": 8,
+   "corpus_entries": 8,
+   "distinct_effective_specs": 7,
+   "effective_search_seconds": 52.23320100800083,
+   "executed_cases": 8,
+   "failure_replay": null,
+   "feedback_influenced": true,
+   "findings": [],
+   "firmware_sha256": "b3d319b04c520c7ba2035ff64f6650fb8bbcb72da56be4be4fd14955f9587c5c",
+   "hard_findings": [],
+   "max_cases": 8,
+   "min_cases": 3,
+   "new_features_total": 43,
+   "operators": [
+    "byte_bitflip",
+    "byte_interesting",
+    "byte_addsub",
+    "byte_splice",
+    "descriptor_field"
+   ],
+   "post_seed_cases": 7,
+   "post_seed_completed_chains": 7,
+   "rejected_prertl": 0,
+   "search_status": "ok",
+   "search_wall_seconds": 72.35216834899984,
+   "seconds": 120.0,
+   "seed_byte": 90,
+   "seed_hex": "5a17c0de0badf00d0e0d010203040506",
+   "session_failed": 0,
+   "spec_independent_runner": true,
+   "strategy": "guided",
+   "windows": {
+    "uart_rx_byte": [
+     0,
+     255
+    ]
+   }
+  },
+  "case_fields": {
+   "all_completed_chains": true,
+   "all_prefix_sha256": true,
+   "case_count": 8,
+   "effective_search_seconds": 41.10528351500034,
+   "search_wall_seconds": 58.91937562199746
+  },
+  "comparison": {
+   "case_count": {
+    "after": 8,
+    "before": 8
+   },
+   "completed_chains": {
+    "after": 8,
+    "before": 8
+   },
+   "distinct_effective_specs": {
+    "after": 7,
+    "before": 7
+   },
+   "effective_search_seconds": {
+    "after": 41.10528351500034,
+    "before": 52.23320100800083
+   },
+   "executed_cases": {
+    "after": 8,
+    "before": 8
+   },
+   "feedback_influenced": {
+    "after": true,
+    "before": true
+   },
+   "search_status": {
+    "after": "ok",
+    "before": "ok"
+   },
+   "search_wall_seconds": {
+    "after": 58.91937562199746,
+    "before": 72.35216834899984
+   }
+  },
+  "guided_passed": true,
+  "keys": [
+   "case_count",
+   "executed_cases",
+   "effective_search_seconds",
+   "search_wall_seconds",
+   "completed_chains",
+   "distinct_effective_specs",
+   "feedback_influenced",
+   "search_status"
+  ],
+  "recomputed_findings": [],
+  "recomputed_status": "ok",
+  "search_throughput": {
+   "after": {
+    "commands": 9536,
+    "commands_per_case": 1192.0,
+    "events": 59064,
+    "local_ticks": {
+     "cpu": 2612,
+     "dma": 2772,
+     "uart": 6992
+    },
+    "poll_uart_steps": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "uart_local_tick_samples": 6992,
+    "uart_ticks": [
+     874,
+     874,
+     874,
+     874,
+     874,
+     874,
+     874,
+     874
+    ],
+    "uart_ticks_per_case": 874.0
+   },
+   "before": {
+    "commands": 9534,
+    "commands_per_case": 1191.75,
+    "events": 69390,
+    "local_ticks": {
+     "cpu": 2610,
+     "dma": 2770,
+     "uart": 9578
+    },
+    "poll_uart_steps": [
+     326,
+     324,
+     324,
+     324,
+     324,
+     324,
+     324,
+     324
+    ],
+    "uart_local_tick_samples": 9578,
+    "uart_ticks": [
+     1199,
+     1197,
+     1197,
+     1197,
+     1197,
+     1197,
+     1197,
+     1197
+    ],
+    "uart_ticks_per_case": 1197.25
+   },
+   "uart_ticks_per_case_ratio": 1.3699
+  },
+  "status": "audited"
+ }
+}

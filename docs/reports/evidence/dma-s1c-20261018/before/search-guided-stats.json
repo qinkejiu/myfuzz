@@ -1,0 +1,41 @@
+{
+ "case_count": 8,
+ "case_limit": 8,
+ "completed_chains": 8,
+ "corpus_entries": 8,
+ "distinct_effective_specs": 7,
+ "effective_search_seconds": 52.23320100800083,
+ "executed_cases": 8,
+ "failure_replay": null,
+ "feedback_influenced": true,
+ "findings": [],
+ "firmware_sha256": "b3d319b04c520c7ba2035ff64f6650fb8bbcb72da56be4be4fd14955f9587c5c",
+ "hard_findings": [],
+ "max_cases": 8,
+ "min_cases": 3,
+ "new_features_total": 43,
+ "operators": [
+  "byte_bitflip",
+  "byte_interesting",
+  "byte_addsub",
+  "byte_splice",
+  "descriptor_field"
+ ],
+ "post_seed_cases": 7,
+ "post_seed_completed_chains": 7,
+ "rejected_prertl": 0,
+ "search_status": "ok",
+ "search_wall_seconds": 72.35216834899984,
+ "seconds": 120.0,
+ "seed_byte": 90,
+ "seed_hex": "5a17c0de0badf00d0e0d010203040506",
+ "session_failed": 0,
+ "spec_independent_runner": true,
+ "strategy": "guided",
+ "windows": {
+  "uart_rx_byte": [
+   0,
+   255
+  ]
+ }
+}
