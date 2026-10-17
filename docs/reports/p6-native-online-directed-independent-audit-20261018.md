@@ -27,8 +27,12 @@ CPU原/fresh PID为4108968/4130126，GPIO原/fresh为4109109/4130280；受控CPU
 
 ## 受控响应实际关联
 
-原/fresh各一份故障记录完全相同：实际PADOUT读回62、返回错误位0，回调仅将交付值改为63。原始mmio_delivery仍保存62，单一CPU实际response-consumed事件按source sequence14/epoch0精确关联到交付63，二者未混成“真实目标读回63”。这是已声明的宿主响应扰动，不是自然发现的DUT错误。正向无扰动记录。
+原/fresh各一份故障记录完全相同：实际PADOUT读回62、返回错误位0，回调仅将交付值改为63。原始mmio_delivery仍保存62，单一CPU session的backend response_consumed事件按source sequence14/epoch0精确关联到交付63，二者未混成“真实目标读回63”。这是已声明的宿主响应扰动，不是自然发现的DUT错误。正向无扰动记录。
 
 详细CPU/IP数据因果与三个独立checker差异由另一代理对同一原包独立复算，本报告不以本身的PID或fresh审计代替该数据流审计。正向/受控的声明来源、实际MMIO/CPU消费证据仍只覆盖固定Pico/PULP GPIO实例；不授退休、通用来源权威、IRQ、四类反馈命中、18格campaign、通用无适配接入或吞吐目标。
 
 本报告未修改CURRENT_PROGRESS等共享总表，由root在汇总实际因果审计后更新。整体P6/P7/P8保持开放。
+
+## 原生完成信号测量边界补记
+
+进一步原始轨迹审计确认该native artifact没有导出原生`mem_ready`。本报告及审计结果中的`data_rsp_consumed`、raw `m_rsp_ready`与“CPU response consumed”均指**CPU session/adapter backend响应握手**，不是直接测得的原生CPU总线完成或退休。受控62→63关联授予的是实际backend响应交付及后续真实CPU RAM/GPIO结果；不得用事件字段名字代替未导出的原生端口测量。完整fresh全文相等、真实进程终态和实际RAM/GPIO结果结论不变；未修改原归档/checker，也没有重新运行测试或模型。
