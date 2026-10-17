@@ -1,0 +1,1259 @@
+{
+ "artifacts": {
+  "first": {
+   "gzip_bytes": 170177,
+   "gzip_sha256": "05363adb0260d68de452e6ef0917937441f6ecdc5a559d80c5f46d713b6b78a7",
+   "json_bytes": 6598806,
+   "json_sha256": "ff6b49ce4bed3d0572bed3f84931d4780ae510b834f50459e53894fc308edcac"
+  },
+  "fresh": {
+   "gzip_bytes": 170172,
+   "gzip_sha256": "71aca53ab76ae51c3adcc93c1722b1bc99f04f72dd700b1cbe7e89f7e32ef53f",
+   "json_bytes": 6598805,
+   "json_sha256": "0eaffe7c51f52d5141cb23f609b9a2a79b73482013a8f13c8961eaf6185a3433"
+  }
+ },
+ "boundaries": [
+  "Two real native processes per row: one pinned generated VexiiRiscv CPU and one pinned PULP apb_gpio target.",
+  "Each case is one CPU -> APB register write -> GPIO real interrupt pulse -> host level wire -> real core trap at the program mtvec -> ISR real APB reads/PADOUTCLR write -> mret -> main RAM check.",
+  "The host converts the GPIO transition pulse to the level the core requires and drops it after the actual PADOUTCLR delivery; it injects no trap, cause or vector.",
+  "The GPIO input is a declared loopback of its real gpio_out output, not a CPU pin.",
+  "The program image is fixed per row and case data comes from a preloaded RAM table; this is not the P6 campaign framework (no online genome mutation, coverage feedback, arbitrary program-image replay or cross-case arbitrary harness reuse)."
+ ],
+ "cases": [
+  17,
+  34,
+  51,
+  90,
+  165,
+  291,
+  1023,
+  127
+ ],
+ "children": {
+  "first": {
+   "exit_code": 0,
+   "stderr": "",
+   "stdout": "{\"bytes\": 6598806, \"cases\": 8, \"cpu_ticks\": 1567, \"gpio_ticks\": 1711, \"status\": \"verified\", \"wall_seconds\": 13.929}\n",
+   "wall_seconds": 14.332
+  },
+  "fresh": {
+   "exit_code": 0,
+   "stderr": "",
+   "stdout": "{\"bytes\": 6598805, \"cases\": 8, \"cpu_ticks\": 1567, \"gpio_ticks\": 1711, \"status\": \"verified\", \"wall_seconds\": 13.36}\n",
+   "wall_seconds": 13.736
+  }
+ },
+ "command": [
+  "/usr/bin/python3",
+  "/home/qinkejiu/myfuzz/.superpowers/vexi-irq-snapshot/scripts/run_vexiiriscv_irq_fixed_row.py",
+  "--output",
+  "/home/qinkejiu/myfuzz/docs/reports/evidence/vexi-irq-fixed-20261018"
+ ],
+ "counts": {
+  "first": {
+   "apb_deliveries": 36,
+   "cpu_ticks": 1567,
+   "gpio_ticks": 1711,
+   "host_rounds": 1567,
+   "irq_falls": 8,
+   "irq_rises": 8,
+   "isr_vector_fetches": 8,
+   "trace_events": 2928
+  },
+  "fresh": {
+   "apb_deliveries": 36,
+   "cpu_ticks": 1567,
+   "gpio_ticks": 1711,
+   "host_rounds": 1567,
+   "irq_falls": 8,
+   "irq_rises": 8,
+   "isr_vector_fetches": 8,
+   "trace_events": 2928
+  }
+ },
+ "execution": {
+  "cpu": "5b849cb6e286400a84d1c03fdd42f2a2",
+  "gpio": "75464baff3454cfc8b542a5a488af26e"
+ },
+ "fresh_execution": {
+  "cpu": "1be5e0d79b88435da565547c66620763",
+  "gpio": "e095531be3324d2384bb378995ea7457"
+ },
+ "implementation": {
+  "derived_contract": {
+   "path": "src/myfuzz/local_harness/vexii_irq_contract.py",
+   "sha256": "7277c0267c74dabfb53f54c91e029f30f64aad11087c50c3760a8bab48299ae6"
+  },
+  "derived_profile": {
+   "path": "configs/cpus/vexiiriscv_irq/component_profile.json",
+   "sha256": "eb7aecd17393f45cc5371f2fd0c26c748393e9c778ca68c29d7343886c4ea920"
+  },
+  "driver_header": {
+   "path": "src/myfuzz/local_harness/rtl/local_driver_v1.h",
+   "sha256": "1e72a2d2a8fce550c87e37cdf28bb3bb23a9954d150a89392fe75375fe9bbb8e"
+  },
+  "gate_script": {
+   "path": "scripts/run_vexiiriscv_irq_fixed_row.py",
+   "sha256": "122556d1e42373d4dbe3f1a48792ca9cbc127224405d0744acdc6688732572e8"
+  },
+  "scenario_module": {
+   "path": "src/myfuzz/scenario/vexii_pulp_gpio_fixed.py",
+   "sha256": "04621b7415b485b15b4c50ae2f6be9ed276ce292f2deae2fe8163230dd5e3244"
+  },
+  "schema_version": "vexi_pulp_gpio_irq_implementation.v1"
+ },
+ "program": {
+  "case_table_address": 2147488000,
+  "check_address": 2147488768,
+  "done_address": 2147487760,
+  "done_mark": 24589,
+  "driven_values": [
+   17,
+   35,
+   51,
+   91,
+   165,
+   291,
+   1023,
+   127
+  ],
+  "entry": 2147483648,
+  "flag_address": 2147487752,
+  "image_length": 4384,
+  "image_sha256": "e4fb014dbfcae1920261bec4ffb078b4340c8a33d3d0cc6274fc784632a69c86",
+  "index_address": 2147487748,
+  "isr_address": 2147484160,
+  "isr_words": [
+   1073742519,
+   12755715,
+   37921667,
+   2147488951,
+   296083,
+   4498819,
+   2463123,
+   2147489079,
+   537199891,
+   11863347,
+   6627363,
+   2147489079,
+   805635347,
+   11863347,
+   7675939,
+   951,
+   4294149011,
+   7514659,
+   1049491,
+   7644195,
+   807403635
+  ],
+  "main_words": [
+   1073744183,
+   592147,
+   2147490231,
+   625043,
+   2147490487,
+   269126291,
+   2147490871,
+   537660435,
+   2147490999,
+   806128787,
+   2147487159,
+   537759123,
+   811438195,
+   2147487123,
+   810389619,
+   8392083,
+   806199411,
+   2871,
+   4294642451,
+   23667235,
+   1051411,
+   23669795,
+   23670307,
+   2871,
+   4294642451,
+   23669283,
+   2579,
+   8392211,
+   699139,
+   1796883,
+   23699491,
+   21602851,
+   631843,
+   23668771,
+   9022339,
+   4262170339,
+   2759571,
+   24906675,
+   764803,
+   23841715,
+   2147491639,
+   1074728723,
+   2760339,
+   31395635,
+   25108515,
+   4885139,
+   1706515,
+   4224338659,
+   27447,
+   14355219,
+   23701539,
+   111
+  ],
+  "mtvec_value": 2147484160,
+  "register_offsets": {
+   "gpioen": 4,
+   "inten": 24,
+   "intstatus": 36,
+   "inttype_low": 28,
+   "padout": 12,
+   "padoutclr": 20,
+   "padoutset": 16
+  },
+  "result_address": 2147488256,
+  "schema_version": "vexi_pulp_gpio_irq_program.v1",
+  "status_address": 2147488512,
+  "value_address": 2147487744
+ },
+ "replay": {
+  "checks": [
+   {
+    "detail": [
+     "verified",
+     "verified"
+    ],
+    "name": "both-runs-verified",
+    "ok": true
+   },
+   {
+    "detail": null,
+    "name": "artifact-and-build-identity",
+    "ok": true
+   },
+   {
+    "detail": {
+     "first": "c1661efd0594064dc0877deedae60d867fa83277e34ab19ba16614e4be6c5e6f",
+     "fresh": "c1661efd0594064dc0877deedae60d867fa83277e34ab19ba16614e4be6c5e6f"
+    },
+    "name": "stable-evidence-equal",
+    "ok": true
+   },
+   {
+    "detail": {
+     "first": "d0d32b63df2313f199e627d99438ec2206ecff2b801236e6004c8b6133b927fe",
+     "fresh": "d0d32b63df2313f199e627d99438ec2206ecff2b801236e6004c8b6133b927fe"
+    },
+    "name": "raw-cpu-samples-equal",
+    "ok": true
+   },
+   {
+    "detail": {
+     "first": "5c0ca3c882efd70f1f96f40aac7d8f498e0ece8940580c570dd14170a0575d33",
+     "fresh": "5c0ca3c882efd70f1f96f40aac7d8f498e0ece8940580c570dd14170a0575d33"
+    },
+    "name": "raw-gpio-samples-equal",
+    "ok": true
+   },
+   {
+    "detail": {
+     "first": {
+      "cpu": "5b849cb6e286400a84d1c03fdd42f2a2",
+      "gpio": "75464baff3454cfc8b542a5a488af26e"
+     },
+     "fresh": {
+      "cpu": "1be5e0d79b88435da565547c66620763",
+      "gpio": "e095531be3324d2384bb378995ea7457"
+     }
+    },
+    "name": "distinct-native-executions",
+    "ok": true
+   }
+  ],
+  "first_evidence_sha256": "c1661efd0594064dc0877deedae60d867fa83277e34ab19ba16614e4be6c5e6f",
+  "first_execution": {
+   "cpu": "5b849cb6e286400a84d1c03fdd42f2a2",
+   "gpio": "75464baff3454cfc8b542a5a488af26e"
+  },
+  "fresh_evidence_sha256": "c1661efd0594064dc0877deedae60d867fa83277e34ab19ba16614e4be6c5e6f",
+  "fresh_execution": {
+   "cpu": "1be5e0d79b88435da565547c66620763",
+   "gpio": "e095531be3324d2384bb378995ea7457"
+  },
+  "matches": true,
+  "schema_version": "vexi_pulp_gpio_irq_fresh_replay.v1"
+ },
+ "repository_head": "ad4eb9e6ff6d1bcd6c91e70a71bfb56c8a2b4674",
+ "row_checks": {
+  "first": [
+   {
+    "detail": {
+     "cases": 8,
+     "error": null,
+     "rounds": 8
+    },
+    "name": "row-completed-all-cases",
+    "ok": true
+   },
+   {
+    "detail": 24589,
+    "name": "done-marker",
+    "ok": true
+   },
+   {
+    "detail": {
+     "fall": 253,
+     "isr_fetches": 1,
+     "rise": 163
+    },
+    "name": "case-0-irq-round",
+    "ok": true
+   },
+   {
+    "detail": [
+     17
+    ],
+    "name": "case-0-padoutset-write",
+    "ok": true
+   },
+   {
+    "detail": 17,
+    "name": "case-0-padout-readback",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-0-intstatus-latched",
+    "ok": true
+   },
+   {
+    "detail": [
+     4294967295
+    ],
+    "name": "case-0-padoutclr-write",
+    "ok": true
+   },
+   {
+    "detail": 17,
+    "name": "case-0-isr-result",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-0-status-observed",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-0-cpu-check-zero",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-0-no-extra-pulse",
+    "ok": true
+   },
+   {
+    "detail": {
+     "fall": 430,
+     "isr_fetches": 1,
+     "rise": 340
+    },
+    "name": "case-1-irq-round",
+    "ok": true
+   },
+   {
+    "detail": [
+     35
+    ],
+    "name": "case-1-padoutset-write",
+    "ok": true
+   },
+   {
+    "detail": 35,
+    "name": "case-1-padout-readback",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-1-intstatus-latched",
+    "ok": true
+   },
+   {
+    "detail": [
+     4294967295
+    ],
+    "name": "case-1-padoutclr-write",
+    "ok": true
+   },
+   {
+    "detail": 35,
+    "name": "case-1-isr-result",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-1-status-observed",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-1-cpu-check-zero",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-1-no-extra-pulse",
+    "ok": true
+   },
+   {
+    "detail": {
+     "fall": 607,
+     "isr_fetches": 1,
+     "rise": 517
+    },
+    "name": "case-2-irq-round",
+    "ok": true
+   },
+   {
+    "detail": [
+     51
+    ],
+    "name": "case-2-padoutset-write",
+    "ok": true
+   },
+   {
+    "detail": 51,
+    "name": "case-2-padout-readback",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-2-intstatus-latched",
+    "ok": true
+   },
+   {
+    "detail": [
+     4294967295
+    ],
+    "name": "case-2-padoutclr-write",
+    "ok": true
+   },
+   {
+    "detail": 51,
+    "name": "case-2-isr-result",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-2-status-observed",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-2-cpu-check-zero",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-2-no-extra-pulse",
+    "ok": true
+   },
+   {
+    "detail": {
+     "fall": 784,
+     "isr_fetches": 1,
+     "rise": 694
+    },
+    "name": "case-3-irq-round",
+    "ok": true
+   },
+   {
+    "detail": [
+     91
+    ],
+    "name": "case-3-padoutset-write",
+    "ok": true
+   },
+   {
+    "detail": 91,
+    "name": "case-3-padout-readback",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-3-intstatus-latched",
+    "ok": true
+   },
+   {
+    "detail": [
+     4294967295
+    ],
+    "name": "case-3-padoutclr-write",
+    "ok": true
+   },
+   {
+    "detail": 91,
+    "name": "case-3-isr-result",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-3-status-observed",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-3-cpu-check-zero",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-3-no-extra-pulse",
+    "ok": true
+   },
+   {
+    "detail": {
+     "fall": 961,
+     "isr_fetches": 1,
+     "rise": 871
+    },
+    "name": "case-4-irq-round",
+    "ok": true
+   },
+   {
+    "detail": [
+     165
+    ],
+    "name": "case-4-padoutset-write",
+    "ok": true
+   },
+   {
+    "detail": 165,
+    "name": "case-4-padout-readback",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-4-intstatus-latched",
+    "ok": true
+   },
+   {
+    "detail": [
+     4294967295
+    ],
+    "name": "case-4-padoutclr-write",
+    "ok": true
+   },
+   {
+    "detail": 165,
+    "name": "case-4-isr-result",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-4-status-observed",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-4-cpu-check-zero",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-4-no-extra-pulse",
+    "ok": true
+   },
+   {
+    "detail": {
+     "fall": 1138,
+     "isr_fetches": 1,
+     "rise": 1048
+    },
+    "name": "case-5-irq-round",
+    "ok": true
+   },
+   {
+    "detail": [
+     291
+    ],
+    "name": "case-5-padoutset-write",
+    "ok": true
+   },
+   {
+    "detail": 291,
+    "name": "case-5-padout-readback",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-5-intstatus-latched",
+    "ok": true
+   },
+   {
+    "detail": [
+     4294967295
+    ],
+    "name": "case-5-padoutclr-write",
+    "ok": true
+   },
+   {
+    "detail": 291,
+    "name": "case-5-isr-result",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-5-status-observed",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-5-cpu-check-zero",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-5-no-extra-pulse",
+    "ok": true
+   },
+   {
+    "detail": {
+     "fall": 1315,
+     "isr_fetches": 1,
+     "rise": 1225
+    },
+    "name": "case-6-irq-round",
+    "ok": true
+   },
+   {
+    "detail": [
+     1023
+    ],
+    "name": "case-6-padoutset-write",
+    "ok": true
+   },
+   {
+    "detail": 1023,
+    "name": "case-6-padout-readback",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-6-intstatus-latched",
+    "ok": true
+   },
+   {
+    "detail": [
+     4294967295
+    ],
+    "name": "case-6-padoutclr-write",
+    "ok": true
+   },
+   {
+    "detail": 1023,
+    "name": "case-6-isr-result",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-6-status-observed",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-6-cpu-check-zero",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-6-no-extra-pulse",
+    "ok": true
+   },
+   {
+    "detail": {
+     "fall": 1492,
+     "isr_fetches": 1,
+     "rise": 1402
+    },
+    "name": "case-7-irq-round",
+    "ok": true
+   },
+   {
+    "detail": [
+     127
+    ],
+    "name": "case-7-padoutset-write",
+    "ok": true
+   },
+   {
+    "detail": 127,
+    "name": "case-7-padout-readback",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-7-intstatus-latched",
+    "ok": true
+   },
+   {
+    "detail": [
+     4294967295
+    ],
+    "name": "case-7-padoutclr-write",
+    "ok": true
+   },
+   {
+    "detail": 127,
+    "name": "case-7-isr-result",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-7-status-observed",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-7-cpu-check-zero",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-7-no-extra-pulse",
+    "ok": true
+   },
+   {
+    "detail": {
+     "falls": 8,
+     "rises": 8
+    },
+    "name": "one-rise-and-fall-per-case",
+    "ok": true
+   },
+   {
+    "detail": [
+     1,
+     0,
+     1,
+     0,
+     1,
+     0,
+     1,
+     0,
+     1,
+     0,
+     1,
+     0,
+     1,
+     0,
+     1,
+     0
+    ],
+    "name": "session-irq-level-trace",
+    "ok": true
+   },
+   {
+    "detail": [
+     163,
+     340,
+     517,
+     694,
+     871,
+     1048,
+     1225,
+     1402
+    ],
+    "name": "program-before-irq",
+    "ok": true
+   }
+  ],
+  "fresh": [
+   {
+    "detail": {
+     "cases": 8,
+     "error": null,
+     "rounds": 8
+    },
+    "name": "row-completed-all-cases",
+    "ok": true
+   },
+   {
+    "detail": 24589,
+    "name": "done-marker",
+    "ok": true
+   },
+   {
+    "detail": {
+     "fall": 253,
+     "isr_fetches": 1,
+     "rise": 163
+    },
+    "name": "case-0-irq-round",
+    "ok": true
+   },
+   {
+    "detail": [
+     17
+    ],
+    "name": "case-0-padoutset-write",
+    "ok": true
+   },
+   {
+    "detail": 17,
+    "name": "case-0-padout-readback",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-0-intstatus-latched",
+    "ok": true
+   },
+   {
+    "detail": [
+     4294967295
+    ],
+    "name": "case-0-padoutclr-write",
+    "ok": true
+   },
+   {
+    "detail": 17,
+    "name": "case-0-isr-result",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-0-status-observed",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-0-cpu-check-zero",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-0-no-extra-pulse",
+    "ok": true
+   },
+   {
+    "detail": {
+     "fall": 430,
+     "isr_fetches": 1,
+     "rise": 340
+    },
+    "name": "case-1-irq-round",
+    "ok": true
+   },
+   {
+    "detail": [
+     35
+    ],
+    "name": "case-1-padoutset-write",
+    "ok": true
+   },
+   {
+    "detail": 35,
+    "name": "case-1-padout-readback",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-1-intstatus-latched",
+    "ok": true
+   },
+   {
+    "detail": [
+     4294967295
+    ],
+    "name": "case-1-padoutclr-write",
+    "ok": true
+   },
+   {
+    "detail": 35,
+    "name": "case-1-isr-result",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-1-status-observed",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-1-cpu-check-zero",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-1-no-extra-pulse",
+    "ok": true
+   },
+   {
+    "detail": {
+     "fall": 607,
+     "isr_fetches": 1,
+     "rise": 517
+    },
+    "name": "case-2-irq-round",
+    "ok": true
+   },
+   {
+    "detail": [
+     51
+    ],
+    "name": "case-2-padoutset-write",
+    "ok": true
+   },
+   {
+    "detail": 51,
+    "name": "case-2-padout-readback",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-2-intstatus-latched",
+    "ok": true
+   },
+   {
+    "detail": [
+     4294967295
+    ],
+    "name": "case-2-padoutclr-write",
+    "ok": true
+   },
+   {
+    "detail": 51,
+    "name": "case-2-isr-result",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-2-status-observed",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-2-cpu-check-zero",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-2-no-extra-pulse",
+    "ok": true
+   },
+   {
+    "detail": {
+     "fall": 784,
+     "isr_fetches": 1,
+     "rise": 694
+    },
+    "name": "case-3-irq-round",
+    "ok": true
+   },
+   {
+    "detail": [
+     91
+    ],
+    "name": "case-3-padoutset-write",
+    "ok": true
+   },
+   {
+    "detail": 91,
+    "name": "case-3-padout-readback",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-3-intstatus-latched",
+    "ok": true
+   },
+   {
+    "detail": [
+     4294967295
+    ],
+    "name": "case-3-padoutclr-write",
+    "ok": true
+   },
+   {
+    "detail": 91,
+    "name": "case-3-isr-result",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-3-status-observed",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-3-cpu-check-zero",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-3-no-extra-pulse",
+    "ok": true
+   },
+   {
+    "detail": {
+     "fall": 961,
+     "isr_fetches": 1,
+     "rise": 871
+    },
+    "name": "case-4-irq-round",
+    "ok": true
+   },
+   {
+    "detail": [
+     165
+    ],
+    "name": "case-4-padoutset-write",
+    "ok": true
+   },
+   {
+    "detail": 165,
+    "name": "case-4-padout-readback",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-4-intstatus-latched",
+    "ok": true
+   },
+   {
+    "detail": [
+     4294967295
+    ],
+    "name": "case-4-padoutclr-write",
+    "ok": true
+   },
+   {
+    "detail": 165,
+    "name": "case-4-isr-result",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-4-status-observed",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-4-cpu-check-zero",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-4-no-extra-pulse",
+    "ok": true
+   },
+   {
+    "detail": {
+     "fall": 1138,
+     "isr_fetches": 1,
+     "rise": 1048
+    },
+    "name": "case-5-irq-round",
+    "ok": true
+   },
+   {
+    "detail": [
+     291
+    ],
+    "name": "case-5-padoutset-write",
+    "ok": true
+   },
+   {
+    "detail": 291,
+    "name": "case-5-padout-readback",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-5-intstatus-latched",
+    "ok": true
+   },
+   {
+    "detail": [
+     4294967295
+    ],
+    "name": "case-5-padoutclr-write",
+    "ok": true
+   },
+   {
+    "detail": 291,
+    "name": "case-5-isr-result",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-5-status-observed",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-5-cpu-check-zero",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-5-no-extra-pulse",
+    "ok": true
+   },
+   {
+    "detail": {
+     "fall": 1315,
+     "isr_fetches": 1,
+     "rise": 1225
+    },
+    "name": "case-6-irq-round",
+    "ok": true
+   },
+   {
+    "detail": [
+     1023
+    ],
+    "name": "case-6-padoutset-write",
+    "ok": true
+   },
+   {
+    "detail": 1023,
+    "name": "case-6-padout-readback",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-6-intstatus-latched",
+    "ok": true
+   },
+   {
+    "detail": [
+     4294967295
+    ],
+    "name": "case-6-padoutclr-write",
+    "ok": true
+   },
+   {
+    "detail": 1023,
+    "name": "case-6-isr-result",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-6-status-observed",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-6-cpu-check-zero",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-6-no-extra-pulse",
+    "ok": true
+   },
+   {
+    "detail": {
+     "fall": 1492,
+     "isr_fetches": 1,
+     "rise": 1402
+    },
+    "name": "case-7-irq-round",
+    "ok": true
+   },
+   {
+    "detail": [
+     127
+    ],
+    "name": "case-7-padoutset-write",
+    "ok": true
+   },
+   {
+    "detail": 127,
+    "name": "case-7-padout-readback",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-7-intstatus-latched",
+    "ok": true
+   },
+   {
+    "detail": [
+     4294967295
+    ],
+    "name": "case-7-padoutclr-write",
+    "ok": true
+   },
+   {
+    "detail": 127,
+    "name": "case-7-isr-result",
+    "ok": true
+   },
+   {
+    "detail": 1,
+    "name": "case-7-status-observed",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-7-cpu-check-zero",
+    "ok": true
+   },
+   {
+    "detail": 0,
+    "name": "case-7-no-extra-pulse",
+    "ok": true
+   },
+   {
+    "detail": {
+     "falls": 8,
+     "rises": 8
+    },
+    "name": "one-rise-and-fall-per-case",
+    "ok": true
+   },
+   {
+    "detail": [
+     1,
+     0,
+     1,
+     0,
+     1,
+     0,
+     1,
+     0,
+     1,
+     0,
+     1,
+     0,
+     1,
+     0,
+     1,
+     0
+    ],
+    "name": "session-irq-level-trace",
+    "ok": true
+   },
+   {
+    "detail": [
+     163,
+     340,
+     517,
+     694,
+     871,
+     1048,
+     1225,
+     1402
+    ],
+    "name": "program-before-irq",
+    "ok": true
+   }
+  ]
+ },
+ "schema_version": "vexi_pulp_gpio_irq_fixed_evidence.v1",
+ "status": "verified"
+}
