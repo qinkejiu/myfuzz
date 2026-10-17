@@ -94,19 +94,16 @@ Evidence: `docs/reports/evidence/dma-prefix-s4-real-9cbc323/`
 ## Boundaries that are still open
 
 - **P6** is still fixed-instance `fresh_genomes`; persistent single-harness
-  sessions, per-edge `RuntimePathContract` and closed-loop four hits are not
-  implemented.
+  sessions, per-edge `RuntimePathContract` and closed-loop four-hit acceptance remain open for those rows. Shared mechanisms exist; provider integration and actual acceptance are incomplete.
 - **P7 I5** still needs the consolidated negative-fixture group and an
   independent snapshot re-run; the CV32E20+timer I4 gate is the new-CPU/IP
   execution evidence, not a full P7 formal acceptance by itself.
-- **P8 S1c** measured 1.37× schedule improvement, below the original 5× goal;
+- **P8 S1c** measured a 1.3699× UART-tick reduction ratio; search wall time improved from 72.352s to 58.919s (about 1.228×), below the original 5× goal;
   the longer multi-tick harness command remains future work.
 - **P8 S2/S3** final-source gates use shorter bounded case sets (three
   multi-word all-direction; two valid + two invalid) than the earlier
   six-case boot; the earlier evidence is retained and the reduction is
   documented, not hidden.
-- **CVW/Vexii/BOOM**: not fully adapted. CVW still needs the online-assembly
-  session components; Vexii needs CPU+IP/IRQ/online; BOOM has no generated
-  profile/RTL/toolchain.
+- **CVW/Vexii/BOOM**: not fully adapted. [CVW now has a real directed D4 session](cvw-directed-session-20261018.md), while RFuzz online campaign remains open. [Vexii now has a fixed CPU/IP/IRQ chain](vexiiriscv-cpu-ip-irq-20261018.md), while online campaign and generic protocol authority remain open. BOOM has historical source/profile/RTL assets; current runnable availability must be established for a specific snapshot/toolchain rather than inferred from those historical assets.
 - Independent acceptance audit is recorded separately; this document is an
   evidence index, not a substitute for it.

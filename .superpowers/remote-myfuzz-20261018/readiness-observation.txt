@@ -1,0 +1,76 @@
+# myfuzz — current project working set
+
+This directory contains the folders used by the current myfuzz work, copied
+from `/root/fanzehui/system-20261016` on 2026-10-18. The previous
+`/root/fanzehui/myfuzz` checkout (2026-09-27) was preserved as
+`/root/fanzehui/myfuzz-20260927-legacy`; the originals under
+`system-20261016` were left untouched.
+
+- `project/` — current myfuzz source tree
+- `tools/`, `pythonlib/` — build/toolchain dependencies
+- `cache/`, `f4-ibex-cache/`, `f4-cv32-cache/` — native build caches
+- `chipyard-pinned/`, `chipyard-release-deps/`, `chipyard-source/` — BOOM/Chipyard sources
+- `vexii-mmio-snapshot/` — Vexii MMIO snapshot
+- `evidence/` — remote real-gate evidence
+- `dma-uart-project/`, `dma-uart-rx-project/`, `dma-continuous-verification-20261017/` — DMA work trees
+- `bin/`, `home/`, `environment.sh`, tarballs — support files
+
+Reference paths inside the copied project may still say
+`/root/fanzehui/system-20261016/...`; this copy is for the new canonical
+location and does not rewrite historical evidence.
+DONE
+42a9ce99cc7d1b11d37f44b90e4753563691c44b
+ M agent.md
+ M configs/cpus/boom/README.md
+ M configs/cpus/boom/interface_description.json
+ M configs/cpus/cvw/component_profile.json
+ M configs/cpus/cvw/config_extmem/config.vh
+ M configs/scenarios/cvw-pulp-gpio/compose.json
+ M configs/soc/closures/cvw.json
+ M configs/soc/sources.lock.json
+ M scripts/derive_cvw_config.py
+ M src/myfuzz/composition/soc_port_dispositions.py
+ M src/myfuzz/integration/cv32e40p_pulp_online.py
+ M src/myfuzz/integration/cvw_pulp_online.py
+ M src/myfuzz/integration/ibex_pulp_online.py
+ M src/myfuzz/local_harness/auto_harness_test.py
+ M src/myfuzz/local_harness/build.py
+ M src/myfuzz/local_harness/cvw_contract.py
+ M src/myfuzz/local_harness/driver_renderer.py
+ M src/myfuzz/local_harness/generated_register_factory.py
+ M src/myfuzz/local_harness/harness_set.py
+ M src/myfuzz/local_harness/native_physical_observation.py
+ M src/myfuzz/local_harness/plan.py
+ M src/myfuzz/local_harness/rtl/local_driver_v1.h
+ M src/myfuzz/local_harness/runtime_renderer.py
+ M src/myfuzz/local_harness/session.py
+ M src/myfuzz/local_harness/source_lock.py
+ M src/myfuzz/local_harness/template_contracts.py
+ M src/myfuzz/protocols/plugins/ahb_lite.json
+ M src/myfuzz/scenario/compiled_paths.py
+ M src/myfuzz/scenario/cv32e40p_pulp_dual_source.py
+ M src/myfuzz/scenario/ibex_pulp_dual_source.py
+ M src/myfuzz/scenario/ip_base_coverage.py
+ M src/myfuzz/scenario/ip_protocol_checker.py
+ M src/myfuzz/scenario/ip_protocol_events.py
+ M src/myfuzz/scenario/ip_protocol_evidence.py
+ M src/myfuzz/scenario/runner.py
+ M tests/integration/test_cvw_derived_config.py
+ M tests/integration/test_cvw_runtime_family.py
+ M tests/integration/test_scenario_picorv32_wb_opentitan_gpio_irq_real.py
+ m third_party/cv32e20_upstream_reference
+ m third_party/cva6_upstream_reference
+ m third_party/cvw_upstream_reference
+ m third_party/rfuzz/upstream/ibex
+ m third_party/soc-opentitan
+export TMPDIR=/root/fanzehui/system-20261016/tmp
+export PATH=/root/fanzehui/system-20261016/bin:/root/fanzehui/myfuzz/.tools/verilator-5.051-e413e67/bin:$PATH
+export PYTHONPATH=/root/fanzehui/system-20261016/pythonlib:/root/fanzehui/system-20261016/project/src:/root/fanzehui/system-20261016/project
+export PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+export PYTHONDONTWRITEBYTECODE=1
+total 20
+-rwxr-xr-x 1 root root 82 Oct 17 00:02 c++
+-rwxr-xr-x 1 root root 81 Oct 17 00:02 cc
+-rwxr-xr-x 1 root root 82 Oct 17 00:02 g++
+-rwxr-xr-x 1 root root 82 Oct 17 00:02 gcc
+-rwxr-xr-x 1 root root 83 Oct 17 00:02 make

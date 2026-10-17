@@ -709,3 +709,11 @@ Task3 unbound dependency source RED有效：`dispatch-source-dependency-red.stdo
 - [无 error 引脚 OBI 的实际适配器与生成式 CV32 fail-stop 边界](obi-no-error-fail-stop-20261017.md)（实际错误响应终止；连续 F4 成功门另验）。
 
 - [BOOM IRQ 元数据恢复实测与独立审计](boom-irq-metadata-recovery-20261017.md)（复用历史已构建二进制；尚无 IRQ runtime 通过）。
+
+
+## 2026-10-18 后续开放项推进
+
+- [P7 I5 N3 source fixture](p7-i5-n3-source-20261018.md)：已实现、未执行。
+- [P6 下一步接入计划](p6-next-implementation-20261018.md)：真实共享机制、逐协议缺口和BOOM资产边界。
+- [P8 S1c UART批处理计划](p8-s1c-batching-plan-20261018.md)：先归因测量，5×尚未达到。
+- [新远程工作集核对](remote-myfuzz-readiness-20261018.md)：HEAD/脏源码及旧环境路径残留。

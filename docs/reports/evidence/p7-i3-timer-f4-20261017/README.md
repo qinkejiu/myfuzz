@@ -1,11 +1,13 @@
 # P7 I3 generic APB storage consumer — timer F4 evidence
 
-Status: **PURE SOFTWARE ONLY. The real timer F4 gate has not been executed.**
+Status: **Final real timer F4 artifact gate completed at `ade3fe6`.**
 
-This directory contains the pure-software RED/GREEN evidence for the P7 I3
+The historical source/software notes below predate the final run. Current evidence is in `outputs/timer-ade3fe6/`: `report.json` records 3/3 certified cases and `replays.json` records a full fresh match. See [the consolidated report](../../../p7-p8-real-gates-20261018.md). This is artifact-level acceptance; a raw process exit receipt is absent, as recorded by the independent audit.
+
+This directory retains the historical pure-software RED/GREEN evidence for the P7 I3
 generic APB storage consumer and the queued (not run) real timer F4 gate
 declaration.  The real gate is serialized by the root session on a frozen
-source tree; it must not be inferred from any file here.
+source tree; its current result must be read from the final outputs, not from these historical notes.
 
 ## Implemented source (commit reported in the handoff message)
 
@@ -108,12 +110,10 @@ canonical event hashes still differ — see
 `pure-software/semantic-normalization-real-events.log`.  This is a software
 cross-check, not a gate pass; the real timer gate is rerun by the root session.
 
-## Real timer F4 gate (queued, not run)
+## Historical real timer F4 declaration (superseded by final outputs)
 
 See `gate-pending.json` for the exact command, records and acceptance criteria.
-No `summary`, `prefix`, `events`, `audit`, certificate or fresh comparison for
-this target exists anywhere in this directory — because no native process was
-started.  The design-requested literal F4 `path_id`
+At this earlier checkpoint there were no native output documents. The final `outputs/timer-ade3fe6/` now contains the actual report, prefix, events, certificates and fresh comparison; the earlier pending declaration is retained as history.  The design-requested literal F4 `path_id`
 `F4:timer.TIMER0_CTRL.value.mmio` is **not** what the current compiler emits:
 D3 derives `path_id` from the first F4 source (`ram.image`) and this compose's
 device instance is `peripheral`.  The actual target source id is

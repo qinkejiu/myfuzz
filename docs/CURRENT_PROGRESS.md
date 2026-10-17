@@ -1,11 +1,19 @@
 # 当前工作进度与证据入口
 
+## 2026-10-18 后续执行状态与证据口径
+
+- P7 I5 N3 专项真实生成路径拒绝用例已提交 `1194b32`，未执行，故仍为 open；独立冻结快照重跑待完成。
+- [CVW directed D4 会话](reports/cvw-directed-session-20261018.md)与[Vexii 固定 CPU/IP/IRQ](reports/vexiiriscv-cpu-ip-irq-20261018.md)已有真实门；二者均不等于在线 campaign。下文旧“会话未装配／IRQ未做”属于历史状态。
+- 独立审计对 P8 S3 的结论是“产物内容通过，进程退出不可验证”，不能据此声称已记录完整 pytest 通过。
+- P8 S1c 的 1.3699×是 UART tick 减少比，搜索墙钟72.352s→58.919s约1.228×，有效搜索时间52.233s→41.105s约1.271×；5×性能目标仍未达到。
+- P6 共享持久会话／RuntimePathContract／closed-loop 机制已有代码，部分协议provider接入与整行实测验收仍开放。BOOM保留历史资产，当前工具链/运行可用性按具体快照核验。
+
 ## 2026-10-18 P7 I3/I4 与 P8 S2/S3/S4 真实门（当前源码）
 
 - **P7 I3（PULP timer generic APB storage F4）通过：** `report.json status=completed`，3 条记录 `0x55/0xaa/0x12345678` 连续 certified，commit `0→85→170→305419896`；探针 `hierarchy_verified=true`/`native_verified=true`（proof `a889c6eb…`）；fresh `matches=true`/`verification_scope=full`。证据：`docs/reports/evidence/p7-i3-timer-f4-20261017/outputs/timer-ade3fe6/`。
 - **P7 I4（CV32E20 + PULP timer，compiled RFuzz）通过：** `status=complete`、client rc0、4 tests/4 certified、receipt join ok、`Coverage-guided searched=3`、`RTL operational=3`、fresh `matches=true/full`。证据：`runs/p7-i4-real-ade3fe6/`。
 - **P8 S2（单 boot 三方向多字）通过：** 3 个多字用例，RX→RAM/RAM→RAM/RAM→TX，accepted UART FIFO authority，`1 passed in 465.88s`；fresh cases/plan/ticks/identities 全等、execution ids 新。证据：`docs/reports/evidence/dma-s2-real-ade3fe6/`。
-- **P8 S3（真实 error ISR）通过：** 2 valid + 2 invalid；实测 status `0x40000000`（bit30=1）、真实 environment_error_receipt、无目标交付/目的 commit、真实 CPU take/ISR；fresh 全等。证据：`docs/reports/evidence/dma-s3-real-ade3fe6/`。
+- **P8 S3（真实 error ISR）产物内容通过、进程退出未验证：** 2 valid + 2 invalid；实测 status `0x40000000`（bit30=1）、真实 environment_error_receipt、无目标交付/目的 commit、真实 CPU take/ISR；fresh 全等。证据：`docs/reports/evidence/dma-s3-real-ade3fe6/`。
 - **P8 S4（来源认证 + typed prefix replay）通过：** `1 passed in 529.76s`；每例 accepted `uart_fifo_retention/read_consumption`，DMA pop 带 `dma_master`；typed prefix 比较 plan/events/ticks/cases。证据：`docs/reports/evidence/dma-prefix-s4-real-9cbc323/`。
 - **汇总与本轮边界：** 见 [P7/P8 real-gate record](reports/p7-p8-real-gates-20261018.md)。P6 仍为固定实例 `fresh_genomes`；P7 I5 负例组/独立复核未完成；P8 S1c 实测 1.37×（5× 未达）；CVW/Vexii/BOOM 未完全适配。**P6/P7/P8 整体仍未宣布通过。**
 

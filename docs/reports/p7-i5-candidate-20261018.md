@@ -2,7 +2,7 @@
 
 Status: **sub-set evidence, not a full P7 declaration**. The new-CPU/IP
 execution gate is real; the negative group is mapped to existing tests and one
-case (N3) still lacks a dedicated current-source unit test.
+case (N3) now has a dedicated source fixture but no recorded execution.
 
 ## Real execution evidence
 
@@ -37,7 +37,7 @@ independent snapshot re-run are still required.
 |---|---|---|---|
 | N1 | similarly named CPU profile cannot borrow loaded artifact | `tests/integration/test_compiled_artifact_admission.py::test_similarly_named_cpu_profile_cannot_borrow_loaded_cpu` | pass |
 | N2 | sidecar matched by `component_id`, not filename | `tests/integration/test_auto_harness_test.py::test_an_explicit_capability_sidecar_is_matched_by_component_id` | pass |
-| N3 | forced `target.apb3` template on GPIO → `apb3-register-unowned-input` | no dedicated current-source test; previously reproduced on the real GPIO path | **open** |
+| N3 | forced `target.apb3` template on GPIO → `apb3-register-unowned-input` | `tests/onboarding/test_p7_n3_forced_apb3.py`; implemented at `1194b32`, not executed | **open** |
 | N4 | wrong register/offset/width/mask/address | `tests/integration/test_compiled_f4_storage_producer.py::test_wrong_register_offset_width_mask_or_address_refused` | pass |
 | N5 | wrong artifact kind (AHB/APB) refused before consumption | `tests/integration/test_generated_factory_consumption.py::test_supplied_artifact_kind_and_instance_are_checked_before_consumption` | pass |
 | N6 | undeclared endpoint/window refused by name | `tests/local_harness/test_harness_set.py::test_an_undeclared_endpoint_is_refused_by_name` | pass |
@@ -57,8 +57,7 @@ N5/N6 direct check: 3 passed in 20.34s.
 
 ## What remains for a full P7 formal gate
 
-1. Add the N3 dedicated generic-path test (GPIO forced APB3 register template →
-   named refusal, no harness emitted) and include it in the negative group.
+1. Execute the N3 dedicated generic-path test added at `1194b32` (GPIO forced APB3 register template → named refusal, no harness emitted) and include it in the retained negative group. Source implementation alone is not a passing result.
 2. Independently re-run the CV32E20+timer gate from a frozen snapshot and
    verify every certificate/prefix field; this repository-session run is not an
    independent audit.
