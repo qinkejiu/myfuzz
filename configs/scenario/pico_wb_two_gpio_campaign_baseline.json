@@ -1,0 +1,18 @@
+{
+  "cpu_irq": "constant_zero",
+  "cpu_seed": "pico_wb_two_gpio_independent_cpu_seed.json",
+  "cross_component_bindings": [],
+  "gpio_local_windows": {
+    "gpio_a_local": {
+      "base": 1073745920,
+      "size": 4096
+    },
+    "gpio_b_local": {
+      "base": 1073741824,
+      "size": 4096
+    }
+  },
+  "local_response_model": "persistent_shadow_registers",
+  "reverse_seed": "pico_wb_two_gpio_independent_ip_seed.json",
+  "schema_version": "scenario_independent_baseline.v1"
+}

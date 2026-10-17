@@ -1,0 +1,46 @@
+{
+ "cell": "smoke__IP_TO_CPU_TO_IP__seed_20260927",
+ "seconds": 45.0,
+ "search_wall_seconds": 88.0,
+ "search": {
+  "status": "ok",
+  "effective_search_seconds": 52.56324182000026,
+  "seed_status": "supported",
+  "testcases": 17,
+  "local_cycles": {
+   "cpu": 13600,
+   "gpio_a": 13804,
+   "gpio_b": 14280
+  },
+  "valid_testcases": 17,
+  "completed_chains": 17,
+  "coverage_count": 4,
+  "failures": {
+   "complete": 17
+  },
+  "saved_corpus_entries": 2,
+  "error": null,
+  "client_binary_sha256": "d10256615cc9e35beeee75d40c75b1b5c8b30471fc6041f493a89043f1f52bf9",
+  "applied_source_uses": {
+   "cpu.program": 7,
+   "b.pin9": 8
+  },
+  "post_seed_mutation_batches": 2,
+  "post_seed_effective_genotypes": 5,
+  "post_seed_completed_chains": 15
+ },
+ "replay": {
+  "total_entries": 2,
+  "matched_entries": 2,
+  "failure_entries": 0,
+  "matched_failure_entries": 0,
+  "error": null
+ },
+ "chain_checks": 17,
+ "complete_chain_checks": 17,
+ "rounds_of_complete": [
+  2
+ ],
+ "corpus_entries": 2,
+ "failure_traces": 0
+}
