@@ -962,6 +962,28 @@ def _certify_environment_error(witnesses, case, *, case_index, program,
         proof_grade='bounded_historical_chain')
 
 
+def _settled_pop_access_ids(evidence):
+    """Every real FIFO pop identity of one certified case (CPU and DMA).
+
+    A routed CPU RDATA access can be journaled after its case was sealed, and a
+    DMA-master UART pop has the same external ``uart_rdata_access`` shape.  The
+    next case must be able to recognise either late copy, so the boot settles
+    every ``fifo.pops[].access_id`` in addition to the CPU pop ids.  Ids are
+    only collected when they are real nonempty strings; an unidentified pop is
+    never guessed into the settled set.
+    """
+    if not isinstance(evidence, dict):
+        raise ValueError('certified case evidence is required')
+    ids = set(evidence.get('cpu_pop_access_ids') or ())
+    fifo = evidence.get('fifo') or {}
+    for pop in fifo.get('pops') or ():
+        if isinstance(pop, dict):
+            access_id = pop.get('access_id')
+            if isinstance(access_id, str) and access_id:
+                ids.add(access_id)
+    return ids
+
+
 def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
                             action_ids=None, settled_access_ids=None):
     """Join one real journal slice into a completed descriptor case.
@@ -1526,7 +1548,7 @@ class DescriptorBoot:
         evidence = certify_descriptor_case(extract_case_witnesses(rows), case,
             case_index=case_index, tx_captures=captures, action_ids=action_ids,
             settled_access_ids=self.settled_access_ids)
-        self.settled_access_ids.update(evidence['cpu_pop_access_ids'])
+        self.settled_access_ids.update(_settled_pop_access_ids(evidence))
         evidence.update(_case_boundaries(commands=recorder.commands, rows=rows,
             command_start=command_start, command_end=len(recorder.commands),
             event_start=start, event_end=runner.event_count,
@@ -1797,7 +1819,7 @@ def _replay_descriptor_cases(reference, *, cache_dir, budget=None, factory=None)
                 case_index=position, tx_captures=tx_captures,
                 action_ids=tuple(expected_case['action_ids']),
                 settled_access_ids=settled_access_ids)
-            settled_access_ids.update(case['cpu_pop_access_ids'])
+            settled_access_ids.update(_settled_pop_access_ids(case))
             case.update(_case_boundaries(commands=reference.plan.commands, rows=rows,
                 command_start=first,
                 command_end=(following if following is not None

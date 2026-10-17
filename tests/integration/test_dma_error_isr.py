@@ -28,7 +28,8 @@ from myfuzz.integration.dma_uart_descriptor_runtime import (
 from myfuzz.scenario import ibex_dma_uart_descriptor as firmware
 from myfuzz.scenario.dma_chain_feedback import dma_chain_features
 from tests.integration.test_dma_uart_descriptor import (
-    _Machine, _case_result, _run_model, _synthetic_rows)
+    _FakeRecorder, _FakeRunner, _Machine, _case_result, _fake_ids, _run_model,
+    _synthetic_rows)
 
 ROOT = Path(__file__).resolve().parents[2]
 # A synthetic status word whose only semantic claim is the declared wbdmac
@@ -552,13 +553,15 @@ def test_certifier_refuses_target_effect_or_a_fifo_pop_after_err(mutate, message
         _certify(rows, case)
 
 
-def test_late_cpu_rdata_access_from_a_previous_case_is_not_a_dma_pop():
-    # The real S3 first-gate failure: access_id uart-access:uart:0:10 is a
-    # settled CPU access from the previous valid RX case, not a DMA read of
-    # 0x50000020.  Without the settled set it must still fail closed.
+def test_late_fifo_pop_from_a_previous_case_is_not_a_dma_pop():
+    # Real S3 gate shapes: uart-access:uart:0:10 was first a CPU access copy
+    # and later the previous valid RX case's DMA payload pop.  Both surface as
+    # a late top-level uart_rdata_access with source_transaction=None in the
+    # next ILLEGAL slice; once the boot has settled that real access id it is
+    # not a DMA read of 0x50000020.  Without the settled set it must fail.
     case = DescriptorCase.create('ILLEGAL', dst_index=0, payload=0x5A, length=1)
     late_id = 'uart-access:uart:0:10'
-    rows = _add_late_cpu_rdata(error_rows(case), late_id)
+    rows = _add_late_cpu_rdata(error_rows(case), late_id, value=90)
     with pytest.raises(RuntimeError, match='must not pop the UART RX FIFO'):
         _certify(rows, case)
     evidence = _certify(rows, case,
@@ -567,6 +570,59 @@ def test_late_cpu_rdata_access_from_a_previous_case_is_not_a_dma_pop():
     assert evidence['environment_error']['fifo_dma_pops'] == 0
     assert evidence['fifo']['dma_pops'] == 0
     assert evidence['no_target_delivery'] is True
+
+
+def test_settled_pop_ids_collect_every_cpu_and_dma_fifo_pop():
+    # This is the boot-side invariant behind the fix: a previous RX case's DMA
+    # payload pop id must be settled, not just its CPU pop ids.
+    evidence = dict(cpu_pop_access_ids=['cpu-access-1', 'cpu-access-2'],
+        fifo=dict(pops=[dict(kind='cpu', access_id='cpu-access-1'),
+                        dict(kind='dma', source='dma-master',
+                             access_id='uart-access:uart:0:10'),
+                        dict(kind='cpu')]))
+    assert runtime._settled_pop_access_ids(evidence) == {
+        'cpu-access-1', 'cpu-access-2', 'uart-access:uart:0:10'}
+
+
+def _settlement_evidence(witnesses, case, *, case_index, tx_captures=(),
+                         action_ids=None, settled_access_ids=None):
+    return dict(case_index=case_index, direction=case.direction,
+        outcome=case.expect, completed=case.expect == 'complete', sealed=True,
+        payload=case.payload,
+        cpu_pop_access_ids=[f'cpu-access-{case_index}'],
+        fifo=dict(pops=[dict(kind='cpu', access_id=f'cpu-access-{case_index}'),
+                        dict(kind='dma', source='dma-master',
+                             access_id=f'dma-access-{case_index}')]),
+        tx_captures=list(tx_captures))
+
+
+def test_boot_settles_the_previous_cases_dma_pop_access_id(monkeypatch):
+    from myfuzz.scenario.contracts import ResourceBudget
+    from myfuzz.scenario.genome import ScenarioGenome
+    _FakeRecorder.instances = []
+    monkeypatch.setattr(runtime, 'ScenarioBatchRecorder', _FakeRecorder)
+    monkeypatch.setattr(runtime, 'certify_descriptor_case',
+        _settlement_evidence)
+    runner = _FakeRunner(_fake_ids())
+    budget = ResourceBudget(max_wall_time_ms=1000)
+    runner.set_resource_budget(budget)
+    template = ScenarioGenome('descriptor-dma-three-directions', 'IP_TO_CPU',
+        'uart-descriptor-dma-ram-tx-cpu-isr', ('dma', 'cpu', 'uart'),
+        100000, ())
+    boot = runtime.DescriptorBoot(runner, budget=budget, template=template,
+        source_pins=runtime._source_pins())
+    boot.boot()
+    first = DescriptorCase.create('RX_TO_RAM', dst_index=0, payload=0x5A,
+        length=1)
+    boot.cases.append(boot.run_case(first, case_index=1))
+    assert boot.settled_access_ids == {'cpu-access-1', 'dma-access-1'}
+    # The next declared illegal case inherits the previous DMA pop identity;
+    # a late copy of it must not be mistaken for a new DMA pop.
+    second = DescriptorCase.create('ILLEGAL', dst_index=0, payload=0xA5,
+        length=1)
+    boot.cases.append(boot.run_case(second, case_index=2))
+    assert 'dma-access-1' in boot.settled_access_ids
+    assert 'dma-access-2' in boot.settled_access_ids
 
 
 def test_unidentified_late_rdata_copy_stays_fail_closed():
