@@ -28,7 +28,7 @@ from myfuzz.scenario.genome import ScenarioGenome
 from myfuzz.scenario.ibex_dma_example import DMA_BASE
 from myfuzz.scenario.ibex_dma_uart_descriptor import (
     COMPLETED, CONTROL_KEY, CONTROL_KEY_MASK, DESCRIPTOR_WORDS, DEST_WORDS,
-    DESTINATION, DIRECTION_CODES, DIRECTIONS, ILLEGAL_TARGET, ISR_PCS,
+    DESTINATION, DIRECTION_CODES, DIRECTIONS, ILLEGAL_TARGET, ISR_PCS, MAIN,
     MAX_LENGTH, RESULT, SOURCE_RAM, UART_BASE, UART_RDATA,
     UART_RDATA_OFFSET, UART_RXEMPTY_MASK, UART_STATUS_OFFSET, UART_WDATA,
     UART_WDATA_OFFSET, WITNESS, WITNESS_POINTER, descriptor_program,
@@ -49,6 +49,11 @@ UART_TX_CLOCKS_PER_BIT = 32
 UART_TX_FRAME_TICKS = 10 * UART_TX_CLOCKS_PER_BIT
 SOURCE_TICKS_PER_BYTE = 1024
 TX_DRAIN_MARGIN_TICKS = UART_TX_FRAME_TICKS
+# A real CPU writes the COMPLETED word before the store retires and before MRET;
+# the case slice must continue a bounded number of poll rounds so the store
+# retirement (and, when visible, MRET plus the return to the main loop) is in the
+# journal before the case is sealed.
+COMPLETION_ROUNDS = 64
 # Addresses a host write must never touch; every store there is CPU or DMA.
 GUARDED_ADDRESSES = (SOURCE_RAM, SOURCE_RAM + 4 * DEST_WORDS, DESTINATION,
                      DESTINATION + 4 * DEST_WORDS, RESULT, RESULT + 24)
@@ -1084,6 +1089,43 @@ class DescriptorBoot:
                 break
         else:
             raise RuntimeError('CPU ISR completion exceeded per-case bound')
+        # The COMPLETED store becomes visible in the journal before the CPU
+        # retires it, so the case slice would otherwise end before the ISR store
+        # retirement (and MRET).  Continue bounded poll rounds until the real
+        # store retirement is journaled; also capture MRET and the return to the
+        # main loop when they appear.  A wrong or duplicate COMPLETED store is
+        # still a hard failure.
+        store_pc = ISR_PCS['isr_counter_load'] + 8
+        mret_pc = ISR_PCS['isr_counter_load'] + 12
+
+        def retirement_pcs(rows):
+            return {row.get('pc_rdata') for row in rows
+                    if row.get('kind') == 'cpu_retire'}
+
+        pcs = retirement_pcs(new_rows)
+        saw_store = store_pc in pcs
+        saw_mret = mret_pc in pcs
+        saw_return = any(MAIN <= pc < ISR_PCS['isr'] for pc in pcs)
+        for _ in range(COMPLETION_ROUNDS):
+            if saw_store and saw_mret and saw_return:
+                break
+            recorder.advance(_poll_schedule(runner))
+            batch = runner.events_since(poll_cursor)
+            poll_cursor = runner.event_count
+            commits = [event for event in batch
+                       if event.get('kind') == 'memory_write'
+                       and event.get('component') == 'cpu'
+                       and event.get('address') == COMPLETED]
+            if commits:
+                if len(commits) != 1 or commits[0].get('value') != case_index:
+                    raise RuntimeError('CPU completed-case counter is not monotonic')
+            pcs = retirement_pcs(batch)
+            saw_store = saw_store or store_pc in pcs
+            saw_mret = saw_mret or mret_pc in pcs
+            saw_return = saw_return or any(MAIN <= pc < ISR_PCS['isr'] for pc in pcs)
+        if not saw_store:
+            raise RuntimeError('CPU ISR counter store retirement is missing after COMPLETED')
+        self.phase = 'isr_return'
         # RAM_TO_TX: the CPU COMPLETED store only signals DMA/ISR completion.
         # Keep advancing UART alone until the serial pin really captured len bytes.
         if case.direction == 'RAM_TO_TX':
@@ -1198,7 +1240,8 @@ class DescriptorResult:
 def _template(cases, *, max_rounds_per_case):
     steps = 3 * 512
     for case in cases:
-        steps += _source_ticks_bound(case) + 3 * max_rounds_per_case
+        steps += (_source_ticks_bound(case)
+                  + 3 * (max_rounds_per_case + COMPLETION_ROUNDS))
         if case.direction == 'RAM_TO_TX':
             steps += _tx_drain_bound(case)
     return ScenarioGenome('descriptor-dma-three-directions', 'IP_TO_CPU',

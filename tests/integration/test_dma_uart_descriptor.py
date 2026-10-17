@@ -1197,7 +1197,8 @@ class _FakeUart(_FakeSession):
 
 
 class _FakeRunner:
-    def __init__(self, ids, *, fail_isr=False):
+    def __init__(self, ids, *, fail_isr=False, fail_retire=False,
+                 wrong_counter=False):
         self.sessions = {
             'cpu': _FakeSession(ids['cpu']),
             'dma': _FakeSession(ids['dma']),
@@ -1208,6 +1209,8 @@ class _FakeRunner:
         self.rows = []
         self.failure_status = None
         self.fail_isr = fail_isr
+        self.fail_retire = fail_retire
+        self.wrong_counter = wrong_counter
 
     def set_resource_budget(self, budget):
         self.budget = budget
@@ -1242,6 +1245,9 @@ class _FakeRecorder:
         self._case = 0
         self._rounds = 0
         self._completed = False
+        self._store_retired = False
+        self._mret_retired = False
+        self._returned = False
         _FakeRecorder.instances.append(self)
 
     @property
@@ -1260,6 +1266,9 @@ class _FakeRecorder:
             self._case += 1
             self._rounds = 0
             self._completed = False
+            self._store_retired = False
+            self._mret_retired = False
+            self._returned = False
         self._commands.append(event)
         self._pending.append((event.action_id, event.value))
 
@@ -1284,7 +1293,24 @@ class _FakeRecorder:
         if self._rounds == 2 and not self._completed:
             self._completed = True
             self.runner.append(kind='memory_write', component='cpu',
-                address=firmware.COMPLETED, value=self._case)
+                address=firmware.COMPLETED,
+                value=99 if self.runner.wrong_counter else self._case)
+            return tuple({} for _ in schedule)
+        if self._completed and not self.runner.fail_retire:
+            # The real CPU retires the store after the COMPLETED word is
+            # journaled, then MRETs and returns to the main loop.
+            store_pc = firmware.ISR_PCS['isr_counter_load'] + 8
+            mret_pc = firmware.ISR_PCS['isr_counter_load'] + 12
+            if not self._store_retired:
+                self._store_retired = True
+                self.runner.append(kind='cpu_retire', pc_rdata=store_pc)
+            elif not self._mret_retired:
+                self._mret_retired = True
+                self.runner.append(kind='cpu_retire', pc_rdata=mret_pc)
+            elif not self._returned:
+                self._returned = True
+                self.runner.append(kind='cpu_retire',
+                    pc_rdata=firmware.MAIN_PCS['wait'])
         return tuple({} for _ in schedule)
 
     def finish(self):
@@ -1306,11 +1332,13 @@ def fake_boot(monkeypatch):
     return monkeypatch
 
 
-def _fake_boot_runner(*, fail_isr=False, ids=None):
+def _fake_boot_runner(*, fail_isr=False, fail_retire=False,
+                      wrong_counter=False, ids=None):
     from myfuzz.scenario.contracts import ResourceBudget
     from myfuzz.scenario.genome import ScenarioGenome
     ids = ids or _fake_ids()
-    runner = _FakeRunner(ids, fail_isr=fail_isr)
+    runner = _FakeRunner(ids, fail_isr=fail_isr, fail_retire=fail_retire,
+        wrong_counter=wrong_counter)
     budget = ResourceBudget(max_wall_time_ms=1000)
     runner.set_resource_budget(budget)
     template = ScenarioGenome('descriptor-dma-three-directions', 'IP_TO_CPU',
@@ -1344,7 +1372,33 @@ def test_boot_admits_every_serial_byte_and_chains_case_boundaries(fake_boot):
     assert first_case['prefix_sha256'] != second_case['prefix_sha256']
     assert all(first_case['ticks_after'][name] > first_case['ticks_before'][name]
                for name in ('cpu', 'dma', 'uart'))
+    # The case slice continues past the COMPLETED write up to the real store
+    # retirement, MRET and the return to the main loop.
+    for case in result.cases:
+        rows = result.events[case['event_start']:case['event_end']]
+        pcs = [row.get('pc_rdata') for row in rows
+               if row.get('kind') == 'cpu_retire']
+        assert firmware.ISR_PCS['isr_counter_load'] + 8 in pcs
+        assert firmware.ISR_PCS['isr_counter_load'] + 12 in pcs
+        assert firmware.MAIN_PCS['wait'] in pcs
     assert result.phase == 'complete' and result.error is None
+
+
+def test_boot_refuses_a_completed_store_without_its_retirement(fake_boot):
+    boot = _fake_boot_runner(fail_retire=True)
+    case = DescriptorCase.create('RX_TO_RAM', dst_index=0, payload=0x5A, length=1)
+    with pytest.raises(RuntimeError, match='retirement is missing after COMPLETED'):
+        boot.run_case(case, case_index=1)
+    assert boot.case_failure is not None and boot.case_failure['complete'] is False
+    assert boot.case_failure['phase'] == 'isr'
+
+
+def test_boot_refuses_a_wrong_completed_counter_value(fake_boot):
+    boot = _fake_boot_runner(wrong_counter=True)
+    case = DescriptorCase.create('RX_TO_RAM', dst_index=0, payload=0x5A, length=1)
+    with pytest.raises(RuntimeError, match='not monotonic'):
+        boot.run_case(case, case_index=1)
+    assert boot.case_failure is not None and boot.case_failure['phase'] == 'isr'
 
 
 def test_boot_refuses_a_case_before_recording_any_command(fake_boot):
