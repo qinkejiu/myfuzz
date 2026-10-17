@@ -503,9 +503,32 @@ def _add_destination_commit(rows):
     return rows
 
 
-def _add_dma_fifo_pop(rows):
+def _add_dma_fifo_pop(rows, access_id='dma-pop-1', value=0x5A):
+    # The pinned DMA master path reads RDATA through read_register, so the
+    # event has no routed source_transaction but does carry a real access id.
     rows.append({'event_id': len(rows) + 1, 'kind': 'uart_rdata_access',
-        'source_transaction': None, 'read_value': 0x5A})
+        'access_id': access_id, 'source_transaction': None,
+        'raw_offset': firmware.UART_RDATA_OFFSET, 'status': 'observed',
+        'read_value': value,
+        'read_capture': {'pre': _fifo(1, value, phase='pre'),
+                         'post': _fifo(0, 0, phase='post')}})
+    return rows
+
+
+def _add_late_cpu_rdata(rows, access_id='uart-access:uart:0:10', value=0x5A,
+                        *, identified=True):
+    # The real failed S3 shape: the previous valid RX case's fourth CPU RDATA
+    # access is journaled only as a nested target_uart_access, and its late
+    # top-level copy (source_transaction=None) lands in the next case slice.
+    record = {'event_id': len(rows) + 1, 'kind': 'uart_rdata_access',
+        'source_transaction': None,
+        'raw_offset': firmware.UART_RDATA_OFFSET, 'status': 'observed',
+        'read_value': value,
+        'read_capture': {'pre': _fifo(1, value, phase='pre'),
+                         'post': _fifo(0, 0, phase='post')}}
+    if identified:
+        record['access_id'] = access_id
+    rows.append(record)
     return rows
 
 
@@ -527,6 +550,41 @@ def test_certifier_refuses_target_effect_or_a_fifo_pop_after_err(mutate, message
     rows = mutate(error_rows(case))
     with pytest.raises(RuntimeError, match=message):
         _certify(rows, case)
+
+
+def test_late_cpu_rdata_access_from_a_previous_case_is_not_a_dma_pop():
+    # The real S3 first-gate failure: access_id uart-access:uart:0:10 is a
+    # settled CPU access from the previous valid RX case, not a DMA read of
+    # 0x50000020.  Without the settled set it must still fail closed.
+    case = DescriptorCase.create('ILLEGAL', dst_index=0, payload=0x5A, length=1)
+    late_id = 'uart-access:uart:0:10'
+    rows = _add_late_cpu_rdata(error_rows(case), late_id)
+    with pytest.raises(RuntimeError, match='must not pop the UART RX FIFO'):
+        _certify(rows, case)
+    evidence = _certify(rows, case,
+        settled_access_ids=frozenset({late_id}))
+    assert evidence['settled_dma_rdata_access_ids'] == [late_id]
+    assert evidence['environment_error']['fifo_dma_pops'] == 0
+    assert evidence['fifo']['dma_pops'] == 0
+    assert evidence['no_target_delivery'] is True
+
+
+def test_unidentified_late_rdata_copy_stays_fail_closed():
+    # An access without a real id cannot be proven settled, so it is never
+    # guessed away, even when some other id is already settled.
+    case = DescriptorCase.create('ILLEGAL', dst_index=0, payload=0x5A, length=1)
+    rows = _add_late_cpu_rdata(error_rows(case), identified=False)
+    with pytest.raises(RuntimeError, match='must not pop the UART RX FIFO'):
+        _certify(rows, case, settled_access_ids=frozenset({'some-other-access'}))
+
+
+def test_real_dma_rdata_pop_is_not_hidden_by_an_unrelated_settled_id():
+    case = DescriptorCase.create('ILLEGAL', dst_index=0, payload=0x5A, length=1)
+    rows = _add_dma_fifo_pop(error_rows(case), access_id='uart-access:uart:0:19',
+        value=0x5A)
+    with pytest.raises(RuntimeError, match='must not pop the UART RX FIFO'):
+        _certify(rows, case,
+            settled_access_ids=frozenset({'uart-access:uart:0:10'}))
 
 
 @pytest.mark.parametrize('address,value', [

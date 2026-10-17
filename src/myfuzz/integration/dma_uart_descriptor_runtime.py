@@ -682,7 +682,7 @@ def _assert_no_host_writes(writes):
 
 def _certify_environment_error(witnesses, case, *, case_index, program,
         action_ids, frame_ids, push_chain, push_depths, cpu_pops, cpu_fifo,
-        cpu_values, settled_pops, witness_pointer_store, tx_captures):
+        cpu_values, settled_pops, settled, witness_pointer_store, tx_captures):
     """Certify the declared illegal master target against the real journal.
 
     The only error signal accepted here is a real environment rejection of the
@@ -761,7 +761,22 @@ def _certify_environment_error(witnesses, case, *, case_index, program,
         raise RuntimeError('native DMA error IRQ edge is not the real bus-error completion')
 
     # No target was touched and no FIFO entry was popped after the rejection.
-    if witnesses.dma_rdata_accesses:
+    # A routed CPU RDATA external event can be journaled after the case that
+    # caused it was sealed; its late top-level copy has no source_transaction
+    # and would otherwise look like a DMA master pop.  The boot supplies every
+    # access id already counted in an earlier case, so those late copies are
+    # excluded by their real access id.  A pop with no id, or with an id outside
+    # the settled set, is still a hard failure (never guessed away).
+    def settled_late(event):
+        access_id = event.get('access_id')
+        return (isinstance(access_id, str) and bool(access_id)
+                and access_id in settled)
+
+    late_dma_accesses = tuple(event for event in witnesses.dma_rdata_accesses
+                              if settled_late(event))
+    real_dma_accesses = tuple(event for event in witnesses.dma_rdata_accesses
+                              if not settled_late(event))
+    if real_dma_accesses:
         raise RuntimeError('an illegal DMA request must not pop the UART RX FIFO')
     protected = ((SOURCE_RAM, SOURCE_RAM + 4 * DEST_WORDS),
                  (DESTINATION, DESTINATION + 4 * DEST_WORDS))
@@ -911,6 +926,8 @@ def _certify_environment_error(witnesses, case, *, case_index, program,
         cpu_source_versions=[],
         cpu_pop_access_ids=[fifo['access_id'] for fifo in cpu_fifo],
         settled_cpu_access_ids=[event.get('access_id') for event in settled_pops],
+        settled_dma_rdata_access_ids=[event.get('access_id')
+                                      for event in late_dma_accesses],
         fifo=dict(pushes=len(witnesses.tick_pushes),
             push_depths=list(push_depths),
             push_chain=[dict(item) for item in push_chain],
@@ -1068,8 +1085,8 @@ def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
             program=program, action_ids=ids, frame_ids=frame_ids,
             push_chain=push_chain, push_depths=push_depths,
             cpu_pops=cpu_pops, cpu_fifo=cpu_fifo, cpu_values=cpu_values,
-            settled_pops=settled_pops, witness_pointer_store=witness_store[0],
-            tx_captures=tx_captures)
+            settled_pops=settled_pops, settled=settled,
+            witness_pointer_store=witness_store[0], tx_captures=tx_captures)
 
     # -- real master beats: read then write for every declared word ----------
     if len(witnesses.beats) != 2 * case.length:

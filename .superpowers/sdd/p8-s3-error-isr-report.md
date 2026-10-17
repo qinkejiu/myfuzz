@@ -2,7 +2,7 @@
 
 - 增量：P8 S3（只做 S3；不做 S4 来源认证、typed normalizer、逐语料前缀 replay）
 - 日期：2026-10-18
-- 状态：源码 + 纯软件测试已实现并提交。**真实 RTL 门未在本增量内运行**（按交接要求由主会话冻结源码后串行执行）。S3 首次真实 error status 读数尚未观测，代码保持 fail-closed，并把测量写入独立 artifact；P8 整体仍不通过。
+- 状态：源码 + 纯软件测试已实现并提交。真实 RTL 门第一次尝试（快照 `537585f`）失败于“前一个 valid RX 用例的迟到/内嵌 CPU RDATA access 泄漏到 ILLEGAL slice”，已按真实 journal 修复并补负例（§8.3）；**修复后真实门由主会话重新排队，尚未重跑**。S3 首次真实 error status 读数仍待该门观测；代码保持 fail-closed，并把测量写入独立 artifact；P8 整体仍不通过。
 - 基线：S2 HEAD `00dd54d`；本增量提交时工作树 HEAD 已推进到 `38c7453`（P7 I3），S3 只叠加自己的文件。
 
 ## 1. 结论摘要
@@ -11,8 +11,8 @@
 2. **固件字节没有改动**：S2 固件的 `path_illegal` 分支、`ILLEGAL_TARGET` 和 `descriptor_program('ILLEGAL', ...)` 已经能在真实 RTL 上走通；S3 只把运行时从“pre-RTL 拒绝”改为“声明 + 真实证据认证”，因此 S2 的固件布局/镜像/ISR PC/控制字全部保持字节级不变，S2 成功例仍全绿。
 3. **每例证据新增 error variant**：`outcome='environment_error'`、`completed=False`、`sealed=True`、`error_path='declared_illegal_master_target'`、`environment_error_receipt`（真实 receipt）、`environment_error`（收据/响应/IRQ/status/length/witness/counter 摘要）、`no_target_delivery=True`、`destination_committed=False`、`beats=[]`、`ram_commits=[]`、`fifo.dma_pops=0`。成功例新增 `outcome='complete'`、`sealed=True`，并统一记录 `status_bits`/`status_busy`/`status_layout`。
 4. **分类诚实**：`dma_chain_feedback` 读取真实 journal 的顶层 `environment_error_receipt`（S1b 之前只看 `payload` 内的事件，真实 S3 形状不会被计数）、`accepted.target_rejection` 与 ISR status 的声明 error bit；error slice 的 `completed_chain` 恒为 `False`，即使同一 slice 混入 stray dataflow 也不会被当成成功链。
-5. **纯软件**：新增 `tests/integration/test_dma_error_isr.py`（48 个用例，含 1 个“已测量 fixture 存在才断言”的可选用例，当前 skip）；focused 门实测 **157 passed, 6 skipped**；S1b 搜索回归 **32 passed**。
-6. **真实门排队**：新增 `tests/integration/test_dma_error_isr_real.py`（一次 boot 3 valid + 3 invalid，fresh 全前缀 replay，写 `error-status-measured.json`）。按交接要求未运行。
+5. **纯软件**：新增 `tests/integration/test_dma_error_isr.py`（51 个用例，含 1 个“已测量 fixture 存在才断言”的可选用例，当前 skip）；focused 门实测 **160 passed, 6 skipped**；S1b 搜索回归 **32 passed**。
+6. **真实门首次失败已修复、重新排队**：新增 `tests/integration/test_dma_error_isr_real.py`（一次 boot 3 valid + 3 invalid，fresh 全前缀 replay，写 `error-status-measured.json`）。第一次尝试失败于跨 case 迟到的 CPU RDATA 访问被误判为 DMA pop；修复后未重跑。
 
 ## 2. 变更文件
 
@@ -100,6 +100,8 @@ no_target_delivery=true
 destination_committed=false
 beats=[]        beat_count=0
 ram_commits=[]  cpu_source_versions=[]
+cpu_pop_access_ids=[...]  settled_cpu_access_ids=[...]
+settled_dma_rdata_access_ids=[...]   # 本 slice 过滤的迟到/内嵌 CPU RDATA 副本 id
 fifo={pushes,push_depths,push_chain,pops(cpu only),dma_pops:0,depth_after,max_depth}
 isr={mcause,status,status_bits,status_layout,status_nread,
      status_blocklen_sub_one,status_error,status_busy,
@@ -121,7 +123,7 @@ proof_grade="bounded_historical_chain"
 - **CPU 程序**：真实 DMA 四寄存器写恰好 `(8,0x50000020),(12,0x50000020),(4,len),(0,0x0fed0001)`；witness pointer 写入早于 CONTROL。
 - **拒绝**：恰好一个 accepted master request，`write=false`、地址=声明非法 target、`target_rejection='declared_master_target_access'`、`target_delivery` 不存在；顶层 `environment_error_receipt` 恰一个且与 request 同 event id / 同 transaction，字段逐项为声明 rejection。
 - **ERR 响应**：恰好一个 error response，transaction 与 request 相同、`error=1`、`rdata=0`、晚于 request；该 response event 就是唯一原生 error IRQ 边沿（physical IRQ=1，`pre_backend.mwb_err=1`、`mwb_ack=0`、`mwb_we=0`）。
-- **无目标效果**：整个 case slice 无任何 `target_delivery`；无 DMA master RDATA access（不弹 FIFO）；`SOURCE_RAM/DESTINATION` 区间无任何 memory_write（无目的 RAM commit、无源字物化）。
+- **无目标效果**：整个 case slice 无任何 `target_delivery`；无真正 DMA master RDATA access（不弹 FIFO）。带真实 `access_id` 且已在 boot `settled_access_ids` 中的 UART RDATA access 视为前 case 的迟到/内嵌 CPU 副本并过滤（记入 `settled_dma_rdata_access_ids`）；无 access id 或 id 不在 settled 的 RDATA access 仍是硬失败。`SOURCE_RAM/DESTINATION` 区间无任何 memory_write（无目的 RAM commit、无源字物化）。
 - **IRQ/take**：唯一 `source_start` → `cpu_external_irq_taken` → `cpu_irq_taken`，三者与 error pulse 的 tick/`source_event_id` 互等；顺序 `response < start < external < take`。
 - **ISR**：`mcause=0x8000000b`、status/length/witness/counter 各恰一次真实 CPU store，并有对应真实 `cpu_retire`；status/length 有真实 MMIO delivery + `data_response`；status 的 declared error bit=1、busy=0、inc bits 与 CONTROL 一致；length 等于程序中写出的 `len`（read-phase error 不递减 `cfg_len`）；witness 值原样读取并与 RVFI load/store 相等；counter 从 `case_index-1` 递增到 `case_index`。
 - **无 TX**：invalid case 不得有串行 TX 捕获。
@@ -141,7 +143,7 @@ proof_grade="bounded_historical_chain"
 ```sh
 cd /home/qinkejiu/myfuzz
 PYTHONPATH=src python3 -m pytest -q tests/integration/test_dma_error_isr.py
-# 48 passed, 1 skipped
+# 51 passed, 1 skipped
 ```
 
 覆盖：ILLEGAL 固件路径（len 1..4，真实 program 四寄存器、无 beat、无目的写、FIFO 全 pop、ISR 结果）；真实形状合成 error journal 正例；status 原样回传（非规范 word）；成功/失败互斥；完整 case 不得带 receipt；缺失/篡改 receipt、response、error pulse、source_start、external、take、ISR stores/retirements、status bit、busy、inc bits、length 全部失败；目的 RAM commit、DMA FIFO pop、data beat、TX capture 全部失败；feedback 分类；可选测量 fixture（当前 skip）。
@@ -163,7 +165,7 @@ PYTHONPATH=src python3 -m pytest -q \
   tests/integration/test_dma_uart_rx_uart_schedule.py \
   tests/integration/test_dma_error_isr.py \
   tests/integration/test_dma_error_isr_real.py
-# 157 passed, 6 skipped in 5.05s
+# 160 passed, 6 skipped in 5.40s
 ```
 
 6 skip = 3 个既有 explicit-native 门 + S2 descriptor real 门 + S3 error-ISR real 门 + 可选测量 fixture（尚未有真实读数）。
@@ -184,7 +186,28 @@ S2 原有 descriptor 测试 **68 passed**（其中 3 个被 S3 明确取代的�
 - GREEN：上述测试全绿；S2 成功例、S2 描述符 real 门（skip）、S1b 搜索回归保持通过。
 - 软件 fixture 抓到的实现问题：真实 receipt 在 `dma_edge` 顶层（不是 `payload` 内）；error response 与 native IRQ 同一边沿；`i_mwb_err=1` 边沿的 `pre_backend.mwb_ack=0/mwb_we=0`；witness pointer 在非法路径指向 `DESTINATION`，witness 值必须从 ISR store 实际读取而不能预设。
 
-## 9. 真实 RTL 门（排队，未运行）
+### 8.3 第一次真实门失败与修复（`537585f`）
+
+主会话在冻结快照 `537585f` 上首次运行 S3 门，失败信息：
+
+```
+RuntimeError: an illegal DMA request must not pop the UART RX FIFO
+```
+
+真实 slice 的 `dma_rdata_accesses` 只有 1 条：`event_id=23107`、`offset=24 (0x18 RDATA)`、`read_value=90`、`access_id=uart-access:uart:0:10`、`source_transaction=None`。它不是 DMA 对 `0x50000020` 的读，而是**前一个 valid RX 用例**第 4 次 CPU RDATA access 的迟到顶层副本；该 access 在上一 case 只有 nested `target_uart_access` 被计入，其迟到顶层事件落入下一 ILLEGAL slice。
+
+根因：跨 case 的 `settled_access_ids` 只过滤了 `cpu_pops` / `uart_rdata_mmio`，没有过滤 `dma_rdata_accesses`；且该事件的 `source_transaction=None` 被分到“非 CPU pop”分支。
+
+修复（不降级、不猜测）：
+
+1. `_certify_environment_error` 只在事件带真实 `access_id` 且该 id 在 boot 的 `settled_access_ids` 中时，把该 UART RDATA access 视为前 case 的迟到副本并从 `dma_rdata_accesses` 过滤；
+2. 无真实 `access_id` 的副本**不**过滤（继续 fail-closed），因为无法证明它已结算；
+3. 真正 DMA master RDATA pop（`raw_offset=0x18`、带 access id 但不在 settled）仍然是硬失败；ILLEGAL 的拒绝请求本身不产生任何 RDATA pop；
+4. evidence 新增 `settled_dma_rdata_access_ids`（本 slice 被过滤的迟到副本 id），与 `settled_cpu_access_ids` 语义一致；错误摘要仍记录 `fifo_dma_pops=0`。
+
+新增纯测试（3 个）：late CPU RDATA access 在 settled 时通过、不在 settled 时失败；无 access id 的迟到副本在 settled 下仍失败；真实 DMA RDATA pop 即使存在无关 settled id 仍失败。`test_dma_error_isr.py` 从 48 增至 **51 passed, 1 skipped**。
+
+## 9. 真实 RTL 门（首次尝试失败已修复，重新排队）
 
 ```sh
 MYFUZZ_DMA_ERROR_ISR_REAL=1 \
@@ -198,7 +221,8 @@ PYTHONPATH=src timeout 1800 python3 -m pytest -xq \
 - 期望 `1 passed`；每例真实 FIFO push/pop、真实 IRQ/take、ISR；invalid 例必须有真实 receipt/ERR response/native error IRQ/CPU take、无 target delivery、无目的 RAM commit、无 DMA FIFO pop、status bit30=1（按实测 word）；valid 例全绿；
 - 保存 `descriptor.json.gz`、`cases.json`、`manifest.json`、`error-status-measured.json`、`source_pins.json`，fresh replay 保存 `fresh.json.gz`；
 - 内部 `ResourceBudget(max_wall_time_ms=900000)`；外层 `timeout 1800` 只作兜底；
-- **排队原因**：按交接要求不在本增量运行真实门；且当前 main 树/P7 并发源码仍在推进，真实 build identity 需由主会话冻结后串行建立。
+- **首次尝试（`537585f`）已失败并修复**：见 §8.3；修复后的真实门由主会话在冻结快照重跑，旧的失败不构成通过证据；
+- **重新排队原因**：主会话需在冻结源码上串行建立真实 build identity；本增量不自行运行真实门。
 
 ## 10. 诚实边界与风险
 
@@ -214,4 +238,4 @@ PYTHONPATH=src timeout 1800 python3 -m pytest -xq \
 ## 11. 提交
 
 - 增量提交信息以 `P8 S3:` 开头，只包含本增量新增/修改的源、测试、报告；不包含 `agent.md`、`third_party/`、root-owned evidence。
-- P8 状态：**仍不通过**（S4 未做；S3 真实门排队，error status 待实测）。
+- P8 状态：**仍不通过**（S4 未做；S3 真实门修复后重新排队，error status 待实测）。
