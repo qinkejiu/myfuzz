@@ -1,0 +1,7 @@
+{
+  "scope": "saved JSON/tar stdlib audit only",
+  "initial_audit_issue": "Original identity join compared table component column against a component-keyed map without that redundant column; corrected join removes only component and terminal_returncode after exact component/namespace matching",
+  "raw_evidence_changed": false,
+  "final_audit_returncode": 0,
+  "no_project_import_tests_models": true
+}

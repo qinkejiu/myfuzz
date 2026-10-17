@@ -1,0 +1,196 @@
+{
+  "all_eight_model_receipts_terminal0": true,
+  "archive_files": 44,
+  "formal_p6_complete": false,
+  "gate_pid": 4046776,
+  "gate_returncode": 0,
+  "layout": {
+    "directories": 600,
+    "directory_manifest_sha256": "7cf80b4ce94a31703f41df19307efe7227090ba330130acbe1d1a4a8bf5417ad",
+    "files": 8887,
+    "freeze_sha256": "50145c2408804a76c6ff651cefbb143aae17cd1be18559f79ea6386b510e2cc4",
+    "native_or_tests_run": false,
+    "pid": 4043356,
+    "root": "/root/fanzehui/myfuzz/operations/p6-native-online-c924aac-20261018-attempt2/project",
+    "status": "verified_files_and_directories"
+  },
+  "no_new_models_tests_or_project_imports": true,
+  "runs": {
+    "controlled-response": {
+      "cases": 1,
+      "controlled_response_records": [
+        {
+          "actual_target_response": [
+            62,
+            0
+          ],
+          "address": 1073741836,
+          "delivered_response": [
+            63,
+            0
+          ],
+          "transaction": {
+            "channel_id": "memory",
+            "execution_id": "local-execution",
+            "source_component": "cpu",
+            "source_epoch": 0,
+            "source_sequence": 14,
+            "testcase_id": "native-pulp-online"
+          }
+        },
+        {
+          "actual_target_response": [
+            62,
+            0
+          ],
+          "address": 1073741836,
+          "delivered_response": [
+            63,
+            0
+          ],
+          "transaction": {
+            "channel_id": "memory",
+            "execution_id": "local-execution",
+            "source_component": "cpu",
+            "source_epoch": 0,
+            "source_sequence": 14,
+            "testcase_id": "native-pulp-online"
+          }
+        }
+      ],
+      "entire_first_fresh_document_equal": true,
+      "events": 982,
+      "local_ticks": {
+        "cpu": 174,
+        "gpio0": 198
+      },
+      "processes": [
+        {
+          "artifact_digest": "15f39ea96c02302ee64f44aded39e75a26ca7403526084f9c7147307845b7f29",
+          "component": "cpu",
+          "execution_nonce": "c258ebae1af747d48a2be7db1b254628",
+          "pid": 4149882,
+          "reset_epoch": 0,
+          "runner_namespace": "runner-0",
+          "terminal_returncode": 0
+        },
+        {
+          "artifact_digest": "4fa9ca9e41d9dcb3427c97943f3ca4002abb0bb8411818c9b2e9dfc70e787e5f",
+          "component": "gpio0",
+          "execution_nonce": "2d99cd82a5b3431fa006d51449df70c6",
+          "pid": 4150010,
+          "reset_epoch": 0,
+          "runner_namespace": "runner-0",
+          "terminal_returncode": 0
+        },
+        {
+          "artifact_digest": "15f39ea96c02302ee64f44aded39e75a26ca7403526084f9c7147307845b7f29",
+          "component": "cpu",
+          "execution_nonce": "9ae29a10d14840de8e777bf876089480",
+          "pid": 4169962,
+          "reset_epoch": 0,
+          "runner_namespace": "runner-1",
+          "terminal_returncode": 0
+        },
+        {
+          "artifact_digest": "4fa9ca9e41d9dcb3427c97943f3ca4002abb0bb8411818c9b2e9dfc70e787e5f",
+          "component": "gpio0",
+          "execution_nonce": "ab4117b3819746f5996028e21e83e7ff",
+          "pid": 4170091,
+          "reset_epoch": 0,
+          "runner_namespace": "runner-1",
+          "terminal_returncode": 0
+        }
+      ],
+      "semantic_sha256": "a85227a59ec489e27a0e9fee6ec5782f00fe5a5e497b9f8384fc4468e5ece838"
+    },
+    "positive": {
+      "cases": 3,
+      "controlled_response_records": [],
+      "entire_first_fresh_document_equal": true,
+      "events": 2246,
+      "local_ticks": {
+        "cpu": 430,
+        "gpio0": 486
+      },
+      "processes": [
+        {
+          "artifact_digest": "15f39ea96c02302ee64f44aded39e75a26ca7403526084f9c7147307845b7f29",
+          "component": "cpu",
+          "execution_nonce": "fbd82f74bcbd438fa0f1f44ec56b7f6b",
+          "pid": 4108968,
+          "reset_epoch": 0,
+          "runner_namespace": "runner-0",
+          "terminal_returncode": 0
+        },
+        {
+          "artifact_digest": "4fa9ca9e41d9dcb3427c97943f3ca4002abb0bb8411818c9b2e9dfc70e787e5f",
+          "component": "gpio0",
+          "execution_nonce": "a876d10561ce4b7aa40bbf0df8fe3509",
+          "pid": 4109109,
+          "reset_epoch": 0,
+          "runner_namespace": "runner-0",
+          "terminal_returncode": 0
+        },
+        {
+          "artifact_digest": "15f39ea96c02302ee64f44aded39e75a26ca7403526084f9c7147307845b7f29",
+          "component": "cpu",
+          "execution_nonce": "02d4c1b891e044929f2b461900a94cbc",
+          "pid": 4130126,
+          "reset_epoch": 0,
+          "runner_namespace": "runner-1",
+          "terminal_returncode": 0
+        },
+        {
+          "artifact_digest": "4fa9ca9e41d9dcb3427c97943f3ca4002abb0bb8411818c9b2e9dfc70e787e5f",
+          "component": "gpio0",
+          "execution_nonce": "8df8bb325b584e29964b5468c44302d6",
+          "pid": 4130280,
+          "reset_epoch": 0,
+          "runner_namespace": "runner-1",
+          "terminal_returncode": 0
+        }
+      ],
+      "semantic_sha256": "240fe5c4350a4b88d60e41705c27de462a56f63bf32033bd09f075800bf41504"
+    }
+  },
+  "status": "independent_saved_evidence_audit_passed",
+  "terminal_receipts": [
+    {
+      "path": "gate-attempt3-control/git-closures-tracked.terminal.json",
+      "pid": 4046660,
+      "returncode": 0
+    },
+    {
+      "path": "gate-attempt3-control/layout-before-native.terminal.json",
+      "pid": 4043356,
+      "returncode": 0
+    },
+    {
+      "path": "gate-attempt3-control/git-soc-pulp-apb-gpio-connectivity.terminal.json",
+      "pid": 4046730,
+      "returncode": 0
+    },
+    {
+      "path": "gate-attempt3-control/native-directed-gate.terminal.json",
+      "pid": 4046776,
+      "returncode": 0
+    },
+    {
+      "path": "gate-attempt3-control/git-root-head.terminal.json",
+      "pid": 4046598,
+      "returncode": 0
+    },
+    {
+      "path": "gate-attempt3-control/layout-after-native.terminal.json",
+      "pid": 4171082,
+      "returncode": 0
+    },
+    {
+      "path": "gate-attempt3-control/git-picorv32_upstream_reference-connectivity.terminal.json",
+      "pid": 4046688,
+      "returncode": 0
+    }
+  ],
+  "tools_before_after_equal": true
+}
