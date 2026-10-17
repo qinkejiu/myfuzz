@@ -843,10 +843,13 @@ def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
             or take.get('cpu_tick') != external.get('local_tick')
             or start.get('source_tick') != irq_edge.get('native_local_tick')):
         raise RuntimeError('CPU native take is not joined to the real DMA pulse tick')
+    # Real journal order: DMA completion pulse -> bound source window start ->
+    # real CPU external take -> bound CPU take.  The source window opens before
+    # the CPU samples the external interrupt, so source_start precedes external.
     last_write = (ram_commits[-1]['event_id'] if ram_commits
                   else beat_rows[-1]['write_event_id'])
-    if not (last_write < irq_edge.get('event_id') < external.get('event_id')
-            < start.get('event_id') < take.get('event_id')):
+    if not (last_write < irq_edge.get('event_id') < start.get('event_id')
+            < external.get('event_id') < take.get('event_id')):
         raise RuntimeError('DMA completion/IRQ/CPU take order is incomplete')
 
     def isr_store(address, value, name):

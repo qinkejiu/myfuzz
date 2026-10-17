@@ -1,10 +1,10 @@
 # P8 S2 evidence: external serial descriptor, three directions, multi-word FIFO
 
-## Status: three real gate attempts failed, all fixed, re-queued
+## Status: four real gate attempts failed, all fixed, re-queued
 
-This directory contains **software-only** evidence plus three failure records
+This directory contains **software-only** evidence plus four failure records
 (`real-gate-attempt-8dd3e70.md`, `real-gate-attempt-90652e9.md`,
-`real-gate-attempt-457d411.md`).
+`real-gate-attempt-457d411.md`, `real-gate-attempt-73eb811.md`).
 
 - Attempt 1 (`8dd3e70`) failed on the real UART push-depth sampling semantics:
   the push strobe tick carries the pre-push occupancy (0..n-1) and the +1
@@ -17,6 +17,11 @@ This directory contains **software-only** evidence plus three failure records
   commit order: read beat → memory commit → write beat. The certifier now
   anchors each commit inside its own read interval
   (`read < commit < next_read`; the last word is closed by the IRQ order).
+- Attempt 4 (`73eb811`) passed all three previous fixes and failed on the real
+  IRQ take order: the bound source window starts before the CPU samples the
+  external line. The order is now
+  `last_write < irq_edge < source_start < external < take`, with the identity
+  and tick joins kept.
 
 Both fixes keep the assertions and never count host events. The gate is
 re-queued on a frozen snapshot; no passing native evidence exists yet and no
@@ -41,12 +46,13 @@ at least two multi-word cases) and an equal fresh full-prefix replay.
 | --- | --- |
 | `descriptor-program.json` | recomputed fixed firmware layout, direction control words, declared windows and the six declared DMA programs (software only) |
 | `generate_software_evidence.py` | read-only generator for `descriptor-program.json` |
-| `software-descriptor-unit.txt` | `59 passed` for `tests/integration/test_dma_uart_descriptor.py` |
-| `software-focused-gate.txt` | `79 passed, 4 skipped` for the design §6.2 list plus both new files |
+| `software-descriptor-unit.txt` | `64 passed` for `tests/integration/test_dma_uart_descriptor.py` |
+| `software-focused-gate.txt` | `84 passed, 4 skipped` for the design §6.2 list plus both new files |
 | `software-search-regression.txt` | `30 passed` for the unchanged S1b search software tests |
 | `real-gate-attempt-8dd3e70.md` | failure 1: real push depths 0..4, root cause, fix and re-queue |
 | `real-gate-attempt-90652e9.md` | failure 2: nested-only CPU pop (mmio delivery 18849), root cause, fix and re-queue |
 | `real-gate-attempt-457d411.md` | failure 3: real read→commit→write order, root cause, fix and re-queue |
+| `real-gate-attempt-73eb811.md` | failure 4: real source_start→external order, root cause, fix and re-queue |
 | `manifest.json` | digests, claims, deviations, failure attempt and the queued gate description |
 
 ## What is *not* claimed

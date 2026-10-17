@@ -4,6 +4,7 @@
   "fifo_origin": "unknown",
   "firmware_expectations": "none; the ISR compares no expected value",
   "host_writes": "refused; every guarded store is CPU or DMA",
+  "irq_order": "last_write < irq_edge < source_start < external < take; source_start precedes the CPU external take",
   "proof_grade": "bounded_historical_chain",
   "push_depth": "push-tick post depth is the pre-push occupancy (0..n-1); the +1 is read from the next real tick sample",
   "ram_commit_interval": "read_beat.event_id < commit.event_id < next read_beat.event_id (last word closed by IRQ order); payload value and strictly increasing version retained",
@@ -25,15 +26,16 @@
   "tx_drain_bound": "320*len + 320 ticks (one idle-frame alignment margin)"
  },
  "files": {
-  "README.md": "f703cdeb35f90ee7ad97b8484b74fc87c8705f74d1c2de665760b0c4269b2e5b",
+  "README.md": "8e01463b6790fe21cd05cb3417d73c24126c1217fa8153a902f6290543d0ac7a",
   "descriptor-program.json": "db0a4daf48bd188a9f6a7c3fb712f0988abd8cf19e5f06e764db474765e778c1",
   "generate_software_evidence.py": "2584f527f3b8e06ec2e3e2e8b1a065145a1adb6a0b000a7d50d3208c66672efb",
   "real-gate-attempt-457d411.md": "f4f1788fe14e4d8e47ad74d12f7b09dc2cdcea306982af2620aeb767a9752166",
+  "real-gate-attempt-73eb811.md": "1324ce7d3e8cf02bb010bf1790da30c4aff750ef706237cfe96cf2ccd014c22f",
   "real-gate-attempt-8dd3e70.md": "ba94dc515aa32732863a215bc023eb5d142b8c05553550f70c293caf31bdaa23",
   "real-gate-attempt-90652e9.md": "ed87f18684b4c9b080cee8932f7695601332095c81a4cf698b0320d95d59bcd1",
-  "software-descriptor-unit.txt": "d86420d27597099f70b5cc22832cd6215342f3379d15346e89f58ea54479a8cd",
-  "software-focused-gate.txt": "a6013609d74d50bcf532038719d3792f8704eb78b230b668432c0a5b194265d5",
-  "software-search-regression.txt": "e6114efdae59e9eb012a6bc317c1dbf111276a6ffa46aac0d4bd23cb3eaa55b3"
+  "software-descriptor-unit.txt": "e20f2acb92e76630f28552f147a95c222a8ddef9ea21137d0cea549f65be5562",
+  "software-focused-gate.txt": "752226a861236a6ebbf6bf42a26804f2c21d76656993f7ff4c564e623b8feec4",
+  "software-search-regression.txt": "1ced7f58835b143e3b4e8adf8e1728e3ffc20f8cfa6d78fad26efe1d5a9de687"
  },
  "increment": "P8 S2 external serial descriptor firmware + three directions + multi-word FIFO",
  "real_gate": {
@@ -80,6 +82,15 @@
    "record_values": "read dma_edge 19530 -> memory_write 19591 (addr 143360, value 90, version (0,7)) -> write dma_edge 19592",
    "result": "failed",
    "snapshot": "457d411"
+  },
+  {
+   "failure": "RuntimeError: DMA completion/IRQ/CPU take order is incomplete",
+   "first_case": "RX_TO_RAM len=1; push-depth, nested CPU-pop and RAM-commit fixes passed",
+   "fix": "order is last_write < irq_edge < source_start < external < take; identity/tick joins kept",
+   "record": "real-gate-attempt-73eb811.md",
+   "record_values": "irq edge 19619 (native 196) -> source_start 19622 (tick 196) -> external 19653 (cpu 182) -> take 19655",
+   "result": "failed",
+   "snapshot": "73eb811"
   }
  ],
  "schema_version": "dma_s2_evidence_manifest.v1",
@@ -88,20 +99,20 @@
    "command": "the same focused list plus test_dma_uart_rx_boot_object.py and test_dma_uart_rx_uart_schedule.py",
    "failed": 0,
    "note": "re-run after the push-depth fix",
-   "passed": 100,
+   "passed": 105,
    "skipped": 3
   },
   "descriptor_unit": {
    "command": "PYTHONPATH=src python3 -m pytest -q tests/integration/test_dma_uart_descriptor.py",
    "failed": 0,
-   "passed": 59,
+   "passed": 64,
    "skipped": 0
   },
   "focused": {
    "command": "design section 6.2 list (9 files) + tests/integration/test_dma_uart_descriptor.py + tests/integration/test_dma_uart_descriptor_real.py",
    "failed": 0,
    "note": "the 4 skips are the three pre-existing explicit-native gates plus the new queued descriptor gate",
-   "passed": 79,
+   "passed": 84,
    "skipped": 4
   },
   "search_regression": {
@@ -114,8 +125,8 @@
  "status": {
   "p8_passed": false,
   "real_rtl_evidence_present": false,
-  "real_rtl_gate": "three_attempts_failed_fixed_requeued",
-  "reason": "attempt 1 (8dd3e70) failed on real push-depth sampling; attempt 2 (90652e9) failed on a CPU RDATA pop recorded only as the nested mmio_delivery.target_uart_access; attempt 3 (457d411) failed on the real read->commit->write RAM commit order; all were fixed and the gate is re-queued on a frozen snapshot",
+  "real_rtl_gate": "four_attempts_failed_fixed_requeued",
+  "reason": "attempt 1 (8dd3e70) failed on real push-depth sampling; attempt 2 (90652e9) failed on a CPU RDATA pop recorded only as the nested mmio_delivery.target_uart_access; attempt 3 (457d411) failed on the real read->commit->write RAM commit order; attempt 4 (73eb811) failed on the real source_start-before-external IRQ order; all were fixed and the gate is re-queued on a frozen snapshot",
   "uncovered": [
    "S3 invalid descriptors + real CPU error ISR",
    "S4 source admission, typed normalizer and certified prefix replay"

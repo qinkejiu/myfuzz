@@ -698,9 +698,11 @@ def _synthetic_rows(case, case_index=1, *, commit_before_write=False):
     rows.add('dma_edge', native_local_tick=pulse_tick,
         payload={'observations': {'physical': {'irq': 1}},
                  'pre_backend': {'mwb_ack': 1, 'mwb_we': 1, 'mwb_err': 0}})
-    rows.add('cpu_external_irq_taken', local_tick=120 + case_index)
+    # Real journal order: DMA completion pulse -> bound source window start ->
+    # real CPU external take -> bound CPU take.
     rows.add('source_start', source=('dma', 'irq'), target=('cpu', 'irq'),
         source_tick=pulse_tick, source_event_id=1)
+    rows.add('cpu_external_irq_taken', local_tick=120 + case_index)
     rows.add('cpu_irq_taken', source=('dma', 'irq'), target=('cpu', 'irq'),
         source_event_id=1, cpu_tick=120 + case_index)
     rows.add('memory_write', component='cpu', address=firmware.RESULT,
@@ -1082,6 +1084,64 @@ def _commit_repeated_version(rows):
 def test_certifier_locks_the_real_ram_commit_interval(mutate, message):
     case = DescriptorCase.create('RAM_TO_RAM', dst_index=0, payload=0x22, length=2)
     rows = mutate(_synthetic_rows(case, commit_before_write=True))
+    with pytest.raises(RuntimeError, match=message):
+        certify_descriptor_case(extract_case_witnesses(rows), case, case_index=1)
+
+
+def _irq_rows(rows):
+    return dict(
+        irq_edge=next(row for row in rows if row.get('kind') == 'dma_edge'
+            and isinstance(row.get('payload'), dict)
+            and (row['payload'].get('observations') or {}).get('physical')),
+        start=next(row for row in rows if row.get('kind') == 'source_start'),
+        external=next(row for row in rows
+            if row.get('kind') == 'cpu_external_irq_taken'),
+        take=next(row for row in rows if row.get('kind') == 'cpu_irq_taken'))
+
+
+def test_synthetic_journal_pins_the_real_irq_take_order():
+    case = DescriptorCase.create('RX_TO_RAM', dst_index=0, payload=0x5A, length=1)
+    rows = _synthetic_rows(case)
+    irq = _irq_rows(rows)
+    order = [irq[name]['event_id'] for name in
+             ('irq_edge', 'start', 'external', 'take')]
+    assert order == sorted(order) and len(set(order)) == len(order)
+    certify_descriptor_case(extract_case_witnesses(rows), case, case_index=1)
+
+
+def _external_before_start(rows):
+    irq = _irq_rows(rows)
+    irq['external']['event_id'] = irq['start']['event_id'] - 1
+    return rows
+
+
+def _take_before_external(rows):
+    irq = _irq_rows(rows)
+    irq['take']['event_id'] = irq['external']['event_id'] - 1
+    return rows
+
+
+def _source_start_tick_mismatch(rows):
+    irq = _irq_rows(rows)
+    irq['start']['source_tick'] = irq['irq_edge']['native_local_tick'] + 1
+    return rows
+
+
+def _take_identity_mismatch(rows):
+    irq = _irq_rows(rows)
+    irq['take']['source_event_id'] = 2
+    return rows
+
+
+@pytest.mark.parametrize('mutate,message', [
+    (_external_before_start, 'IRQ/CPU take order'),
+    (_take_before_external, 'IRQ/CPU take order'),
+    (_source_start_tick_mismatch, 'not joined'),
+    (_take_identity_mismatch, 'not joined'),
+])
+def test_certifier_locks_the_real_irq_take_order_and_joins(mutate, message):
+    case = DescriptorCase.create('RX_TO_RAM', dst_index=0, payload=0x5A, length=1)
+    rows = mutate(_synthetic_rows(case))
     with pytest.raises(RuntimeError, match=message):
         certify_descriptor_case(extract_case_witnesses(rows), case, case_index=1)
 

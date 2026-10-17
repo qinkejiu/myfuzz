@@ -2,7 +2,7 @@
 
 - 增量：P8 S2（只做 S2；不做 S3 真实 error ISR、不做 S4 认证/typed normalizer/前缀 replay）
 - 日期：2026-10-18
-- 状态：源码 + 纯软件测试已提交。真实门已尝试三次并均失败：`8dd3e70`（FIFO push depth 采样语义，§7.4）、`90652e9`（CPU RDATA pop 只在 mmio_delivery 内嵌 `target_uart_access`，§7.5）、`457d411`（RAM commit 与 write beat 的真实顺序，§7.6）。三次都已按真实 journal 修复并补负例锁字段；**修复后的真实门重新排队，尚未在冻结快照重跑**。P8 整体仍不通过。
+- 状态：源码 + 纯软件测试已提交。真实门已尝试四次并均失败：`8dd3e70`（FIFO push depth 采样语义，§7.4）、`90652e9`（CPU RDATA pop 只在 mmio_delivery 内嵌 `target_uart_access`，§7.5）、`457d411`（RAM commit 与 write beat 的真实顺序，§7.6）、`73eb811`（`source_start` 与 external take 的真实顺序，§7.7）。四次都已按真实 journal 修复并补负例锁字段；**修复后的真实门重新排队，尚未在冻结快照重跑**。P8 整体仍不通过。
 - 证据目录：`docs/reports/evidence/dma-s2-20261018/`（仅软件证据，明确标注无 RTL 观测）
 
 ## 1. 结论摘要
@@ -133,7 +133,7 @@
 - **CPU 真实配置**：DMA 的 `mmio_delivery` 写序列必须是 `(8,SOURCE),(12,DEST),(4,LEN),(0,CONTROL)`，值与 `descriptor_program` 完全一致；CONTROL key=`0xfed`；witness 指针 store 早于 CONTROL；RX 无 RAM 源写，RAM/TX 有 len 次真实 CPU store 且早于首个 DMA read；
 - **DMA beats**：恰好 `2*len` 个 accepted beat，逐字 read→write；地址等于声明源/目的 beat 地址；read/write 的 transaction 身份同源、`source_sequence` 相邻且全程严格递增不重复（“不重复执行”）；RAM 源读的 response `rdata == payload`；RX 读的 target delivery 带真实 UART FIFO pop 证明；TX 写的 target delivery 地址 WDATA、值 payload；
 - **RAM commit**：目的方向恰好 len 个 `memory_write(component='dma')`，值 payload、`version` 存在且严格递增；每个 commit 的真实区间是 `read_beat.event_id < commit.event_id < 下一个 read_beat.event_id`（真实 journal 为 read → commit → write edge；最后一字的区间由 IRQ 顺序闭合），不再错误要求 `write_beat < commit`；TX 方向无目的 RAM commit；
-- **IRQ/ISR**：恰好一个真实 DMA 完成脉冲（`mwb_ack=1,mwb_we=1,mwb_err=0` 且 physical 置位）→ `source_start` → `cpu_external_irq_taken` → `cpu_irq_taken`（`source_event_id` 相同、`cpu_tick` 相同、`source_tick=native_local_tick`）；ISR 的 `mcause=0x8000000b`、status、length、payload、counter 各恰好一次 store；status/length 有真实 MMIO delivery + `data_response`；`cpu_retire` 在 `ISR_PCS` 固定 PC 上验证 load/store 的地址/掩码/数据/寄存器（status x7、length x8、witness x9、counter x9）；
+- **IRQ/ISR**：恰好一个真实 DMA 完成脉冲（`mwb_ack=1,mwb_we=1,mwb_err=0` 且 physical 置位）→ `source_start` → `cpu_external_irq_taken` → `cpu_irq_taken`，顺序为 `last_write < irq_edge < source_start < external < take`（真实 journal 里 source window 先于 CPU 对外部线的采样），且 `source_event_id` 相同、`take.cpu_tick == external.local_tick`、`source_tick == native_local_tick`；ISR 的 `mcause=0x8000000b`、status、length、payload、counter 各恰好一次 store；status/length 有真实 MMIO delivery + `data_response`；`cpu_retire` 在 `ISR_PCS` 固定 PC 上验证 load/store 的地址/掩码/数据/寄存器（status x7、length x8、witness x9、counter x9）；
 - **TX**：RAM→TX 的 peer 捕获必须逐字节等于 payload；非 TX 例捕获必须为空；
 - **无 host 写**：`SOURCE_RAM/DESTINATION/RESULT` 区间内任何 store 的 component 必须是 `cpu` 或 `dma`。
 
@@ -154,7 +154,7 @@
 ```sh
 cd /home/qinkejiu/myfuzz
 PYTHONPATH=src python3 -m pytest -q tests/integration/test_dma_uart_descriptor.py
-# 59 passed
+# 64 passed
 
 PYTHONPATH=src python3 -m pytest -q \
   tests/scenario/test_ibex_dma_example.py \
@@ -168,7 +168,7 @@ PYTHONPATH=src python3 -m pytest -q \
   tests/integration/test_dma_uart_rx_replay_state_edges.py \
   tests/integration/test_dma_uart_descriptor.py \
   tests/integration/test_dma_uart_descriptor_real.py
-# 79 passed, 4 skipped
+# 84 passed, 4 skipped
 
 PYTHONPATH=src python3 -m pytest -q \
   tests/integration/test_dma_uart_rx_search.py \
@@ -177,7 +177,7 @@ PYTHONPATH=src python3 -m pytest -q \
 # 30 passed
 ```
 
-4 个 skip = 3 个既有 explicit-native 门 + 新的 queued descriptor 门。focused 列表并入 S1a/S1c 的 `test_dma_uart_rx_boot_object.py`、`test_dma_uart_rx_uart_schedule.py` 后为 `100 passed, 3 skipped`（数量只增不减）。
+4 个 skip = 3 个既有 explicit-native 门 + 新的 queued descriptor 门。focused 列表并入 S1a/S1c 的 `test_dma_uart_rx_boot_object.py`、`test_dma_uart_rx_uart_schedule.py` 后为 `105 passed, 3 skipped`（数量只增不减）。
 
 ### 7.3 软件测试覆盖
 
@@ -186,6 +186,7 @@ PYTHONPATH=src python3 -m pytest -q \
 - 描述符解码掩码/长度/payload 相等/非法字段构造拒绝；窗口收窄、非法 offset 声明缺失、未知窗口、半开窗口语义；
 - CPU pop 形状锁：默认 fixture 同时含顶层与内嵌副本（按 `access_id` 去重后仍为 4 个 CPU pop）；“只有第 4 次内嵌 `target_uart_access`”正例；两种副本都缺、内嵌缺 `access_id` 两个负例；
 - RAM commit 区间锁：真实 read→commit→write 形状（len=1/2）正例；commit 早于自己的 read、晚于下一 read、错误 value、重复 version 四个负例；
+- IRQ take 顺序锁：真实 irq edge → source_start → external → take 正例；external 早于 start、take 早于 external、start tick 不匹配、take 身份不匹配四个负例；
 - push 深度字段锁：合成 journal 的 push tick 深度写 0..N-1（与真实 pinned 采样一致），证书要求整条 push tick 流恰为 0..n-1、下一 tick = +1 且链连续；负例覆盖“深度不递增”“push 数据字段不符”“push 后缺少 tick 样本”“跳号”“重复”“起点非空”“push 缺失”，防止退回把 push tick 深度当压入后深度或用 host 计数；
 - plan↔spec 硬 join（值/action id/分量/端口/位宽）；
 - 合成 journal 正例（三方向、len 1/2/3/4）与负例：缺 frame/pop/beat/RAM commit/source_start/cpu take/external take 必失败；篡改 counter/payload store/frame/pop 必失败；host 写被测地址必失败；TX 捕获不匹配必失败；DMA pop 不得被洗成 CPU pop；
@@ -259,6 +260,22 @@ RuntimeError: DMA RAM commit is not the accepted write beat effect
 
 **状态**：修复后真实门重新排队；三次失败记录都是失败证据，不是通过证据。
 
+### 7.7 真实门第四次失败与修复（73eb811）
+
+第四次真实门（快照 `73eb811`）通过了前三项修复，但第一例 `RX_TO_RAM len=1` 又失败：
+
+```
+RuntimeError: DMA completion/IRQ/CPU take order is incomplete
+```
+
+**真实 event 顺序**：`dma_edge` IRQ edge `event_id=19619, native_tick=196` → `source_start` `event_id=19622, source_tick=196` → `cpu_external_irq_taken` `event_id=19653, cpu_tick=182` → `cpu_irq_taken` `event_id=19655`。即 **source window 先打开，CPU 之后才采样外部中断**；旧断言写成 `irq_edge < external < start < take`，把 external 放在 start 之前，与真实 journal 相反。
+
+**修复**：顺序断言改为 `last_write < irq_edge < source_start < external < take`；保留所有 join：`source_start.source_event_id == cpu_irq_taken.source_event_id`、`cpu_irq_taken.cpu_tick == cpu_external_irq_taken.local_tick`、`source_start.source_tick == irq_edge.native_local_tick`。
+
+**测试**：合成 fixture 改为真实顺序（irq edge → source_start → external → take），正例显式断言这四个 event id 严格递增；负例锁 external 早于 start、take 早于 external、source_start tick 不匹配、take 身份不匹配。`64 passed`。
+
+**状态**：修复后真实门重新排队；四次失败记录都是失败证据，不是通过证据。
+
 ## 8. 真实 RTL 门（排队，未运行）
 
 ```sh
@@ -296,7 +313,7 @@ PYTHONPATH=src timeout 1800 python3 -m pytest -xq \
 - [ ] 每例 CPU DMA 四寄存器写值与 `descriptor_program` 相等；CONTROL key=`0xfed`；
 - [ ] 每例 `mcause=0x8000000b`、`status_error=0`、payload/counter 正确；`status/nread/blocklen/length` 原样记录；
 - [ ] 每例 status bit29/28 与 CONTROL 的 inc_s_n/inc_d_n 一致（多字固定端回读）；
-- [ ] IRQ edge tick = `source_start.source_tick`；take 与 start `source_event_id` 相等；external tick = take `cpu_tick`；
+- [ ] 顺序 `last_write < irq edge < source_start < external < take`；IRQ edge tick = `source_start.source_tick`；take 与 start `source_event_id` 相等；external tick = take `cpu_tick`；
 - [ ] RAM commit version 严格递增且落在 `read_beat < commit < next_beat.read` 区间（最后一字由 IRQ 顺序闭合）；TX 捕获逐字节等于 payload；非 TX 无捕获；
 - [ ] 无 component ∉ {cpu,dma} 的受保护地址 store；
 - [ ] fresh：新 native UUID、identity 文档相等、plan/events/ticks/每例证据相等；
