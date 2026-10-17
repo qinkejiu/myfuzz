@@ -60,7 +60,7 @@ from myfuzz.integration.scenario_campaign import (
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_RUN = (ROOT / 'runs' / 'scenario' /
-               'campaign-pico-native-g4-18cell-p6-row5-20261017-v1')
+               'campaign-pico-native-g4-18cell-p6-row5-20261017')
 RUN = Path(os.environ.get('MYFUZZ_PICO_NATIVE_CAMPAIGN_RUN') or DEFAULT_RUN)
 if not RUN.is_absolute():
     RUN = ROOT / RUN

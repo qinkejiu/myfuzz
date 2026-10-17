@@ -59,7 +59,7 @@ from myfuzz.integration.scenario_campaign import (
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_RUN = (ROOT / 'runs' / 'scenario' /
-               'campaign-axil-g4-18cell-p6-row3-20261015-v6')
+               'campaign-axil-g4-18cell-p6-row3-20261017-current')
 RUN = Path(os.environ.get('MYFUZZ_AXIL_CAMPAIGN_RUN') or DEFAULT_RUN)
 if not RUN.is_absolute():
     RUN = ROOT / RUN

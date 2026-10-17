@@ -49,7 +49,7 @@ from myfuzz.integration.scenario_campaign import (
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_RUN = (ROOT / 'runs' / 'scenario' /
-               'campaign-cva6-g4-18cell-p6-row2-20261014-v2')
+               'campaign-cva6-g4-18cell-p6-row2-20261017-current')
 RUN = Path(os.environ.get('MYFUZZ_CVA6_CAMPAIGN_RUN') or DEFAULT_RUN)
 if not RUN.is_absolute():
     RUN = ROOT / RUN

@@ -147,7 +147,7 @@ Fuzzer 先选目标和 Dependency Path，再反向选最上游可变源；CPU �
 | 用户要求的交付步 | 对应阶段 | 当前结论 | 完成门槛 |
 |---|---|---|---|
 | 第一步：Ibex＋若干 IP 的功能完整初版 | P1～P5 | 部分基础已通过；完整框架未完成 | F1～F5 中选定路径的双向合法变异、同会话多例、持久依赖、覆盖引导、受控故障断言、完整前缀 fresh replay 与效率报告全部通过 |
-| 第二步：扩展若干协议的 CPU/IP | P6 | 多个固定实例已有真实 RTL 证据；统一框架复用未完成 | 五类 CPU 协议各有至少一个 CPU＋真实 IP 组合复用第一步完整变异/搜索/断言/replay 流程，目标 IP 系列逐实例定级 |
+| 第二步：扩展若干协议的 CPU/IP | P6 | **固定实例 campaign 完成（附 fresh_genomes 边界，2026-10-17）**：五行均有当前源码真实 18 格/online campaign 与独立 saved-run audit；受控错误五进程门通过 | 持久单一 harness 多例会话、RuntimePathContract 逐边来源、四类闭环命中仍不满足；见 [P6 验收记录](../../reports/p6-fixed-instance-campaign-acceptance-20261017.md) |
 | 第三步：已支持协议范围内自动测试 | P7 | 未完成通用端到端自动入口 | 新同协议 CPU 和 IP 仅用受信 profile/允许的微调完成生成、路径/输入编译、搜索、断言和 replay |
 
 “框架能检测 bug”以独立断言在受控错误下报警并可重放为能力门槛；自然 RTL bug 的发现数单独统计，不能用注入故障冒充。
@@ -160,7 +160,7 @@ Fuzzer 先选目标和 Dependency Path，再反向选最上游可变源；CPU �
 | P3 目标动作与长会话 | **完成（按声明范围）** | 固定连续场景、受限在线源、RFuzz 多例共用 Runner、UART 低字节跨逻辑例读回与完整前缀 replay；`source_action.v1` 接入在线 executor（Ibex 取指槽先决条件默认生效）。本轮补齐正向 RAM 跨例消费、byte-enable lane 选择性、IP→CPU→IP 跨例链，并由[P3 阶段验收套件](../../reports/current-dataflow-p3-stage-acceptance-20261007.md) exit 0（7 项关键验收各由至少一个声明 run 证明） | 明示边界：无单 run 全项（最高 5/7）；finding 项为注入校准；`chunk_split_invariance.rtl_event_level` 恒 null；IP 跨例 opt-in 模式曾出现 1 次 `unsupported_irq_overrun`，未做长跑稳定性验收 |
 | P4 依赖变异与覆盖 | **完成（按声明范围）** | 路径先选与候选身份、九类合法操作子、反馈与 CPU 侧内部分支覆盖（含 `first_seen`）、energy 与同 seed 基线、整阶段入口 `p4_acceptance_suite.v1` 关键项 8/8 成立（[P4 阶段验收](../../reports/current-dataflow-p4-stage-acceptance-20261008.md)） | 明示边界：F4/SPI 实例属 P6；本预算下无算子显示可测收益；CPU 8 点阈值是搜索质量而非映射缺陷；消费端证书不证内部溯源 |
 | P5 断言与效率 | **完成（按声明范围）** | 三类断言分节＋fail-closed 普查、受控故障捕获＋新进程复现、正常对照静默、完整前缀＋启动前身份拒绝、十分钟 600.362953 秒／27 条认证链／自然 finding 0、同预算 16.08×；整阶段入口 `p5_acceptance_suite.v1` 六项关键项全部有证明运行（[P5 阶段验收](../../reports/current-dataflow-p5-stage-acceptance-20261008.md)）；验收后收尾：[UART 链路证书](../../reports/current-dataflow-p5-uart-chain-certificates-20261008.md) 7 certified／30 incomplete（首缺跳具名）与 [UART 路由见证实时证明](../../reports/current-dataflow-p5-uart-routing-witness-20261008.md)（60 例、fresh replay 一致、`report.json` 自带 `source_target_transactions`） | 明示边界：异构外设的**十分钟**长会话未做（十分钟项目前只由 Ibex＋双 PULP GPIO 证明）、UART 侧跨例持久状态未做、故障灵敏度对照未做、链终点不含 ISR→GPIO A 回流、非单 run 全项（单 run 最高 3/6） |
-| P6 多协议固定实例扩展 | 未验收，已有实例证据 | 多个固定 profile 的局部及跨组件 RTL 证据 | 非 Ibex 组合复用第一步完整搜索、断言和 replay；五类 CPU 协议及 IP 系列逐项定级 |
+| P6 多协议固定实例扩展 | **固定实例 campaign 完成（附 fresh_genomes 边界）**；持久会话/逐边来源/四类命中未完成 | 行1 CV32E40P online 200例；行2 CVA6 18/18；行3 AXIL 18/18；行4 Wishbone 18/18；行5 native 18/18；非 Ibex+非 GPIO 受控错误五进程门 | 若按字面要求持久单一 harness、RuntimePathContract、closed-loop 四类命中，行2–5 需新实现+重跑；本阶段不据此宣告整系统通过 |
 | P7 已支持协议自动测试 | 未验收 | 源锁、模板和声明式微调有局部能力 | 新同协议 CPU/IP 不加组件专用代码，自动生成/编译路径/连续搜索/断言/replay |
 | P8 真实 DMA 数据流 | 未验收；定向 RAM→RAM 主链已闭合 | 已有真实 DMA master harness 与 CPU 配置→DMA 真实读写→RAM→原生 IRQ→CPU ISR 的双进程定向证据 | RAM→UART TX FIFO、UART RX FIFO→RAM 与环境 ERR 对照已有定向证据；持续搜索与完整认证 replay 尚待验收 |
 

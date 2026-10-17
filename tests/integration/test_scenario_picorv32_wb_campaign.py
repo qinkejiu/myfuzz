@@ -56,7 +56,7 @@ CVA6_SEED = ROOT / 'configs/scenario/cva6_cpu_two_gpio_campaign_seed.json'
 IBEX_SEED = ROOT / 'configs/scenario/ibex_two_gpio_closed_two_rounds.json'
 REAL_RUN = Path(os.environ.get(
     'MYFUZZ_PICO_WB_CAMPAIGN_RUN',
-    str(ROOT / 'runs/scenario/campaign-pico-wb-g4-18cell-p6-row4')))
+    str(ROOT / 'runs/scenario/campaign-pico-wb-g4-18cell-p6-row4-20261017')))
 
 
 # --------------------------------------------------------------------------

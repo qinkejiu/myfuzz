@@ -1,5 +1,11 @@
 # 当前工作进度与证据入口
 
+## 2026-10-17 P6 固定实例 campaign 完成（附边界）/ P7 I2 / P8 S1
+
+- **P6 五行固定实例 campaign 已完成当前源码真实 RTL 证据：** 行1 CV32E40P `online_cases` 200 例（audit 10）；行2 CVA6 18/18、`effective=1323.83`、1226 例/406 链（audit 10）；行3 AXIL 18/18、`effective=2123.20`、714 例/300 链（audit 10）；行4 Wishbone 18/18、`effective=3767.47`、1615 例/871 链（audit 21/2）；行5 native 18/18、`effective=2862.57`、1711 例/1141 链（audit 24/2，saved-run 9/9）。非 Ibex+非 GPIO 受控错误五进程门 **1 passed/127.97s**，control 静默、fault `uart_rxdata_source_mismatch`、两条 full replay。汇总见[P6 验收记录](reports/p6-fixed-instance-campaign-acceptance-20261017.md)，campaign 归档见 `docs/reports/evidence/p6-campaigns-20261017/`。**边界：行2–5 均为 `fresh_genomes`（每例新 harness），非单一持久会话；`legacy_unchecked`、closed_loop/path_switch disabled。若按字面要求持久 harness/RuntimePathContract/四类命中，行2–5 仍未满足。**
+- **P7 I0–I2 已提交并通过真实门：** `a1850a0`（driver stage/命名拒绝、D3→ownership 编译）＋ `7e08913` 证据；`test_generated_dual_runtime_loaded_real.py` **2 passed/94.56s**，fresh `matches=true/full`、4021 events、8 receipts 无违约。P7 I3–I5 未做，D4 CLI 仍结构性关闭。
+- **P8 S1a/S1b 已提交并通过两扇真实门：** `349106f`＋`743acc7`；连续门 **1 passed/173.26s**，positive/fresh 各 34,794 events/4,774 commands/ticks 1314/1394/4790，逐例 case 与 attempt6 旧字段全等；guided 搜索 **1 passed, 1 skipped/237.00s**（8 例/7 distinct/8 completed/43 new features/effective 52.23），uniform **1 passed/105.07s**，三份离线审计 ok。边界：S1c/S2–S4 未做，`fifo_origin=unknown`、无来源认证/统一 normalizer/前缀 replay。
+
 ## 2026-10-17 三个并行源码增量（CVW 域 / APB A2 主机 / F4 D1）
 
 以下三项均为**源码/纯软件增量**，分别绑定自己的提交；原生/层次/复位波形、D2/D3、持续搜索与 P6/P7/P8 仍未验收。汇总与边界见[三代理源码增量报告](reports/three-agent-source-increments-20261017.md)。
