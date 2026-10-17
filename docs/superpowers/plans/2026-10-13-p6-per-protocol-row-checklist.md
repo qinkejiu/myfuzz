@@ -277,3 +277,10 @@ Ibex、CVA6、CV32E40P 的既有范围仍按各自冻结报告判定。六 CPU �
 ### 2026-10-17 BOOM IRQ 最新实际终态
 
 [BOOM GPIO→MEIP→trap/ISR→qualified MRET→前景RAM门](../../reports/boom-irq-native-attempt3-20261017.md)已实际exit0；两份完整fresh文档仅规范化具名身份/PID后相等，IRQ抑制负例符合预期。根代理独立校验403归档文件、原始传输与因果引用；9个模型进程均reaped0。实际步数6024/6024/6016均在共享6512上限内。覆盖此前“无IRQ链通过”的历史状态，但只接受固定有界链，不授退休/源权威、通用IRQ或整行P6/P7/P8。
+
+
+### 2026-10-17 CVW 新观察门及通用 APB 最新状态
+
+[CVW 新13tap/startup真实首轮](../../reports/CVW_AHB_NATIVE_ATTEMPT1_FAILURE_20261017.md)启动阶段exit1，无普通CPU STEP、无fresh。完整16原始边沿保留；真实全局HREADY与总线HRESETn证明旧合同误用了外部返回/外部复位域。[源合同修正设计](../../reports/CVW_AHB_MANAGER_DOMAIN_CORRECTION_DESIGN_20261017.md)正在推进，不能据失败授予完整前缀，也不能放宽地址保持检查。
+
+通用APB存储生产者/版本跟踪完成源码增量，053ff9c修复tick/tick-base连续性审查中项，独立复审关闭；253项软件检查通过、50项显式跳过不计原生证据。启动页主机消费、真实timer内部探针/复位/版本、CPU→timer连续F4仍开放。六CPU定向链与四系列实例不等于本清单八格整行通过，P6/P7/P8仍未验收。
