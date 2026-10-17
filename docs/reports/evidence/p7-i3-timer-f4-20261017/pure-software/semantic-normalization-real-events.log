@@ -1,0 +1,9 @@
+event counts: 1956 1956
+target_access_id count: 6 6
+raw ids equal: False
+primary ids: ['apb-storage:42765f214a794346b92784f908975099:13', 'apb-storage:42765f214a794346b92784f908975099:17', 'apb-storage:42765f214a794346b92784f908975099:143', 'apb-storage:42765f214a794346b92784f908975099:147', 'apb-storage:42765f214a794346b92784f908975099:273', 'apb-storage:42765f214a794346b92784f908975099:277']
+fresh ids: ['apb-storage:d9470689b40c470691428670e1c04df7:13', 'apb-storage:d9470689b40c470691428670e1c04df7:17', 'apb-storage:d9470689b40c470691428670e1c04df7:143', 'apb-storage:d9470689b40c470691428670e1c04df7:147', 'apb-storage:d9470689b40c470691428670e1c04df7:273', 'apb-storage:d9470689b40c470691428670e1c04df7:277']
+ticks {} normalized equal: True c56f0235689489e2333aeba084c8a2e2ae5966d285bf79a04d394aa4dc92b905
+ticks {'processor': 12, 'peripheral': 23} normalized equal: True f4150ef8bf7c789e704efbfcfcb96edf9e65793d89ea0653f67f1d004b1405fa
+raw event hashes differ: True
+real target_access_id values preserved in events: apb-storage:42765f214a794346b92784f908975099:13

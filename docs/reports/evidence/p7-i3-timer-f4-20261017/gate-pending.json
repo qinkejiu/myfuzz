@@ -11,6 +11,23 @@
     "pure_software_lock": "tests/integration/test_compiled_f4_storage_producer.py::test_storage_consumer_accepts_an_actual_tuple_receipt_without_relaxing",
     "real_events_dry_run": "pure-software/real-events-dry-run.log refused only at storage-version-actual-native-build-required"
   },
+  "second_attempt": {
+    "snapshot": "53a9b7b + tuple fix commit",
+    "result": "3 records continuous all certified: 0x55/0xaa/0x12345678; commit before/after 0->85->170->305419896; three compiled assertions passed",
+    "fresh_failure": "compiled-files-fresh-prefix-mismatch",
+    "fresh_first_difference": "/semantic_hash",
+    "fresh_expected_semantic_hash": "71216b07c92d073b2d9869d095f62a69c7175d6076c4a5b29d7db4f78159a9f4",
+    "fresh_actual_semantic_hash": "edc1e2a691f929debf3c98f65a743e495a9ab4b7cdb917f4b598eb6cad6aa4d4",
+    "root_cause": "ScenarioTrace.semantic_sha256 includes the process-local target_access_id execution UUID (apb-storage:<execution>:<n>); primary and fresh event streams are otherwise byte-identical (1956 events, exactly 6 differing ids with suffixes 13/17/143/147/273/277)",
+    "fix_commit": "follow-up I3 commit reported in the handoff (normalizes only target_access_id execution segments for the generic row's semantic hash; receipts/events/records untouched; GPIO hash unchanged)",
+    "pure_software_locks": [
+      "test_normalized_semantic_hash_ignores_only_the_process_execution_nonce",
+      "test_generic_finish_normalizes_hash_but_keeps_real_records",
+      "test_consumer_keeps_real_process_local_access_ids_untouched"
+    ],
+    "real_events_validation": "pure-software/semantic-normalization-real-events.log: 6 real ids preserved, normalized hashes of the two real event streams equal, raw event hashes still differ",
+    "rerun_required": true
+  },
   "executor": "compiled_f4_obi_apb",
   "base_commit_at_handoff": "f9fc9b0",
   "inputs": {

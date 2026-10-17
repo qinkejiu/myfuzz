@@ -1,6 +1,6 @@
 {
   "schema_version": "p7_i3_pure_software_commands.v1",
-  "base_commit": "f9fc9b0 (first I3 commit 53a9b7b; tuple fix in the follow-up commit reported in the handoff)",
+  "base_commit": "f9fc9b0 (first I3 commit 53a9b7b; tuple fix and fresh-semantic-hash fix in follow-up commits reported in the handoffs)",
   "red": {
     "method": "git stash push -u of the four I3 source files only (new consumer, producer, compiled_f4, projection); the new test file stayed; stash popped immediately after the run",
     "command": "PYTHONPATH=src python3 -m pytest -q tests/integration/test_compiled_f4_storage_producer.py -k \"storage_consumer or generic_producer_is_supported or generic_support or stable_storage\"",
@@ -16,30 +16,41 @@
     "red_result": "1 failed in 16.50s (compiled-F4-storage-receipt-required)",
     "red_artifact": "pure-software/tuple-red.log",
     "red_sha256": "7555a95f854e55fd0f771d013d0e0ac4cebb7914cf56574acacb49c0677435e8",
-    "green_command": "PYTHONPATH=src python3 -m pytest -q tests/integration/test_compiled_f4_storage_producer.py -k tuple_receipt",
     "green_result": "1 passed in 16.08s",
     "green_artifact": "pure-software/tuple-green.log",
     "green_sha256": "b800ace3fcbd76fa27ebf6b22dd62cff2a0b54ef28c6e1d925791f127c1f0f66",
     "fix": "accept list/tuple, still require non-empty and every member is a dict; no content check relaxed"
   },
+  "fresh_semantic_hash_fix": {
+    "real_gate_facts": "3 records 0x55/0xaa/0x12345678 continuous certified, commit before/after 0->85->170->305419896, three compiled assertions passed",
+    "real_gate_failure": "compiled-files-fresh-prefix-mismatch, first_difference /semantic_hash (expected 71216b07..., actual edc1e2a6...)",
+    "root_cause": "ScenarioTrace.semantic_sha256 includes the process-local target_access_id execution UUID; the two real event streams are 1956 events each and differ only in exactly 6 apb-storage:<execution>:<n> ids (suffixes 13/17/143/147/273/277)",
+    "red_command": "PYTHONPATH=src python3 -m pytest -q tests/integration/test_compiled_f4_storage_producer.py -k \"semantic_hash or process_local_access_ids or generic_finish\" with only compiled_f4.py stashed",
+    "red_result": "2 failed, 1 passed, 67 deselected in 19.87s (the two new feature controls fail at the missing normalized hasher; the untouched-id lock passes on pre-fix code by design)",
+    "red_artifact": "pure-software/semantic-red.log",
+    "red_sha256": "fce08e5e6ae82d1fe6b873c525be05f61f0cc940fd911ae92400cf6cfdfc0981",
+    "fix": "compiled_f4.normalized_semantic_sha256 normalizes only target_access_id execution segments (placeholder, suffix preserved, nested occurrences) for the generic row's finish(); receipts/events/certificates are untouched and GPIO keeps the raw hash",
+    "real_events_validation": "pure-software/semantic-normalization-real-events.log: 6 real ids preserved, normalized hashes of the two real event streams equal for two tick maps, raw canonical event hashes still differ",
+    "real_events_validation_sha256": "c917278638f96c7a954a7af944ab8e77c06c24b464fb0fae366b1dad8b1d4dd9"
+  },
   "focused": {
     "command": "PYTHONPATH=src python3 -m pytest -q tests/integration/test_compiled_f4_storage_producer.py",
-    "result": "67 passed in 33.81s",
+    "result": "70 passed in 36.00s",
     "artifact": "pure-software/focused-storage-producer.log",
-    "artifact_sha256": "1e9de3004fb3bea15bfe3a37930d38beb67968ee5f368188846b8821bcf1fbca"
+    "artifact_sha256": "147a945a0e18424f8aa27b07d9994203a95138cc86ebd49a09d3766731b46975"
   },
   "green": {
     "command": "PYTHONPATH=src python3 -m pytest -q tests/integration/test_compiled_f4_storage_producer.py tests/integration/test_compiled_f4.py tests/integration/test_compiled_execution_files.py",
-    "result": "107 passed, 1 skipped in 168.99s",
+    "result": "110 passed, 1 skipped in 168.84s",
     "skip": "tests/integration/test_compiled_f4.py::test_real_continuous_compiled_f4_and_two_fresh_prefixes (MYFUZZ_COMPILED_F4_REAL != 1); intentionally not run",
     "artifact": "pure-software/green.log",
-    "artifact_sha256": "696ae72434f0b18b673c6c310ec1aa57eb7eaf09ac02d7353a96080ab4f9e158"
+    "artifact_sha256": "4c1593a713c60ffe8859878e3476f46198b224d830a473838997102a96886b89"
   },
   "adjacent": {
     "command": "PYTHONPATH=src python3 -m pytest -q tests/integration -k \"compiled_f4 or compiled_storage\"",
-    "result": "98 passed, 1 skipped, 3136 deselected in 197.84s",
+    "result": "101 passed, 1 skipped, 3148 deselected in 197.43s",
     "artifact": "pure-software/adjacent-compiled-f4.log",
-    "artifact_sha256": "b5a17f76b9ad0e0030edcf90c06f9d23688dc4f9c766a36b9784267a6e9a9382"
+    "artifact_sha256": "57510790615ebbf02449fdf5d9e9ad56a791ae971214207bc88fa50ba2b44625"
   },
   "real_events_dry_run": {
     "scope": "pure software: preserved real gate outputs/timer/partial_events.json fed through check_storage_observation with a forged token; not a native run and not a gate pass",
@@ -51,11 +62,11 @@
   "source_pins": {
     "src/myfuzz/integration/generated_storage_consumer.py": "a04871f078b9528063b9ff93251d0a68540d97d7a70db6d3de73e84c198b5fc8",
     "src/myfuzz/integration/compiled_storage_producer.py": "ad028db96374b56996065883d7f5b368418ec58e3a23d7efcd0a9501d7543f2a",
-    "src/myfuzz/integration/compiled_f4.py": "e1d1fd53aaceb63331eb0f3272266bfe3ec6173b55bd905186b61d3c58dc6d31",
+    "src/myfuzz/integration/compiled_f4.py": "a9d923ad9998196d3a4a475a3ae272a17c803f5a01d786ba400bdc34a50cbb64",
     "src/myfuzz/local_harness/compiled_execution_projection.py": "3b298d0ece35dc897ae122f31407062b25a8c5b052d9a245e112a30e2ca83793",
-    "tests/integration/test_compiled_f4_storage_producer.py": "f25ba21bdf7c7b447640fea89510aea3b8dae0d940cc477aff854564c6efb275",
+    "tests/integration/test_compiled_f4_storage_producer.py": "1554b0ce7b44652020b3876c582cc9287d3fad445da3f6b09eb014c5a91dcfd4",
     "tests/integration/test_compiled_execution_files.py": "5b3e966ba4048862788d29809b8f0104ceff695db26d2b30d54e7ce2e7589645",
     "configs/scenarios/compiled-f4-obi-apb-timer/README.md": "7ef05a8cb0ab70e7a8708ea3c8cee0d5d02771c15ec16b20a3444a4e286e548a"
   },
-  "deferred_real_gate": "gate-pending.json (no native build/model/Verilator, no token or certificate produced; rerun pending by root)"
+  "deferred_real_gate": "gate-pending.json (no native build/model/Verilator or certificate claimed by this agent; the real gate is rerun by the root session)"
 }

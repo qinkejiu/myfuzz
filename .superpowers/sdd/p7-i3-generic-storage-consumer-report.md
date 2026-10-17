@@ -279,3 +279,59 @@ native build/token/certificate/fresh result is claimed by this fix.  P7
 overall remains unpassed (I4/I5 open).  Root-run evidence stays under
 `docs/reports/evidence/p7-i3-timer-f4-20261017/outputs/` (not committed by
 this agent).
+
+## Addendum 2: fresh replay semantic hash (second frozen-source gate attempt)
+
+With the tuple fix the same timer gate ran all three records continuously and
+**certified** them (`0x55`/`0xaa`/`0x12345678`, commit before/after
+`0 → 85 → 170 → 305419896`, the three compiled assertions passed).  The fresh
+replay then refused `compiled-files-fresh-prefix-mismatch` with
+`first_difference=/semantic_hash`.
+
+**Root cause**: the two real event streams are 1956 events each and
+byte-identical except exactly six `target_access_id` values
+(`apb-storage:<driver-execution-uuid>:<n>`, suffixes 13/17/143/147/273/277).
+`ScenarioTrace.semantic_sha256` hashes those process-local receipt ids, so an
+honest fresh process can never match.  The failing run's expected/actual
+semantic hashes were `71216b07…` / `edc1e2a6…`.
+
+**Fix (this follow-up commit)**: `compiled_f4.normalized_semantic_sha256`
+computes the generic row's prefix semantic hash over the real event chain with
+only the `target_access_id` execution segment replaced by a stable placeholder
+(`apb-storage:<compiled-f4-process-execution>:<n>`; suffix preserved, nested
+occurrences included, same canonical byte layout as the session trace).  The
+saved events/receipts/certificates are not rewritten, the receipt ids remain
+real in every artifact, and certificates continue to join by their real
+event/transaction fields.  The GPIO row has no such id and keeps
+`trace.semantic_sha256` unchanged.
+
+**Pure software locks** (RED/GREEN):
+
+| command | before fix | after fix |
+|---|---|---|
+| `pytest -q tests/integration/test_compiled_f4_storage_producer.py -k "semantic_hash or process_local_access_ids or generic_finish"` (compiled_f4 stashed) | **2 failed, 1 passed** in 19.87s | **3 passed** in 16.78s |
+| `pytest -q tests/integration/test_compiled_f4_storage_producer.py` | - | **70 passed** in 36.00s |
+| three-file gate | - | **110 passed, 1 skipped** in 168.84s |
+| adjacent `-k "compiled_f4 or compiled_storage"` | - | **101 passed, 1 skipped, 3148 deselected** in 197.43s |
+
+The new controls are:
+
+- `test_normalized_semantic_hash_ignores_only_the_process_execution_nonce`
+  (different UUIDs same hash; suffix/other fields/ticks/status still matter;
+  the real events are not mutated; malformed event input refuses);
+- `test_generic_finish_normalizes_hash_but_keeps_real_records` (two fresh
+  UUID variants produce the same prefix hash; records pass through untouched;
+  GPIO uses the raw hash);
+- `test_consumer_keeps_real_process_local_access_ids_untouched` (the consumer
+  still joins the real receipt ids and never rewrites them).
+
+**Non-native validation on the preserved real gate events**:
+`pure-software/semantic-normalization-real-events.log` records that the six
+real ids are present in `events.json`/`fresh-1/events.json`, the normalized
+hashes of the two streams are equal (with and without local ticks), and the
+raw canonical event hashes still differ.
+
+This remains a software fix and cross-check; the real timer F4 gate must be
+rerun by the root session on the frozen tree.  No native build, token,
+certificate or fresh-prefix pass is claimed here.  P7 overall remains
+unpassed (I4/I5 open).

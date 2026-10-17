@@ -9,11 +9,12 @@ producer contracts are explicitly unsupported.
 """
 from copy import deepcopy
 from dataclasses import asdict, fields, is_dataclass
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from types import MappingProxyType
 from hashlib import sha256
 import json
 from pathlib import Path
+import re
 
 from myfuzz.local_harness.compiled_artifact_admission import admit_compiled_artifacts, _difference
 from myfuzz.local_harness.generated_execution_admission import GeneratedExecutionRefused
@@ -43,6 +44,74 @@ def _layout_document(layout):
         byte_length=layout.byte_length,bit_length=layout.bit_length,
         derived_image_source_id=layout.derived_image_source_id,
         slices=[asdict(row) for row in layout.slices])
+
+
+# The C routed-storage receipt id embeds the driver's process-local execution
+# nonce: ``apb-storage:<execution>:<sequence>``.  The nonce is regenerated for
+# every fresh process, so it is the only byte allowed to differ between an
+# honest primary run and its fresh replay.  It is normalized only for the
+# verification semantic hash; receipts, events and certificates keep the real
+# value untouched and are joined by their real fields.
+_PROCESS_LOCAL_EXECUTION = '<compiled-f4-process-execution>'
+_ACCESS_SEQUENCE = re.compile('[0-9]+')
+
+
+def _normalize_target_access_id(value):
+    prefix = 'apb-storage:'
+    if type(value) is not str or not value.startswith(prefix):
+        return value
+    execution, separator, sequence = value[len(prefix):].rpartition(':')
+    if not separator or not execution or _ACCESS_SEQUENCE.fullmatch(sequence) is None:
+        return value
+    return prefix + _PROCESS_LOCAL_EXECUTION + ':' + sequence
+
+
+def _project_process_local(value):
+    """Copy an event tree and normalize only process-local access ids."""
+    if isinstance(value, dict):
+        return {key: (_normalize_target_access_id(item)
+                      if key == 'target_access_id'
+                      else _project_process_local(item))
+                for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_project_process_local(item) for item in value]
+    return value
+
+
+def _semantic_canonical(value):
+    return json.dumps(value, sort_keys=True, separators=(',', ':'),
+                      ensure_ascii=False, allow_nan=False).encode('utf-8')
+
+
+def normalized_semantic_sha256(status, events, ticks):
+    """Semantic hash of the real event chain minus process-local receipt UUIDs.
+
+    Uses the same canonical byte layout as
+    ``session_runtime._trace_semantic_sha256`` for an event-journal snapshot.
+    Only ``target_access_id`` execution segments are replaced with a stable
+    placeholder; every sequence suffix, every other field, the local ticks and
+    the status still participate.
+    """
+    if (type(status) is not str or not isinstance(ticks, dict)
+            or any(type(key) is not str or type(value) is not int
+                   for key, value in ticks.items())
+            or not isinstance(events, Sequence)
+            or isinstance(events, (str, bytes, bytearray))):
+        raise ValueError('compiled-F4-semantic-hash-input-required')
+    digest = sha256()
+    digest.update(b'{"events":[')
+    for index, event in enumerate(events):
+        if not isinstance(event, dict):
+            raise ValueError('compiled-F4-semantic-hash-input-required')
+        if index:
+            digest.update(b',')
+        digest.update(_semantic_canonical(_project_process_local(event)))
+    digest.update(b'],"local_ticks":')
+    digest.update(_semantic_canonical(ticks))
+    digest.update(b',"status":')
+    digest.update(_semantic_canonical(status))
+    digest.update(b'"}')
+    return digest.hexdigest()
 
 
 def _check_fresh_identities(previous, actual):
@@ -676,6 +745,14 @@ class CompiledF4Runtime:
         self._stable(allow_finished=True)
         if any(row['returncode']!=0 for row in self.execution_audit()['exits'].values()):
             raise ValueError('compiled-F4-native-exit-failed')
+        # The generic row's C receipts carry the process-local driver execution
+        # nonce inside ``apb-storage:<execution>:<n>``.  A fresh replay must be
+        # compared on the real chain without that nonce; receipts/events keep
+        # their real bytes and are never rewritten.  The GPIO row never
+        # produces this id and keeps its exact previous hash.
+        semantic_hash=(normalized_semantic_sha256(self.trace.status,
+            self.trace.events,self.trace.local_ticks)
+            if self.row==ROW_GENERIC_APB_STORAGE else self.trace.semantic_sha256)
         return dict(schema_version='compiled_F4_prefix.v1',run_id=self.run_id,
             compiled_sha256=self.compiled_digest,source_files=self.closure,
             artifact_digests={n:a.runtime_document['artifact_digest'] for n,a in self.artifacts.items()},
@@ -683,7 +760,7 @@ class CompiledF4Runtime:
             candidate_layout=_layout_document(self.layout),cpu_error_policy=deepcopy(self.error_policy),
             producer_binding=self.producer_binding.document(),
             online_plan=json.loads(self.session.encode_plan()),
-            semantic_hash=self.trace.semantic_sha256,feedback=self.feedback())
+            semantic_hash=semantic_hash,feedback=self.feedback())
 
     @host_source_discovery_scope()
     def replay(self, plan, *, audit_sink=None):

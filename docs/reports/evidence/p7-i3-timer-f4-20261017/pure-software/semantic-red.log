@@ -1,0 +1,24 @@
+FF.                                                                      [100%]
+=================================== FAILURES ===================================
+____ test_normalized_semantic_hash_ignores_only_the_process_execution_nonce ____
+
+    def test_normalized_semantic_hash_ignores_only_the_process_execution_nonce():
+>       from myfuzz.integration.compiled_f4 import normalized_semantic_sha256
+E       ImportError: cannot import name 'normalized_semantic_sha256' from 'myfuzz.integration.compiled_f4' (/home/qinkejiu/myfuzz/src/myfuzz/integration/compiled_f4.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:1026: ImportError
+__________ test_generic_finish_normalizes_hash_but_keeps_real_records __________
+
+timer_generated = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/ibex_... ...}], ...}, 'ownership': <myfuzz.scenario.ownership.OwnershipMap object at 0x7ce275198a40>, 'physical_port_map': {}})
+
+    def test_generic_finish_normalizes_hash_but_keeps_real_records(timer_generated):
+        from myfuzz.integration.compiled_candidate_layout import compile_candidate_layout
+>       from myfuzz.integration.compiled_f4 import (
+            CompiledF4Runtime, normalized_semantic_sha256)
+E       ImportError: cannot import name 'normalized_semantic_sha256' from 'myfuzz.integration.compiled_f4' (/home/qinkejiu/myfuzz/src/myfuzz/integration/compiled_f4.py)
+
+tests/integration/test_compiled_f4_storage_producer.py:1058: ImportError
+=========================== short test summary info ============================
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_normalized_semantic_hash_ignores_only_the_process_execution_nonce
+FAILED tests/integration/test_compiled_f4_storage_producer.py::test_generic_finish_normalizes_hash_but_keeps_real_records
+2 failed, 1 passed, 67 deselected in 19.87s

@@ -453,14 +453,16 @@ def test_binding_enters_checker_and_prefix_identity(timer_generated):
         error_policy={'mode': 'native_error_role'}, producer_binding=binding)
     configuration = CompiledF4Runtime.online_identity_configuration(runtime)
     assert configuration['producer_binding'] == binding.document()
+    trace = SimpleNamespace(status='complete', events=(), local_ticks={},
+        semantic_sha256='semantic', manifest_sha256='manifest')
     finished = SimpleNamespace(finished=False, _stable=lambda **kw: None,
-        session=SimpleNamespace(finish=lambda: SimpleNamespace(semantic_sha256='semantic'),
+        session=SimpleNamespace(finish=lambda: trace,
             encode_plan=lambda: '{}'),
         execution_audit=lambda: {'exits': {}},
         _native_processes={}, _process_identities={}, compiled_digest='compiled',
         closure={}, artifacts={}, rounds=1, max_cases=1, records=[], layout=layout,
         error_policy={'mode': 'native_error_role'}, run_id='unit',
-        producer_binding=binding, feedback=lambda: {})
+        producer_binding=binding, row=binding.row, feedback=lambda: {})
     prefix = CompiledF4Runtime.finish(finished)
     assert prefix['producer_binding'] == binding.document()
 
@@ -1008,3 +1010,117 @@ def test_storage_consumer_accepts_an_actual_tuple_receipt_without_relaxing(
             target_artifact=artifact, authority=tampered_authority,
             token=object(), register='TIMER0_CTRL', reset_epoch=0,
             before=version_witness(artifact), prior_writes=0)
+
+
+# --- Fresh-prefix semantic identity: only the process receipt nonce is local --
+
+def process_local_events(execution):
+    return [
+        dict(event_id=1, kind='mmio_delivery', value=85,
+             target_access_id=f'apb-storage:{execution}:13'),
+        dict(event_id=2, kind='local_tick_sample', value=85,
+             outputs=dict(nested=[dict(
+                 target_access_id=f'apb-storage:{execution}:17')])),
+    ]
+
+
+def test_normalized_semantic_hash_ignores_only_the_process_execution_nonce():
+    from myfuzz.integration.compiled_f4 import normalized_semantic_sha256
+    ticks = {'processor': 12, 'peripheral': 23}
+    first = process_local_events('a' * 32)
+    second = process_local_events('b' * 32)
+    before = deepcopy(first)
+    assert normalized_semantic_sha256('complete', first, ticks) == \
+        normalized_semantic_sha256('complete', second, ticks)
+    # The real events are untouched: only the verification hash is normalized.
+    assert first == before
+    assert first[0]['target_access_id'] == 'apb-storage:' + 'a' * 32 + ':13'
+    assert first[1]['outputs']['nested'][0]['target_access_id'] == \
+        'apb-storage:' + 'a' * 32 + ':17'
+    # The sequence suffix, every other field, ticks and status still matter.
+    suffix = process_local_events('a' * 32)
+    suffix[0]['target_access_id'] = 'apb-storage:' + 'a' * 32 + ':14'
+    assert normalized_semantic_sha256('complete', suffix, ticks) != \
+        normalized_semantic_sha256('complete', first, ticks)
+    changed = process_local_events('a' * 32)
+    changed[0]['value'] = 86
+    assert normalized_semantic_sha256('complete', changed, ticks) != \
+        normalized_semantic_sha256('complete', first, ticks)
+    assert normalized_semantic_sha256('complete', first,
+        {'peripheral': 23, 'processor': 12}) == \
+        normalized_semantic_sha256('complete', first, ticks)
+    assert normalized_semantic_sha256('running', first, ticks) != \
+        normalized_semantic_sha256('complete', first, ticks)
+    with pytest.raises(ValueError, match='compiled-F4-semantic-hash-input'):
+        normalized_semantic_sha256('complete', (first[0], 'not-an-event'), ticks)
+
+
+def test_generic_finish_normalizes_hash_but_keeps_real_records(timer_generated):
+    from myfuzz.integration.compiled_candidate_layout import compile_candidate_layout
+    from myfuzz.integration.compiled_f4 import (
+        CompiledF4Runtime, normalized_semantic_sha256)
+    artifacts, inputs = timer_generated
+    binding = selector().select_storage_producer(artifacts=artifacts,
+        compiled_inputs=inputs, base_dir=ROOT)
+    layout = compile_candidate_layout(f4_path(inputs['compiled']))
+    records = [dict(certificate=dict(joins=[dict(delivery_event=1)],
+                                     commit=dict(tick=15)))]
+    ticks = {'processor': 12, 'peripheral': 23}
+
+    def prefix(row, events, raw):
+        trace = SimpleNamespace(genome_sha256='genome', status='complete',
+            events=tuple(events), local_ticks=dict(ticks),
+            semantic_sha256=raw, manifest_sha256='manifest')
+        runtime = SimpleNamespace(finished=False, trace=trace,
+            _stable=lambda **kwargs: None,
+            session=SimpleNamespace(finish=lambda: trace,
+                                    encode_plan=lambda: '{}'),
+            execution_audit=lambda: {'exits': {}},
+            _native_processes={}, _process_identities={},
+            compiled_digest='compiled', closure={}, artifacts={}, rounds=1,
+            max_cases=1, records=deepcopy(records), layout=layout,
+            error_policy={'mode': 'native_error_role'}, run_id='unit',
+            producer_binding=binding, feedback=lambda: {}, row=row)
+        return CompiledF4Runtime.finish(runtime)
+
+    first = prefix('generic_apb_storage_abi',
+                   process_local_events('a' * 32), 'raw-primary')
+    second = prefix('generic_apb_storage_abi',
+                    process_local_events('b' * 32), 'raw-fresh')
+    expected = normalized_semantic_sha256('complete',
+        process_local_events('a' * 32), ticks)
+    assert first['semantic_hash'] == second['semantic_hash'] == expected
+    assert first['semantic_hash'] != 'raw-primary'
+    assert second['semantic_hash'] != 'raw-fresh'
+    # Records/certificates are passed through untouched and join by real fields.
+    assert first['records'] == records and second['records'] == records
+    assert 'target_access_id' not in (
+        first['records'][0]['certificate']['joins'][0])
+    gpio = prefix('gpio_causal_abi', process_local_events('a' * 32),
+                  'raw-gpio')
+    assert gpio['semantic_hash'] == 'raw-gpio'
+
+
+def test_consumer_keeps_real_process_local_access_ids_untouched(
+        timer_generated, tmp_path):
+    from myfuzz.integration.generated_storage_consumer import (
+        check_storage_observation)
+    artifacts, inputs, binding, target, authority = generic_authority(
+        timer_generated, tmp_path)
+    artifact = artifacts['peripheral']
+    declaration = timer_declaration(timer_generated, 0x55)
+    receipt = timer_receipt(artifact, declaration)
+    execution = 'a' * 32
+    receipt.events[1]['target_access_id'] = f'apb-storage:{execution}:13'
+    receipt.events[5]['target_access_id'] = f'apb-storage:{execution}:17'
+    install_writes(authority, [timer_commit(artifact, declaration)])
+    with pytest.raises(ValueError,
+                       match='storage-version-actual-native-build-required'):
+        check_storage_observation(declaration, receipt,
+            target_artifact=artifact, authority=authority, token=object(),
+            register='TIMER0_CTRL', reset_epoch=0,
+            before=version_witness(artifact), prior_writes=0)
+    assert receipt.events[1]['target_access_id'] == \
+        f'apb-storage:{execution}:13'
+    assert receipt.events[5]['target_access_id'] == \
+        f'apb-storage:{execution}:17'

@@ -72,6 +72,42 @@ the consumer (real accepted write pre sample index 6 at tick 15, real value
 boundary, not at a shape/join check.  The real gate itself must be rerun by
 the root session on a frozen source tree and is not claimed here.
 
+## Second real timer gate attempt (tuple fix): 3 certified, fresh hash mismatch
+
+After the tuple fix the same frozen-source gate executed all three records
+continuously and **certified** them (`0x55`/`0xaa`/`0x12345678`, commit
+before/after `0 → 85 → 170 → 305419896`, the three compiled assertions
+passed).  The fresh replay then refused:
+
+```
+compiled-files-fresh-prefix-mismatch
+```
+
+`fresh-1/comparison.json` reported `first_difference=/semantic_hash`
+(expected `71216b07…`, actual `edc1e2a6…`).  Both event streams are 1956
+events long and byte-identical except exactly six `target_access_id` values:
+`apb-storage:<execution-uuid>:<n>` with the same suffixes
+(13/17/143/147/273/277) but the primary process UUID `42765f21…` vs the fresh
+`d9470689…`.
+
+Root cause: `ScenarioTrace.semantic_sha256` covers the process-local receipt
+id; a fresh process always has a different UUID, so an honest replay can never
+match.  Fix: `compiled_f4.normalized_semantic_sha256(...)` hashes the real
+event chain with only the `target_access_id` execution segment replaced by a
+stable placeholder (sequence suffix preserved, nested occurrences included).
+Receipts, events and certificates are not rewritten; the GPIO row keeps its
+exact previous raw hash.  `test_generic_finish_normalizes_hash_but_keeps_real_records`
+and `test_normalized_semantic_hash_ignores_only_the_process_execution_nonce`
+lock it; `test_consumer_keeps_real_process_local_access_ids_untouched` proves
+the consumer still joins on the real ids.
+
+Non-native validation on the **preserved real events**: the six real ids are
+present in the files, the normalized hashes of `events.json` and
+`fresh-1/events.json` are equal (with and without local ticks), and the raw
+canonical event hashes still differ — see
+`pure-software/semantic-normalization-real-events.log`.  This is a software
+cross-check, not a gate pass; the real timer gate is rerun by the root session.
+
 ## Real timer F4 gate (queued, not run)
 
 See `gate-pending.json` for the exact command, records and acceptance criteria.
