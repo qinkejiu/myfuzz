@@ -354,6 +354,7 @@ class CaseWitnesses:
     bound_takes: tuple[dict, ...]
     bound_starts: tuple[dict, ...]
     irq_edges: tuple[dict, ...]
+    tick_observations: tuple[dict, ...]
     tick_pushes: tuple[dict, ...]
 
 
@@ -365,7 +366,7 @@ def extract_case_witnesses(rows):
         'frames', 'source_injections', 'cpu_pops', 'uart_rdata_mmio',
         'uart_status_mmio', 'dma_mmio', 'beats', 'responses', 'memory_writes',
         'data_responses', 'retires', 'external_irq', 'bound_takes',
-        'bound_starts', 'irq_edges', 'tick_pushes')}
+        'bound_starts', 'irq_edges', 'tick_observations', 'tick_pushes')}
     for event in rows:
         if not isinstance(event, dict):
             raise ValueError('journal records must be objects')
@@ -417,6 +418,7 @@ def extract_case_witnesses(rows):
                     and tuple(event.get('target') or ()) == ('cpu', 'irq')):
                 grouped['bound_starts'].append(event)
         elif kind == 'uart_tick_observation':
+            grouped['tick_observations'].append(event)
             post = event.get('post') or {}
             if (post.get('probe_uart_fifo_wvalid') == 1
                     and post.get('probe_uart_fifo_wready') == 1):
@@ -513,6 +515,57 @@ def _retire(retires, pc, *, mem_addr=None, wmask=15, wdata=None, rmask=15,
     return _event_id(event.get('event_id'), 'ISR retirement')
 
 
+def _push_depth_chain(observations, pushes, source_bytes):
+    """Real RX FIFO push depth, read one tick after the write strobe.
+
+    A pinned ``uart_tick_observation`` samples ``post`` at the push strobe tick
+    while the FIFO depth counter still shows the pre-push occupancy; the
+    increment is visible on the immediately following tick sample.  Both probes
+    are real RTL observations, so the chain requires the following sample to be
+    exactly one greater and the chain to stay contiguous.
+    """
+    positions = {}
+    for index, event in enumerate(observations):
+        positions.setdefault(event.get('event_id'), index)
+    chain = []
+    previous = None
+    for push, byte in zip(pushes, source_bytes):
+        post = push.get('post') or {}
+        if (post.get('probe_uart_fifo_wvalid') != 1
+                or post.get('probe_uart_fifo_wready') != 1):
+            raise RuntimeError('UART RX FIFO push tick lacks real wvalid/wready')
+        if post.get('probe_uart_fifo_data') != byte:
+            raise RuntimeError('UART RX FIFO push data differs from the declared byte')
+        before = post.get('probe_uart_fifo_depth')
+        if type(before) is not int or before < 0:
+            raise RuntimeError('UART RX FIFO push lacks the real pre-push depth probe')
+        position = positions.get(push.get('event_id'))
+        if position is None or position + 1 >= len(observations):
+            raise RuntimeError('UART RX FIFO push lacks a following real tick sample')
+        following = observations[position + 1]
+        if (following.get('post') or {}).get('probe_uart_fifo_wvalid') == 1:
+            raise RuntimeError('UART RX FIFO push lacks an intervening tick sample')
+        after = (following.get('post') or {}).get('probe_uart_fifo_depth')
+        if type(after) is not int or after != before + 1:
+            raise RuntimeError('UART RX FIFO depth did not increment after the push')
+        if previous is not None and before != previous:
+            raise RuntimeError('UART RX FIFO depth chain is not contiguous')
+        chain.append(dict(tick=push.get('local_tick'), byte=byte,
+            depth_before=before, depth_after=after,
+            head_after=(following.get('post') or {}).get('probe_uart_fifo_head'),
+            following_tick=following.get('local_tick'),
+            event_id=push.get('event_id')))
+        previous = after
+    # The push strobe sample carries the occupancy *before* the write, so the
+    # real push stream of one case must be exactly 0..n-1 and empty at start.
+    if [item['depth_before'] for item in chain] != list(range(len(chain))):
+        raise RuntimeError(
+            'UART RX FIFO push depths are not exactly 0..n-1 (stale/repeated/missing push)')
+    if chain[-1]['depth_before'] + 1 != len(chain):
+        raise RuntimeError('UART RX FIFO push stream does not end at the serial byte count')
+    return tuple(chain)
+
+
 def _assert_no_host_writes(writes):
     for event in writes:
         address = event.get('address')
@@ -565,10 +618,11 @@ def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
     # -- real UART FIFO accounting: 4 descriptor + len payload pushes/pops ----
     if len(witnesses.tick_pushes) != case.source_count:
         raise RuntimeError('case needs one real UART RX FIFO push per serial byte')
-    push_depths = tuple((event['post'].get('probe_uart_fifo_depth'))
-                        for event in witnesses.tick_pushes)
+    push_chain = _push_depth_chain(witnesses.tick_observations,
+        witnesses.tick_pushes, case.source_bytes)
+    push_depths = tuple(item['depth_after'] for item in push_chain)
     if any(type(depth) is not int or depth < 1 for depth in push_depths):
-        raise RuntimeError('UART RX FIFO push lacks a real depth')
+        raise RuntimeError('UART RX FIFO push lacks a real post-push depth')
     cpu_consumed = DESCRIPTOR_WORDS + (0 if case.direction == 'RX_TO_RAM' else case.length)
     if len(witnesses.cpu_pops) != cpu_consumed:
         raise RuntimeError('CPU must pop exactly the descriptor and drained payload bytes')
@@ -834,7 +888,8 @@ def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
         ram_commits=list(ram_commits),
         cpu_source_versions=[list(version) for version in cpu_source_versions],
         fifo=dict(pushes=len(witnesses.tick_pushes),
-            push_depths=list(push_depths), pops=fifo_pops,
+            push_depths=list(push_depths), push_chain=[dict(item)
+                for item in push_chain], pops=fifo_pops,
             depth_after=(depths[-1] if depths else None),
             max_depth=(max(push_depths) if push_depths else 0)),
         isr=dict(mcause=DMA_IRQ_MCAUSE, status=status, length=length_actual,

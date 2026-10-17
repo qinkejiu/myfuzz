@@ -1,12 +1,14 @@
 # P8 S2 evidence: external serial descriptor, three directions, multi-word FIFO
 
-## Status: real RTL gate queued, not run
+## Status: first real gate attempt failed, fixed, re-queued
 
-This directory contains **software-only** evidence. No native Verilator build
-was started and no RTL observation is claimed here. The S2 real gate is queued
-until the source tree is frozen, because the S1/P7 gates share the same build
-cache and a concurrent source change would shift the build identity of a gate
-that has not been re-baselined.
+This directory contains **software-only** evidence plus one failure record
+(`real-gate-attempt-8dd3e70.md`). The first attempted real gate on frozen
+snapshot `8dd3e70` failed on the real UART push-depth sampling semantics (the
+push strobe tick carries the pre-push occupancy, 0..n-1; the +1 appears on the
+next tick). The certifier now enforces exactly that and the gate is re-queued
+on a frozen snapshot. No passing native evidence exists yet and no RTL
+observation is claimed here.
 
 The queued gate (see `.superpowers/sdd/p8-s2-descriptor-report.md` section 8):
 
@@ -27,10 +29,11 @@ at least two multi-word cases) and an equal fresh full-prefix replay.
 | --- | --- |
 | `descriptor-program.json` | recomputed fixed firmware layout, direction control words, declared windows and the six declared DMA programs (software only) |
 | `generate_software_evidence.py` | read-only generator for `descriptor-program.json` |
-| `software-descriptor-unit.txt` | `44 passed` for `tests/integration/test_dma_uart_descriptor.py` |
-| `software-focused-gate.txt` | `64 passed, 4 skipped` for the design §6.2 list plus both new files |
+| `software-descriptor-unit.txt` | `51 passed` for `tests/integration/test_dma_uart_descriptor.py` |
+| `software-focused-gate.txt` | `71 passed, 4 skipped` for the design §6.2 list plus both new files |
 | `software-search-regression.txt` | `30 passed` for the unchanged S1b search software tests |
-| `manifest.json` | digests, claims, deviations and the queued gate description |
+| `real-gate-attempt-8dd3e70.md` | failure record: real push depths 0..4, root cause, fix and re-queue |
+| `manifest.json` | digests, claims, deviations, failure attempt and the queued gate description |
 
 ## What is *not* claimed
 

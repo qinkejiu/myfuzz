@@ -621,9 +621,16 @@ def _synthetic_rows(case, case_index=1):
             value=byte)
         rows.add('uart_frame_validation', action_id=f'descriptor-{case_index}-{slot}',
             byte=byte, waveform_matched=True, frame_id=f'frame-{slot}')
+        # Real pinned UART: the push strobe tick's post sample still shows the
+        # pre-push occupancy; the increment is visible on the next tick sample.
         rows.add('uart_tick_observation', post={
             'probe_uart_fifo_wvalid': 1, 'probe_uart_fifo_wready': 1,
-            'probe_uart_fifo_depth': depth - case.source_count + slot + 1})
+            'probe_uart_fifo_depth': slot, 'probe_uart_fifo_data': byte,
+            'probe_uart_fifo_head': 0 if slot == 0 else case.source_bytes[0]})
+        rows.add('uart_tick_observation', post={
+            'probe_uart_fifo_wvalid': 0, 'probe_uart_fifo_wready': 1,
+            'probe_uart_fifo_depth': slot + 1, 'probe_uart_fifo_data': byte,
+            'probe_uart_fifo_head': case.source_bytes[0]})
     rows.add('mmio_delivery', device_id='uart', offset=firmware.UART_STATUS_OFFSET,
         write=False, read_value=0)
     descriptor = case.source_bytes[:4]
@@ -757,6 +764,13 @@ def test_synthetic_journal_certifies_every_direction(direction, dst_index,
     assert evidence['isr']['counter'] == 1
     assert evidence['tx_capture_count'] == (length if direction == 'RAM_TO_TX' else 0)
     assert len(evidence['fifo']['push_depths']) == length + 4
+    # The push tick itself carries the pre-push depth (0 for the first byte);
+    # the certified depth comes from the following real tick sample.
+    assert evidence['fifo']['push_depths'] == list(range(1, length + 5))
+    assert [item['depth_before'] for item in evidence['fifo']['push_chain']] \
+        == list(range(length + 4))
+    assert [item['depth_after'] for item in evidence['fifo']['push_chain']] \
+        == list(range(1, length + 5))
     if direction == 'RX_TO_RAM':
         assert [pop['kind'] for pop in evidence['fifo']['pops']] == ['cpu'] * 4 \
             + ['dma'] * length
@@ -827,6 +841,74 @@ def test_certifier_refuses_tampered_real_values(mutate):
     case = DescriptorCase.create('RAM_TO_RAM', dst_index=0, payload=0x22, length=2)
     rows = mutate(_synthetic_rows(case))
     with pytest.raises(RuntimeError):
+        certify_descriptor_case(extract_case_witnesses(rows), case, case_index=1)
+
+
+def _push_rows(rows):
+    return [index for index, row in enumerate(rows)
+            if row.get('kind') == 'uart_tick_observation'
+            and (row.get('post') or {}).get('probe_uart_fifo_wvalid') == 1]
+
+
+def _push_depth_stalled(rows):
+    index = _push_rows(rows)[0]
+    rows[index + 1]['post']['probe_uart_fifo_depth'] = 0
+    return rows
+
+
+def _push_wrong_data(rows):
+    index = _push_rows(rows)[0]
+    rows[index]['post']['probe_uart_fifo_data'] = 0xEE
+    return rows
+
+
+def _push_without_following_sample(rows):
+    del rows[_push_rows(rows)[0] + 1]
+    return rows
+
+
+def _push_depth_gap(rows):
+    index = _push_rows(rows)[1]
+    rows[index]['post']['probe_uart_fifo_depth'] += 1
+    rows[index + 1]['post']['probe_uart_fifo_depth'] += 1
+    return rows
+
+
+def _push_depth_repeat(rows):
+    index = _push_rows(rows)[1]
+    rows[index]['post']['probe_uart_fifo_depth'] = 0
+    rows[index + 1]['post']['probe_uart_fifo_depth'] = 1
+    return rows
+
+
+def _push_stale_start(rows):
+    # A non-empty real FIFO at case start shifts the whole (contiguous) chain.
+    for index in _push_rows(rows):
+        rows[index]['post']['probe_uart_fifo_depth'] += 1
+        rows[index + 1]['post']['probe_uart_fifo_depth'] += 1
+    return rows
+
+
+def _push_missing(rows):
+    del rows[_push_rows(rows)[0]]
+    return rows
+
+
+@pytest.mark.parametrize('mutate,message', [
+    (_push_depth_stalled, 'did not increment'),
+    (_push_wrong_data, 'push data differs'),
+    (_push_without_following_sample, 'lacks an intervening tick sample'),
+    (_push_depth_gap, 'not contiguous'),
+    (_push_depth_repeat, 'not contiguous'),
+    (_push_stale_start, 'not exactly 0..n-1'),
+    (_push_missing, 'one real UART RX FIFO push per serial byte'),
+])
+def test_certifier_locks_the_real_push_depth_fields(mutate, message):
+    # A regression that reads the push-strobe tick depth (always the pre-push
+    # occupancy) or the wrong data field must fail instead of silently passing.
+    case = DescriptorCase.create('RX_TO_RAM', dst_index=0, payload=0x5A, length=2)
+    rows = mutate(_synthetic_rows(case))
+    with pytest.raises(RuntimeError, match=message):
         certify_descriptor_case(extract_case_witnesses(rows), case, case_index=1)
 
 

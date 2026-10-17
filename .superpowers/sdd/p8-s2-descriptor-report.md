@@ -2,7 +2,7 @@
 
 - 增量：P8 S2（只做 S2；不做 S3 真实 error ISR、不做 S4 认证/typed normalizer/前缀 replay）
 - 日期：2026-10-18
-- 状态：**源码 + 纯软件测试已提交；真实 RTL 门待 root 冻结后排队，未运行**。P8 整体仍不通过。
+- 状态：源码 + 纯软件测试已提交。真实门曾在冻结快照 `8dd3e70` 上尝试并失败（FIFO push depth 字段位置），已按真实 journal 语义修复并补负例锁字段；**修复后的真实门重新排队，尚未在冻结快照重跑**。P8 整体仍不通过。
 - 证据目录：`docs/reports/evidence/dma-s2-20261018/`（仅软件证据，明确标注无 RTL 观测）
 
 ## 1. 结论摘要
@@ -10,7 +10,7 @@
 1. 新增固定固件 `src/myfuzz/scenario/ibex_dma_uart_descriptor.py`：boot 写 RAM 源字、初始化 UART/CSR、装 ISR；每例由外部串行流给出 4 个描述符字节 + `len` 个 payload 字节，CPU 用真实 `lw RDATA` 取出并解码，真实 `sw` 写出 DMA SOURCE/DEST/LEN/CONTROL，真实 IRQ 进入真实 ISR，ISR 读真实 DMA status(0)/length(4) 并保存 `mcause/status/lenactual/payload/counter`，**不做期望值比较**。
 2. 新增 `make_descriptor_runner`：同一组真实 Ibex / wbdmac / OpenTitan UART 进程，标准 `ScenarioRunner` + `DataflowRouter` + `MasterTargetWindow`（UART 同时声明 RDATA 可读、WDATA 可写与 TX 串行引脚）。RX→RAM、RAM→RAM、RAM→TX 三个方向可在**一次 boot** 内连续执行，TX 方向 drain 到真实串行 peer 捕获。
 3. 新增 `src/myfuzz/integration/dma_uart_descriptor_runtime.py`：`DescriptorCase`（纯 pre-RTL 校验）、`DescriptorBoot`（单 boot 多例 + 逐例 command/event/tick 边界）、每例证书 `certify_descriptor_case`（真实 journal join）、`DescriptorResult`、`run_descriptor_cases`、`replay_descriptor_cases`（fresh 全前缀重放并逐例重认证）。
-4. 纯软件：`44 passed`（新文件）+ focused 门 `64 passed, 4 skipped` + S1b 搜索回归 `30 passed`。真实门未跑。
+4. 纯软件：`47 passed`（新文件）+ focused 门 `67 passed, 4 skipped` + S1b 搜索回归 `30 passed`。真实门第一次尝试失败（见 §7.4），修复后重新排队，未在冻结快照重跑。
 5. 诚实边界：每例 `fifo_origin='unknown'`、`source_authority='incomplete'`、`proof_grade='bounded_historical_chain'`；没有 admission/ownership/edge-index/UART consumption accepted；没有 invalid/error-ISR；TX 捕获来自真实 peer，journal 事件留 S4。
 
 ## 2. 变更文件
@@ -129,7 +129,7 @@
 `certify_descriptor_case` 只接受 real journal rows（`CaseWitnesses`），强制以下 join；任一缺失即 RuntimeError：
 
 - **源**：每个 action id 恰好一个 `uart_frame_validation(waveform_matched=True)`，字节/顺序与 spec 完全一致；frame id 唯一；`source_injection` 计数与值一致；
-- **FIFO**：每个串行字节恰好一次 `uart_tick_observation` post `wvalid&wready` push；CPU pop 数 = 4（RX）或 4+len（RAM/TX）；RX 的 DMA pop 数 = len；每个 pop 都有 `pre/post` 真实 depth/head/rvalid/rdata_re 探针，`post.depth = pre.depth-1`、`pre.head = byte`；总 push = 总 pop = 4+len；
+- **FIFO**：每个串行字节恰好一次 `uart_tick_observation` post `wvalid&wready` push；push 的**真实深度按 pinned 采样语义从下一个 tick 样本读取**——push strobe 那个 tick 的 `post.probe_uart_fifo_depth` 仍是压入前占用（真实样本：push tick post depth=0/data=90，下一 tick post depth=1/head=90），证书要求“下一 tick 的 depth = 本 tick 的 depth+1”、`push.post.probe_uart_fifo_data == byte`、相邻 push 的深度链连续；CPU pop 数 = 4（RX）或 4+len（RAM/TX）；RX 的 DMA pop 数 = len；每个 pop 都有 `pre/post` 真实 depth/head/rvalid/rdata_re 探针，`post.depth = pre.depth-1`、`pre.head = byte`；总 push = 总 pop = 4+len；
 - **CPU 真实配置**：DMA 的 `mmio_delivery` 写序列必须是 `(8,SOURCE),(12,DEST),(4,LEN),(0,CONTROL)`，值与 `descriptor_program` 完全一致；CONTROL key=`0xfed`；witness 指针 store 早于 CONTROL；RX 无 RAM 源写，RAM/TX 有 len 次真实 CPU store 且早于首个 DMA read；
 - **DMA beats**：恰好 `2*len` 个 accepted beat，逐字 read→write；地址等于声明源/目的 beat 地址；read/write 的 transaction 身份同源、`source_sequence` 相邻且全程严格递增不重复（“不重复执行”）；RAM 源读的 response `rdata == payload`；RX 读的 target delivery 带真实 UART FIFO pop 证明；TX 写的 target delivery 地址 WDATA、值 payload；
 - **RAM commit**：目的方向恰好 len 个 `memory_write(component='dma')`，值 payload、`version` 存在且严格递增、是 accepted write 的真实效果；TX 方向无目的 RAM commit；
@@ -154,7 +154,7 @@
 ```sh
 cd /home/qinkejiu/myfuzz
 PYTHONPATH=src python3 -m pytest -q tests/integration/test_dma_uart_descriptor.py
-# 44 passed
+# 51 passed
 
 PYTHONPATH=src python3 -m pytest -q \
   tests/scenario/test_ibex_dma_example.py \
@@ -168,7 +168,7 @@ PYTHONPATH=src python3 -m pytest -q \
   tests/integration/test_dma_uart_rx_replay_state_edges.py \
   tests/integration/test_dma_uart_descriptor.py \
   tests/integration/test_dma_uart_descriptor_real.py
-# 64 passed, 4 skipped
+# 71 passed, 4 skipped
 
 PYTHONPATH=src python3 -m pytest -q \
   tests/integration/test_dma_uart_rx_search.py \
@@ -177,16 +177,42 @@ PYTHONPATH=src python3 -m pytest -q \
 # 30 passed
 ```
 
-4 个 skip = 3 个既有 explicit-native 门 + 新的 queued descriptor 门。focused 列表并入 S1a/S1c 的 `test_dma_uart_rx_boot_object.py`、`test_dma_uart_rx_uart_schedule.py` 后为 `85 passed, 3 skipped`（数量只增不减）。
+4 个 skip = 3 个既有 explicit-native 门 + 新的 queued descriptor 门。focused 列表并入 S1a/S1c 的 `test_dma_uart_rx_boot_object.py`、`test_dma_uart_rx_uart_schedule.py` 后为 `92 passed, 3 skipped`（数量只增不减）。
 
 ### 7.3 软件测试覆盖
 
 - 固件布局/控制字/窗口/程序表；`MAIN+main<=MTVEC`、`ISR` 在 RAM 内；
 - **RV32I 模型**（仅测试用解释器 + UART/DMA 行为模型，不是 RTL）：六组方向/多字参数各跑一次，断言 CPU 真实写出的 DMA 四寄存器、beats 地址/值、pop 序列、RAM 源字、TX 字节、ISR 五字；一次 boot 连跑三方向 + 多字四例，counter 单调；direction code 3 走声明非法目标（无 beat、status bit30、真实 IRQ/ISR）；`len` 未入队 payload 时模型在 DMA 空 pop 处失败（证明 pre-RTL 守卫的必要性）；
 - 描述符解码掩码/长度/payload 相等/非法字段构造拒绝；窗口收窄、非法 offset 声明缺失、未知窗口、半开窗口语义；
+- push 深度字段锁：合成 journal 的 push tick 深度写 0..N-1（与真实 pinned 采样一致），证书要求整条 push tick 流恰为 0..n-1、下一 tick = +1 且链连续；负例覆盖“深度不递增”“push 数据字段不符”“push 后缺少 tick 样本”“跳号”“重复”“起点非空”“push 缺失”，防止退回把 push tick 深度当压入后深度或用 host 计数；
 - plan↔spec 硬 join（值/action id/分量/端口/位宽）；
 - 合成 journal 正例（三方向、len 1/2/3/4）与负例：缺 frame/pop/beat/RAM commit/source_start/cpu take/external take 必失败；篡改 counter/payload store/frame/pop 必失败；host 写被测地址必失败；TX 捕获不匹配必失败；DMA pop 不得被洗成 CPU pop；
 - fake-runner boot 机制：一次 boot 两例的 plan 源字节/action id 完全一致、command/event/tick 边界链接、拒绝不消费、ISR 不完成时保留尝试边界与 prefix digest。
+
+### 7.4 真实门失败与修复（8dd3e70）
+
+主会话在冻结快照 `8dd3e70` 上首次运行真实门，第一例 `RX_TO_RAM len=1` 在 4793 commands 后失败：
+
+```
+RuntimeError: UART RX FIFO push lacks a real depth
+dma_uart_descriptor_runtime.py:571  push_depths=... event['post'].get('probe_uart_fifo_depth')
+```
+
+真实快照的第一例 5 个 push（对应 4 描述符 + 1 payload）在 push tick 的 `pre/post.probe_uart_fifo_depth` 都依次为 **0,1,2,3,4**（主会话 probe log：`PRE_DEPTH == POST_DEPTH`；event_id 3595/7062/10521/13988/17447，tick 851/1717/2581/3447/4311），即该 tick 记录的是**压入前占用**；旧实现断言 `>=1`，于是第一个 push（0）被误判为“缺 depth”。
+
+**根因（真实 RTL 采样语义，不是字段缺失）**：pinned `uart_tick_observation` 在 push strobe 的那个 tick，`post.probe_uart_fifo_depth` 仍是被压入前的占用；写入的字节出现在 `post.probe_uart_fifo_data`（真实样本：`event_id=3587, local_tick=851, post{wvalid=1,wready=1,depth=0,data=90}`），深度 +1 出现在**下一个 tick 样本**（`event_id=3591, local_tick=852, post{depth=1,head=90,rvalid=1}`）。旧实现把 push tick 的 depth 当作压入后深度并断言 `>=1`，因此第一例失败（不是 host 计数、也不是没有 depth）。
+
+**修复（不删断言、不伪造）**：`_push_depth_chain` 只读真实 journal：
+
+1. push tick 必须 `post.wvalid==1 && wready==1`，且 `post.probe_uart_fifo_data == 声明 byte`；
+2. push tick 的 `depth_before` 序列必须**恰好是 0..n-1**（n = 4+len；残留/跳号/重复/缺失都会失败），且 `depth_before[-1] + 1 == n`；
+3. 取 journal 中紧随其后的真实 tick 样本（且其 `wvalid != 1`，即不是另一个 push），要求 `post.probe_uart_fifo_depth == depth_before + 1`，即真实压入后占用；
+4. 相邻 push 的 `depth_before` 必须等于上一个 `depth_after`（深度链连续）；
+5. 记录 `fifo.push_chain`（tick、byte、depth_before/after、head_after、下一 tick、event id）与 `push_depths`（=1..4+len）。
+
+新增负例：push 后深度不递增、push 数据字段不符、push 后缺少 tick 样本、深度跳号、深度重复、case 起点 FIFO 非空（整体 0..n-1 被平移）、push 缺失都必须失败；正例的 push tick 深度写成 0..N-1（与真实 0,1,2,3,4 完全一致），若实现退回把 push tick 的深度当压入后深度会立即失败。这锁住了正确字段与语义，且证据仍全部来自真实 RTL 采样。
+
+**说明**：S1b 的 `dma_chain_feedback` 把 `fifo_push_depth_*` 直接建在 push tick 的 `post.probe_uart_fifo_depth` 上，该桶在真实证据里恒为 0；它只是搜索 feature，不是 authority，S2 未改它（避免动 S1b 证据），留给 S4 typed feedback 统一修正。
 
 ## 8. 真实 RTL 门（排队，未运行）
 
@@ -202,6 +228,7 @@ PYTHONPATH=src timeout 1800 python3 -m pytest -xq \
 - 每例真实 FIFO pop、`2*len` 个真实 DMA beat、len 个真实 RAM commit 版本（TX 除外）、真实 IRQ→ISR、TX peer 捕获、fresh 全前缀 replay 逐例相等；
 - 保存 `descriptor.json.gz`、`fresh.json.gz`、`cases.json`、`multiword-readings.json`（首例 len>1 的真实 status/nread/blocklen）、`source_pins.json`、`manifest.json`；
 - 内部 `ResourceBudget(max_wall_time_ms=600000)`，外层 `timeout 1800` 只作兜底，不替代内部预算；
+- **首次尝试（8dd3e70）已失败并修复**（见 §7.4）；修复后必须在冻结快照重跑，且旧的失败不构成通过证据；
 - **排队原因**：S1/P7 的真实门共用 build cache，当前 P7 I3 并行写源码；现在跑会改变/漂移尚未重基线的 build identity。等 root 冻结后由主会话串行执行。
 
 ## 9. 诚实边界与风险
@@ -220,7 +247,7 @@ PYTHONPATH=src timeout 1800 python3 -m pytest -xq \
 ## 10. 审计清单（真实门跑完后按此复核）
 
 - [ ] 六例方向覆盖（每方向 ≥1）且 ≥2 个 `len>1`；`beat_count` 与 `2*len` 相符；
-- [ ] 每例 FIFO push=pop=`4+len`；RX 的 DMA pop pre-depth 递减 `len..1`；
+- [ ] 每例 FIFO push=pop=`4+len`；push 深度来自 push 后第一个真实 tick（+1 且链连续）；RX 的 DMA pop pre-depth 递减 `len..1`；
 - [ ] 每例 CPU DMA 四寄存器写值与 `descriptor_program` 相等；CONTROL key=`0xfed`；
 - [ ] 每例 `mcause=0x8000000b`、`status_error=0`、payload/counter 正确；`status/nread/blocklen/length` 原样记录；
 - [ ] 每例 status bit29/28 与 CONTROL 的 inc_s_n/inc_d_n 一致（多字固定端回读）；
