@@ -1,5 +1,5 @@
 # P8 S1b search software regression (unchanged by S2)
-# date: 2026-10-17T12:16:52Z
+# date: 2026-10-17T12:23:48Z
 # command: PYTHONPATH=src python3 -m pytest -q tests/integration/test_dma_uart_rx_search.py tests/scenario/test_dma_chain_feedback.py tests/integration/test_dma_uart_rx_discovery_scope.py
 ..............................                                           [100%]
-30 passed in 7.30s
+30 passed in 7.73s

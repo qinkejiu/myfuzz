@@ -611,7 +611,7 @@ def _fifo(depth, head, *, phase):
         'probe_uart_fifo_under_rst': 0}
 
 
-def _synthetic_rows(case, case_index=1):
+def _synthetic_rows(case, case_index=1, *, commit_before_write=False):
     rows = _Rows()
     program = case.program()
     payload = case.payload
@@ -679,15 +679,20 @@ def _synthetic_rows(case, case_index=1):
         else:
             rows.add('dma_edge', response=dict(transaction=_transaction(sequence),
                 rdata=payload))
+        commit = dict(component='dma',
+            address=program['destination_words'][index], value=payload,
+            version=[0, 10 + index])
+        if case.direction != 'RAM_TO_TX' and commit_before_write:
+            # Real journal order for one word: read beat -> memory commit ->
+            # write beat (the memory service commits before the edge event).
+            rows.add('memory_write', **commit)
         write = rows.add('dma_edge', accepted=dict(transaction=_transaction(sequence + 1),
             address=program['destination_words'][index], write=True, value=payload))
         if case.direction == 'RAM_TO_TX':
             write['accepted']['target_delivery'] = dict(target_component='uart',
                 write=True, address=firmware.UART_WDATA, value=payload)
-        else:
-            rows.add('memory_write', component='dma',
-                address=program['destination_words'][index], value=payload,
-                version=[0, 10 + index])
+        elif not commit_before_write:
+            rows.add('memory_write', **commit)
         sequence += 2
     pulse_tick = 100 + case_index
     rows.add('dma_edge', native_local_tick=pulse_tick,
@@ -1007,6 +1012,77 @@ def test_certifier_requires_a_real_access_id_on_the_nested_copy():
     rows = _remove_last_top_level_pop(_synthetic_rows(case))
     rows = _strip_last_nested_copy(rows, drop_access_id=True)
     with pytest.raises(RuntimeError, match='CPU must pop exactly'):
+        certify_descriptor_case(extract_case_witnesses(rows), case, case_index=1)
+
+
+def _commit_rows(rows):
+    return [row for row in rows if row.get('kind') == 'memory_write'
+            and row.get('component') == 'dma']
+
+
+def _read_rows(rows):
+    return [row for row in rows if row.get('kind') == 'dma_edge'
+            and isinstance(row.get('accepted'), dict)
+            and row['accepted'].get('write') is False]
+
+
+def _write_rows(rows):
+    return [row for row in rows if row.get('kind') == 'dma_edge'
+            and isinstance(row.get('accepted'), dict)
+            and row['accepted'].get('write') is True]
+
+
+def test_certifier_accepts_the_real_read_commit_write_shape():
+    case = DescriptorCase.create('RAM_TO_RAM', dst_index=0, payload=0x22, length=2)
+    rows = _synthetic_rows(case, commit_before_write=True)
+    reads, commits, writes = _read_rows(rows), _commit_rows(rows), _write_rows(rows)
+    assert len(reads) == len(commits) == len(writes) == 2
+    order = [row['event_id'] for row in
+             (reads[0], commits[0], writes[0], reads[1], commits[1], writes[1])]
+    assert order == sorted(order) and len(set(order)) == len(order)
+    evidence = certify_descriptor_case(extract_case_witnesses(rows), case,
+        case_index=1)
+    assert [commit['version'] for commit in evidence['ram_commits']] == [
+        [0, 10], [0, 11]]
+    assert [commit['value'] for commit in evidence['ram_commits']] == [0x22, 0x22]
+    # length=1 has no next read: its commit interval is closed by the IRQ check.
+    single = DescriptorCase.create('RAM_TO_RAM', dst_index=0, payload=0x11, length=1)
+    certify_descriptor_case(extract_case_witnesses(
+        _synthetic_rows(single, commit_before_write=True)), single, case_index=1)
+
+
+def _commit_before_its_read(rows):
+    _commit_rows(rows)[0]['event_id'] = _read_rows(rows)[0]['event_id'] - 1
+    return rows
+
+
+def _commit_after_the_next_read(rows):
+    reads = _read_rows(rows)
+    _commit_rows(rows)[0]['event_id'] = reads[1]['event_id'] + 1
+    return rows
+
+
+def _commit_wrong_value(rows):
+    _commit_rows(rows)[0]['value'] = 0x00
+    return rows
+
+
+def _commit_repeated_version(rows):
+    commits = _commit_rows(rows)
+    commits[1]['version'] = list(commits[0]['version'])
+    return rows
+
+
+@pytest.mark.parametrize('mutate,message', [
+    (_commit_before_its_read, 'accepted read beat interval'),
+    (_commit_after_the_next_read, 'accepted read beat interval'),
+    (_commit_wrong_value, 'value differs'),
+    (_commit_repeated_version, 'strictly increasing'),
+])
+def test_certifier_locks_the_real_ram_commit_interval(mutate, message):
+    case = DescriptorCase.create('RAM_TO_RAM', dst_index=0, payload=0x22, length=2)
+    rows = mutate(_synthetic_rows(case, commit_before_write=True))
+    with pytest.raises(RuntimeError, match=message):
         certify_descriptor_case(extract_case_witnesses(rows), case, case_index=1)
 
 

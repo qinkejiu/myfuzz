@@ -799,12 +799,18 @@ def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
                for index in range(len(versions) - 1)):
             raise RuntimeError('DMA RAM commit versions are not strictly increasing')
         for index, commit in enumerate(ram_commits):
-            next_beat = (beat_rows[index + 1]['read_event_id']
+            # The real journal orders one transferred word as
+            # read beat -> memory commit -> write beat (the memory service
+            # commits before the master edge event is appended), so the commit
+            # is anchored inside its own read interval: after its read beat and
+            # before the next word's read beat.  For the last word the IRQ
+            # ordering below closes the interval.
+            next_read = (beat_rows[index + 1]['read_event_id']
                          if index + 1 < len(beat_rows) else None)
-            if not (beat_rows[index]['write_event_id'] < commit['event_id']
-                    and (next_beat is None or commit['event_id'] < next_beat)):
+            if not (beat_rows[index]['read_event_id'] < commit['event_id']
+                    and (next_read is None or commit['event_id'] < next_read)):
                 raise RuntimeError(
-                    'DMA RAM commit is not the accepted write beat effect')
+                    'DMA RAM commit is not inside its accepted read beat interval')
 
     # -- CPU materializes the RAM source words before the DMA reads them -----
     cpu_source_writes = [event for event in witnesses.memory_writes
