@@ -315,6 +315,27 @@ def _case_boundaries(*, commands, rows, command_start, command_end,
         fifo_depth_after=_fifo_depth_after(rows))
 
 
+def _poll_schedule(runner):
+    """Advance UART in an ISR poll round only when it has real work.
+
+    After the serial waveform and while no UART request is ready, a poll round
+    is ``('dma', 'cpu')``: a trailing UART step would only consume an idle
+    native tick and command. When a routed UART access is ready
+    (``router.ready_targets``) or a serial waveform/register-access conflict
+    still needs real UART clocks, the trailing ``'uart'`` step is appended. It
+    stays last so UART MMIO queued by this round's CPU/DMA step is delivered on
+    the following round, which preserves the producer-before-target order
+    instead of servicing a request before its real producer step.
+    """
+    router = runner.sessions['cpu'].router
+    uart = runner.sessions['uart']
+    needs_uart = 'uart' in getattr(router, 'ready_targets', ())
+    if not needs_uart:
+        conflict = getattr(uart, 'register_access_conflict', None)
+        needs_uart = callable(conflict) and conflict() is not None
+    return ('dma', 'cpu', 'uart') if needs_uart else ('dma', 'cpu')
+
+
 class _ContinuousRxBoot:
     """One supplied boot that can execute successive bounded RX cases.
 
@@ -415,7 +436,7 @@ class _ContinuousRxBoot:
         self.phase = 'isr'
         poll_cursor = start
         for _ in range(max_rounds_per_case):
-            recorder.advance(('dma', 'cpu', 'uart'))
+            recorder.advance(_poll_schedule(runner))
             # A native CPU store is the completion signal, never a host write.
             new_rows = runner.events_since(poll_cursor)
             poll_cursor = runner.event_count
