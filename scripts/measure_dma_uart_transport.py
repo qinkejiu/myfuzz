@@ -59,7 +59,7 @@ class CommandTimings:
             observed_command_seconds=sum(row['seconds'] for row in self.operations.values()),
             invalid_callbacks=self.invalid_callbacks,
             overflow_callbacks=self.overflow_callbacks,
-            semantics='GeneratedLocalSession.command finally callback, including failed/prewire calls; not a wire-command counter')
+            semantics='GeneratedLocalSession.command finally callback after initial owner guard; excludes that guard and includes _command_impl failures/prewire attempts; not a wire-command counter')
 
 
 def _cpu_times():
@@ -77,32 +77,79 @@ def main(argv=None):
     parser.add_argument('--source-bytes', type=_bytes, default=(0x5a, 0, 0xa5, 0xa5))
     args = parser.parse_args(argv)
     args.output.mkdir(parents=True, exist_ok=False)
+    operation = dict(schema_version='dma_scalar_measurement_operation.v1',
+        stage='created', lock_acquired=False, project_import_completed=False,
+        runtime_call_entered=False, runtime_returned=False)
+    try:
+        code = _measure_locked(args, operation)
+    except BaseException as primary:
+        operation.update(status='failed', failure=_bounded_error(primary))
+        try:
+            _save_operation(args.output, operation)
+        except BaseException as secondary:
+            # Receipt failure must not replace the original lock/import/runtime error.
+            try:
+                print('operation receipt write failed: ' + str(_bounded_error(secondary)),
+                      file=sys.stderr)
+            except BaseException:
+                pass
+        raise
+    operation.update(status='completed' if code == 0 else 'failed', exit_code=code)
+    _save_operation(args.output, operation)
+    return code
+
+
+def _bounded_error(error):
+    try:
+        message = str(error)[:2048]
+    except BaseException:
+        message = '<exception string unavailable>'
+    return dict(type=type(error).__name__[:128], message=message)
+
+
+def _save_operation(output, operation):
+    (output / 'operation.json').write_text(json.dumps(operation, indent=2,
+        sort_keys=True, allow_nan=False) + '\n', encoding='utf-8')
+
+
+def _measure_locked(args, operation):
     # No project import, constructor, build or model launch until lock admission.
     # Existing canonical lock parent must already exist; do not create a new lock tree.
+    operation['stage'] = 'lock_open'
     with args.heavy_lock.open('a+') as lock:
+        operation['stage'] = 'lock_acquire'
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        operation['lock_acquired'] = True
+        operation['stage'] = 'project_import'
         sys.path.insert(0, str(ROOT / 'src'))
         import_started = time.monotonic()
         from myfuzz.local_harness.session import observe_local_command_timings
         from myfuzz.integration.dma_uart_rx_runtime import (
             ContinuousRxFailure, run_continuous_uart_rx)
         import_seconds = time.monotonic() - import_started
+        operation['project_import_completed'] = True
+        operation['stage'] = 'measurement_setup'
         timings = CommandTimings()
         result = None
         failure = None
         cpu_before = _cpu_times()
         started = time.monotonic()
+        operation['stage'] = 'runtime'
+        operation['runtime_call_entered'] = True
         try:
             with observe_local_command_timings(timings):
                 result = run_continuous_uart_rx(args.source_bytes,
                                                cache_dir=args.cache_dir)
         except ContinuousRxFailure as exc:
             result = exc.result
-            failure = dict(type=type(exc).__name__, message=str(exc))
+            failure = _bounded_error(exc)
         except Exception as exc:
-            failure = dict(type=type(exc).__name__, message=str(exc))
+            failure = _bounded_error(exc)
+        operation['runtime_returned'] = True
+        operation['runtime_failure'] = failure
         elapsed = time.monotonic() - started
         cpu_after = _cpu_times()
+        operation['stage'] = 'result_write'
         counts = None
         bundle = None
         if result is not None:
@@ -142,8 +189,10 @@ def main(argv=None):
                 effective_search_seconds='directed continuous run, not RFuzz search',
                 fresh_comparison='not run by measurement script'),
             interpretation='command duration includes guard/ACK/transport/parse work; sum is not isolated pipe cost or an achievable speedup')
+        operation['stage'] = 'timing_write'
         (args.output / 'timing.json').write_text(json.dumps(report, indent=2,
             sort_keys=True, allow_nan=False) + '\n', encoding='utf-8')
+        operation['stage'] = 'measurement_finished'
         return 1 if failure is not None or timings.invalid_callbacks or timings.overflow_callbacks else 0
 
 
