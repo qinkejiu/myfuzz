@@ -38,6 +38,19 @@ Boot: the first fetch arrives before the program does
     slot raises ``InstructionNotReady``, and the transfer resumes once
     ``accept_instructions`` fills it.  :meth:`GeneratedAhbMemorySession.step_local`
     is where the resume check lives.
+
+Declared instruction source (optional)
+    A caller may supply an ``instruction_source`` object with
+    ``before_step(session)`` / ``after_step(session, outputs)``.  It is the
+    session's declared way to observe each *measured* request and to materialize
+    a declared-but-unfilled instruction word before the beat is accepted: the
+    hold then covers any unfilled declared slot the core is really asking for,
+    not only the reset word.  Without a source the previous behaviour is
+    unchanged byte for byte (the reset word is held, and a non-boot unfilled
+    slot still surfaces the memory layer's ``InstructionNotReady``).  The source
+    is run state, not identity: it is deliberately absent from
+    :meth:`identity_document`, and it records what it supplied in its own
+    document (see ``myfuzz.scenario.cvw_session``).
 """
 from __future__ import annotations
 
@@ -67,7 +80,8 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
     read_request_be = 15
 
     def __init__(self, artifact, *, base_dir, cache_dir, memory,
-                 router: DataflowRouter | None = None, **kwargs):
+                 router: DataflowRouter | None = None,
+                 instruction_source=None, **kwargs):
         # A router is accepted for the same reason the AXI4-Lite session accepts
         # one: a CPU beat whose address falls inside a declared device window must
         # be served by the real target rather than by local RAM.  It is optional,
@@ -94,6 +108,17 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
         self.router = router
         self.mmio_write_count = 0
         self.mmio_read_count = 0
+        # The optional declared instruction source observes measured requests and
+        # supplies declared-but-unfilled words.  It is validated by shape so a
+        # caller cannot install a name that only looks like a source.
+        if instruction_source is not None and not (
+                callable(getattr(instruction_source, 'before_step', None))
+                and callable(getattr(instruction_source, 'after_step', None))):
+            raise ValueError('AHB-Lite instruction source must declare '
+                             'before_step and after_step')
+        self.instruction_source = instruction_source
+        self.instruction_hold_ticks = 0
+        self.instruction_hold_addresses = []
         # The CPU bootstraps from a configured reset vector, so the session knows
         # the one address it must be ready to hold before the core ever asks for it.
         # Without this the first fetch would be served as ordinary uninitialised RAM
@@ -140,6 +165,11 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
         # A reset cancels every outstanding response, and the boot word must be
         # held again for the next boot.
         self.declare_boot_instruction_slot()
+        self.instruction_hold_ticks = 0
+        self.instruction_hold_addresses = []
+        reset_source = getattr(self.instruction_source, 'reset', None)
+        if callable(reset_source):
+            reset_source()
         return result
 
     def begin_case(self, testcase_id):
@@ -149,6 +179,11 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
             raise ProtocolEnvironmentError(str(error)) from error
         self._last_ahb_receipt = None
         self._ahb_startup_complete = False
+        self.instruction_hold_ticks = 0
+        self.instruction_hold_addresses = []
+        reset_source = getattr(self.instruction_source, 'reset', None)
+        if callable(reset_source):
+            reset_source()
         try:
             super().begin_case(testcase_id)
             self._ahb_observer.begin_scope(execution_id=self._execution,
@@ -253,6 +288,53 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
             # report it.
             return False
 
+    def _measured_request(self):
+        """The presented ``(address, write)`` from the last sample, or ``(None, False)``."""
+        samples = self.last_samples
+        if not samples:
+            return None, False
+        pre = samples[0].get('pre') or {}
+        backend = pre.get('backend') or {}
+        if backend.get('m_req_valid') != 1:
+            return None, False
+        address = backend.get('m_req_addr')
+        if type(address) is not int or address < 0:
+            return None, False
+        return address, bool(backend.get('m_req_write'))
+
+    def measured_request_address(self):
+        """The address the core is presenting right now, from the last sample.
+
+        ``None`` before the first step and while the core presents no request.
+        This is a *measured* value read from the generated driver's pre-phase
+        backend taps, never a computed guess.
+        """
+        return self._measured_request()[0]
+
+    def _instruction_slot_required(self, address) -> bool:
+        try:
+            return self.memory.instruction_slot_unmaterialized(address)
+        except ValueError:
+            return False
+
+    def _held_instruction_address(self):
+        """The address whose unfilled slot makes this step a real hold, or None.
+
+        Without a declared source this is exactly the previous behaviour: only
+        the reset word is held.  With one, any *declared but unfilled* slot the
+        core is really **reading** is held too, so an online instruction window
+        is not silently read as uninitialised RAM; a write is never held for an
+        instruction slot.
+        """
+        if self.instruction_source is not None:
+            requested, write = self._measured_request()
+            if (requested is not None and not write
+                    and self._instruction_slot_required(requested)):
+                return requested
+        if self._boot_word_required():
+            return self.boot_base
+        return None
+
     def command(self, operation, fields):
         if operation == 'STEP_MEMORY':
             self._ahb_observer.require_active()
@@ -293,16 +375,32 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
             raise
 
     def _step_ahb_local(self, inputs):
-        if self._boot_word_required():
+        source = self.instruction_source
+        if source is not None:
+            # A declared source is offered the *measured* request before a beat is
+            # accepted.  It may materialize the word it owns; if it does not, the
+            # hold below keeps the transfer open without inventing a completion.
+            source.before_step(self)
+        held_address = self._held_instruction_address()
+        if held_address is not None:
             # Hold the transfer open the only way AHB-Lite allows: keep the
             # subordinate from accepting it.  The base implementation derives
             # ``m_req_ready`` from this flag, so setting it for exactly this call
             # makes the driver drive ``req_ready=0`` for one tick; ``m_req_valid``
             # stays high because the core is still waiting, so the request is
             # retried rather than lost, and no error completion is invented.
+            self.instruction_hold_ticks += 1
+            if len(self.instruction_hold_addresses) < 1024:
+                self.instruction_hold_addresses.append(held_address)
             self._quiescing = True
             try:
-                return super().step_local(inputs)
+                outputs = super().step_local(inputs)
             finally:
                 self._quiescing = False
-        return super().step_local(inputs)
+            if source is not None:
+                source.after_step(self, outputs)
+            return outputs
+        outputs = super().step_local(inputs)
+        if source is not None:
+            source.after_step(self, outputs)
+        return outputs

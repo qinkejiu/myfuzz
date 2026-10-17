@@ -1,0 +1,282 @@
+{
+  "admitted": [
+    "cvw",
+    "pulp_gpio"
+  ],
+  "components": [
+    {
+      "component_id": "cvw",
+      "profile_path": "configs/cpus/cvw/component_profile.json",
+      "rows": [
+        {
+          "code": "source-locator-declared",
+          "detail": {
+            "source_root": ".",
+            "top_module": "cvw_ahb_cpu_top"
+          },
+          "dimension": "source",
+          "pointer": "/source",
+          "status": "ok"
+        },
+        {
+          "code": "clock-schedule-complete",
+          "detail": {
+            "clock_domains": [
+              "core"
+            ],
+            "code_path": "myfuzz.local_harness.clock_schedule.build_local_clock_schedule",
+            "endpoint_domains": {
+              "cpu.external_bus": "core",
+              "cpu.manager_domain": "core"
+            },
+            "primary_clock_domain": "core"
+          },
+          "dimension": "clock",
+          "pointer": "/clocks",
+          "status": "ok"
+        },
+        {
+          "code": "reset-bindings-declared",
+          "detail": {
+            "count": 1,
+            "resets": [
+              {
+                "domain": "sys_rst",
+                "polarity": "active_high",
+                "port": "reset_ext",
+                "synchronous": false
+              }
+            ]
+          },
+          "dimension": "reset",
+          "pointer": "/resets",
+          "status": "ok"
+        },
+        {
+          "code": "endpoint-functions-declared",
+          "detail": {
+            "functions": [
+              "memory_master",
+              "observation"
+            ],
+            "protocol_endpoints": [
+              "cpu.external_bus"
+            ]
+          },
+          "dimension": "endpoint",
+          "pointer": "/endpoints",
+          "status": "ok"
+        },
+        {
+          "code": "no-interrupts-declared",
+          "detail": null,
+          "dimension": "interrupt",
+          "pointer": "",
+          "status": "ok"
+        },
+        {
+          "code": "no-interrupt-entry-declared",
+          "detail": null,
+          "dimension": "interrupt_entry",
+          "pointer": "",
+          "status": "ok"
+        },
+        {
+          "code": "no-external-pins-declared",
+          "detail": null,
+          "dimension": "serial_peer",
+          "pointer": "",
+          "status": "ok"
+        },
+        {
+          "code": "address-window-not-applicable",
+          "detail": {
+            "endpoints": [
+              "cpu.external_bus",
+              "cpu.manager_domain"
+            ],
+            "reason": "no fabric-target endpoint is declared, and the loader forbids an MMIO address block on a cpu profile (cpu-profile-must-not-declare-mmio-address)"
+          },
+          "dimension": "address",
+          "pointer": "/endpoints",
+          "status": "ok"
+        },
+        {
+          "code": "physical-inputs-owned",
+          "detail": {
+            "code_path": "myfuzz.composition.soc_port_dispositions.build_port_dispositions",
+            "constant_inputs": [],
+            "disposition_summary": {
+              "functional": 15,
+              "observe": 3
+            },
+            "environment_inputs": [],
+            "functional_inputs": [
+              "HRDATAEXT",
+              "HREADYEXT",
+              "HRESPEXT",
+              "clk",
+              "reset_ext"
+            ],
+            "fuzz_inputs": [],
+            "input_bits": 36,
+            "inputs": 5,
+            "ledger_entries": 18,
+            "owner_classes": {
+              "functional": 5
+            },
+            "peer_inputs": []
+          },
+          "dimension": "ownership",
+          "pointer": "/endpoints",
+          "status": "ok"
+        }
+      ],
+      "status": "ok"
+    },
+    {
+      "component_id": "pulp_gpio",
+      "profile_path": "configs/peripherals/pulp_gpio/component_profile.json",
+      "rows": [
+        {
+          "code": "source-locator-declared",
+          "detail": {
+            "source_root": "third_party/soc-pulp-apb-gpio",
+            "top_module": "apb_gpio"
+          },
+          "dimension": "source",
+          "pointer": "/source",
+          "status": "ok"
+        },
+        {
+          "code": "clock-schedule-complete",
+          "detail": {
+            "clock_domains": [
+              "core"
+            ],
+            "code_path": "myfuzz.local_harness.clock_schedule.build_local_clock_schedule",
+            "endpoint_domains": {
+              "gpio.bus": "core",
+              "gpio.pins": "core"
+            },
+            "primary_clock_domain": "core"
+          },
+          "dimension": "clock",
+          "pointer": "/clocks",
+          "status": "ok"
+        },
+        {
+          "code": "reset-bindings-declared",
+          "detail": {
+            "count": 1,
+            "resets": [
+              {
+                "domain": "sys_rst",
+                "polarity": "active_low",
+                "port": "HRESETn",
+                "synchronous": false
+              }
+            ]
+          },
+          "dimension": "reset",
+          "pointer": "/resets",
+          "status": "ok"
+        },
+        {
+          "code": "endpoint-functions-declared",
+          "detail": {
+            "functions": [
+              "external_pins",
+              "mmio_slave"
+            ],
+            "protocol_endpoints": [
+              "gpio.bus"
+            ]
+          },
+          "dimension": "endpoint",
+          "pointer": "/endpoints",
+          "status": "ok"
+        },
+        {
+          "code": "no-interrupts-declared",
+          "detail": null,
+          "dimension": "interrupt",
+          "pointer": "",
+          "status": "ok"
+        },
+        {
+          "code": "no-interrupt-entry-declared",
+          "detail": null,
+          "dimension": "interrupt_entry",
+          "pointer": "",
+          "status": "ok"
+        },
+        {
+          "code": "no-serial-roles-declared",
+          "detail": null,
+          "dimension": "serial_peer",
+          "pointer": "/endpoints",
+          "status": "ok"
+        },
+        {
+          "code": "address-window-declared",
+          "detail": {
+            "address_width": 12,
+            "fabric_targets": [
+              "gpio.bus"
+            ],
+            "window_size": 4096
+          },
+          "dimension": "address",
+          "pointer": "/address",
+          "status": "ok"
+        },
+        {
+          "code": "physical-inputs-owned",
+          "detail": {
+            "code_path": "myfuzz.composition.soc_port_dispositions.build_port_dispositions",
+            "constant_inputs": [
+              "dft_cg_enable_i"
+            ],
+            "disposition_summary": {
+              "constant": 1,
+              "external": 5,
+              "functional": 10,
+              "observe": 1
+            },
+            "environment_inputs": [
+              "gpio_in"
+            ],
+            "functional_inputs": [
+              "HCLK",
+              "HRESETn",
+              "PADDR",
+              "PENABLE",
+              "PSEL",
+              "PWDATA",
+              "PWRITE"
+            ],
+            "fuzz_inputs": [],
+            "input_bits": 82,
+            "inputs": 9,
+            "ledger_entries": 17,
+            "owner_classes": {
+              "constant": 1,
+              "external": 1,
+              "functional": 7
+            },
+            "peer_inputs": []
+          },
+          "dimension": "ownership",
+          "pointer": "/endpoints",
+          "status": "ok"
+        }
+      ],
+      "status": "ok"
+    }
+  ],
+  "generated": false,
+  "refused": [],
+  "schema_version": "declaration_review.v1",
+  "status": "ok"
+}

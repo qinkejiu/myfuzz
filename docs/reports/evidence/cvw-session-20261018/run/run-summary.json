@@ -1,0 +1,349 @@
+{
+  "absences": [],
+  "base_dir": "/home/qinkejiu/myfuzz",
+  "documents": {
+    "bundle": {
+      "path": "docs/reports/evidence/cvw-session-20261018/run/bundle/bundle-manifest.json",
+      "schema_version": "directed_session_bundle.v1",
+      "sha256": "6ec0152e175763021c2227a704ec0b620cfc3ebd9d68493d7b1a3cc872946857"
+    },
+    "capability_report": {
+      "path": "docs/reports/evidence/cvw-session-20261018/run/capability-report.json",
+      "schema_version": "capability_report.v1",
+      "sha256": "820a7f6ad1d0a84521a55663fb9e11bbe2595add3f09caab2728fcd5b8e64464"
+    },
+    "compiled_paths": {
+      "path": "docs/reports/evidence/cvw-session-20261018/run/compiled_paths.v1.json",
+      "schema_version": "compiled_paths.v1",
+      "sha256": "52fbe708687a2e7c45bdb0ff95133b684e0bb48a2a8ab22999821c13b5779d81"
+    },
+    "declaration_review": {
+      "path": "docs/reports/evidence/cvw-session-20261018/run/declaration-review.json",
+      "schema_version": "declaration_review.v1",
+      "sha256": "69aa51c2975dc4211a9d3f8e94c910cffd66062f580a81cb07bd88656357f725"
+    },
+    "execution_projection": {
+      "path": "docs/reports/evidence/cvw-session-20261018/run/execution_projection.v1.json",
+      "schema_version": "execution_projection.v1",
+      "sha256": "0762f51a9b282cddf513ddaa78471b5eab9d84cf608ca13c82a580bfb465bfb2"
+    },
+    "fresh_verification": {
+      "path": "docs/reports/evidence/cvw-session-20261018/run/fresh-verification.json",
+      "schema_version": "fresh_verification.v1",
+      "sha256": "39803388876c466d24831f00e63ec8c9e6a57d469d6ee068ad1a473980a86fd4"
+    },
+    "harness_set": {
+      "path": "docs/reports/evidence/cvw-session-20261018/run/generated/harness_set.json",
+      "schema_version": "harness_set.v1",
+      "sha256": "880bc226852693437c84b9a398e66d822dc03b82962f121cf5c6defc315b647e"
+    },
+    "path_compile_request": {
+      "path": "docs/reports/evidence/cvw-session-20261018/run/path_compile_request.json",
+      "schema_version": "path_compile_request.v1",
+      "sha256": "99482a576b5b17746dced7acffc877a9e6f6aebe889b1af543dda49c84082177"
+    },
+    "runtime_family": {
+      "path": "docs/reports/evidence/cvw-session-20261018/run/runtime-family.json",
+      "schema_version": "runtime_family_check.v1",
+      "sha256": "cde1eec4c866a197079cffb3a18d34f337dc47b8f28f4366087adacefa28ba21"
+    },
+    "session_directed": {
+      "path": "docs/reports/evidence/cvw-session-20261018/run/session/directed-session.json",
+      "schema_version": null,
+      "sha256": "041a09da2d411c9b8427bffe40e71e4c2511c0c83a0b8d6a5fbaeeefbddc8a4e"
+    },
+    "session_receipts": {
+      "path": "docs/reports/evidence/cvw-session-20261018/run/session/receipts.jsonl",
+      "schema_version": null,
+      "sha256": "7d56472163a8652a05cce4c2876413cc3038e415f8dcbab137afc135f0d67148"
+    },
+    "session_report": {
+      "path": "docs/reports/evidence/cvw-session-20261018/run/session/report.json",
+      "schema_version": "cvw_directed_session_report.v1",
+      "sha256": "164852750244d96db1b5f0c0187eafb6adfa0c5b2c7f2435aefa75122e82aed7"
+    }
+  },
+  "executor": {
+    "code": null,
+    "detail": null,
+    "family_fallback": false,
+    "known": [
+      "compiled-f4-rfuzz"
+    ],
+    "name": null,
+    "pointer": null,
+    "requested": null,
+    "status": "not_requested"
+  },
+  "exit_code": 0,
+  "finished_utc": "2026-10-17T18:26:42Z",
+  "fresh_replay": {
+    "first_difference": null,
+    "matches": true,
+    "verification_scope": "full"
+  },
+  "label": "cvw-session-gate-20261018",
+  "output": "/home/qinkejiu/myfuzz/docs/reports/evidence/cvw-session-20261018/run",
+  "refusals": [],
+  "rounds_per_case": 128,
+  "run_summary": {
+    "path": "docs/reports/evidence/cvw-session-20261018/run/run-summary.json",
+    "reason": null
+  },
+  "runtime_family": {
+    "code": null,
+    "detail": {
+      "note": "unified AHB-Lite CVW external bus and one PULP GPIO core on APB3. The family ships its own directed session assembly: a declared boot image supplied through the AHB-Lite memory service, a declared fixed-image instruction source that holds the reset word until the measured reset vector, and a real runner factory over GeneratedAhbMemorySession + GeneratedPulpGpioSession. Its session stage runs that directed case (no RFuzz client, no OnlineCaseDecoder); it is not an RFuzz online campaign",
+      "requirements": {
+        "instances": [
+          "cpu",
+          "gpio"
+        ],
+        "memory_regions": [
+          {
+            "base": 3221225472,
+            "component_instance": "cpu",
+            "size": 268369920
+          }
+        ],
+        "windows": [
+          {
+            "base": 3489595392,
+            "device_id": "gpio",
+            "instance_id": "gpio",
+            "size": 4096
+          }
+        ]
+      }
+    },
+    "family": "cvw-ahb-pulp-gpio",
+    "known": [
+      "cv32e40p-pulp-dual-source",
+      "cvw-ahb-pulp-gpio",
+      "ibex-pulp-dual-source"
+    ],
+    "pointer": null,
+    "requested": "cvw-ahb-pulp-gpio",
+    "status": "ok"
+  },
+  "schema_version": "auto_harness_test_run.v1",
+  "stages": {
+    "capability_report": {
+      "code": null,
+      "counts": {
+        "compiled_paths": {
+          "executable": 4,
+          "total": 6,
+          "unsupported": 2
+        },
+        "components": 2,
+        "executable": 4,
+        "graded": 2,
+        "paths": 6,
+        "skipped_unavailable": 0,
+        "tier_awards": {
+          "Bug confirmed": 0,
+          "Catalog": 8,
+          "Coverage-guided searched": 0,
+          "Cross-component accepted": 3,
+          "Generated": 6,
+          "RTL operational": 3
+        },
+        "unsupported": 2
+      },
+      "detail": null,
+      "document": "docs/reports/evidence/cvw-session-20261018/run/capability-report.json",
+      "pointer": null,
+      "status": "ok",
+      "throughput_status": "not_measured"
+    },
+    "declaration_review": {
+      "code": null,
+      "detail": null,
+      "document": "docs/reports/evidence/cvw-session-20261018/run/declaration-review.json",
+      "pointer": null,
+      "refused": [],
+      "status": "ok"
+    },
+    "driver": {
+      "code": null,
+      "detail": null,
+      "pointer": null,
+      "status": "ok"
+    },
+    "execution_projection": {
+      "capability_executable": 4,
+      "code": null,
+      "detail": null,
+      "execution_status": "directed_fixed_image",
+      "execution_supported": 1,
+      "pointer": null,
+      "runtime_admitted": false,
+      "status": "ok"
+    },
+    "fresh_verification": {
+      "code": null,
+      "detail": null,
+      "document": "docs/reports/evidence/cvw-session-20261018/run/fresh-verification.json",
+      "first_difference": null,
+      "matches": true,
+      "pointer": null,
+      "status": "ok",
+      "verification_scope": "full"
+    },
+    "harness_set": {
+      "binaries": {
+        "cpu": null,
+        "gpio": null
+      },
+      "code": null,
+      "components": [
+        "cpu",
+        "gpio"
+      ],
+      "detail": null,
+      "document": "docs/reports/evidence/cvw-session-20261018/run/generated/harness_set.json",
+      "pointer": null,
+      "status": "ok",
+      "tier": "generated"
+    },
+    "path_compilation": {
+      "code": null,
+      "counts": {
+        "executable": 4,
+        "total": 6,
+        "unsupported": 2
+      },
+      "detail": null,
+      "document": "docs/reports/evidence/cvw-session-20261018/run/compiled_paths.v1.json",
+      "pointer": null,
+      "sidecars": [
+        {
+          "instance_id": "gpio",
+          "profile": "configs/peripherals/pulp_gpio/component_profile.json",
+          "source": "profile-sibling",
+          "test_capability": "configs/peripherals/pulp_gpio/test_capability.json"
+        }
+      ],
+      "status": "ok"
+    },
+    "runtime_family": {
+      "code": null,
+      "detail": {
+        "note": "unified AHB-Lite CVW external bus and one PULP GPIO core on APB3. The family ships its own directed session assembly: a declared boot image supplied through the AHB-Lite memory service, a declared fixed-image instruction source that holds the reset word until the measured reset vector, and a real runner factory over GeneratedAhbMemorySession + GeneratedPulpGpioSession. Its session stage runs that directed case (no RFuzz client, no OnlineCaseDecoder); it is not an RFuzz online campaign",
+        "requirements": {
+          "instances": [
+            "cpu",
+            "gpio"
+          ],
+          "memory_regions": [
+            {
+              "base": 3221225472,
+              "component_instance": "cpu",
+              "size": 268369920
+            }
+          ],
+          "windows": [
+            {
+              "base": 3489595392,
+              "device_id": "gpio",
+              "instance_id": "gpio",
+              "size": 4096
+            }
+          ]
+        }
+      },
+      "family": "cvw-ahb-pulp-gpio",
+      "known": [
+        "cv32e40p-pulp-dual-source",
+        "cvw-ahb-pulp-gpio",
+        "ibex-pulp-dual-source"
+      ],
+      "pointer": null,
+      "requested": "cvw-ahb-pulp-gpio",
+      "status": "ok"
+    },
+    "session": {
+      "code": null,
+      "detail": null,
+      "directory": "docs/reports/evidence/cvw-session-20261018/run/session",
+      "elapsed_seconds": 35.904533995002566,
+      "execution_status": "complete",
+      "pointer": null,
+      "status": "ok",
+      "statuses": {
+        "complete": 1
+      },
+      "tests": 1,
+      "transport": {
+        "assembly": {
+          "boot_image": {
+            "base": 3221225472,
+            "gpio_base": 3489595392,
+            "result": 3221226496,
+            "result_bytes": 64,
+            "schema_version": "cvw_boot_image.v1",
+            "sha256": "8444b6abf745055806f8fe0c7243d330cd0d62600889547def03aed72fef84b9",
+            "size_bytes": 256,
+            "source": "myfuzz.scenario.cvw_gpio_example:cvw_gpio_program",
+            "supply": "the AHB-Lite CPU memory service: the reset word is held until the core presents the measured reset vector, then supplied through accept_instructions with the rest of the declared image",
+            "words": 64
+          },
+          "factory": "myfuzz.scenario.cvw_session:make_cvw_gpio_session_factory",
+          "instruction_source": {
+            "boot_image": {
+              "base": 3221225472,
+              "gpio_base": 3489595392,
+              "result": 3221226496,
+              "result_bytes": 64,
+              "schema_version": "cvw_boot_image.v1",
+              "sha256": "8444b6abf745055806f8fe0c7243d330cd0d62600889547def03aed72fef84b9",
+              "size_bytes": 256,
+              "source": "myfuzz.scenario.cvw_gpio_example:cvw_gpio_program",
+              "supply": "the AHB-Lite CPU memory service: the reset word is held until the core presents the measured reset vector, then supplied through accept_instructions with the rest of the declared image",
+              "words": 64
+            },
+            "holds": "the reset word is declared as an instruction slot and held until the measured request address is the declared reset vector; the source then supplies the word through accept_instructions and the rest of the declared image as the initial image",
+            "kind": "fixed_boot_image_instruction_source",
+            "not_an_online_decoder": "this is a fixed boot-image instruction source: it decodes no RFuzz record and admits no random instruction.  The AHB session holds the reset word until the core really presents that address, the source supplies it and the declared image through the memory service, and the core then executes the fixed program.  An online RFuzz campaign needs an OnlineCaseDecoder, a reserved per-case instruction window and a checker; this assembly declares and runs none of them.",
+            "refuses": "a first measured fetch outside the declared reset vector, and any attempt to supply bytes for a request the core did not present",
+            "schema_version": "cvw_boot_instruction_source.v1",
+            "source_event_prefix": "cvw-boot:8444b6abf7450558"
+          },
+          "kind": "directed_fixed_image",
+          "not_an_rfuzz_online_campaign": "a directed fixed-image session: no OnlineCaseDecoder, no per-case reserved instruction window, no RFuzz client and no coverage-guided search",
+          "online_decoder": "myfuzz.scenario.cvw_session:make_cvw_boot_instruction_source",
+          "schema_version": "cvw_session_assembly.v1",
+          "target_boundary": {
+            "adapter": "src/myfuzz/protocols/rtl/ahb_lite_memory_target.sv",
+            "cpu_endpoint": "cpu.external_bus",
+            "cpu_protocol": [
+              "ahb-lite",
+              "1"
+            ],
+            "device_endpoint": "gpio.bus",
+            "device_instance": "gpio",
+            "device_protocol": [
+              "apb",
+              "3"
+            ],
+            "router": "myfuzz.scenario.router:DataflowRouter",
+            "window_base": 3489595392,
+            "window_size": 4096
+          }
+        },
+        "directed_session": "myfuzz.integration.cvw_pulp_online:run_cvw_directed_session",
+        "fresh_replay": true,
+        "mode": "directed_fixed_image",
+        "not_claimed": [
+          "no RFuzz online campaign: no OnlineCaseDecoder, no per-case reserved instruction window, no coverage-guided search and no mutation feedback",
+          "no interrupt consumer (F5) and no DMA provider (F6)",
+          "no retirement observation or native IRQ receipt: the AHB-Lite boundary exports no RVFI port",
+          "no persistent multi-case session: one directed case per run"
+        ]
+      }
+    }
+  },
+  "started_utc": "2026-10-17T18:25:33Z",
+  "status": "complete"
+}

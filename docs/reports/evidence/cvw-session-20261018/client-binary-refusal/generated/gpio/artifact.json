@@ -1,0 +1,1652 @@
+{
+  "adapted_endpoint_ids": [
+    "gpio.bus"
+  ],
+  "adapter_sources": [
+    {
+      "path": "src/myfuzz/protocols/rtl/beat_to_apb.sv",
+      "sha256": "35cc8c1765a42cdfbfdd1ec504492ab789559d7a3ceee95c9f3ed48b474b2d7c"
+    }
+  ],
+  "artifact_digest": "1331b597185e3b0915d0c946fe5ef2607482d003a299683cd276bd79d2576c41",
+  "backend_ports": [
+    {
+      "channel": "gpio",
+      "direction": "input",
+      "name": "gpio_req_valid",
+      "role": "req_valid",
+      "width": 1
+    },
+    {
+      "channel": "gpio",
+      "direction": "output",
+      "name": "gpio_req_ready",
+      "role": "req_ready",
+      "width": 1
+    },
+    {
+      "channel": "gpio",
+      "direction": "input",
+      "name": "gpio_req_write",
+      "role": "req_write",
+      "width": 1
+    },
+    {
+      "channel": "gpio",
+      "direction": "input",
+      "name": "gpio_req_addr",
+      "role": "req_addr",
+      "width": 32
+    },
+    {
+      "channel": "gpio",
+      "direction": "input",
+      "name": "gpio_req_wdata",
+      "role": "req_wdata",
+      "width": 32
+    },
+    {
+      "channel": "gpio",
+      "direction": "input",
+      "name": "gpio_req_be",
+      "role": "req_be",
+      "width": 4
+    },
+    {
+      "channel": "gpio",
+      "direction": "output",
+      "name": "gpio_rsp_valid",
+      "role": "rsp_valid",
+      "width": 1
+    },
+    {
+      "channel": "gpio",
+      "direction": "input",
+      "name": "gpio_rsp_ready",
+      "role": "rsp_ready",
+      "width": 1
+    },
+    {
+      "channel": "gpio",
+      "direction": "output",
+      "name": "gpio_rsp_rdata",
+      "role": "rsp_rdata",
+      "width": 32
+    },
+    {
+      "channel": "gpio",
+      "direction": "output",
+      "name": "gpio_rsp_error",
+      "role": "rsp_error",
+      "width": 1
+    }
+  ],
+  "boot_contract": null,
+  "clock_schedule": {
+    "clock_edges_observed": "rising_edges_since_ready",
+    "clocks": [
+      {
+        "domain": "core",
+        "first_rising_fast_tick": 1,
+        "frequency_hz": 50000000,
+        "half_period_fast_ticks": 1,
+        "ratio": 1,
+        "signal": "clk"
+      }
+    ],
+    "fast_frequency_hz": 50000000,
+    "phase_policy": "all_low_then_half_period_toggle",
+    "primary_clock_domain": "core",
+    "primary_reset_domain": "sys_rst",
+    "resets": [
+      {
+        "domain": "sys_rst",
+        "polarity": "active_low",
+        "port": "HRESETn",
+        "signal": "reset",
+        "synchronous": false
+      }
+    ],
+    "schema_version": "local_clock_schedule.v1",
+    "startup_fast_ticks": 16
+  },
+  "cpp_sha256": "82490a444f03fc0ae4cce954afb28f29662108d2deb579ff065bf33a6687d3af",
+  "driver_field_map": {
+    "gpio_dir": "rt_lh_p_11_31_0",
+    "gpio_in": "rt_lh_p_12_31_0",
+    "gpio_in_sync": "rt_lh_p_13_31_0",
+    "gpio_out": "rt_lh_p_14_31_0",
+    "gpio_padcfg": "rt_lh_p_15_127_0",
+    "interrupt": "rt_lh_p_16_0_0"
+  },
+  "driver_header_sources": [
+    {
+      "path": "src/myfuzz/local_harness/rtl/local_driver_v1.h",
+      "sha256": "1e72a2d2a8fce550c87e37cdf28bb3bb23a9954d150a89392fe75375fe9bbb8e"
+    },
+    {
+      "path": "src/myfuzz/scenario/rtl/local_command_replay.h",
+      "sha256": "6707578af002d5097c2df6595c22715367d080e2ef11598834bfc26f0292d24d"
+    }
+  ],
+  "driver_limits": {
+    "max_cached_bytes": 67108864,
+    "max_command_bytes": 1024,
+    "max_payload_json_bytes": 1048576,
+    "max_reply_line_bytes": 2097664,
+    "max_samples_per_command": 37,
+    "reply_reservation_bytes": 96800
+  },
+  "driver_reset": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "schema_version": "generated_local_reset.v1"
+  },
+  "driver_schema_version": "local_driver_generation.v1",
+  "driver_status": "generated",
+  "effective_max_wait_cycles": 16,
+  "kind": "apb_gpio",
+  "lint_argv": [
+    "verilator",
+    "--lint-only",
+    "-Wno-fatal",
+    "--top-module",
+    "local_runtime_gpio",
+    "third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv",
+    "src/myfuzz/protocols/rtl/beat_to_apb.sv"
+  ],
+  "module_name": "local_runtime_gpio",
+  "physical_exports": [
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "external",
+      "encoding": "integer",
+      "endpoint_id": "gpio.pins",
+      "hex_digits": 8,
+      "physical_port": "gpio_dir",
+      "role": "dir",
+      "runtime_name": "rt_lh_p_11_31_0",
+      "width": 32,
+      "wrapper_name": "lh_p_11_31_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "external",
+      "encoding": "integer",
+      "endpoint_id": "gpio.pins",
+      "hex_digits": 8,
+      "physical_port": "gpio_in",
+      "role": "in",
+      "runtime_name": "rt_lh_p_12_31_0",
+      "width": 32,
+      "wrapper_name": "lh_p_12_31_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "external",
+      "encoding": "integer",
+      "endpoint_id": "gpio.pins",
+      "hex_digits": 8,
+      "physical_port": "gpio_in_sync",
+      "role": "in_sync",
+      "runtime_name": "rt_lh_p_13_31_0",
+      "width": 32,
+      "wrapper_name": "lh_p_13_31_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "external",
+      "encoding": "integer",
+      "endpoint_id": "gpio.pins",
+      "hex_digits": 8,
+      "physical_port": "gpio_out",
+      "role": "out",
+      "runtime_name": "rt_lh_p_14_31_0",
+      "width": 32,
+      "wrapper_name": "lh_p_14_31_0"
+    },
+    {
+      "bit_hi": 127,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "external",
+      "encoding": "fixed_width_hex",
+      "endpoint_id": "gpio.pins",
+      "hex_digits": 32,
+      "physical_port": "gpio_padcfg",
+      "role": "padcfg",
+      "runtime_name": "rt_lh_p_15_127_0",
+      "width": 128,
+      "wrapper_name": "lh_p_15_127_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "encoding": "integer",
+      "endpoint_id": null,
+      "hex_digits": 1,
+      "physical_port": "interrupt",
+      "role": null,
+      "runtime_name": "rt_lh_p_16_0_0",
+      "width": 1,
+      "wrapper_name": "lh_p_16_0_0"
+    }
+  ],
+  "plan": {
+    "component_id": "pulp_gpio",
+    "instance_id": "gpio",
+    "parameter_source_sha256": {
+      "rtl/apb_gpio.sv": "1e271914da4d25c87acd12121dde60a6ed955033870fd7a6730b2c9bafcbcaef"
+    },
+    "ports": [
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "input",
+        "disposition": "functional",
+        "evidence": "component_profile.clocks[HCLK]",
+        "instance_id": "gpio",
+        "port": "HCLK",
+        "port_width": 1,
+        "reason": "clock port distributed from the SoC clock input",
+        "reset_domain": "local_reset",
+        "role": "clock",
+        "target": "local_clock_reset"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "input",
+        "disposition": "functional",
+        "evidence": "component_profile.resets[HRESETn]",
+        "instance_id": "gpio",
+        "port": "HRESETn",
+        "port_width": 1,
+        "reason": "reset port distributed from the SoC reset input",
+        "reset_domain": "local_reset",
+        "role": "reset",
+        "target": "local_clock_reset"
+      },
+      {
+        "bits": {
+          "hi": 11,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "gpio.bus",
+        "evidence": "elaborated_ports[PADDR]",
+        "instance_id": "gpio",
+        "port": "PADDR",
+        "port_width": 12,
+        "reason": "bound to interface gpio.bus role paddr",
+        "reset_domain": "local_reset",
+        "role": "paddr",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "gpio.bus",
+        "evidence": "elaborated_ports[PENABLE]",
+        "instance_id": "gpio",
+        "port": "PENABLE",
+        "port_width": 1,
+        "reason": "bound to interface gpio.bus role penable",
+        "reset_domain": "local_reset",
+        "role": "penable",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "gpio.bus",
+        "evidence": "elaborated_ports[PRDATA]",
+        "instance_id": "gpio",
+        "port": "PRDATA",
+        "port_width": 32,
+        "reason": "bound to interface gpio.bus role prdata",
+        "reset_domain": "local_reset",
+        "role": "prdata",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "gpio.bus",
+        "evidence": "elaborated_ports[PREADY]",
+        "instance_id": "gpio",
+        "port": "PREADY",
+        "port_width": 1,
+        "reason": "bound to interface gpio.bus role pready",
+        "reset_domain": "local_reset",
+        "role": "pready",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "gpio.bus",
+        "evidence": "elaborated_ports[PSEL]",
+        "instance_id": "gpio",
+        "port": "PSEL",
+        "port_width": 1,
+        "reason": "bound to interface gpio.bus role psel",
+        "reset_domain": "local_reset",
+        "role": "psel",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "gpio.bus",
+        "evidence": "elaborated_ports[PSLVERR]",
+        "instance_id": "gpio",
+        "port": "PSLVERR",
+        "port_width": 1,
+        "reason": "bound to interface gpio.bus role pslverr",
+        "reset_domain": "local_reset",
+        "role": "pslverr",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "gpio.bus",
+        "evidence": "elaborated_ports[PWDATA]",
+        "instance_id": "gpio",
+        "port": "PWDATA",
+        "port_width": 32,
+        "reason": "bound to interface gpio.bus role pwdata",
+        "reset_domain": "local_reset",
+        "role": "pwdata",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "gpio.bus",
+        "evidence": "elaborated_ports[PWRITE]",
+        "instance_id": "gpio",
+        "port": "PWRITE",
+        "port_width": 1,
+        "reason": "bound to interface gpio.bus role pwrite",
+        "reset_domain": "local_reset",
+        "role": "pwrite",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[dft_cg_enable_i]",
+        "instance_id": "gpio",
+        "port": "dft_cg_enable_i",
+        "port_width": 1,
+        "reason": "DFT disabled in this functional scenario. At the pinned revision this input is declared but unused; sampling enables are computed from r_gpio_en, not this input.",
+        "reset_domain": "local_reset",
+        "target": "constant",
+        "value": 0
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "gpio.pins",
+        "evidence": "component_profile.endpoints[gpio.pins]",
+        "instance_id": "gpio",
+        "port": "gpio_dir",
+        "port_width": 32,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "dir",
+        "target": "environment_pin"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "input",
+        "disposition": "external",
+        "endpoint_id": "gpio.pins",
+        "evidence": "component_profile.endpoints[gpio.pins]",
+        "instance_id": "gpio",
+        "port": "gpio_in",
+        "port_width": 32,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "in",
+        "target": "environment_pin"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "gpio.pins",
+        "evidence": "component_profile.endpoints[gpio.pins]",
+        "instance_id": "gpio",
+        "port": "gpio_in_sync",
+        "port_width": 32,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "in_sync",
+        "target": "environment_pin"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "gpio.pins",
+        "evidence": "component_profile.endpoints[gpio.pins]",
+        "instance_id": "gpio",
+        "port": "gpio_out",
+        "port_width": 32,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "out",
+        "target": "environment_pin"
+      },
+      {
+        "bits": {
+          "hi": 127,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "gpio.pins",
+        "evidence": "component_profile.endpoints[gpio.pins]",
+        "instance_id": "gpio",
+        "port": "gpio_padcfg",
+        "port_width": 128,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "padcfg",
+        "target": "environment_pin"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[interrupt]",
+        "instance_id": "gpio",
+        "port": "interrupt",
+        "port_width": 1,
+        "reason": "Active-high s_rise_int pulse from synchronized GPIO transitions. This is not the held r_status bitmap; observe without pulse-to-level conversion.",
+        "reset_domain": "local_reset",
+        "target": "observation"
+      }
+    ],
+    "profile_path": "configs/peripherals/pulp_gpio/component_profile.json",
+    "profile_sha256": "2268967fa909658fbc079fc41112a10bba88e7484909153cbc1a5a1b222a0b56",
+    "protocol_endpoint_ids": [
+      "gpio.bus"
+    ],
+    "schema_version": "local_harness_plan.v1",
+    "scope": "single_component",
+    "source_content_hash": "git:f82caeb7f7d89427f05e9af5ed31e0675efe0d83",
+    "source_files": [
+      "rtl/apb_gpio.sv"
+    ],
+    "source_revision": "git:f82caeb7f7d89427f05e9af5ed31e0675efe0d83",
+    "timing": {
+      "max_wait_cycles": 16,
+      "reset_assert_ticks": 8,
+      "reset_release_ticks": 8
+    },
+    "top": "apb_gpio"
+  },
+  "runtime_ports": [
+    {
+      "direction": "input",
+      "name": "clk",
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "name": "reset",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_11_31_0",
+      "width": 32
+    },
+    {
+      "direction": "input",
+      "name": "rt_lh_p_12_31_0",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_13_31_0",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_14_31_0",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_15_127_0",
+      "width": 128
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_16_0_0",
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "name": "gpio_req_valid",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "gpio_req_ready",
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "name": "gpio_req_write",
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "name": "gpio_req_addr",
+      "width": 32
+    },
+    {
+      "direction": "input",
+      "name": "gpio_req_wdata",
+      "width": 32
+    },
+    {
+      "direction": "input",
+      "name": "gpio_req_be",
+      "width": 4
+    },
+    {
+      "direction": "output",
+      "name": "gpio_rsp_valid",
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "name": "gpio_rsp_ready",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "gpio_rsp_rdata",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "name": "gpio_rsp_error",
+      "width": 1
+    }
+  ],
+  "runtime_sv_sha256": "814cc000f1ea543d8f1805b59abb9574aad724763dbbbe991bbb980b9f5546d1",
+  "schema_version": "local_runtime_artifact.v1",
+  "selected_template": {
+    "contract": {
+      "dut_semantics_verified": false,
+      "generation_stage": "source_admitted_runtime_top",
+      "protocol_capability_claim": false,
+      "schema_version": "local_generated_executor_contract.v1",
+      "scope": "generated_executor_only",
+      "template_id": "local.generated.apb_gpio",
+      "template_version": "1",
+      "variant_id": "apb_gpio"
+    },
+    "contract_sha256": "faa04d76622945e3211963a6054e2c6636bc39f982355eb595a801b49c3bfcd3",
+    "dut_semantics_verified": false,
+    "executor": {
+      "binding": {
+        "adapter_sources": [
+          {
+            "path": "src/myfuzz/protocols/rtl/beat_to_apb.sv",
+            "sha256": "35cc8c1765a42cdfbfdd1ec504492ab789559d7a3ceee95c9f3ed48b474b2d7c"
+          }
+        ],
+        "boot_contract": null,
+        "clock_schedule": {
+          "clock_edges_observed": "rising_edges_since_ready",
+          "clocks": [
+            {
+              "domain": "core",
+              "first_rising_fast_tick": 1,
+              "frequency_hz": 50000000,
+              "half_period_fast_ticks": 1,
+              "ratio": 1,
+              "signal": "clk"
+            }
+          ],
+          "fast_frequency_hz": 50000000,
+          "phase_policy": "all_low_then_half_period_toggle",
+          "primary_clock_domain": "core",
+          "primary_reset_domain": "sys_rst",
+          "resets": [
+            {
+              "domain": "sys_rst",
+              "polarity": "active_low",
+              "port": "HRESETn",
+              "signal": "reset",
+              "synchronous": false
+            }
+          ],
+          "schema_version": "local_clock_schedule.v1",
+          "startup_fast_ticks": 16
+        },
+        "declared_profile_facts": {
+          "address_width": 12,
+          "byte_enable": false,
+          "data_width": 32,
+          "has_error": true,
+          "max_wait_cycles": 16,
+          "partial_write": false,
+          "read": true,
+          "write": true
+        },
+        "effective_max_wait_cycles": 16,
+        "endpoints": [
+          {
+            "endpoint_id": "gpio.bus",
+            "function": "mmio_slave",
+            "protocol": [
+              "apb",
+              "3"
+            ],
+            "roles": [
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PADDR",
+                "port_width": 12,
+                "raw_hi": 11,
+                "raw_lo": 0,
+                "role": "paddr",
+                "width": 12
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PENABLE",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "penable",
+                "width": 1
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "PRDATA",
+                "port_width": 32,
+                "raw_hi": 31,
+                "raw_lo": 0,
+                "role": "prdata",
+                "width": 32
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "PREADY",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "pready",
+                "width": 1
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PSEL",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "psel",
+                "width": 1
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "PSLVERR",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "pslverr",
+                "width": 1
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PWDATA",
+                "port_width": 32,
+                "raw_hi": 31,
+                "raw_lo": 0,
+                "role": "pwdata",
+                "width": 32
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PWRITE",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "pwrite",
+                "width": 1
+              }
+            ]
+          }
+        ],
+        "implementation_sources": [
+          {
+            "path": "src/myfuzz/local_harness/runtime_renderer.py",
+            "sha256": "b445dbf167247bd6407f5dc131a5103ed3f176cb8f7d0d927786c0071b4815a7"
+          },
+          {
+            "path": "src/myfuzz/local_harness/template_contracts.py",
+            "sha256": "34a74ae2fbff14b69bca50ec4770afe897652c51e77fdcd832543e0cd58c5637"
+          }
+        ],
+        "parameter_overrides": {
+          "APB_ADDR_WIDTH": "12",
+          "NBIT_PADCFG": "4",
+          "PAD_NUM": "32"
+        },
+        "physical_input_policy": {},
+        "profile_sha256": "2268967fa909658fbc079fc41112a10bba88e7484909153cbc1a5a1b222a0b56",
+        "runtime_sv_sha256": "814cc000f1ea543d8f1805b59abb9574aad724763dbbbe991bbb980b9f5546d1"
+      },
+      "contract": {
+        "dut_semantics_verified": false,
+        "generation_stage": "source_admitted_runtime_top",
+        "protocol_capability_claim": false,
+        "schema_version": "local_generated_executor_contract.v1",
+        "scope": "generated_executor_only",
+        "template_id": "local.generated.apb_gpio",
+        "template_version": "1",
+        "variant_id": "apb_gpio"
+      },
+      "contract_sha256": "faa04d76622945e3211963a6054e2c6636bc39f982355eb595a801b49c3bfcd3",
+      "dut_semantics_verified": false,
+      "identity_sha256": "7b17422093042b12c1af715b20b4c2e0115ca851249d770827c31fad5d57736f",
+      "protocol_templates": [
+        {
+          "binding": {
+            "address_width": 12,
+            "data_width": 32,
+            "endpoint_id": "gpio.bus",
+            "function": "mmio_slave",
+            "protocol": [
+              "apb",
+              "3"
+            ],
+            "roles": [
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PADDR",
+                "port_width": 12,
+                "raw_hi": 11,
+                "raw_lo": 0,
+                "role": "paddr",
+                "width": 12
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PENABLE",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "penable",
+                "width": 1
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "PRDATA",
+                "port_width": 32,
+                "raw_hi": 31,
+                "raw_lo": 0,
+                "role": "prdata",
+                "width": 32
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "PREADY",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "pready",
+                "width": 1
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PSEL",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "psel",
+                "width": 1
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "PSLVERR",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "pslverr",
+                "width": 1
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PWDATA",
+                "port_width": 32,
+                "raw_hi": 31,
+                "raw_lo": 0,
+                "role": "pwdata",
+                "width": 32
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PWRITE",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "pwrite",
+                "width": 1
+              }
+            ],
+            "selection_mode": "automatic",
+            "typed_profile_facts": {
+              "address_width": 12,
+              "byte_enable": false,
+              "data_width": 32,
+              "has_error": true,
+              "max_wait_cycles": 16,
+              "partial_write": false,
+              "read": true,
+              "write": true
+            }
+          },
+          "contract": {
+            "dut_semantics_verified": false,
+            "host_to_device_roles": [
+              "paddr",
+              "penable",
+              "psel",
+              "pwdata",
+              "pwrite"
+            ],
+            "limits": {
+              "address_width_max": 64,
+              "address_width_min": 1,
+              "byte_enable": false,
+              "clock_crossing": false,
+              "completion": "setup_access_response",
+              "error_policy": "observe_pslverr_on_completion",
+              "has_error": true,
+              "max_field_width": 4096,
+              "max_outstanding": 1,
+              "max_wait_cycles_limit": 1024,
+              "outstanding_scope": "endpoint",
+              "partial_write": false,
+              "pipelining": false,
+              "supported_data_widths": [
+                32
+              ]
+            },
+            "optional_profile_facts": {},
+            "optional_role_groups": [],
+            "optional_roles": [],
+            "protocol": [
+              "apb",
+              "3"
+            ],
+            "required_profile_facts": {
+              "byte_enable": false,
+              "partial_write": false
+            },
+            "required_roles": [
+              "paddr",
+              "penable",
+              "prdata",
+              "pready",
+              "psel",
+              "pslverr",
+              "pwdata",
+              "pwrite"
+            ],
+            "role_shapes": {
+              "paddr": {
+                "width": "address_width"
+              },
+              "penable": {
+                "width": 1
+              },
+              "prdata": {
+                "width": "data_width"
+              },
+              "pready": {
+                "width": 1
+              },
+              "psel": {
+                "width": 1
+              },
+              "pslverr": {
+                "width": 1
+              },
+              "pwdata": {
+                "width": "data_width"
+              },
+              "pwrite": {
+                "width": 1
+              }
+            },
+            "runtime_effective": false,
+            "schema_version": "local_protocol_template_contract.v1",
+            "semantic_selection": "shape",
+            "side": "target",
+            "template_id": "target.apb3",
+            "template_version": "1",
+            "variant_id": "full-word"
+          },
+          "contract_sha256": "31a5a8add131e35375fdc972241ae9bb6f18030798b39edf9c4120952ea3d59a",
+          "dut_semantics_verified": false,
+          "runtime_effective": false,
+          "schema_version": "local_protocol_template_selection.v1"
+        }
+      ],
+      "runtime_effective": false,
+      "schema_version": "local_generated_executor_selection.v1"
+    },
+    "runtime_effective": false,
+    "schema_version": "local_generated_template_selection.v1"
+  },
+  "source_verification": {
+    "elaboration": {
+      "closure_files": 1,
+      "closure_roots": [
+        "third_party/soc-pulp-apb-gpio"
+      ],
+      "elaboration_status": "elaboration_verified",
+      "lint": {
+        "errors": 0,
+        "exit_code": 0,
+        "log": "runs/soc-source-elaboration/pulp/pulp_gpio.elaborate.log",
+        "warnings": 2
+      },
+      "tool": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+      "top_module": "apb_gpio"
+    },
+    "elaboration_status": "elaboration_verified",
+    "id": "pulp_gpio",
+    "lock_sha256": "4caf0ae616e99e3c7cac76a1b04daca41af9bcef0eee3b6b0923fb6bd7e2a29e",
+    "parse_status": "parameterized_ports_pending_elaboration",
+    "runtime_status": "runtime_unverified",
+    "schema_version": "local_source_lock_verification.v1",
+    "selected_content_hash": "sha256:7622917c85229ee645c720309c308a6506c2c547081f8c899d4e9338b4f5c7a9",
+    "selected_files": 1,
+    "source_status": "source_verified"
+  },
+  "status": "driver_generated",
+  "structural_abi": {
+    "dispositions": [
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "input",
+        "disposition": "functional",
+        "evidence": "component_profile.clocks[HCLK]",
+        "instance_id": "gpio",
+        "port": "HCLK",
+        "port_width": 1,
+        "reason": "clock port distributed from the SoC clock input",
+        "reset_domain": "local_reset",
+        "role": "clock",
+        "target": "clock_reset"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "input",
+        "disposition": "functional",
+        "evidence": "component_profile.resets[HRESETn]",
+        "instance_id": "gpio",
+        "port": "HRESETn",
+        "port_width": 1,
+        "reason": "reset port distributed from the SoC reset input",
+        "reset_domain": "local_reset",
+        "role": "reset",
+        "target": "clock_reset"
+      },
+      {
+        "bits": {
+          "hi": 11,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "gpio.bus",
+        "evidence": "elaborated_ports[PADDR]",
+        "instance_id": "gpio",
+        "port": "PADDR",
+        "port_width": 12,
+        "reason": "bound to interface gpio.bus role paddr",
+        "reset_domain": "local_reset",
+        "role": "paddr",
+        "target": "fabric_target"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "gpio.bus",
+        "evidence": "elaborated_ports[PENABLE]",
+        "instance_id": "gpio",
+        "port": "PENABLE",
+        "port_width": 1,
+        "reason": "bound to interface gpio.bus role penable",
+        "reset_domain": "local_reset",
+        "role": "penable",
+        "target": "fabric_target"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "gpio.bus",
+        "evidence": "elaborated_ports[PRDATA]",
+        "instance_id": "gpio",
+        "port": "PRDATA",
+        "port_width": 32,
+        "reason": "bound to interface gpio.bus role prdata",
+        "reset_domain": "local_reset",
+        "role": "prdata",
+        "target": "fabric_target"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "gpio.bus",
+        "evidence": "elaborated_ports[PREADY]",
+        "instance_id": "gpio",
+        "port": "PREADY",
+        "port_width": 1,
+        "reason": "bound to interface gpio.bus role pready",
+        "reset_domain": "local_reset",
+        "role": "pready",
+        "target": "fabric_target"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "gpio.bus",
+        "evidence": "elaborated_ports[PSEL]",
+        "instance_id": "gpio",
+        "port": "PSEL",
+        "port_width": 1,
+        "reason": "bound to interface gpio.bus role psel",
+        "reset_domain": "local_reset",
+        "role": "psel",
+        "target": "fabric_target"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "gpio.bus",
+        "evidence": "elaborated_ports[PSLVERR]",
+        "instance_id": "gpio",
+        "port": "PSLVERR",
+        "port_width": 1,
+        "reason": "bound to interface gpio.bus role pslverr",
+        "reset_domain": "local_reset",
+        "role": "pslverr",
+        "target": "fabric_target"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "gpio.bus",
+        "evidence": "elaborated_ports[PWDATA]",
+        "instance_id": "gpio",
+        "port": "PWDATA",
+        "port_width": 32,
+        "reason": "bound to interface gpio.bus role pwdata",
+        "reset_domain": "local_reset",
+        "role": "pwdata",
+        "target": "fabric_target"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "gpio.bus",
+        "evidence": "elaborated_ports[PWRITE]",
+        "instance_id": "gpio",
+        "port": "PWRITE",
+        "port_width": 1,
+        "reason": "bound to interface gpio.bus role pwrite",
+        "reset_domain": "local_reset",
+        "role": "pwrite",
+        "target": "fabric_target"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[dft_cg_enable_i]",
+        "instance_id": "gpio",
+        "port": "dft_cg_enable_i",
+        "port_width": 1,
+        "reason": "DFT disabled in this functional scenario. At the pinned revision this input is declared but unused; sampling enables are computed from r_gpio_en, not this input.",
+        "reset_domain": "local_reset",
+        "target": "const",
+        "value": 0
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "gpio.pins",
+        "evidence": "component_profile.endpoints[gpio.pins]",
+        "instance_id": "gpio",
+        "port": "gpio_dir",
+        "port_width": 32,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "dir",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "input",
+        "disposition": "external",
+        "endpoint_id": "gpio.pins",
+        "evidence": "component_profile.endpoints[gpio.pins]",
+        "instance_id": "gpio",
+        "port": "gpio_in",
+        "port_width": 32,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "in",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "gpio.pins",
+        "evidence": "component_profile.endpoints[gpio.pins]",
+        "instance_id": "gpio",
+        "port": "gpio_in_sync",
+        "port_width": 32,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "in_sync",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "gpio.pins",
+        "evidence": "component_profile.endpoints[gpio.pins]",
+        "instance_id": "gpio",
+        "port": "gpio_out",
+        "port_width": 32,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "out",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 127,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "gpio.pins",
+        "evidence": "component_profile.endpoints[gpio.pins]",
+        "instance_id": "gpio",
+        "port": "gpio_padcfg",
+        "port_width": 128,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "padcfg",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_gpio",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[interrupt]",
+        "instance_id": "gpio",
+        "port": "interrupt",
+        "port_width": 1,
+        "reason": "Active-high s_rise_int pulse from synchronized GPIO transitions. This is not the held r_status bitmap; observe without pulse-to-level conversion.",
+        "reset_domain": "local_reset",
+        "target": "soc_top"
+      }
+    ],
+    "module_name": "local_gpio",
+    "parameter_evidence": [
+      {
+        "declaration": "parameter APB_ADDR_WIDTH = 12",
+        "name": "APB_ADDR_WIDTH",
+        "qualified_type": null,
+        "source_file": "rtl/apb_gpio.sv",
+        "source_sha256": "1e271914da4d25c87acd12121dde60a6ed955033870fd7a6730b2c9bafcbcaef"
+      },
+      {
+        "declaration": "parameter NBIT_PADCFG = 4",
+        "name": "NBIT_PADCFG",
+        "qualified_type": null,
+        "source_file": "rtl/apb_gpio.sv",
+        "source_sha256": "1e271914da4d25c87acd12121dde60a6ed955033870fd7a6730b2c9bafcbcaef"
+      },
+      {
+        "declaration": "parameter PAD_NUM = 32",
+        "name": "PAD_NUM",
+        "qualified_type": null,
+        "source_file": "rtl/apb_gpio.sv",
+        "source_sha256": "1e271914da4d25c87acd12121dde60a6ed955033870fd7a6730b2c9bafcbcaef"
+      }
+    ],
+    "plan_sha256": "f452bf83f57c520052d05d1a6990d39c3fd11c92537cd8f532ff1930425c5a3f",
+    "ports": [
+      {
+        "bit_hi": 11,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "gpio.bus",
+        "physical_port": "PADDR",
+        "role": "paddr",
+        "width": 12,
+        "wrapper_name": "lh_p_2_11_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "gpio.bus",
+        "physical_port": "PENABLE",
+        "role": "penable",
+        "width": 1,
+        "wrapper_name": "lh_p_3_0_0"
+      },
+      {
+        "bit_hi": 31,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "gpio.bus",
+        "physical_port": "PRDATA",
+        "role": "prdata",
+        "width": 32,
+        "wrapper_name": "lh_p_4_31_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "gpio.bus",
+        "physical_port": "PREADY",
+        "role": "pready",
+        "width": 1,
+        "wrapper_name": "lh_p_5_0_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "gpio.bus",
+        "physical_port": "PSEL",
+        "role": "psel",
+        "width": 1,
+        "wrapper_name": "lh_p_6_0_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "gpio.bus",
+        "physical_port": "PSLVERR",
+        "role": "pslverr",
+        "width": 1,
+        "wrapper_name": "lh_p_7_0_0"
+      },
+      {
+        "bit_hi": 31,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "gpio.bus",
+        "physical_port": "PWDATA",
+        "role": "pwdata",
+        "width": 32,
+        "wrapper_name": "lh_p_8_31_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "gpio.bus",
+        "physical_port": "PWRITE",
+        "role": "pwrite",
+        "width": 1,
+        "wrapper_name": "lh_p_9_0_0"
+      },
+      {
+        "bit_hi": 31,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "gpio.pins",
+        "physical_port": "gpio_dir",
+        "role": "dir",
+        "width": 32,
+        "wrapper_name": "lh_p_11_31_0"
+      },
+      {
+        "bit_hi": 31,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "external",
+        "endpoint_id": "gpio.pins",
+        "physical_port": "gpio_in",
+        "role": "in",
+        "width": 32,
+        "wrapper_name": "lh_p_12_31_0"
+      },
+      {
+        "bit_hi": 31,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "gpio.pins",
+        "physical_port": "gpio_in_sync",
+        "role": "in_sync",
+        "width": 32,
+        "wrapper_name": "lh_p_13_31_0"
+      },
+      {
+        "bit_hi": 31,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "gpio.pins",
+        "physical_port": "gpio_out",
+        "role": "out",
+        "width": 32,
+        "wrapper_name": "lh_p_14_31_0"
+      },
+      {
+        "bit_hi": 127,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "gpio.pins",
+        "physical_port": "gpio_padcfg",
+        "role": "padcfg",
+        "width": 128,
+        "wrapper_name": "lh_p_15_127_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "observe",
+        "endpoint_id": null,
+        "physical_port": "interrupt",
+        "role": null,
+        "width": 1,
+        "wrapper_name": "lh_p_16_0_0"
+      }
+    ],
+    "reset_assertion": "active_high",
+    "schema_version": "local_harness_abi.v1"
+  },
+  "structural_build": {
+    "defines": [],
+    "include_roots": [],
+    "lint_argv": [
+      "verilator",
+      "--lint-only",
+      "-Wno-fatal",
+      "--top-module",
+      "local_gpio",
+      "third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv"
+    ],
+    "parameter_evidence": [
+      {
+        "declaration": "parameter APB_ADDR_WIDTH = 12",
+        "name": "APB_ADDR_WIDTH",
+        "qualified_type": null,
+        "source_file": "rtl/apb_gpio.sv",
+        "source_sha256": "1e271914da4d25c87acd12121dde60a6ed955033870fd7a6730b2c9bafcbcaef"
+      },
+      {
+        "declaration": "parameter NBIT_PADCFG = 4",
+        "name": "NBIT_PADCFG",
+        "qualified_type": null,
+        "source_file": "rtl/apb_gpio.sv",
+        "source_sha256": "1e271914da4d25c87acd12121dde60a6ed955033870fd7a6730b2c9bafcbcaef"
+      },
+      {
+        "declaration": "parameter PAD_NUM = 32",
+        "name": "PAD_NUM",
+        "qualified_type": null,
+        "source_file": "rtl/apb_gpio.sv",
+        "source_sha256": "1e271914da4d25c87acd12121dde60a6ed955033870fd7a6730b2c9bafcbcaef"
+      }
+    ],
+    "parameter_overrides": {
+      "APB_ADDR_WIDTH": "12",
+      "NBIT_PADCFG": "4",
+      "PAD_NUM": "32"
+    },
+    "profile_sha256": "2268967fa909658fbc079fc41112a10bba88e7484909153cbc1a5a1b222a0b56",
+    "schema_version": "local_harness_build.v1",
+    "source_content_hash": "git:f82caeb7f7d89427f05e9af5ed31e0675efe0d83",
+    "source_files": [
+      "third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv"
+    ],
+    "source_revision": "git:f82caeb7f7d89427f05e9af5ed31e0675efe0d83",
+    "status": "structural_only",
+    "wrapper_sha256": "10f022f20efeb7a61cc627820db48d887190faa5c72ebb74606b7b3a5f493aa3"
+  },
+  "wire_schema_version": "local_driver.v1"
+}

@@ -1,0 +1,2206 @@
+{
+  "assertion_results": [],
+  "build_cost": {
+    "absences": [
+      {
+        "quantity": "build.cpu",
+        "reason": "harness_set.v1 records binary=null for cpu, so the harness was generated without a build cache; generation success is not a build measurement"
+      },
+      {
+        "quantity": "build.gpio",
+        "reason": "harness_set.v1 records binary=null for gpio, so the harness was generated without a build cache; generation success is not a build measurement"
+      }
+    ],
+    "components": [
+      {
+        "artifact_digest": "370388904ee6b149ab961060e99c82a413eec31e6e4196b9c53e602f40797282",
+        "binary": null,
+        "built": false,
+        "instance_id": "cpu",
+        "kind": "ahb_lite_cpu",
+        "role": "cpu",
+        "template_id": "cpu.ahb-lite"
+      },
+      {
+        "artifact_digest": "1331b597185e3b0915d0c946fe5ef2607482d003a299683cd276bd79d2576c41",
+        "binary": null,
+        "built": false,
+        "instance_id": "gpio",
+        "kind": "apb_gpio",
+        "role": "device",
+        "template_id": "target.apb3"
+      }
+    ],
+    "group": [
+      {
+        "group": "one_time_compile_init",
+        "leaf": "compilation_seconds",
+        "reason": "no saved online session was supplied, so no build or initialization cost was measured; this is an absence, not a measured 0",
+        "source": "report.json (no RTL compile/elaboration timing key exists in the scenario online run report)",
+        "value": null
+      },
+      {
+        "group": "one_time_compile_init",
+        "leaf": "finalization_timing_seconds",
+        "reason": "no saved online session was supplied, so no build or initialization cost was measured; this is an absence, not a measured 0",
+        "source": "report.json:finalization_timing_seconds",
+        "value": null
+      },
+      {
+        "group": "one_time_compile_init",
+        "leaf": "finalization_total_before_report_seconds",
+        "reason": "no saved online session was supplied, so no build or initialization cost was measured; this is an absence, not a measured 0",
+        "source": "report.json:finalization_timing_seconds.total_before_report",
+        "value": null
+      },
+      {
+        "group": "one_time_compile_init",
+        "leaf": "effective_search_seconds",
+        "reason": "no saved online session was supplied, so no build or initialization cost was measured; this is an absence, not a measured 0",
+        "source": "report.json:effective_search_seconds",
+        "value": null
+      },
+      {
+        "group": "one_time_compile_init",
+        "leaf": "elapsed_seconds",
+        "reason": "no saved online session was supplied, so no build or initialization cost was measured; this is an absence, not a measured 0",
+        "source": "report.json:elapsed_seconds",
+        "value": null
+      },
+      {
+        "group": "one_time_compile_init",
+        "leaf": "elapsed_minus_effective_search_seconds",
+        "reason": "no saved online session was supplied, so no build or initialization cost was measured; this is an absence, not a measured 0",
+        "source": "report.json:elapsed_seconds - report.json:effective_search_seconds (derived)",
+        "value": null
+      },
+      {
+        "group": "one_time_compile_init",
+        "leaf": "cold_start_baseline_case_count",
+        "reason": "no saved online session was supplied, so no build or initialization cost was measured; this is an absence, not a measured 0",
+        "source": "cold_start.json:case_count",
+        "value": null
+      },
+      {
+        "group": "one_time_compile_init",
+        "leaf": "cold_start_init_seconds_p50",
+        "reason": "no saved online session was supplied, so no build or initialization cost was measured; this is an absence, not a measured 0",
+        "source": "cold_start.json:cases[].init_seconds",
+        "value": null
+      },
+      {
+        "group": "one_time_compile_init",
+        "leaf": "cold_start_init_seconds_p95",
+        "reason": "no saved online session was supplied, so no build or initialization cost was measured; this is an absence, not a measured 0",
+        "source": "cold_start.json:cases[].init_seconds",
+        "value": null
+      },
+      {
+        "group": "one_time_compile_init",
+        "leaf": "cold_start_init_seconds_total",
+        "reason": "no saved online session was supplied, so no build or initialization cost was measured; this is an absence, not a measured 0",
+        "source": "cold_start.json:cases[].init_seconds (sum)",
+        "value": null
+      },
+      {
+        "group": "one_time_compile_init",
+        "leaf": "cold_start_document_init_seconds_total",
+        "reason": "no saved online session was supplied, so no build or initialization cost was measured; this is an absence, not a measured 0",
+        "source": "cold_start.json:init_seconds_total",
+        "value": null
+      },
+      {
+        "group": "one_time_compile_init",
+        "leaf": "cold_start_cases_with_init_seconds",
+        "reason": "no saved online session was supplied, so no build or initialization cost was measured; this is an absence, not a measured 0",
+        "source": "cold_start.json:cases[].init_seconds",
+        "value": null
+      },
+      {
+        "group": "one_time_compile_init",
+        "leaf": "cold_start_share_of_elapsed",
+        "reason": "no saved online session was supplied, so no build or initialization cost was measured; this is an absence, not a measured 0",
+        "source": "cold_start.json:cases[].init_seconds / report.json:elapsed_seconds (derived)",
+        "value": null
+      },
+      {
+        "group": "one_time_compile_init",
+        "leaf": "cold_start_share_of_wall_clock_seconds",
+        "reason": "no saved online session was supplied, so no build or initialization cost was measured; this is an absence, not a measured 0",
+        "source": "cold_start.json:cases[].init_seconds / report.json:wall_clock_seconds (derived)",
+        "value": null
+      },
+      {
+        "group": "one_time_compile_init",
+        "leaf": "per_case_initialization_seconds",
+        "reason": "no saved online session was supplied, so no build or initialization cost was measured; this is an absence, not a measured 0",
+        "source": "cold_start.json:cases[].init_seconds",
+        "value": null
+      }
+    ],
+    "not_a_substitute_for": "generation success is not fuzzable-performance evidence; the build_cost and throughput sections state what was measured and what is a named absence (P7 implementation plan §7)",
+    "p5_arm_metrics": {
+      "group": "one_time_compile_init",
+      "module": "myfuzz.scenario.p5_arm_metrics",
+      "schema_version": "p5_arm_metrics.v1"
+    },
+    "status": "declared"
+  },
+  "checker_findings": {
+    "reason": "no checker findings were supplied, so no finding is reported and no bug is confirmed",
+    "supplied": false
+  },
+  "components": [
+    {
+      "awarded": [
+        "Catalog",
+        "Generated",
+        "RTL operational",
+        "Cross-component accepted"
+      ],
+      "component_id": "cvw",
+      "declared_by_compiled_paths": true,
+      "harness": {
+        "artifact_digest": "370388904ee6b149ab961060e99c82a413eec31e6e4196b9c53e602f40797282",
+        "binary": null,
+        "instance_id": "cpu",
+        "kind": "ahb_lite_cpu",
+        "pointer": "components[0]",
+        "role": "cpu",
+        "template": {
+          "declared_role": "cpu-data",
+          "endpoint_id": "cpu.external_bus",
+          "identity_sha256": "694abb16b5afc89e3f4a679fa1ea37d2ea1ee9229988bf65a5c6fc69f46cec4b",
+          "instance_id": "cpu",
+          "protocol": [
+            "ahb-lite",
+            "1"
+          ],
+          "template_id": "cpu.ahb-lite",
+          "template_version": "1",
+          "variant_id": "cvw-external-bus"
+        }
+      },
+      "highest_claimed": "Cross-component accepted",
+      "instance_id": "cpu",
+      "kind": "cpu",
+      "not_claimed": [
+        "Coverage-guided searched",
+        "Bug confirmed"
+      ],
+      "profile_fingerprint": "sha256:a433586a6f6ce30846a9a08f8b77b07d606e11d1fa08dc11951a6c0dee24ef70",
+      "role": "cpu",
+      "sidecar_fingerprint": null,
+      "skipped": null,
+      "status": "graded",
+      "subject": "component",
+      "tiers": [
+        {
+          "claimed": true,
+          "disposition": "awarded",
+          "evidence": [
+            {
+              "artifact": "compiled_paths.v1.json",
+              "fact": "identity.cpu.instance_id=cpu; component_id=cvw; profile_fingerprint=sha256:a433586a6f6ce30846a9a08f8b77b07d606e11d1fa08dc11951a6c0dee24ef70",
+              "supports": "Catalog"
+            },
+            {
+              "artifact": "harness_set.json",
+              "fact": "components[0]/instance_id=cpu; kind=ahb_lite_cpu; artifact_digest=370388904ee6b149ab961060e99c82a413eec31e6e4196b9c53e602f40797282",
+              "supports": "Catalog"
+            }
+          ],
+          "tier": "Catalog"
+        },
+        {
+          "claimed": true,
+          "disposition": "awarded",
+          "evidence": [
+            {
+              "artifact": "harness_set.json",
+              "fact": "components[0]/artifact_digest=370388904ee6b149ab961060e99c82a413eec31e6e4196b9c53e602f40797282",
+              "supports": "Generated"
+            },
+            {
+              "artifact": "harness_set.json",
+              "fact": "components[0]/template.template_id=cpu.ahb-lite; variant_id=cvw-external-bus",
+              "supports": "Generated"
+            }
+          ],
+          "tier": "Generated"
+        },
+        {
+          "claimed": true,
+          "disposition": "awarded",
+          "evidence": [
+            {
+              "artifact": "receipts.jsonl",
+              "fact": "local_ticks.cpu (sum)=172 over 1 case(s); candidate_disposition_reason=rtl_case_committed in 1 case(s)",
+              "supports": "RTL operational"
+            },
+            {
+              "artifact": "receipts.jsonl",
+              "fact": "case_id=cvw-directed-f4:cvw-session-gate-20261018 flow_id=F4 local_ticks.cpu=172",
+              "supports": "RTL operational"
+            }
+          ],
+          "tier": "RTL operational"
+        },
+        {
+          "claimed": true,
+          "disposition": "awarded",
+          "evidence": [
+            {
+              "artifact": "receipts.jsonl",
+              "fact": "interaction_new_features=[\"cpu:gpio:apb00_write\"] in instance_id=cpu case_id=cvw-directed-f4:cvw-session-gate-20261018; declares instances cpu, gpio, all declared by this composition",
+              "supports": "Cross-component accepted"
+            },
+            {
+              "artifact": "receipts.jsonl",
+              "fact": "interaction_new_features=[\"cpu:gpio:apb04_write\"] in instance_id=cpu case_id=cvw-directed-f4:cvw-session-gate-20261018; declares instances cpu, gpio, all declared by this composition",
+              "supports": "Cross-component accepted"
+            }
+          ],
+          "tier": "Cross-component accepted"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "the session's receipts record no case with a nonzero coverage_hex in which instance_id=cpu really ran local ticks, so this component is not shown to be searched by coverage",
+          "tier": "Coverage-guided searched"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "no checker finding was supplied that declares itself a natural RTL defect for this subject, so the defect is not confirmed here",
+          "tier": "Bug confirmed"
+        }
+      ]
+    },
+    {
+      "awarded": [
+        "Catalog",
+        "Generated",
+        "RTL operational",
+        "Cross-component accepted"
+      ],
+      "component_id": "pulp_gpio",
+      "declared_by_compiled_paths": true,
+      "harness": {
+        "artifact_digest": "1331b597185e3b0915d0c946fe5ef2607482d003a299683cd276bd79d2576c41",
+        "binary": null,
+        "instance_id": "gpio",
+        "kind": "apb_gpio",
+        "pointer": "components[1]",
+        "role": "device",
+        "template": {
+          "declared_role": "device-bus",
+          "endpoint_id": "gpio.bus",
+          "identity_sha256": "31a5a8add131e35375fdc972241ae9bb6f18030798b39edf9c4120952ea3d59a",
+          "instance_id": "gpio",
+          "protocol": [
+            "apb",
+            "3"
+          ],
+          "template_id": "target.apb3",
+          "template_version": "1",
+          "variant_id": "full-word"
+        }
+      },
+      "highest_claimed": "Cross-component accepted",
+      "instance_id": "gpio",
+      "kind": "peripheral",
+      "not_claimed": [
+        "Coverage-guided searched",
+        "Bug confirmed"
+      ],
+      "profile_fingerprint": "sha256:fddde37680351d9813373cbf38c22d50dcfc63abc7d3b421515fef27d8d08484",
+      "role": "device",
+      "sidecar_fingerprint": "sha256:6c6268c430605acbfc3c132993a267414e14aecf6f03630134cb5cfb061e79fb",
+      "skipped": null,
+      "status": "graded",
+      "subject": "component",
+      "tiers": [
+        {
+          "claimed": true,
+          "disposition": "awarded",
+          "evidence": [
+            {
+              "artifact": "compiled_paths.v1.json",
+              "fact": "identity.devices[0].instance_id=gpio; component_id=pulp_gpio; profile_fingerprint=sha256:fddde37680351d9813373cbf38c22d50dcfc63abc7d3b421515fef27d8d08484",
+              "supports": "Catalog"
+            },
+            {
+              "artifact": "harness_set.json",
+              "fact": "components[1]/instance_id=gpio; kind=apb_gpio; artifact_digest=1331b597185e3b0915d0c946fe5ef2607482d003a299683cd276bd79d2576c41",
+              "supports": "Catalog"
+            }
+          ],
+          "tier": "Catalog"
+        },
+        {
+          "claimed": true,
+          "disposition": "awarded",
+          "evidence": [
+            {
+              "artifact": "harness_set.json",
+              "fact": "components[1]/artifact_digest=1331b597185e3b0915d0c946fe5ef2607482d003a299683cd276bd79d2576c41",
+              "supports": "Generated"
+            },
+            {
+              "artifact": "harness_set.json",
+              "fact": "components[1]/template.template_id=target.apb3; variant_id=full-word",
+              "supports": "Generated"
+            }
+          ],
+          "tier": "Generated"
+        },
+        {
+          "claimed": true,
+          "disposition": "awarded",
+          "evidence": [
+            {
+              "artifact": "receipts.jsonl",
+              "fact": "local_ticks.gpio (sum)=201 over 1 case(s); candidate_disposition_reason=rtl_case_committed in 1 case(s)",
+              "supports": "RTL operational"
+            },
+            {
+              "artifact": "receipts.jsonl",
+              "fact": "case_id=cvw-directed-f4:cvw-session-gate-20261018 flow_id=F4 local_ticks.gpio=201",
+              "supports": "RTL operational"
+            }
+          ],
+          "tier": "RTL operational"
+        },
+        {
+          "claimed": true,
+          "disposition": "awarded",
+          "evidence": [
+            {
+              "artifact": "receipts.jsonl",
+              "fact": "interaction_new_features=[\"cpu:gpio:apb00_write\"] in instance_id=gpio case_id=cvw-directed-f4:cvw-session-gate-20261018; declares instances cpu, gpio, all declared by this composition",
+              "supports": "Cross-component accepted"
+            },
+            {
+              "artifact": "receipts.jsonl",
+              "fact": "interaction_new_features=[\"cpu:gpio:apb04_write\"] in instance_id=gpio case_id=cvw-directed-f4:cvw-session-gate-20261018; declares instances cpu, gpio, all declared by this composition",
+              "supports": "Cross-component accepted"
+            }
+          ],
+          "tier": "Cross-component accepted"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "the session's receipts record no case with a nonzero coverage_hex in which instance_id=gpio really ran local ticks, so this component is not shown to be searched by coverage",
+          "tier": "Coverage-guided searched"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "no checker finding was supplied that declares itself a natural RTL defect for this subject, so the defect is not confirmed here",
+          "tier": "Bug confirmed"
+        }
+      ]
+    }
+  ],
+  "counts": {
+    "compiled_paths": {
+      "executable": 4,
+      "total": 6,
+      "unsupported": 2
+    },
+    "components": 2,
+    "executable": 4,
+    "graded": 2,
+    "paths": 6,
+    "skipped_unavailable": 0,
+    "tier_awards": {
+      "Bug confirmed": 0,
+      "Catalog": 8,
+      "Coverage-guided searched": 0,
+      "Cross-component accepted": 3,
+      "Generated": 6,
+      "RTL operational": 3
+    },
+    "unsupported": 2
+  },
+  "fresh_replay": {
+    "artifact": "fresh-verification.json",
+    "first_difference": null,
+    "full_prefix_confirmed": true,
+    "matches": true,
+    "path": "/home/qinkejiu/myfuzz/docs/reports/evidence/cvw-session-20261018/run/fresh-verification.json",
+    "sha256": "sha256:7ca670434f941e26de04058f28948b9ea1aeaf4a7c3b8140c4f2a034e5a2deaf",
+    "source": "file",
+    "supplied": true,
+    "verification_scope": "full"
+  },
+  "generated": false,
+  "identity": {
+    "components": [
+      {
+        "component_id": "cvw",
+        "declared_by_compiled_paths": true,
+        "instance_id": "cpu",
+        "kind": "cpu",
+        "role": "cpu"
+      },
+      {
+        "component_id": "pulp_gpio",
+        "declared_by_compiled_paths": true,
+        "instance_id": "gpio",
+        "kind": "peripheral",
+        "role": "device"
+      }
+    ],
+    "cpu": {
+      "component_id": "cvw",
+      "instance_id": "cpu",
+      "kind": "cpu",
+      "pointer": "cpu",
+      "profile_fingerprint": "sha256:a433586a6f6ce30846a9a08f8b77b07d606e11d1fa08dc11951a6c0dee24ef70",
+      "role": "cpu",
+      "sidecar_fingerprint": null,
+      "sidecar_schema_version": null
+    },
+    "devices": [
+      {
+        "component_id": "pulp_gpio",
+        "instance_id": "gpio",
+        "kind": "peripheral",
+        "pointer": "devices[0]",
+        "profile_fingerprint": "sha256:fddde37680351d9813373cbf38c22d50dcfc63abc7d3b421515fef27d8d08484",
+        "role": "device",
+        "sidecar_fingerprint": "sha256:6c6268c430605acbfc3c132993a267414e14aecf6f03630134cb5cfb061e79fb",
+        "sidecar_schema_version": "ip_test_capability.v3"
+      }
+    ],
+    "session_run_id": null
+  },
+  "inputs": {
+    "checker_findings": {
+      "reason": "no checker findings were supplied, so no finding is reported and no bug is confirmed",
+      "supplied": false
+    },
+    "compiled_paths": {
+      "artifact": "compiled_paths.v1.json",
+      "counts": {
+        "executable": 4,
+        "total": 6,
+        "unsupported": 2
+      },
+      "path": "/home/qinkejiu/myfuzz/docs/reports/evidence/cvw-session-20261018/run/compiled_paths.v1.json",
+      "sha256": "sha256:f287050ef4f8b2a6234e924785736f7c9a08bdb8648a37772af239e3f54bd3a4",
+      "source": "file"
+    },
+    "fresh_verification": {
+      "artifact": "fresh-verification.json",
+      "first_difference": null,
+      "full_prefix_confirmed": true,
+      "matches": true,
+      "path": "/home/qinkejiu/myfuzz/docs/reports/evidence/cvw-session-20261018/run/fresh-verification.json",
+      "sha256": "sha256:7ca670434f941e26de04058f28948b9ea1aeaf4a7c3b8140c4f2a034e5a2deaf",
+      "source": "file",
+      "supplied": true,
+      "verification_scope": "full"
+    },
+    "harness_set": {
+      "artifact": "harness_set.json",
+      "not_claimed": [
+        "cross_component_accepted",
+        "rtl_operational",
+        "coverage_guided_searched",
+        "bug_confirmed"
+      ],
+      "path": "/home/qinkejiu/myfuzz/docs/reports/evidence/cvw-session-20261018/run/generated/harness_set.json",
+      "sha256": "sha256:6f50890d2188a49fa9e5f34e514c775ac8e7d165953fa8c168264a40f7cf20ad",
+      "source": "file",
+      "supplied": true,
+      "tier": "generated"
+    },
+    "session": {
+      "analysis_performed": false,
+      "arm_kind": null,
+      "arm_kind_source": null,
+      "directory": "/home/qinkejiu/myfuzz/docs/reports/evidence/cvw-session-20261018/run/session",
+      "full_evidence": "capability_report.v1:session",
+      "metrics_available": false,
+      "metrics_reason": "the shipped p5 reader could not aggregate this directory: session cannot be analyzed: invalid coverage_hex on line 1 of receipts.jsonl",
+      "receipts_available": true,
+      "report_sha256": "sha256:888ae9cf06f9150290f02bea574bc0213865b2e865b3c4c600f07bc526ef314b",
+      "run_id": null,
+      "supplied": true
+    },
+    "unavailable": {
+      "reason": "no local unavailability was declared, so no component is reported as skipped_unavailable",
+      "supplied": false
+    }
+  },
+  "label": "cvw-session-gate-20261018",
+  "limits": [
+    {
+      "quantity": "p5_arm_metrics.v1",
+      "reason": "the shipped p5 reader could not aggregate this directory: session cannot be analyzed: invalid coverage_hex on line 1 of receipts.jsonl"
+    }
+  ],
+  "not_claimed": [
+    "this report generates, builds, runs and replays nothing; every grade is read from the supplied artifacts, so capability_report.v1 is an aggregation and not a run",
+    "a tier is claimed only when its own `evidence` entry names the artifact and the fact that establish it; a tier without such evidence is listed per subject as grade_not_claimed and is not claimed here",
+    "grade_not_claimed is not `unsupported`: `unsupported` is a P7-C compiled status with a named reason and is carried verbatim in `unsupported_reasons`",
+    "generation success is not fuzzable-performance evidence; the build_cost and throughput sections state what was measured and what is a named absence (P7 implementation plan §7)",
+    "coverage records and certified chains are not by themselves a confirmed defect, and an ordering-only observation is not a causal hit"
+  ],
+  "paths": [
+    {
+      "assertion_results": [],
+      "awarded": [
+        "Catalog",
+        "Generated"
+      ],
+      "compiled": {
+        "artifact": "compiled_paths.v1.json",
+        "assertions": [
+          {
+            "assertion_class": "cpu_ip_behaviour",
+            "asserts": "a retired instruction the observation contract cannot decode is recorded as status=rejected with its reason instead of being dropped from the artifact",
+            "declared_by": "myfuzz.scenario.cpu_retirement:cpu_retirement_match.v1.status",
+            "expectation_id": "cpu_ip.retirement_observation_supported"
+          },
+          {
+            "assertion_class": "cpu_ip_behaviour",
+            "asserts": "a retirement is usable as an instruction-source hop only when its instruction bytes are typed back to writer refs (instruction_origin_status=typed_writer_refs)",
+            "declared_by": "myfuzz.scenario.chain_certificates: instruction_origin_status == 'typed_writer_refs'",
+            "expectation_id": "cpu_ip.retirement_instruction_origin"
+          }
+        ],
+        "bound_inputs": [],
+        "constraints": {
+          "declared_in": "compiled_paths.v1.json:paths[0]/constraints",
+          "layout_hash": "b23c60a0e4505135132df7f8ac8b7da402026c28bb41284a560ea5fe04de8e9a",
+          "policy_hash": "sha256:e8221450e36e181cc40bdf00ec23f373ce95ae9ddf4fd5e1079974ef382e347c",
+          "rule_ids": []
+        },
+        "direction": "CPU_TO_IP",
+        "flow_id": "F1",
+        "not_claimed": [
+          "rtl_operational",
+          "cross_component_accepted",
+          "coverage_guided_searched",
+          "bug_confirmed"
+        ],
+        "path_id": "F1:ram.image",
+        "pointer": "paths[0]",
+        "prerequisites": [
+          {
+            "basis": "F1 mutates the program image itself, so the slot has to be still unmaterialized when the case is admitted (myfuzz.scenario.source_actions:PREREQUISITE_KINDS)",
+            "kind": "instruction_slot_unmaterialized",
+            "subject": {
+              "component": "cpu"
+            }
+          }
+        ],
+        "reason": {
+          "code": null,
+          "detail": null,
+          "missing": [],
+          "pointer": null
+        },
+        "runtime_path_identity": {
+          "direction": "CPU_TO_IP",
+          "edges": [
+            {
+              "kind": "PERSISTENT_STATE_RULE",
+              "prerequisite": "F1.program_image",
+              "prerequisite_index": 0,
+              "rule_index": 0,
+              "target": "F1.instruction_retire"
+            }
+          ],
+          "path_id": "f925f7647e6458c6401992f6f2914f1e465d7d391e9652dfad21ab815c0338bd",
+          "source_ids": [
+            "F1.program_image"
+          ]
+        },
+        "sources": [
+          {
+            "alignment": 2,
+            "bit_offset": 0,
+            "component": "cpu",
+            "constraint_basis": "declared read+execute region containing the declared reset vector",
+            "endpoint_id": "cpu.external_bus",
+            "field": null,
+            "kind": "instruction_image",
+            "mask": 4294967295,
+            "origin": "fuzzable",
+            "origin_ref": "wiring:wiring_contract.v1",
+            "port": "ram",
+            "range": [
+              3221225472,
+              3489595391
+            ],
+            "register": null,
+            "source_id": "ram.image",
+            "width": 2146959360
+          }
+        ],
+        "status": "executable",
+        "target": {
+          "component": "cpu",
+          "node": "F1.instruction_retire"
+        },
+        "termination_observation": {
+          "basis": "CPU 真实译码执行并更新 PC/寄存器 (plan line 77)",
+          "kind": "retirement"
+        }
+      },
+      "compiled_status": "executable",
+      "flow_id": "F1",
+      "flow_name": "instruction_stream",
+      "highest_claimed": "Generated",
+      "not_claimed": [
+        "RTL operational",
+        "Cross-component accepted",
+        "Coverage-guided searched",
+        "Bug confirmed"
+      ],
+      "path_id": "F1:ram.image",
+      "status": "graded",
+      "subject": "path",
+      "tiers": [
+        {
+          "claimed": true,
+          "disposition": "awarded",
+          "evidence": [
+            {
+              "artifact": "compiled_paths.v1.json",
+              "fact": "paths[0]/flow_id=F1; definition.authority=docs/superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md:77",
+              "supports": "Catalog"
+            }
+          ],
+          "tier": "Catalog"
+        },
+        {
+          "claimed": true,
+          "disposition": "awarded",
+          "evidence": [
+            {
+              "artifact": "compiled_paths.v1.json",
+              "fact": "paths[0]/status=executable; paths[0]/runtime_path_identity.path_id=f925f7647e6458c6401992f6f2914f1e465d7d391e9652dfad21ab815c0338bd",
+              "supports": "Generated"
+            },
+            {
+              "artifact": "harness_set.json",
+              "fact": "components[0]/instance_id=cpu; artifact_digest=370388904ee6b149ab961060e99c82a413eec31e6e4196b9c53e602f40797282",
+              "supports": "Generated"
+            }
+          ],
+          "tier": "Generated"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "the session's receipts record 0 case(s) for flow F1 but none with candidate_disposition_reason=rtl_case_committed, so no real RTL case is recorded for this path",
+          "tier": "RTL operational"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "the session records interaction features for flow F1 (none), but none is a consumed/delivered edge naming two instances this composition declares (declared: cpu, gpio); an ordering-only observation is not a causal hit (plan line 90)",
+          "tier": "Cross-component accepted"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "the session's receipts for flow F1 record no case with a nonzero coverage_hex, so this path is not shown to be searched by coverage",
+          "tier": "Coverage-guided searched"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "no checker finding was supplied that declares itself a natural RTL defect for this subject, so the defect is not confirmed here",
+          "tier": "Bug confirmed"
+        }
+      ],
+      "unsupported": null
+    },
+    {
+      "assertion_results": [],
+      "awarded": [
+        "Catalog",
+        "Generated"
+      ],
+      "compiled": {
+        "artifact": "compiled_paths.v1.json",
+        "assertions": [
+          {
+            "assertion_class": "protocol_checker",
+            "asserts": "a receipt carries a violation string exactly when the run's own checker returned it for that case's real RTL events; a non-empty violations list forces the case status to 'finding' and is never rewritten into a complete case",
+            "declared_by": "session_runtime online receipt contract: receipts.jsonl[].violations",
+            "expectation_id": "protocol_checker.receipt_violations"
+          },
+          {
+            "assertion_class": "cross_component_provenance_and_order",
+            "asserts": "a declared runtime edge is certified only by the exact identity joins of its producer/delivery/consumer hops; a partially observed edge stays incomplete with the missing hop named, and an edge with no observable shape stays unknown with its reason",
+            "declared_by": "myfuzz.scenario.edge_provenance:runtime_edge_provenance_report.v1",
+            "expectation_id": "cross_component.declared_edge_hops"
+          }
+        ],
+        "bound_inputs": [
+          {
+            "basis": "F2 uses the target IP RTL real read response; bound rdata is never randomly overwritten (plan line 78)",
+            "component": "gpio",
+            "endpoint_id": "gpio.bus",
+            "input_id": "gpio.gpio.bus.read_response",
+            "kind": "ip_read_response",
+            "origin": "bound"
+          }
+        ],
+        "constraints": {
+          "declared_in": "compiled_paths.v1.json:paths[1]/constraints",
+          "layout_hash": "b23c60a0e4505135132df7f8ac8b7da402026c28bb41284a560ea5fe04de8e9a",
+          "policy_hash": "sha256:e8221450e36e181cc40bdf00ec23f373ce95ae9ddf4fd5e1079974ef382e347c",
+          "rule_ids": [
+            "window:gpio"
+          ]
+        },
+        "direction": "CPU_TO_IP",
+        "flow_id": "F2",
+        "not_claimed": [
+          "rtl_operational",
+          "cross_component_accepted",
+          "coverage_guided_searched",
+          "bug_confirmed"
+        ],
+        "path_id": "F2:ram.image",
+        "pointer": "paths[1]",
+        "prerequisites": [
+          {
+            "basis": "F2 reads a committed version of the target, never a re-loaded initial value (plan line 78)",
+            "kind": "ram_byte_version",
+            "subject": {
+              "memory_id": "PADIN"
+            }
+          }
+        ],
+        "reason": {
+          "code": null,
+          "detail": null,
+          "missing": [],
+          "pointer": null
+        },
+        "runtime_path_identity": {
+          "direction": "CPU_TO_IP",
+          "edges": [
+            {
+              "kind": "PERSISTENT_STATE_RULE",
+              "prerequisite": "F2.program_image",
+              "prerequisite_index": 0,
+              "rule_index": 1,
+              "target": "F2.read_request"
+            },
+            {
+              "kind": "DATA_BINDING",
+              "prerequisite": "F2.read_request",
+              "prerequisite_index": 0,
+              "rule_index": 2,
+              "target": "F2.data_read_consumed"
+            }
+          ],
+          "path_id": "61c0aa7ce8d13b8cee92c52760c1acbdb4a46f086ad6c37e282c1b12a3cff466",
+          "source_ids": [
+            "F2.program_image"
+          ]
+        },
+        "sources": [
+          {
+            "alignment": 2,
+            "bit_offset": 0,
+            "component": "cpu",
+            "constraint_basis": "declared read+execute region containing the declared reset vector",
+            "endpoint_id": "cpu.external_bus",
+            "field": null,
+            "kind": "instruction_image",
+            "mask": 4294967295,
+            "origin": "fuzzable",
+            "origin_ref": "wiring:wiring_contract.v1",
+            "port": "ram",
+            "range": [
+              3221225472,
+              3489595391
+            ],
+            "register": null,
+            "source_id": "ram.image",
+            "width": 2146959360
+          },
+          {
+            "alignment": 4,
+            "bit_offset": 0,
+            "component": "cpu",
+            "constraint_basis": "the CPU-side load stream is the fuzzable source; the IP read response stays bound",
+            "endpoint_id": "cpu.external_bus",
+            "field": "value",
+            "kind": "cpu_load_stream",
+            "mask": 4294967295,
+            "origin": "fuzzable",
+            "origin_ref": "wiring:wiring_contract.v1",
+            "port": null,
+            "range": [
+              3489595400,
+              3489595400
+            ],
+            "register": "PADIN",
+            "register_access": {
+              "access_alignment": 4,
+              "address": 3489595400,
+              "allowed_byte_enables": [
+                15
+              ],
+              "byte_enable_domain": "target_word_lanes",
+              "device_id": "gpio",
+              "field": "value",
+              "operation": "read",
+              "register": "PADIN",
+              "register_offset": 8,
+              "register_origin": "bound_target_register_commit",
+              "schema_version": "register_source_access.v1",
+              "source_component": "cpu",
+              "source_endpoint": "cpu.external_bus",
+              "target_component": "gpio",
+              "target_endpoint": "gpio.bus",
+              "value_mask": 4294967295,
+              "value_origin": "bound_target_rdata",
+              "width_bytes": 4,
+              "window_alignment": 4096,
+              "window_base": 3489595392,
+              "window_size": 4096
+            },
+            "source_id": "gpio.PADIN.value.address",
+            "width": 32
+          }
+        ],
+        "status": "executable",
+        "target": {
+          "component": "cpu",
+          "node": "F2.data_read_consumed"
+        },
+        "termination_observation": {
+          "basis": "CPU 真实消费 rdata (plan line 78)",
+          "kind": "consumption"
+        }
+      },
+      "compiled_status": "executable",
+      "flow_id": "F2",
+      "flow_name": "data_read_stream",
+      "highest_claimed": "Generated",
+      "not_claimed": [
+        "RTL operational",
+        "Cross-component accepted",
+        "Coverage-guided searched",
+        "Bug confirmed"
+      ],
+      "path_id": "F2:ram.image",
+      "status": "graded",
+      "subject": "path",
+      "tiers": [
+        {
+          "claimed": true,
+          "disposition": "awarded",
+          "evidence": [
+            {
+              "artifact": "compiled_paths.v1.json",
+              "fact": "paths[1]/flow_id=F2; definition.authority=docs/superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md:78",
+              "supports": "Catalog"
+            }
+          ],
+          "tier": "Catalog"
+        },
+        {
+          "claimed": true,
+          "disposition": "awarded",
+          "evidence": [
+            {
+              "artifact": "compiled_paths.v1.json",
+              "fact": "paths[1]/status=executable; paths[1]/runtime_path_identity.path_id=61c0aa7ce8d13b8cee92c52760c1acbdb4a46f086ad6c37e282c1b12a3cff466",
+              "supports": "Generated"
+            },
+            {
+              "artifact": "harness_set.json",
+              "fact": "components[0]/instance_id=cpu; artifact_digest=370388904ee6b149ab961060e99c82a413eec31e6e4196b9c53e602f40797282",
+              "supports": "Generated"
+            },
+            {
+              "artifact": "harness_set.json",
+              "fact": "components[1]/instance_id=gpio; artifact_digest=1331b597185e3b0915d0c946fe5ef2607482d003a299683cd276bd79d2576c41",
+              "supports": "Generated"
+            }
+          ],
+          "tier": "Generated"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "the session's receipts record 0 case(s) for flow F2 but none with candidate_disposition_reason=rtl_case_committed, so no real RTL case is recorded for this path",
+          "tier": "RTL operational"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "the session records interaction features for flow F2 (none), but none is a consumed/delivered edge naming two instances this composition declares (declared: cpu, gpio); an ordering-only observation is not a causal hit (plan line 90)",
+          "tier": "Cross-component accepted"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "the session's receipts for flow F2 record no case with a nonzero coverage_hex, so this path is not shown to be searched by coverage",
+          "tier": "Coverage-guided searched"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "no checker finding was supplied that declares itself a natural RTL defect for this subject, so the defect is not confirmed here",
+          "tier": "Bug confirmed"
+        }
+      ],
+      "unsupported": null
+    },
+    {
+      "assertion_results": [],
+      "awarded": [
+        "Catalog",
+        "Generated"
+      ],
+      "compiled": {
+        "artifact": "compiled_paths.v1.json",
+        "assertions": [
+          {
+            "assertion_class": "cross_component_provenance_and_order",
+            "asserts": "an end-to-end chain is certified only when every declared hop of its direction is joined by exact identity; otherwise it settles incomplete with missing_hops naming the first gap and every required hop after it",
+            "declared_by": "myfuzz.scenario.chain_certificates:runtime_chain_certificate.v1",
+            "expectation_id": "cross_component.chain_certificate_hops"
+          },
+          {
+            "assertion_class": "cpu_ip_behaviour",
+            "asserts": "a consumption record names the exact observation and producer event ids and the transaction key it consumed",
+            "declared_by": "gpio_consumption_match / cpu_retired_transaction_target_delivery",
+            "expectation_id": "cpu_ip.consumption_record"
+          }
+        ],
+        "bound_inputs": [],
+        "constraints": {
+          "declared_in": "compiled_paths.v1.json:paths[2]/constraints",
+          "layout_hash": "b23c60a0e4505135132df7f8ac8b7da402026c28bb41284a560ea5fe04de8e9a",
+          "policy_hash": "sha256:e8221450e36e181cc40bdf00ec23f373ce95ae9ddf4fd5e1079974ef382e347c",
+          "rule_ids": []
+        },
+        "direction": "CPU_TO_IP",
+        "flow_id": "F3",
+        "not_claimed": [
+          "rtl_operational",
+          "cross_component_accepted",
+          "coverage_guided_searched",
+          "bug_confirmed"
+        ],
+        "path_id": "F3:ram.image",
+        "pointer": "paths[2]",
+        "prerequisites": [
+          {
+            "basis": "a committed byte version must exist before a later read observes it",
+            "kind": "ram_byte_version",
+            "subject": {
+              "memory_id": "ram"
+            }
+          }
+        ],
+        "reason": {
+          "code": null,
+          "detail": null,
+          "missing": [],
+          "pointer": null
+        },
+        "runtime_path_identity": {
+          "direction": "CPU_TO_IP",
+          "edges": [
+            {
+              "kind": "PERSISTENT_STATE_RULE",
+              "prerequisite": "F3.program_image",
+              "prerequisite_index": 0,
+              "rule_index": 3,
+              "target": "F3.cpu_store"
+            },
+            {
+              "kind": "PERSISTENT_STATE_RULE",
+              "prerequisite": "F3.cpu_store",
+              "prerequisite_index": 0,
+              "rule_index": 4,
+              "target": "F3.ram_byte_version"
+            }
+          ],
+          "path_id": "138cd333c90a2318e3c687870e271e44fc8a136d6fcf3dc4c15ea9f76d673f17",
+          "source_ids": [
+            "F3.program_image"
+          ]
+        },
+        "sources": [
+          {
+            "alignment": 2,
+            "bit_offset": 0,
+            "component": "cpu",
+            "constraint_basis": "declared read+execute region containing the declared reset vector",
+            "endpoint_id": "cpu.external_bus",
+            "field": null,
+            "kind": "instruction_image",
+            "mask": 4294967295,
+            "origin": "fuzzable",
+            "origin_ref": "wiring:wiring_contract.v1",
+            "port": "ram",
+            "range": [
+              3221225472,
+              3489595391
+            ],
+            "register": null,
+            "source_id": "ram.image",
+            "width": 2146959360
+          },
+          {
+            "alignment": 4,
+            "bit_offset": 0,
+            "component": "cpu",
+            "constraint_basis": "CPU Store really supplies address, wdata and byte-enable (plan line 79)",
+            "endpoint_id": "cpu.external_bus",
+            "field": null,
+            "kind": "cpu_store_stream",
+            "mask": 4294967295,
+            "origin": "fuzzable",
+            "origin_ref": "wiring:wiring_contract.v1",
+            "port": null,
+            "range": [
+              3221225472,
+              3489595391
+            ],
+            "register": null,
+            "source_id": "ram.store_stream",
+            "width": 32
+          }
+        ],
+        "status": "executable",
+        "target": {
+          "component": "cpu",
+          "node": "F3.ram_byte_version"
+        },
+        "termination_observation": {
+          "basis": "Memory Service 一次提交并逐字节更新 (plan line 79)",
+          "kind": "consumption"
+        }
+      },
+      "compiled_status": "executable",
+      "flow_id": "F3",
+      "flow_name": "data_write_stream",
+      "highest_claimed": "Generated",
+      "not_claimed": [
+        "RTL operational",
+        "Cross-component accepted",
+        "Coverage-guided searched",
+        "Bug confirmed"
+      ],
+      "path_id": "F3:ram.image",
+      "status": "graded",
+      "subject": "path",
+      "tiers": [
+        {
+          "claimed": true,
+          "disposition": "awarded",
+          "evidence": [
+            {
+              "artifact": "compiled_paths.v1.json",
+              "fact": "paths[2]/flow_id=F3; definition.authority=docs/superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md:79",
+              "supports": "Catalog"
+            }
+          ],
+          "tier": "Catalog"
+        },
+        {
+          "claimed": true,
+          "disposition": "awarded",
+          "evidence": [
+            {
+              "artifact": "compiled_paths.v1.json",
+              "fact": "paths[2]/status=executable; paths[2]/runtime_path_identity.path_id=138cd333c90a2318e3c687870e271e44fc8a136d6fcf3dc4c15ea9f76d673f17",
+              "supports": "Generated"
+            },
+            {
+              "artifact": "harness_set.json",
+              "fact": "components[0]/instance_id=cpu; artifact_digest=370388904ee6b149ab961060e99c82a413eec31e6e4196b9c53e602f40797282",
+              "supports": "Generated"
+            }
+          ],
+          "tier": "Generated"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "the session's receipts record 0 case(s) for flow F3 but none with candidate_disposition_reason=rtl_case_committed, so no real RTL case is recorded for this path",
+          "tier": "RTL operational"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "the session records interaction features for flow F3 (none), but none is a consumed/delivered edge naming two instances this composition declares (declared: cpu, gpio); an ordering-only observation is not a causal hit (plan line 90)",
+          "tier": "Cross-component accepted"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "the session's receipts for flow F3 record no case with a nonzero coverage_hex, so this path is not shown to be searched by coverage",
+          "tier": "Coverage-guided searched"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "no checker finding was supplied that declares itself a natural RTL defect for this subject, so the defect is not confirmed here",
+          "tier": "Bug confirmed"
+        }
+      ],
+      "unsupported": null
+    },
+    {
+      "assertion_results": [],
+      "awarded": [
+        "Catalog",
+        "Generated",
+        "RTL operational",
+        "Cross-component accepted"
+      ],
+      "compiled": {
+        "artifact": "compiled_paths.v1.json",
+        "assertions": [
+          {
+            "assertion_class": "protocol_checker",
+            "asserts": "a receipt carries a violation string exactly when the run's own checker returned it for that case's real RTL events; a non-empty violations list forces the case status to 'finding' and is never rewritten into a complete case",
+            "declared_by": "session_runtime online receipt contract: receipts.jsonl[].violations",
+            "expectation_id": "protocol_checker.receipt_violations"
+          },
+          {
+            "assertion_class": "cross_component_provenance_and_order",
+            "asserts": "a declared runtime edge is certified only by the exact identity joins of its producer/delivery/consumer hops; a partially observed edge stays incomplete with the missing hop named, and an edge with no observable shape stays unknown with its reason",
+            "declared_by": "myfuzz.scenario.edge_provenance:runtime_edge_provenance_report.v1",
+            "expectation_id": "cross_component.declared_edge_hops"
+          },
+          {
+            "assertion_class": "cross_component_provenance_and_order",
+            "asserts": "an end-to-end chain is certified only when every declared hop of its direction is joined by exact identity; otherwise it settles incomplete with missing_hops naming the first gap and every required hop after it",
+            "declared_by": "myfuzz.scenario.chain_certificates:runtime_chain_certificate.v1",
+            "expectation_id": "cross_component.chain_certificate_hops"
+          }
+        ],
+        "bound_inputs": [
+          {
+            "basis": "the register value is owned by the real IP RTL and the CPU MMIO transaction; the environment may not write it (docs/CURRENT_DESIGN.md:34)",
+            "component": "gpio",
+            "endpoint_id": "gpio.bus",
+            "input_id": "gpio.gpio.bus.register.GPIOEN.value",
+            "kind": "ip_register_commit",
+            "origin": "bound"
+          }
+        ],
+        "constraints": {
+          "declared_in": "compiled_paths.v1.json:paths[3]/constraints",
+          "layout_hash": "b23c60a0e4505135132df7f8ac8b7da402026c28bb41284a560ea5fe04de8e9a",
+          "policy_hash": "sha256:e8221450e36e181cc40bdf00ec23f373ce95ae9ddf4fd5e1079974ef382e347c",
+          "rule_ids": [
+            "window:gpio"
+          ]
+        },
+        "direction": "CPU_TO_IP",
+        "flow_id": "F4",
+        "not_claimed": [
+          "rtl_operational",
+          "cross_component_accepted",
+          "coverage_guided_searched",
+          "bug_confirmed"
+        ],
+        "path_id": "F4:ram.image",
+        "pointer": "paths[3]",
+        "prerequisites": [
+          {
+            "basis": "the pre-state of the configured register is a declared version, not a freshly loaded initial value",
+            "kind": "ip_register_version",
+            "subject": {
+              "component": "gpio",
+              "register": "GPIOEN",
+              "reset_epoch": 0
+            }
+          }
+        ],
+        "reason": {
+          "code": null,
+          "detail": null,
+          "missing": [],
+          "pointer": null
+        },
+        "runtime_path_identity": {
+          "direction": "CPU_TO_IP",
+          "edges": [
+            {
+              "kind": "PERSISTENT_STATE_RULE",
+              "prerequisite": "F4.program_image",
+              "prerequisite_index": 0,
+              "rule_index": 5,
+              "target": "F4.mmio_access"
+            },
+            {
+              "kind": "DATA_BINDING",
+              "prerequisite": "F4.mmio_access",
+              "prerequisite_index": 0,
+              "rule_index": 6,
+              "target": "F4.device_register_response"
+            }
+          ],
+          "path_id": "725ec1b7bf35b15253e3fda19ad95a6c68213bb5f64c5aee5e81a8b1c0cf921e",
+          "source_ids": [
+            "F4.program_image"
+          ]
+        },
+        "sources": [
+          {
+            "alignment": 2,
+            "bit_offset": 0,
+            "component": "cpu",
+            "constraint_basis": "declared read+execute region containing the declared reset vector",
+            "endpoint_id": "cpu.external_bus",
+            "field": null,
+            "kind": "instruction_image",
+            "mask": 4294967295,
+            "origin": "fuzzable",
+            "origin_ref": "wiring:wiring_contract.v1",
+            "port": "ram",
+            "range": [
+              3221225472,
+              3489595391
+            ],
+            "register": null,
+            "source_id": "ram.image",
+            "width": 2146959360
+          },
+          {
+            "alignment": 4,
+            "bit_offset": 0,
+            "component": "cpu",
+            "constraint_basis": "the register is reachable only through the CPU MMIO path, so it is never randomised independently (docs/CURRENT_DESIGN.md:34)",
+            "endpoint_id": "cpu.external_bus",
+            "field": "value",
+            "kind": "cpu_mmio_stream",
+            "mask": 4294967295,
+            "origin": "fuzzable",
+            "origin_ref": "wiring:wiring_contract.v1",
+            "port": null,
+            "range": [
+              3489595396,
+              3489595396
+            ],
+            "register": "GPIOEN",
+            "register_access": {
+              "access_alignment": 4,
+              "address": 3489595396,
+              "allowed_byte_enables": [
+                15
+              ],
+              "byte_enable_domain": "target_word_lanes",
+              "device_id": "gpio",
+              "field": "value",
+              "operation": "write",
+              "register": "GPIOEN",
+              "register_offset": 4,
+              "register_origin": "bound_target_register_commit",
+              "schema_version": "register_source_access.v1",
+              "source_component": "cpu",
+              "source_endpoint": "cpu.external_bus",
+              "target_component": "gpio",
+              "target_endpoint": "gpio.bus",
+              "value_mask": 4294967295,
+              "value_origin": "cpu_transaction_wdata",
+              "width_bytes": 4,
+              "window_alignment": 4096,
+              "window_base": 3489595392,
+              "window_size": 4096
+            },
+            "source_id": "gpio.GPIOEN.value.mmio",
+            "width": 32
+          }
+        ],
+        "status": "executable",
+        "target": {
+          "component": "cpu",
+          "node": "F4.device_register_response"
+        },
+        "termination_observation": {
+          "basis": "CPU 真实 Load/Store 经声明的地址窗口转换为 IP 原生局部协议事务 (plan line 80)",
+          "kind": "consumption"
+        }
+      },
+      "compiled_status": "executable",
+      "flow_id": "F4",
+      "flow_name": "mmio_control_stream",
+      "highest_claimed": "Cross-component accepted",
+      "not_claimed": [
+        "Coverage-guided searched",
+        "Bug confirmed"
+      ],
+      "path_id": "F4:ram.image",
+      "status": "graded",
+      "subject": "path",
+      "tiers": [
+        {
+          "claimed": true,
+          "disposition": "awarded",
+          "evidence": [
+            {
+              "artifact": "compiled_paths.v1.json",
+              "fact": "paths[3]/flow_id=F4; definition.authority=docs/superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md:80",
+              "supports": "Catalog"
+            }
+          ],
+          "tier": "Catalog"
+        },
+        {
+          "claimed": true,
+          "disposition": "awarded",
+          "evidence": [
+            {
+              "artifact": "compiled_paths.v1.json",
+              "fact": "paths[3]/status=executable; paths[3]/runtime_path_identity.path_id=725ec1b7bf35b15253e3fda19ad95a6c68213bb5f64c5aee5e81a8b1c0cf921e",
+              "supports": "Generated"
+            },
+            {
+              "artifact": "harness_set.json",
+              "fact": "components[0]/instance_id=cpu; artifact_digest=370388904ee6b149ab961060e99c82a413eec31e6e4196b9c53e602f40797282",
+              "supports": "Generated"
+            },
+            {
+              "artifact": "harness_set.json",
+              "fact": "components[1]/instance_id=gpio; artifact_digest=1331b597185e3b0915d0c946fe5ef2607482d003a299683cd276bd79d2576c41",
+              "supports": "Generated"
+            }
+          ],
+          "tier": "Generated"
+        },
+        {
+          "claimed": true,
+          "disposition": "awarded",
+          "evidence": [
+            {
+              "artifact": "receipts.jsonl",
+              "fact": "flow_id=F4; case_id=cvw-directed-f4:cvw-session-gate-20261018; candidate_disposition_reason=rtl_case_committed; total_local_ticks=373 over 1 committed case(s)",
+              "supports": "RTL operational"
+            }
+          ],
+          "tier": "RTL operational"
+        },
+        {
+          "claimed": true,
+          "disposition": "awarded",
+          "evidence": [
+            {
+              "artifact": "receipts.jsonl",
+              "fact": "interaction_new_features=[\"cpu:gpio:apb00_write\"] in flow F4 case_id=cvw-directed-f4:cvw-session-gate-20261018; declares instances cpu, gpio, all declared by this composition",
+              "supports": "Cross-component accepted"
+            },
+            {
+              "artifact": "receipts.jsonl",
+              "fact": "interaction_new_features=[\"cpu:gpio:apb04_write\"] in flow F4 case_id=cvw-directed-f4:cvw-session-gate-20261018; declares instances cpu, gpio, all declared by this composition",
+              "supports": "Cross-component accepted"
+            }
+          ],
+          "tier": "Cross-component accepted"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "the session's receipts for flow F4 record no case with a nonzero coverage_hex, so this path is not shown to be searched by coverage",
+          "tier": "Coverage-guided searched"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "no checker finding was supplied that declares itself a natural RTL defect for this subject, so the defect is not confirmed here",
+          "tier": "Bug confirmed"
+        }
+      ],
+      "unsupported": null
+    },
+    {
+      "assertion_results": [],
+      "awarded": [
+        "Catalog"
+      ],
+      "compiled": {
+        "artifact": "compiled_paths.v1.json",
+        "assertions": [
+          {
+            "assertion_class": "cpu_ip_behaviour",
+            "asserts": "the CPU external IRQ input observed after the step equals the input the case was generated with",
+            "declared_by": "cpu_external_irq_sample.expected_input vs actual_post_input",
+            "expectation_id": "cpu_ip.irq_input_expectation"
+          },
+          {
+            "assertion_class": "cpu_ip_behaviour",
+            "asserts": "an IP IRQ observation whose exact source identity (trigger_id, or source_event_id) no CPU acceptance record names is an IRQ the CPU had not accepted when it was written into the trace",
+            "declared_by": "cpu_irq_taken / cpu_external_irq_taken source identity",
+            "expectation_id": "cpu_ip.irq_acceptance"
+          },
+          {
+            "assertion_class": "cpu_ip_behaviour",
+            "asserts": "an IRQ pulse that expires with no same-source CPU acceptance anywhere in the artifact is reported with its exact expiry event and mask observation",
+            "declared_by": "expired_masked / pulse_expired mask_observation",
+            "expectation_id": "cpu_ip.irq_expiry"
+          }
+        ],
+        "bound_inputs": [],
+        "constraints": {
+          "declared_in": "compiled_paths.v1.json:paths[4]/constraints",
+          "layout_hash": "b23c60a0e4505135132df7f8ac8b7da402026c28bb41284a560ea5fe04de8e9a",
+          "policy_hash": "sha256:e8221450e36e181cc40bdf00ec23f373ce95ae9ddf4fd5e1079974ef382e347c",
+          "rule_ids": []
+        },
+        "direction": "CPU_TO_IP",
+        "flow_id": "F5",
+        "not_claimed": [
+          "rtl_operational",
+          "cross_component_accepted",
+          "coverage_guided_searched",
+          "bug_confirmed"
+        ],
+        "path_id": "F5:cpu",
+        "pointer": "paths[4]",
+        "prerequisites": [],
+        "reason": {
+          "code": "interrupt-consumer-missing",
+          "detail": {
+            "component_id": "cvw",
+            "requires": "an endpoint with function 'interrupt_entry'"
+          },
+          "missing": [
+            {
+              "code": "interrupt-consumer-missing",
+              "detail": {
+                "component_id": "cvw",
+                "requires": "an endpoint with function 'interrupt_entry'"
+              },
+              "pointer": "/cpu/profile/endpoints"
+            },
+            {
+              "code": "interrupt-delivery-missing",
+              "detail": {
+                "absent_sections": [
+                  "deliveries",
+                  "environment_links",
+                  "fixed_inputs"
+                ],
+                "declared_sections": [
+                  "cpu",
+                  "windows",
+                  "resources"
+                ],
+                "requires": "a declared delivery from a real IP interrupt producer to the CPU interrupt entry; IRQ 的生产者与消费者都必须是真实存在的端",
+                "wiring_schema": "wiring_contract.v1"
+              },
+              "pointer": "/wiring/deliveries"
+            }
+          ],
+          "pointer": "/cpu/profile/endpoints"
+        },
+        "runtime_path_identity": null,
+        "sources": [],
+        "status": "unsupported",
+        "target": {
+          "component": "cpu",
+          "node": "F5.cpu_irq_entry"
+        },
+        "termination_observation": {
+          "basis": "no declared end for this flow; an incomplete observation is recorded rather than a manufactured result",
+          "kind": "incomplete"
+        }
+      },
+      "compiled_status": "unsupported",
+      "flow_id": "F5",
+      "flow_name": "interrupt_event_stream",
+      "highest_claimed": "Catalog",
+      "not_claimed": [
+        "Generated",
+        "RTL operational",
+        "Cross-component accepted",
+        "Coverage-guided searched",
+        "Bug confirmed"
+      ],
+      "path_id": "F5:cpu",
+      "status": "graded",
+      "subject": "path",
+      "tiers": [
+        {
+          "claimed": true,
+          "disposition": "awarded",
+          "evidence": [
+            {
+              "artifact": "compiled_paths.v1.json",
+              "fact": "paths[4]/flow_id=F5; definition.authority=docs/superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md:81",
+              "supports": "Catalog"
+            }
+          ],
+          "tier": "Catalog"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "the compiled path is unsupported (interrupt-consumer-missing at /cpu/profile/endpoints); P7-C states this composition cannot walk it, so no runtime path exists for it",
+          "tier": "Generated"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "the compiled path is unsupported (interrupt-consumer-missing at /cpu/profile/endpoints); no tier above Catalog is claimed for a path this composition cannot walk",
+          "tier": "RTL operational"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "the compiled path is unsupported (interrupt-consumer-missing at /cpu/profile/endpoints); no tier above Catalog is claimed for a path this composition cannot walk",
+          "tier": "Cross-component accepted"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "the compiled path is unsupported (interrupt-consumer-missing at /cpu/profile/endpoints); no tier above Catalog is claimed for a path this composition cannot walk",
+          "tier": "Coverage-guided searched"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "the compiled path is unsupported (interrupt-consumer-missing at /cpu/profile/endpoints); no tier above Catalog is claimed for a path this composition cannot walk",
+          "tier": "Bug confirmed"
+        }
+      ],
+      "unsupported": {
+        "code": "interrupt-consumer-missing",
+        "detail": {
+          "component_id": "cvw",
+          "requires": "an endpoint with function 'interrupt_entry'"
+        },
+        "missing": [
+          {
+            "code": "interrupt-consumer-missing",
+            "detail": {
+              "component_id": "cvw",
+              "requires": "an endpoint with function 'interrupt_entry'"
+            },
+            "pointer": "/cpu/profile/endpoints"
+          },
+          {
+            "code": "interrupt-delivery-missing",
+            "detail": {
+              "absent_sections": [
+                "deliveries",
+                "environment_links",
+                "fixed_inputs"
+              ],
+              "declared_sections": [
+                "cpu",
+                "windows",
+                "resources"
+              ],
+              "requires": "a declared delivery from a real IP interrupt producer to the CPU interrupt entry; IRQ 的生产者与消费者都必须是真实存在的端",
+              "wiring_schema": "wiring_contract.v1"
+            },
+            "pointer": "/wiring/deliveries"
+          }
+        ],
+        "pointer": "/cpu/profile/endpoints"
+      }
+    },
+    {
+      "assertion_results": [],
+      "awarded": [
+        "Catalog"
+      ],
+      "compiled": {
+        "artifact": "compiled_paths.v1.json",
+        "assertions": [
+          {
+            "assertion_class": "cross_component_provenance_and_order",
+            "asserts": "an end-to-end chain is certified only when every declared hop of its direction is joined by exact identity; otherwise it settles incomplete with missing_hops naming the first gap and every required hop after it",
+            "declared_by": "myfuzz.scenario.chain_certificates:runtime_chain_certificate.v1",
+            "expectation_id": "cross_component.chain_certificate_hops"
+          },
+          {
+            "assertion_class": "cpu_ip_behaviour",
+            "asserts": "an IP IRQ observation whose exact source identity (trigger_id, or source_event_id) no CPU acceptance record names is an IRQ the CPU had not accepted when it was written into the trace",
+            "declared_by": "cpu_irq_taken / cpu_external_irq_taken source identity",
+            "expectation_id": "cpu_ip.irq_acceptance"
+          }
+        ],
+        "bound_inputs": [],
+        "constraints": {
+          "declared_in": "compiled_paths.v1.json:paths[5]/constraints",
+          "layout_hash": "b23c60a0e4505135132df7f8ac8b7da402026c28bb41284a560ea5fe04de8e9a",
+          "policy_hash": "sha256:e8221450e36e181cc40bdf00ec23f373ce95ae9ddf4fd5e1079974ef382e347c",
+          "rule_ids": []
+        },
+        "direction": "CPU_TO_IP",
+        "flow_id": "F6",
+        "not_claimed": [
+          "rtl_operational",
+          "cross_component_accepted",
+          "coverage_guided_searched",
+          "bug_confirmed"
+        ],
+        "path_id": "F6:cpu",
+        "pointer": "paths[5]",
+        "prerequisites": [],
+        "reason": {
+          "code": "dma-master-not-declared",
+          "detail": {
+            "declared_feature_providers": {
+              "gpio": null
+            },
+            "requires": "an ip_test_capability v2+ feature contract declaring the 'transfer' operation, i.e. a real data-movement provider; no declared component offers one"
+          },
+          "missing": [
+            {
+              "code": "dma-master-not-declared",
+              "detail": {
+                "declared_feature_providers": {
+                  "gpio": null
+                },
+                "requires": "an ip_test_capability v2+ feature contract declaring the 'transfer' operation, i.e. a real data-movement provider; no declared component offers one"
+              },
+              "pointer": "/devices/*/test_capability/feature_contract"
+            }
+          ],
+          "pointer": "/devices/*/test_capability/feature_contract"
+        },
+        "runtime_path_identity": null,
+        "sources": [],
+        "status": "unsupported",
+        "target": {
+          "component": "cpu",
+          "node": "F6.dma_transfer_complete"
+        },
+        "termination_observation": {
+          "basis": "no declared end for this flow; an incomplete observation is recorded rather than a manufactured result",
+          "kind": "incomplete"
+        }
+      },
+      "compiled_status": "unsupported",
+      "flow_id": "F6",
+      "flow_name": "dma_transfer_stream",
+      "highest_claimed": "Catalog",
+      "not_claimed": [
+        "Generated",
+        "RTL operational",
+        "Cross-component accepted",
+        "Coverage-guided searched",
+        "Bug confirmed"
+      ],
+      "path_id": "F6:cpu",
+      "status": "graded",
+      "subject": "path",
+      "tiers": [
+        {
+          "claimed": true,
+          "disposition": "awarded",
+          "evidence": [
+            {
+              "artifact": "compiled_paths.v1.json",
+              "fact": "paths[5]/flow_id=F6; definition.authority=docs/superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md:82",
+              "supports": "Catalog"
+            }
+          ],
+          "tier": "Catalog"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "the compiled path is unsupported (dma-master-not-declared at /devices/*/test_capability/feature_contract); P7-C states this composition cannot walk it, so no runtime path exists for it",
+          "tier": "Generated"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "the compiled path is unsupported (dma-master-not-declared at /devices/*/test_capability/feature_contract); no tier above Catalog is claimed for a path this composition cannot walk",
+          "tier": "RTL operational"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "the compiled path is unsupported (dma-master-not-declared at /devices/*/test_capability/feature_contract); no tier above Catalog is claimed for a path this composition cannot walk",
+          "tier": "Cross-component accepted"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "the compiled path is unsupported (dma-master-not-declared at /devices/*/test_capability/feature_contract); no tier above Catalog is claimed for a path this composition cannot walk",
+          "tier": "Coverage-guided searched"
+        },
+        {
+          "claimed": false,
+          "disposition": "grade_not_claimed",
+          "reason": "the compiled path is unsupported (dma-master-not-declared at /devices/*/test_capability/feature_contract); no tier above Catalog is claimed for a path this composition cannot walk",
+          "tier": "Bug confirmed"
+        }
+      ],
+      "unsupported": {
+        "code": "dma-master-not-declared",
+        "detail": {
+          "declared_feature_providers": {
+            "gpio": null
+          },
+          "requires": "an ip_test_capability v2+ feature contract declaring the 'transfer' operation, i.e. a real data-movement provider; no declared component offers one"
+        },
+        "missing": [
+          {
+            "code": "dma-master-not-declared",
+            "detail": {
+              "declared_feature_providers": {
+                "gpio": null
+              },
+              "requires": "an ip_test_capability v2+ feature contract declaring the 'transfer' operation, i.e. a real data-movement provider; no declared component offers one"
+            },
+            "pointer": "/devices/*/test_capability/feature_contract"
+          }
+        ],
+        "pointer": "/devices/*/test_capability/feature_contract"
+      }
+    }
+  ],
+  "schema_version": "capability_report.v1",
+  "session": {
+    "analysis_performed": false,
+    "arm_kind": null,
+    "arm_kind_reason": null,
+    "arm_kind_source": null,
+    "certified_chains": null,
+    "directory": "/home/qinkejiu/myfuzz/docs/reports/evidence/cvw-session-20261018/run/session",
+    "identity": null,
+    "limits": [
+      {
+        "quantity": "p5_arm_metrics.v1",
+        "reason": "the shipped p5 reader could not aggregate this directory: session cannot be analyzed: invalid coverage_hex on line 1 of receipts.jsonl"
+      }
+    ],
+    "linkage": {
+      "cpu_instance": "cpu",
+      "cpu_observed": true,
+      "declared_instances": [
+        "cpu",
+        "gpio"
+      ],
+      "observed_declared_instances": [
+        "cpu",
+        "gpio"
+      ],
+      "observed_instances": [
+        "cpu",
+        "gpio"
+      ]
+    },
+    "metrics": null,
+    "metrics_available": false,
+    "metrics_reason": "the shipped p5 reader could not aggregate this directory: session cannot be analyzed: invalid coverage_hex on line 1 of receipts.jsonl",
+    "receipts": {
+      "artifact": "receipts.jsonl",
+      "available": true,
+      "cases_with_applied_hint": 0,
+      "cases_with_feature_deltas": 1,
+      "components": {
+        "cpu": {
+          "cases": 1,
+          "coverage_cases": 0,
+          "coverage_sample": null,
+          "rtl_committed_cases": 1,
+          "rtl_sample": {
+            "case_id": "cvw-directed-f4:cvw-session-gate-20261018",
+            "flow_id": "F4",
+            "ticks": 172,
+            "total_local_ticks": 373
+          },
+          "ticks_sum": 172
+        },
+        "gpio": {
+          "cases": 1,
+          "coverage_cases": 0,
+          "coverage_sample": null,
+          "rtl_committed_cases": 1,
+          "rtl_sample": {
+            "case_id": "cvw-directed-f4:cvw-session-gate-20261018",
+            "flow_id": "F4",
+            "ticks": 201,
+            "total_local_ticks": 373
+          },
+          "ticks_sum": 201
+        }
+      },
+      "disposition_reasons": {
+        "rtl_case_committed": 1
+      },
+      "features": {
+        "cpu:gpio:apb00_write": {
+          "cases": 1,
+          "first_case_id": "cvw-directed-f4:cvw-session-gate-20261018",
+          "flows": [
+            "F4"
+          ]
+        },
+        "cpu:gpio:apb04_write": {
+          "cases": 1,
+          "first_case_id": "cvw-directed-f4:cvw-session-gate-20261018",
+          "flows": [
+            "F4"
+          ]
+        },
+        "cpu:gpio:apb08_read": {
+          "cases": 1,
+          "first_case_id": "cvw-directed-f4:cvw-session-gate-20261018",
+          "flows": [
+            "F4"
+          ]
+        },
+        "cpu:gpio:apb0c_read": {
+          "cases": 1,
+          "first_case_id": "cvw-directed-f4:cvw-session-gate-20261018",
+          "flows": [
+            "F4"
+          ]
+        },
+        "cpu:gpio:apb0c_write": {
+          "cases": 1,
+          "first_case_id": "cvw-directed-f4:cvw-session-gate-20261018",
+          "flows": [
+            "F4"
+          ]
+        }
+      },
+      "flows": {
+        "F4": {
+          "cases": 1,
+          "cases_with_features": 1,
+          "cases_with_hint": 0,
+          "complete": 1,
+          "coverage_bits_max": 0,
+          "coverage_cases": 0,
+          "coverage_sample": null,
+          "directions": {
+            "CPU_TO_IP": 1
+          },
+          "features": {
+            "cpu:gpio:apb00_write": 1,
+            "cpu:gpio:apb04_write": 1,
+            "cpu:gpio:apb08_read": 1,
+            "cpu:gpio:apb0c_read": 1,
+            "cpu:gpio:apb0c_write": 1
+          },
+          "features_sample": {
+            "case_id": "cvw-directed-f4:cvw-session-gate-20261018",
+            "tokens": [
+              "cpu:gpio:apb00_write",
+              "cpu:gpio:apb04_write",
+              "cpu:gpio:apb0c_write",
+              "cpu:gpio:apb0c_read",
+              "cpu:gpio:apb08_read"
+            ]
+          },
+          "path_ids": [
+            "F4:ram.image"
+          ],
+          "rtl_committed": 1,
+          "sample_case_ids": [
+            "cvw-directed-f4:cvw-session-gate-20261018"
+          ],
+          "target_ids": {
+            "gpio": 1
+          },
+          "ticks_sum": 373
+        }
+      },
+      "rows": 1,
+      "sha256": "sha256:7d56472163a8652a05cce4c2876413cc3038e415f8dcbab137afc135f0d67148",
+      "status_counts": {
+        "complete": 1
+      },
+      "unreadable_rows": 0,
+      "unreadable_samples": [],
+      "violations": {
+        "cases": 0,
+        "samples": [],
+        "total": 0
+      }
+    },
+    "report": {
+      "artifact": "report.json",
+      "available": true,
+      "clock_model": {
+        "cpu": "generated AHB-Lite CPU driver local tick",
+        "gpio": "generated PULP GPIO APB driver local tick"
+      },
+      "completed_feedback_exchanges": 0,
+      "effective_search_seconds": 0.0,
+      "elapsed_seconds": 35.904533995002566,
+      "execution_mode": "directed_fixed_image",
+      "execution_status": "complete",
+      "mutation_hint_updates": 0,
+      "record_semantics": {
+        "candidate_disposition_reason": "rtl_case_committed",
+        "case_kind": "directed_fixed_image",
+        "direction": "CPU_TO_IP",
+        "flow_id": "F4",
+        "receipt": "receipts.jsonl",
+        "search": "directed fixed-image program; no mutation or coverage feedback"
+      },
+      "runtime_path_status": "directed_fixed_image",
+      "session_status": "complete",
+      "sha256": "sha256:888ae9cf06f9150290f02bea574bc0213865b2e865b3c4c600f07bc526ef314b",
+      "statuses": {
+        "complete": 1
+      },
+      "tests": 1,
+      "total_local_ticks_semantics": "the runner's per-component local tick counts at the committed success marker"
+    },
+    "run_id": null,
+    "supplied": true
+  },
+  "skipped_unavailable": [],
+  "throughput": {
+    "absences": [
+      {
+        "quantity": "throughput",
+        "reason": "the shipped p5 reader could not aggregate this directory: session cannot be analyzed: invalid coverage_hex on line 1 of receipts.jsonl"
+      }
+    ],
+    "groups": {
+      "certified_chains_per_second": [
+        {
+          "group": "certified_chains_per_second",
+          "leaf": "certified_chains",
+          "reason": "no saved online session was supplied, so no useful throughput was measured; the leaves below are named absences, not zeros",
+          "source": "trace events (runtime_chain_certificate.v1 certificates)",
+          "value": null
+        },
+        {
+          "group": "certified_chains_per_second",
+          "leaf": "certified_chains_per_second",
+          "reason": "no saved online session was supplied, so no useful throughput was measured; the leaves below are named absences, not zeros",
+          "source": "trace events (certificates) / report.json:effective_search_seconds",
+          "value": null
+        },
+        {
+          "group": "certified_chains_per_second",
+          "leaf": "certified_chains_by_direction",
+          "reason": "no saved online session was supplied, so no useful throughput was measured; the leaves below are named absences, not zeros",
+          "source": "trace events (certificates:direction)",
+          "value": null
+        },
+        {
+          "group": "certified_chains_per_second",
+          "leaf": "certified_chains_same_case",
+          "reason": "no saved online session was supplied, so no useful throughput was measured; the leaves below are named absences, not zeros",
+          "source": "trace events (certificates:source/endpoint_case_index)",
+          "value": null
+        },
+        {
+          "group": "certified_chains_per_second",
+          "leaf": "certified_chains_cross_case",
+          "reason": "no saved online session was supplied, so no useful throughput was measured; the leaves below are named absences, not zeros",
+          "source": "trace events (certificates:source/endpoint_case_index)",
+          "value": null
+        },
+        {
+          "group": "certified_chains_per_second",
+          "leaf": "incomplete_certificates",
+          "reason": "no saved online session was supplied, so no useful throughput was measured; the leaves below are named absences, not zeros",
+          "source": "trace events (incomplete certificates)",
+          "value": null
+        },
+        {
+          "group": "certified_chains_per_second",
+          "leaf": "first_missing_hop_histogram",
+          "reason": "no saved online session was supplied, so no useful throughput was measured; the leaves below are named absences, not zeros",
+          "source": "trace events (incomplete certificates:missing_hops[0])",
+          "value": null
+        },
+        {
+          "group": "certified_chains_per_second",
+          "leaf": "unresolvable_missing_hops",
+          "reason": "no saved online session was supplied, so no useful throughput was measured; the leaves below are named absences, not zeros",
+          "source": "trace events (incomplete certificates:missing_hops[0])",
+          "value": null
+        },
+        {
+          "group": "certified_chains_per_second",
+          "leaf": "certified_admissions",
+          "reason": "no saved online session was supplied, so no useful throughput was measured; the leaves below are named absences, not zeros",
+          "source": "trace events (certificates:source_admission_id)",
+          "value": null
+        },
+        {
+          "group": "certified_chains_per_second",
+          "leaf": "chain_completion_by_admission",
+          "reason": "no saved online session was supplied, so no useful throughput was measured; the leaves below are named absences, not zeros",
+          "source": "online_plan.json:source_admissions.admissions joined to certificates",
+          "value": null
+        },
+        {
+          "group": "certified_chains_per_second",
+          "leaf": "chain_producer_available",
+          "reason": "no saved online session was supplied, so no useful throughput was measured; the leaves below are named absences, not zeros",
+          "source": "chain_certificates.ChainCertificates",
+          "value": null
+        },
+        {
+          "group": "certified_chains_per_second",
+          "leaf": "semantics",
+          "reason": "no saved online session was supplied, so no useful throughput was measured; the leaves below are named absences, not zeros",
+          "source": "trace events (declared certificate contract)",
+          "value": null
+        }
+      ],
+      "effective_cases_per_second": [
+        {
+          "group": "effective_cases_per_second",
+          "leaf": "effective_cases_per_second",
+          "reason": "no saved online session was supplied, so no useful throughput was measured; the leaves below are named absences, not zeros",
+          "source": "receipts.jsonl:status / report.json:effective_search_seconds",
+          "value": null
+        },
+        {
+          "group": "effective_cases_per_second",
+          "leaf": "complete_status_count",
+          "reason": "no saved online session was supplied, so no useful throughput was measured; the leaves below are named absences, not zeros",
+          "source": "receipts.jsonl:status",
+          "value": null
+        },
+        {
+          "group": "effective_cases_per_second",
+          "leaf": "denominator_seconds",
+          "reason": "no saved online session was supplied, so no useful throughput was measured; the leaves below are named absences, not zeros",
+          "source": "report.json:effective_search_seconds",
+          "value": null
+        },
+        {
+          "group": "effective_cases_per_second",
+          "leaf": "all_receipt_cases_per_second",
+          "reason": "no saved online session was supplied, so no useful throughput was measured; the leaves below are named absences, not zeros",
+          "source": "receipts.jsonl (rows) / report.json:effective_search_seconds",
+          "value": null
+        }
+      ]
+    },
+    "not_a_substitute_for": "generation success is not fuzzable-performance evidence; the build_cost and throughput sections state what was measured and what is a named absence (P7 implementation plan §7)",
+    "p5_arm_metrics": {
+      "checklist_metric_groups": [
+        "one_time_compile_init",
+        "per_case_admission",
+        "real_rtl_transactions",
+        "router_scheduler",
+        "incremental_feedback",
+        "log_evidence",
+        "latency_percentiles",
+        "effective_cases_per_second",
+        "certified_chains_per_second",
+        "coverage_novelty",
+        "invalid_or_timeout_ratio",
+        "status_counts"
+      ],
+      "module": "myfuzz.scenario.p5_arm_metrics",
+      "schema_version": "p5_arm_metrics.v1"
+    },
+    "status": "not_measured"
+  },
+  "tier_vocabulary": {
+    "authority": "docs/superpowers/specs/2026-10-04-generated-local-harness-five-protocol-design.md:92",
+    "evidence_rule": "a tier is awarded only with an `evidence` entry naming the artifact and the fact in it that establish the tier; one tier never implies the next",
+    "no_implication": "one tier never implies the next; each tier has its own evidence gate and the adjacent tiers are checked separately",
+    "non_tiers": [
+      "skipped_unavailable"
+    ],
+    "order": [
+      "Catalog",
+      "Generated",
+      "RTL operational",
+      "Cross-component accepted",
+      "Coverage-guided searched",
+      "Bug confirmed"
+    ],
+    "statuses": [
+      "graded",
+      "skipped_unavailable"
+    ]
+  },
+  "unsupported_reasons": [
+    {
+      "assertion_results": [],
+      "code": "interrupt-consumer-missing",
+      "detail": {
+        "component_id": "cvw",
+        "requires": "an endpoint with function 'interrupt_entry'"
+      },
+      "flow_id": "F5",
+      "instance_id": null,
+      "missing": [
+        {
+          "code": "interrupt-consumer-missing",
+          "detail": {
+            "component_id": "cvw",
+            "requires": "an endpoint with function 'interrupt_entry'"
+          },
+          "pointer": "/cpu/profile/endpoints"
+        },
+        {
+          "code": "interrupt-delivery-missing",
+          "detail": {
+            "absent_sections": [
+              "deliveries",
+              "environment_links",
+              "fixed_inputs"
+            ],
+            "declared_sections": [
+              "cpu",
+              "windows",
+              "resources"
+            ],
+            "requires": "a declared delivery from a real IP interrupt producer to the CPU interrupt entry; IRQ 的生产者与消费者都必须是真实存在的端",
+            "wiring_schema": "wiring_contract.v1"
+          },
+          "pointer": "/wiring/deliveries"
+        }
+      ],
+      "path_id": "F5:cpu",
+      "pointer": "/cpu/profile/endpoints",
+      "subject": "path"
+    },
+    {
+      "assertion_results": [],
+      "code": "dma-master-not-declared",
+      "detail": {
+        "declared_feature_providers": {
+          "gpio": null
+        },
+        "requires": "an ip_test_capability v2+ feature contract declaring the 'transfer' operation, i.e. a real data-movement provider; no declared component offers one"
+      },
+      "flow_id": "F6",
+      "instance_id": null,
+      "missing": [
+        {
+          "code": "dma-master-not-declared",
+          "detail": {
+            "declared_feature_providers": {
+              "gpio": null
+            },
+            "requires": "an ip_test_capability v2+ feature contract declaring the 'transfer' operation, i.e. a real data-movement provider; no declared component offers one"
+          },
+          "pointer": "/devices/*/test_capability/feature_contract"
+        }
+      ],
+      "path_id": "F6:cpu",
+      "pointer": "/devices/*/test_capability/feature_contract",
+      "subject": "path"
+    }
+  ]
+}

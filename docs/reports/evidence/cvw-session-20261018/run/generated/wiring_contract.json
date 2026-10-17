@@ -1,0 +1,35 @@
+{
+  "cpu": {
+    "endpoint_id": "cpu.external_bus",
+    "instance_id": "cpu",
+    "template": "cpu.ahb-lite",
+    "variant_id": "cvw-external-bus"
+  },
+  "cycle_accurate": false,
+  "delivery": "transaction_level_explicit",
+  "global_interconnect": false,
+  "resources": [
+    {
+      "base": 3221225472,
+      "component_instance": "cpu",
+      "execute": true,
+      "initialization_policy": "preload",
+      "read": true,
+      "resource_id": "ram",
+      "size": 268369920,
+      "write": true
+    }
+  ],
+  "schema_version": "wiring_contract.v1",
+  "windows": [
+    {
+      "base": 3489595392,
+      "device_id": "gpio",
+      "endpoint_id": "gpio.bus",
+      "size": 4096,
+      "target_instance": "gpio",
+      "template": "target.apb3",
+      "variant_id": "full-word"
+    }
+  ]
+}

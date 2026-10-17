@@ -1,0 +1,506 @@
+{
+  "dispositions": [
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_gpio",
+      "direction": "input",
+      "disposition": "functional",
+      "evidence": "component_profile.clocks[HCLK]",
+      "instance_id": "gpio",
+      "port": "HCLK",
+      "port_width": 1,
+      "reason": "clock port distributed from the SoC clock input",
+      "reset_domain": "local_reset",
+      "role": "clock",
+      "target": "clock_reset"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_gpio",
+      "direction": "input",
+      "disposition": "functional",
+      "evidence": "component_profile.resets[HRESETn]",
+      "instance_id": "gpio",
+      "port": "HRESETn",
+      "port_width": 1,
+      "reason": "reset port distributed from the SoC reset input",
+      "reset_domain": "local_reset",
+      "role": "reset",
+      "target": "clock_reset"
+    },
+    {
+      "bits": {
+        "hi": 11,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_gpio",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "gpio.bus",
+      "evidence": "elaborated_ports[PADDR]",
+      "instance_id": "gpio",
+      "port": "PADDR",
+      "port_width": 12,
+      "reason": "bound to interface gpio.bus role paddr",
+      "reset_domain": "local_reset",
+      "role": "paddr",
+      "target": "fabric_target"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_gpio",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "gpio.bus",
+      "evidence": "elaborated_ports[PENABLE]",
+      "instance_id": "gpio",
+      "port": "PENABLE",
+      "port_width": 1,
+      "reason": "bound to interface gpio.bus role penable",
+      "reset_domain": "local_reset",
+      "role": "penable",
+      "target": "fabric_target"
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_gpio",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "gpio.bus",
+      "evidence": "elaborated_ports[PRDATA]",
+      "instance_id": "gpio",
+      "port": "PRDATA",
+      "port_width": 32,
+      "reason": "bound to interface gpio.bus role prdata",
+      "reset_domain": "local_reset",
+      "role": "prdata",
+      "target": "fabric_target"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_gpio",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "gpio.bus",
+      "evidence": "elaborated_ports[PREADY]",
+      "instance_id": "gpio",
+      "port": "PREADY",
+      "port_width": 1,
+      "reason": "bound to interface gpio.bus role pready",
+      "reset_domain": "local_reset",
+      "role": "pready",
+      "target": "fabric_target"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_gpio",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "gpio.bus",
+      "evidence": "elaborated_ports[PSEL]",
+      "instance_id": "gpio",
+      "port": "PSEL",
+      "port_width": 1,
+      "reason": "bound to interface gpio.bus role psel",
+      "reset_domain": "local_reset",
+      "role": "psel",
+      "target": "fabric_target"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_gpio",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "gpio.bus",
+      "evidence": "elaborated_ports[PSLVERR]",
+      "instance_id": "gpio",
+      "port": "PSLVERR",
+      "port_width": 1,
+      "reason": "bound to interface gpio.bus role pslverr",
+      "reset_domain": "local_reset",
+      "role": "pslverr",
+      "target": "fabric_target"
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_gpio",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "gpio.bus",
+      "evidence": "elaborated_ports[PWDATA]",
+      "instance_id": "gpio",
+      "port": "PWDATA",
+      "port_width": 32,
+      "reason": "bound to interface gpio.bus role pwdata",
+      "reset_domain": "local_reset",
+      "role": "pwdata",
+      "target": "fabric_target"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_gpio",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "gpio.bus",
+      "evidence": "elaborated_ports[PWRITE]",
+      "instance_id": "gpio",
+      "port": "PWRITE",
+      "port_width": 1,
+      "reason": "bound to interface gpio.bus role pwrite",
+      "reset_domain": "local_reset",
+      "role": "pwrite",
+      "target": "fabric_target"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_gpio",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[dft_cg_enable_i]",
+      "instance_id": "gpio",
+      "port": "dft_cg_enable_i",
+      "port_width": 1,
+      "reason": "DFT disabled in this functional scenario. At the pinned revision this input is declared but unused; sampling enables are computed from r_gpio_en, not this input.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_gpio",
+      "direction": "output",
+      "disposition": "external",
+      "endpoint_id": "gpio.pins",
+      "evidence": "component_profile.endpoints[gpio.pins]",
+      "instance_id": "gpio",
+      "port": "gpio_dir",
+      "port_width": 32,
+      "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+      "reset_domain": "local_reset",
+      "role": "dir",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_gpio",
+      "direction": "input",
+      "disposition": "external",
+      "endpoint_id": "gpio.pins",
+      "evidence": "component_profile.endpoints[gpio.pins]",
+      "instance_id": "gpio",
+      "port": "gpio_in",
+      "port_width": 32,
+      "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+      "reset_domain": "local_reset",
+      "role": "in",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_gpio",
+      "direction": "output",
+      "disposition": "external",
+      "endpoint_id": "gpio.pins",
+      "evidence": "component_profile.endpoints[gpio.pins]",
+      "instance_id": "gpio",
+      "port": "gpio_in_sync",
+      "port_width": 32,
+      "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+      "reset_domain": "local_reset",
+      "role": "in_sync",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_gpio",
+      "direction": "output",
+      "disposition": "external",
+      "endpoint_id": "gpio.pins",
+      "evidence": "component_profile.endpoints[gpio.pins]",
+      "instance_id": "gpio",
+      "port": "gpio_out",
+      "port_width": 32,
+      "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+      "reset_domain": "local_reset",
+      "role": "out",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 127,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_gpio",
+      "direction": "output",
+      "disposition": "external",
+      "endpoint_id": "gpio.pins",
+      "evidence": "component_profile.endpoints[gpio.pins]",
+      "instance_id": "gpio",
+      "port": "gpio_padcfg",
+      "port_width": 128,
+      "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+      "reset_domain": "local_reset",
+      "role": "padcfg",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_gpio",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[interrupt]",
+      "instance_id": "gpio",
+      "port": "interrupt",
+      "port_width": 1,
+      "reason": "Active-high s_rise_int pulse from synchronized GPIO transitions. This is not the held r_status bitmap; observe without pulse-to-level conversion.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    }
+  ],
+  "module_name": "local_gpio",
+  "parameter_evidence": [
+    {
+      "declaration": "parameter APB_ADDR_WIDTH = 12",
+      "name": "APB_ADDR_WIDTH",
+      "qualified_type": null,
+      "source_file": "rtl/apb_gpio.sv",
+      "source_sha256": "1e271914da4d25c87acd12121dde60a6ed955033870fd7a6730b2c9bafcbcaef"
+    },
+    {
+      "declaration": "parameter NBIT_PADCFG = 4",
+      "name": "NBIT_PADCFG",
+      "qualified_type": null,
+      "source_file": "rtl/apb_gpio.sv",
+      "source_sha256": "1e271914da4d25c87acd12121dde60a6ed955033870fd7a6730b2c9bafcbcaef"
+    },
+    {
+      "declaration": "parameter PAD_NUM = 32",
+      "name": "PAD_NUM",
+      "qualified_type": null,
+      "source_file": "rtl/apb_gpio.sv",
+      "source_sha256": "1e271914da4d25c87acd12121dde60a6ed955033870fd7a6730b2c9bafcbcaef"
+    }
+  ],
+  "plan_sha256": "f452bf83f57c520052d05d1a6990d39c3fd11c92537cd8f532ff1930425c5a3f",
+  "ports": [
+    {
+      "bit_hi": 11,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "gpio.bus",
+      "physical_port": "PADDR",
+      "role": "paddr",
+      "width": 12,
+      "wrapper_name": "lh_p_2_11_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "gpio.bus",
+      "physical_port": "PENABLE",
+      "role": "penable",
+      "width": 1,
+      "wrapper_name": "lh_p_3_0_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "gpio.bus",
+      "physical_port": "PRDATA",
+      "role": "prdata",
+      "width": 32,
+      "wrapper_name": "lh_p_4_31_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "gpio.bus",
+      "physical_port": "PREADY",
+      "role": "pready",
+      "width": 1,
+      "wrapper_name": "lh_p_5_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "gpio.bus",
+      "physical_port": "PSEL",
+      "role": "psel",
+      "width": 1,
+      "wrapper_name": "lh_p_6_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "gpio.bus",
+      "physical_port": "PSLVERR",
+      "role": "pslverr",
+      "width": 1,
+      "wrapper_name": "lh_p_7_0_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "gpio.bus",
+      "physical_port": "PWDATA",
+      "role": "pwdata",
+      "width": 32,
+      "wrapper_name": "lh_p_8_31_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "gpio.bus",
+      "physical_port": "PWRITE",
+      "role": "pwrite",
+      "width": 1,
+      "wrapper_name": "lh_p_9_0_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "external",
+      "endpoint_id": "gpio.pins",
+      "physical_port": "gpio_dir",
+      "role": "dir",
+      "width": 32,
+      "wrapper_name": "lh_p_11_31_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "external",
+      "endpoint_id": "gpio.pins",
+      "physical_port": "gpio_in",
+      "role": "in",
+      "width": 32,
+      "wrapper_name": "lh_p_12_31_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "external",
+      "endpoint_id": "gpio.pins",
+      "physical_port": "gpio_in_sync",
+      "role": "in_sync",
+      "width": 32,
+      "wrapper_name": "lh_p_13_31_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "external",
+      "endpoint_id": "gpio.pins",
+      "physical_port": "gpio_out",
+      "role": "out",
+      "width": 32,
+      "wrapper_name": "lh_p_14_31_0"
+    },
+    {
+      "bit_hi": 127,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "external",
+      "endpoint_id": "gpio.pins",
+      "physical_port": "gpio_padcfg",
+      "role": "padcfg",
+      "width": 128,
+      "wrapper_name": "lh_p_15_127_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "interrupt",
+      "role": null,
+      "width": 1,
+      "wrapper_name": "lh_p_16_0_0"
+    }
+  ],
+  "reset_assertion": "active_high",
+  "schema_version": "local_harness_abi.v1"
+}

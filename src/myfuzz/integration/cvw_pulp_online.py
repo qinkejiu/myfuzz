@@ -35,20 +35,35 @@ The identity discipline of the frozen template is kept verbatim: every opt-in is
 off by default, an unavailable observation is refused by name rather than
 downgraded, and no default is guessed for anything the caller did not declare.
 
-What this module does *not* claim
----------------------------------
+What this module declares now
+-----------------------------
 
-The family is registered, admitted and validated, and both entry points have the
-shape the P7-E driver calls - but no CVW *online campaign* can be assembled from
-this repository's shipped declarations yet, so
-:func:`make_cvw_pulp_online_runtime` refuses with
-``cvw-online-assembly-undeclared`` and lists every missing requirement instead of
-returning an object that would pretend a session exists.
-:func:`replay_cvw_pulp_online_files` refuses for the matching reason: no session
-can have produced a bundle to replay.  This boundary is deliberately independent
-of the separate work on whether the generated CVW harness drives AHB traffic:
-the declarations here are correct whether or not that harness drives AHB, and
-the refusal names the campaign assembly pieces, not that harness behaviour.
+The three pieces the family's session stage used to name as missing are real
+code in :mod:`myfuzz.scenario.cvw_session` and are published here as the
+family's ``session_assembly``:
+
+* ``boot_image`` - :func:`myfuzz.scenario.cvw_session.make_cvw_boot_image`, the
+  RV32 program supplied through the AHB-Lite memory service;
+* ``online_decoder`` - :func:`myfuzz.scenario.cvw_session.make_cvw_boot_instruction_source`,
+  a declared instruction source that holds the reset word until the core
+  presents the measured reset vector and then supplies the image;
+* ``runner_factory`` - :func:`myfuzz.scenario.cvw_session.make_cvw_gpio_session_factory`,
+  which constructs the real ``GeneratedAhbMemorySession`` + real
+  ``GeneratedPulpGpioSession`` + ``DataflowRouter`` chain as a
+  :class:`myfuzz.scenario.runner.ScenarioRunner`.
+
+:func:`make_cvw_pulp_online_runtime` builds that assembly and returns it
+(unstarted).  :func:`run_cvw_directed_session` is the family's *directed*
+session entry: it starts the real RTL, boots the core, performs the declared
+CPU→PULP GPIO transactions and re-runs the case fresh.  It is deliberately not
+the RFuzz live transport: it declares no ``OnlineCaseDecoder``, no per-case
+instruction window, no client binary and no coverage search, and its documents
+say so.
+
+The saved-bundle replay entry remains separate.  A directed session has no
+RFuzz authenticated prefix, so :func:`replay_cvw_pulp_online_files` refuses
+with ``cvw-directed-session-has-no-online-bundle`` instead of pretending to
+verify one; the directed entry's own fresh re-run is its replay.
 """
 from __future__ import annotations
 
@@ -109,38 +124,29 @@ MEMORY_RESOURCE_ID = 'ram'
 #: Version of the capability document this module derives.
 CVW_CAPABILITIES_SCHEMA = 'cvw_pulp_gpio_capabilities.v1'
 
-#: What a CVW online campaign needs and what no shipped module declares yet.
-#: Each row is a *named* absence with the reason it is needed, so the refusal
-#: below can be read as work rather than as a shrug.  Nothing here is a guess:
-#: the boot base is the profile's own reset vector, and the session class that
-#: would serve it already exists and is named.
-CVW_ONLINE_MISSING = (
-    {'requirement': 'boot_image',
-     'pointer': '/boot-image',
-     'requires': "a declared RV32 program for the boot base the profile names "
-                 "(reset_vector, which the derived configuration also uses as "
-                 "EXT_MEM_BASE).  The AHB session declares that word from the "
-                 "artifact's own boot_contract.configured_boot_base and HOLDS the "
-                 "fetch until the program is supplied, so a campaign must declare "
-                 "the program AND a phase that supplies it before the core's first "
-                 "fetch: the generated driver releases reset and only then reads its "
-                 "first command, while CVW fetches from the reset vector the moment "
-                 "reset is released.  No shipped module declares either half for CVW."},
-    {'requirement': 'online_decoder',
-     'pointer': '/online-decoder',
-     'requires': "an OnlineCaseDecoder for this CPU.  The shipped decoders are the "
-                 "PULP dual-source ones (and the Ibex UART one), and they decode "
-                 "RFuzz records into the PULP wiring's own instruction window; CVW "
-                 "boots into its own external-memory region, so its window, its "
-                 "instruction source and its record-to-slot mapping are undeclared."},
-    {'requirement': 'runner_factory',
-     'pointer': '/factory',
-     'requires': "a factory returning a ScenarioRunner over the generated "
-                 "'ahb_lite_cpu' harness with this family's gpio window routed to the "
-                 "real pulp_gpio target.  GeneratedAhbMemorySession admits the "
-                 "artifact and the generated harness builds, but nothing assembles "
-                 "the runner, its router, its bindings and its ownership map."},
-)
+#: The family's real session assembly.  Each entry is a ``module:attribute`` the
+#: driver resolves with its own ``_load_entry``; every piece lives in
+#: :mod:`myfuzz.scenario.cvw_session` and is exercised by the directed entry.
+#: The kind is part of the declaration so no caller can read the directed
+#: session as an RFuzz online campaign.
+CVW_SESSION_ASSEMBLY = {
+    'schema_version': 'cvw_session_assembly_declaration.v1',
+    'kind': 'directed_fixed_image',
+    'boot_image': ('myfuzz.scenario.cvw_session:make_cvw_boot_image'),
+    'online_decoder': ('myfuzz.scenario.cvw_session:'
+                       'make_cvw_boot_instruction_source'),
+    'runner_factory': ('myfuzz.scenario.cvw_session:'
+                       'make_cvw_gpio_session_factory'),
+    'directed_session': ('myfuzz.integration.cvw_pulp_online:'
+                         'run_cvw_directed_session'),
+    'runtime_assembly': ('myfuzz.integration.cvw_pulp_online:'
+                         'make_cvw_pulp_online_runtime'),
+    'note': ('a fixed boot image, a declared instruction source and a real '
+             'CVW+PULP GPIO runner factory.  The directed session starts the '
+             'real chain and re-runs it fresh; it declares no RFuzz '
+             'OnlineCaseDecoder, no per-case instruction window, no client '
+             'binary and no coverage-guided search.'),
+}
 
 
 def _repository_root() -> Path:
@@ -457,69 +463,122 @@ def _validate_cvw_policies(*, cpu_retirement, native_irq_receipts, gpio_consumpt
                              'the observation is refused rather than downgraded'})
 
 
+def _make_assembly(*, cache_dir, generated_artifacts=None):
+    """The assembly seam, so a test can exercise the runtime without RTL planning."""
+    from myfuzz.scenario.cvw_session import make_cvw_session_assembly
+    return make_cvw_session_assembly(cache_dir=cache_dir,
+                                     generated_artifacts=generated_artifacts)
+
+
+@dataclass(frozen=True)
+class CvwOnlineRuntime:
+    """The built (unstarted) CVW session assembly of one run.
+
+    It deliberately exposes **no** ``.executor``: this family's real session is
+    the directed fixed-image session of :func:`run_cvw_directed_session`, not
+    the RFuzz live transport.  A caller that tries to drive it as an RFuzz
+    executor gets the driver's own ``runtime-entry-has-no-executor`` refusal
+    instead of a silently invented online campaign.
+    """
+
+    assembly: object
+    run_id: str
+    cache_dir: Path
+    evidence_dir: object = None
+
+    def document(self) -> dict:
+        return {'schema_version': 'cvw_online_runtime.v1',
+                'family_id': CVW_FAMILY_ID,
+                'run_id': self.run_id,
+                'kind': 'directed_fixed_image',
+                'executor': None,
+                'not_an_rfuzz_online_campaign': True,
+                'assembly': self.assembly.document(),
+                'fresh_replay': (
+                    'run_cvw_directed_session re-runs the directed case on fresh '
+                    'RTL; there is no RFuzz authenticated prefix bundle')}
+
+
 def make_cvw_pulp_online_runtime(*, cache_dir, run_id, evidence_dir=None,
                                  checker=None, feedback_interval: int = 16,
                                  max_warmup_rounds: int = 1024,
                                  cpu_retirement: bool = False,
                                  native_irq_receipts: bool = False,
-                                 gpio_consumption: bool = False):
-    """The CVW entry point of the shared online-runtime shape - and its honest stop.
+                                 gpio_consumption: bool = False,
+                                 generated_artifacts=None,
+                                 compiled_inputs=None):
+    """Build the family's real session assembly; start nothing.
 
-    The signature mirrors the two shipped families': the caller names a build
-    cache and a run id, every opt-in observation defaults off, and an observation
-    this CPU cannot supply is refused by name before any harness is rendered or
-    any process started.  What it does *not* do is return a runtime object,
-    because this repository cannot assemble a CVW online campaign yet:
-    :data:`CVW_ONLINE_MISSING` lists each undeclared requirement (boot program,
-    RFuzz online decoder, runner factory) and the refusal below publishes that
-    list with the family's own derived declaration.  Returning an object with an
-    ``.executor`` would claim a session that cannot run, and the driver would
-    then report a failure somewhere further from the cause.
+    The signature mirrors the two shipped families so the driver can resolve
+    the same entry point.  Every opt-in observation this CPU cannot supply is
+    refused by name *before* any harness is rendered or any process is started,
+    and the returned object publishes the assembly's own declaration.  It is
+    not an RFuzz runtime: ``executor`` is absent by declaration, and the
+    directed session is entered through :func:`run_cvw_directed_session`.
 
-    No RTL is started and no build cache entry is written: the refusal happens
-    before ``ScenarioSession.begin()`` would be reached, so the driver never takes
-    the heavy-worker lock for a run that cannot proceed.
+    No RTL is started and no build cache entry is written here.  The returned
+    object exposes no ``.executor``: the shared RFuzz live path's own checks
+    (its compiled-input admission, then its executor-shape check) refuse such a
+    use instead of inventing an online campaign.
     """
     if type(run_id) is not str or not run_id.strip():
         _refuse('cvw-online-run-id-required', '/run-id',
                 {'observed': repr(run_id),
                  'requires': 'a nonempty run id; it is the identity every saved '
                              'artifact of the run is keyed by'})
-    wiring = cvw_pulp_gpio_wiring()
     _validate_cvw_policies(cpu_retirement=cpu_retirement,
                            native_irq_receipts=native_irq_receipts,
                            gpio_consumption=gpio_consumption,
                            max_warmup_rounds=max_warmup_rounds)
-    _refuse('cvw-online-assembly-undeclared', '/runtime',
-            {'family_id': CVW_FAMILY_ID,
-             'declared': wiring.document(),
-             'missing': [dict(row) for row in CVW_ONLINE_MISSING],
-             'not_started': {'rtl_processes': 0,
-                             'build_cache': str(cache_dir),
-                             'run_id': run_id},
-             'requires': 'every requirement in `missing` to be declared by a shipped '
-                         'module before a session is started; until then this entry '
-                         'point refuses instead of returning an object that claims one'})
+    assembly = _make_assembly(cache_dir=Path(cache_dir),
+                              generated_artifacts=generated_artifacts)
+    return CvwOnlineRuntime(assembly=assembly, run_id=run_id,
+                            cache_dir=Path(cache_dir), evidence_dir=evidence_dir)
+
+
+def run_cvw_directed_session(*, cache_dir, run_id, session_dir,
+                             generated_artifacts=None, compiled_document=None,
+                             budget_seconds=300.0, max_steps=20000):
+    """The family's directed session entry: real CVW → real PULP GPIO.
+
+    This is the entry the P7-E driver calls for this family.  It starts real
+    RTL, boots the core from the declared boot image over the AHB-Lite memory
+    service, performs the declared CPU→IP program, re-runs it on fresh
+    processes, and writes the session's report, receipt and replay comparison.
+    It must be called inside the repository's heavy-worker lock; the driver
+    takes that lock around it.
+    """
+    from myfuzz.integration.cvw_directed_session import (
+        run_cvw_directed_session as _run)
+    return _run(cache_dir=cache_dir, run_id=run_id, session_dir=session_dir,
+                generated_artifacts=generated_artifacts,
+                compiled_document=compiled_document,
+                budget_seconds=budget_seconds, max_steps=max_steps)
 
 
 def replay_cvw_pulp_online_files(*, cache_dir, plan_path, trace_path):
-    """The CVW replay entry point: there is no CVW session whose prefix could replay.
+    """The saved-bundle replay entry: a directed session has no RFuzz prefix.
 
-    A fresh replay authenticates a *saved* session's prefix, and no CVW session
-    can run yet (see :func:`make_cvw_pulp_online_runtime`), so this refuses by
-    name instead of pretending to verify a bundle.  It keeps the family's declared
-    replay entry point resolving, which is what the driver's registry requires.
+    A fresh replay authenticates a *saved RFuzz online prefix*; this family's
+    real session is directed and its fresh replay is the second isolated run
+    inside :func:`run_cvw_directed_session`.  The refusal names that boundary
+    instead of pretending to verify a bundle, and keeps the family's declared
+    replay entry point resolving for the driver's registry.
     """
-    _refuse('cvw-online-assembly-undeclared', '/runtime',
+    _refuse('cvw-directed-session-has-no-online-bundle', '/runtime',
             {'family_id': CVW_FAMILY_ID,
              'saved_bundle': {'plan': str(plan_path), 'trace': str(trace_path),
                               'cache_dir': str(cache_dir)},
-             'missing': [dict(row) for row in CVW_ONLINE_MISSING],
-             'requires': 'a CVW session that produced an authenticated prefix; no such '
-                         'session can run yet, so there is nothing to replay'})
+             'directed_session': ('myfuzz.integration.cvw_pulp_online:'
+                                  'run_cvw_directed_session'),
+             'requires': ('the directed session entry re-runs the case on fresh '
+                          'RTL and compares the full projection; it writes no '
+                          'RFuzz authenticated prefix bundle for this entry to '
+                          'authenticate')})
 
 
-__all__ = ['CVW_FAMILY_ID', 'CVW_ONLINE_MISSING', 'CPU_PROFILE', 'GPIO_PROFILE',
-           'CPU_MASTER_PROTOCOL', 'DEVICE_PROTOCOL', 'CvwPulpGpioWiring',
-           'cvw_pulp_gpio_wiring', 'cvw_pulp_gpio_capabilities',
-           'make_cvw_pulp_online_runtime', 'replay_cvw_pulp_online_files']
+__all__ = ['CVW_FAMILY_ID', 'CVW_SESSION_ASSEMBLY', 'CPU_PROFILE', 'GPIO_PROFILE',
+           'CPU_MASTER_PROTOCOL', 'DEVICE_PROTOCOL', 'CvwOnlineRuntime',
+           'CvwPulpGpioWiring', 'cvw_pulp_gpio_wiring',
+           'cvw_pulp_gpio_capabilities', 'make_cvw_pulp_online_runtime',
+           'replay_cvw_pulp_online_files', 'run_cvw_directed_session']

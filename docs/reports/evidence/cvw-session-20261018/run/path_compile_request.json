@@ -1,0 +1,20 @@
+{
+  "cpu": {
+    "data_endpoint": "cpu.external_bus",
+    "instance_id": "cpu",
+    "instruction_endpoint": "cpu.external_bus",
+    "profile": "configs/cpus/cvw/component_profile.json"
+  },
+  "devices": [
+    {
+      "device_id": "gpio",
+      "instance_id": "gpio",
+      "profile": "configs/peripherals/pulp_gpio/component_profile.json",
+      "test_capability": "configs/peripherals/pulp_gpio/test_capability.json"
+    }
+  ],
+  "schema_version": "path_compile_request.v1",
+  "wiring": {
+    "source": "/home/qinkejiu/myfuzz/docs/reports/evidence/cvw-session-20261018/run/generated/wiring_contract.json"
+  }
+}

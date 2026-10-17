@@ -509,7 +509,13 @@ def test_an_explicit_capability_sidecar_is_matched_by_component_id(tmp_path):
 #: and reaches D4.  The stale paragraph said "the chain stops before the session"
 #: for *every* family-satisfying composition, i.e. it denied the one command that
 #: works.
-STALE_BOUNDARY_TOKENS = ('duplicate-layout-field',)
+#:
+#: ``cvw-online-assembly-undeclared`` was the CVW family's real stop until its
+#: boot image, instruction source and runner factory existed.  The help text now
+#: documents the directed session those pieces start, so advertising the old
+#: refusal would deny a working command again; the guard pins its absence.
+STALE_BOUNDARY_TOKENS = ('duplicate-layout-field',
+                         'cvw-online-assembly-undeclared')
 
 #: Every artifact one requested run writes.  The help text is the only place a
 #: caller learns what to look for afterwards, so it has to name all of them.

@@ -31,9 +31,12 @@ a finished one.
 
 **Never fake a stage.**  A stage that could not run is reported as a named
 absence with a reason - not as zeros, not as an omitted key.  Without a runtime
-family (or without a client binary, or with an unusable build cache) the run
-still emits D1..D3 plus ``capability-report.json``; ``fresh-verification.json``
-is written only when a fresh replay really happened.
+family (or without a client binary for an RFuzz family, or with an unusable
+build cache) the run still emits D1..D3 plus ``capability-report.json``;
+``fresh-verification.json`` is written only when a fresh replay really happened.
+A family that declares its own directed session assembly starts *that* session
+without a client binary: the real chain runs, its documents are recorded, and
+the replay conclusion comes from the directed entry's own isolated fresh re-run.
 
 Every document written here is the real product of the real module: the
 declaration review is rendered by
@@ -164,7 +167,8 @@ class RuntimeFamily:
     def __init__(self, *, family_id, cpu_component_id, cpu_profile,
                  device_component_id, device_protocol, device_endpoint_function,
                  cpu_master_protocol, wiring_declaration, runtime_entry,
-                 replay_entry, note='', execution_declaration=None):
+                 replay_entry, note='', execution_declaration=None,
+                 session_assembly=None):
         self.family_id = family_id
         self.cpu_component_id = cpu_component_id
         self.cpu_profile = cpu_profile
@@ -176,7 +180,47 @@ class RuntimeFamily:
         self.runtime_entry = runtime_entry
         self.replay_entry = replay_entry
         self.execution_declaration = execution_declaration
+        #: ``module:attribute`` of a session-assembly declaration document.  A
+        #: family that ships one may be started by its own *directed* entry
+        #: instead of the RFuzz live transport; the document (never a literal
+        #: restated here) names the boot image, instruction source and runner
+        #: factory that really exist.
+        self.session_assembly = session_assembly
         self.note = note
+
+    def session_assembly_document(self):
+        """Resolve the family's own assembly declaration, or ``None``.
+
+        The declaration is read from the named module at call time, so this
+        registry cannot drift from the module that really implements the
+        assembly.  An unresolvable declaration is returned as a refused record
+        rather than silently treated as absent: a family that claims an
+        assembly must publish it.
+        """
+        if self.session_assembly is None:
+            return None
+        module_name, separator, attribute = str(self.session_assembly).partition(':')
+        if not separator or not module_name or not attribute:
+            return {'status': 'invalid',
+                    'declaration': self.session_assembly,
+                    'requires': 'module:attribute'}
+        try:
+            value = getattr(importlib.import_module(module_name), attribute)
+        except (ImportError, AttributeError) as error:
+            return {'status': 'unavailable', 'declaration': self.session_assembly,
+                    'error': f'{type(error).__name__}: {error}'}
+        if not isinstance(value, Mapping):
+            return {'status': 'invalid', 'declaration': self.session_assembly,
+                    'observed': type(value).__name__}
+        return {'status': 'ok', **{str(key): value[key] for key in value}}
+
+    def directed_session_entry(self):
+        """The family's declared directed-session entry, or ``None``."""
+        document = self.session_assembly_document()
+        if not document or document.get('status') != 'ok':
+            return None
+        entry = document.get('directed_session')
+        return entry if type(entry) is str and entry else None
 
     def document(self) -> dict:
         return {'family_id': self.family_id,
@@ -190,6 +234,7 @@ class RuntimeFamily:
                 'runtime_entry': self.runtime_entry,
                 'replay_entry': self.replay_entry,
                 'execution_declaration': self.execution_declaration,
+                'session_assembly': self.session_assembly_document(),
                 'note': self.note}
 
 
@@ -256,11 +301,17 @@ RUNTIME_FAMILIES = {
                            ':make_cvw_pulp_online_runtime'),
             replay_entry=('myfuzz.integration.cvw_pulp_online'
                           ':replay_cvw_pulp_online_files'),
+            session_assembly=('myfuzz.integration.cvw_pulp_online'
+                              ':CVW_SESSION_ASSEMBLY'),
             note=('unified AHB-Lite CVW external bus and one PULP GPIO core on '
-                  'APB3; the family is admitted and validated, and its runtime '
-                  'entry point refuses by name (cvw-online-assembly-undeclared) '
-                  'until a CVW boot program, online decoder and runner factory '
-                  'are declared')),
+                  'APB3. The family ships its own directed session assembly: a '
+                  'declared boot image supplied through the AHB-Lite memory '
+                  'service, a declared fixed-image instruction source that holds '
+                  'the reset word until the measured reset vector, and a real '
+                  'runner factory over GeneratedAhbMemorySession + '
+                  'GeneratedPulpGpioSession. Its session stage runs that '
+                  'directed case (no RFuzz client, no OnlineCaseDecoder); it is '
+                  'not an RFuzz online campaign')),
     )
 }
 
@@ -1088,6 +1139,110 @@ def assess_runtime_execution(*,family,artifacts,compiled_inputs,producer_events=
         runtime_declaration=declaration,producer_events=producer_events)
 
 
+def _session_cache_dir(cache_dir, base) -> Path:
+    """Resolve the shared identity-keyed build cache, refusing a missing one."""
+    cache = (_resolve(Path.cwd(), cache_dir) if cache_dir is not None
+             else Path(base) / DEFAULT_CACHE_DIR)
+    if not cache.exists():
+        _refuse('build-cache-missing', '/cache-dir',
+                {'path': str(cache), 'requires': 'an existing shared build cache; '
+                 'a session is not started when its harnesses would have to be '
+                 'built from cold inside the run budget'})
+    if not cache.is_dir():
+        _refuse('build-cache-invalid', '/cache-dir', {'path': str(cache)})
+    return cache
+
+
+def run_directed_family_session(*, family: RuntimeFamily, output_dir, session_dir,
+                                cache_dir, run_id, budget_seconds, base_dir,
+                                compiled_document=None) -> dict:
+    """Run the family's own declared directed session, inside the heavy lock.
+
+    The family publishes its assembly in its own module; this driver resolves
+    that declaration and the directed entry from it rather than restating
+    either.  The D2 generated artifacts are loaded (and re-verified against the
+    current renderer) before the lock is taken, so a stale generated set refuses
+    without starting RTL.
+    """
+    from .generated_artifact_admission import (GeneratedArtifactRefused,
+                                               load_generated_artifacts)
+    assembly = family.session_assembly_document()
+    if not isinstance(assembly, Mapping) or assembly.get('status') != 'ok':
+        _refuse('directed-session-assembly-unavailable', '/runtime',
+                {'family_id': family.family_id,
+                 'declaration': family.session_assembly,
+                 'observed': assembly,
+                 'requires': 'a resolvable module:attribute declaration naming '
+                             'boot_image, online_decoder, runner_factory and '
+                             'directed_session'})
+    entry = _load_entry(family.directed_session_entry(),
+                        code='directed-session-entry-unavailable',
+                        pointer='/runtime',
+                        detail={'family_id': family.family_id,
+                                'assembly': assembly})
+    cache = _session_cache_dir(cache_dir, Path(base_dir))
+    try:
+        artifacts = load_generated_artifacts(
+            generated_root=Path(output_dir) / 'generated', base_dir=Path(base_dir))
+    except GeneratedArtifactRefused as error:
+        _refuse(error.code, error.pointer, error.detail)
+    with _heavy_worker_lock(Path(base_dir)):
+        outcome = entry(cache_dir=cache, run_id=run_id,
+                        session_dir=Path(session_dir),
+                        generated_artifacts=artifacts,
+                        compiled_document=compiled_document,
+                        budget_seconds=budget_seconds)
+    if not isinstance(outcome, Mapping):
+        _refuse('directed-session-result-invalid', '/session',
+                {'entry': family.directed_session_entry(),
+                 'observed': type(outcome).__name__})
+    for key in ('report', 'fresh_verification', 'assembly'):
+        if key not in outcome:
+            _refuse('directed-session-result-incomplete', '/session',
+                    {'entry': family.directed_session_entry(), 'missing': key})
+    return dict(outcome)
+
+
+def write_directed_bundle(*, session_dir, fresh_verification_path,
+                          bundle_dir) -> dict:
+    """A second, byte-identical view of one directed session's documents.
+
+    It is deliberately *not* named an authenticated RFuzz prefix: a directed
+    session has no online trace and no client.  The manifest states what it is,
+    and the fresh replay conclusion it carries came from the directed entry's
+    own fresh re-run.
+    """
+    session_dir = Path(session_dir)
+    fresh_verification_path = Path(fresh_verification_path)
+    bundle_dir = Path(bundle_dir)
+    if bundle_dir.exists() or bundle_dir.is_symlink():
+        _refuse('bundle-directory-exists', '/session', {'path': str(bundle_dir)})
+    bundle_dir.mkdir(parents=True)
+    files = []
+    for source in (session_dir / 'report.json', session_dir / 'receipts.jsonl',
+                   session_dir / 'directed-session.json',
+                   fresh_verification_path):
+        if not source.is_file():
+            _refuse('directed-bundle-artifact-missing', '/session',
+                    {'path': str(source)})
+        target = bundle_dir / source.name
+        _link_or_copy(source, target)
+        files.append({'name': source.name, 'sha256': _sha256_file(target),
+                      'matches_session': _sha256_file(target) == _sha256_file(source)})
+    manifest = {'schema_version': 'directed_session_bundle.v1',
+                'kind': 'directed_fixed_image',
+                'session_dir': str(session_dir),
+                'files': files,
+                'authenticated_online_prefix': False,
+                'fresh_verification': fresh_verification_path.name,
+                'not_claimed': ['an RFuzz authenticated prefix: this family runs '
+                                'a directed fixed-image session, not an online '
+                                'campaign'],
+                'status': OK}
+    _write(bundle_dir / 'bundle-manifest.json', manifest)
+    return manifest
+
+
 def run_live_session(*, family: RuntimeFamily, session_dir, client_binary,
                      cache_dir, run_id, budget_seconds, max_tests, search_seed,
                      max_runs_per_batch, base_dir, generated_artifacts=None,
@@ -1621,6 +1776,10 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
         # -- D4a: the live session, only when the caller opted in -----------
         session_dir = None
         fresh_path = None
+        assembly_document = (family.session_assembly_document()
+                             if family is not None else None)
+        directed_entry = (family.directed_session_entry()
+                          if family is not None else None)
         if skip_session:
             summary['stages']['session'].update(status=NOT_REQUESTED)
             summary['stages']['fresh_verification'].update(status=NOT_REQUESTED)
@@ -1790,6 +1949,124 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
             absent('fresh_verification', 'fresh-replay-requires-a-session',
                    '/session', 'no session ran, so there was no authenticated '
                                'prefix to replay')
+        elif (family.session_assembly is not None
+              and (not isinstance(assembly_document, Mapping)
+                   or assembly_document.get('status') != 'ok')):
+            refuse('session', 'directed-session-assembly-unavailable', '/runtime',
+                   {'family_id': family.family_id,
+                    'declaration': family.session_assembly,
+                    'observed': assembly_document,
+                    'requires': 'a resolvable session-assembly declaration with '
+                                'a directed_session entry'})
+            absent('fresh_verification', 'fresh-replay-requires-a-session',
+                   '/session', 'no session ran, so there was no directed '
+                               'comparison to report')
+        elif directed_entry is not None and client_binary is not None:
+            refuse('session', 'directed-session-does-not-consume-client-binary',
+                   '/client-binary',
+                   {'family_id': family.family_id,
+                    'directed_session': directed_entry,
+                    'requires': 'this family starts its own directed session; '
+                                'naming an RFuzz client binary would claim a '
+                                'transport it does not implement'})
+            absent('fresh_verification', 'fresh-replay-requires-a-session',
+                   '/session', 'no session ran, so there was no directed '
+                               'comparison to report')
+        elif directed_entry is not None:
+            # -- the family's own directed session: real RTL, no RFuzz client --
+            run_id = summary['label']
+            try:
+                outcome = run_directed_family_session(
+                    family=family, output_dir=output,
+                    session_dir=output / 'session', cache_dir=cache_dir,
+                    run_id=run_id, budget_seconds=budget_seconds, base_dir=base,
+                    compiled_document=compiled_document)
+                session_dir = output / 'session'
+                report = outcome['report']
+                verification = outcome['fresh_verification']
+                assembly = outcome['assembly']
+                executable = sum(1 for row in compiled_document['paths']
+                                 if row.get('status') == 'executable')
+                projection = {
+                    'schema_version': 'execution_projection.v1',
+                    'status': 'directed_fixed_image',
+                    'execution_status': 'directed_fixed_image',
+                    'runtime_admitted': False,
+                    'compiled_semantics_executed': False,
+                    'session_assembly': assembly,
+                    'capability_executable': executable,
+                    'execution_supported': 1,
+                    'requires': ('the directed entry starts the real chain from '
+                                 'a fixed declared boot image; it does not '
+                                 'execute the D3 compiled source/assertion '
+                                 'mapping, so no compiled-runtime admission is '
+                                 'claimed')}
+                projection_path = _write(
+                    output / 'execution_projection.v1.json', projection)
+                record('execution_projection', projection_path, projection)
+                summary['stages']['execution_projection'].update(
+                    status=OK, execution_status='directed_fixed_image',
+                    runtime_admitted=False, capability_executable=executable,
+                    execution_supported=1)
+                summary['stages']['session'].update(
+                    status=OK, directory=_display(base, session_dir),
+                    tests=report.get('tests'),
+                    execution_status=report.get('execution_status'),
+                    statuses=report.get('statuses'),
+                    elapsed_seconds=report.get('elapsed_seconds'),
+                    transport={'mode': 'directed_fixed_image',
+                               'directed_session': directed_entry,
+                               'assembly': assembly,
+                               'fresh_replay': verification.get('matches'),
+                               'not_claimed': list(report.get('not_claimed') or ())})
+                record('session_report', session_dir / 'report.json', report)
+                record('session_directed', session_dir / 'directed-session.json')
+                record('session_receipts', session_dir / 'receipts.jsonl')
+                fresh_path = _write(output / 'fresh-verification.json',
+                                    verification)
+                record('fresh_verification', fresh_path, verification)
+                summary['stages']['fresh_verification'].update(
+                    status=OK, document=_display(base, fresh_path),
+                    matches=verification['matches'],
+                    first_difference=verification['first_difference'],
+                    verification_scope=verification['verification_scope'])
+                summary['fresh_replay'] = {
+                    'matches': verification['matches'],
+                    'first_difference': verification['first_difference'],
+                    'verification_scope': verification['verification_scope']}
+                bundle = write_directed_bundle(
+                    session_dir=session_dir,
+                    fresh_verification_path=fresh_path,
+                    bundle_dir=output / 'bundle')
+                record('bundle', output / 'bundle' / 'bundle-manifest.json',
+                       bundle)
+            except AutoHarnessRefused as error:
+                refusal_path = _write(output / 'session-refusal.json',
+                                      {'schema_version': REFUSAL_SCHEMA,
+                                       'stage': 'session', 'code': error.code,
+                                       'pointer': error.pointer,
+                                       'detail': error.detail})
+                record('session_refusal', refusal_path)
+                refuse('session', error.code, error.pointer, error.detail)
+                absent('fresh_verification', 'fresh-replay-requires-a-session',
+                       '/session', 'the directed session did not run, so nothing '
+                                   'was replayed')
+            except Exception as error:
+                traceback.print_exc()
+                detail = {'error': f'{type(error).__name__}: {error}',
+                          'session_dir': _display(base, output / 'session'),
+                          'partial_evidence': (output / 'session').exists(),
+                          'directed_session': directed_entry}
+                refusal_path = _write(output / 'session-refusal.json',
+                                      {'schema_version': REFUSAL_SCHEMA,
+                                       'stage': 'session',
+                                       'code': 'directed-session-failed',
+                                       'pointer': '/session', 'detail': detail})
+                record('session_refusal', refusal_path)
+                refuse('session', 'directed-session-failed', '/session', detail)
+                absent('fresh_verification', 'fresh-replay-requires-a-session',
+                       '/session', 'the directed session did not complete, so '
+                                   'nothing was replayed')
         elif client_binary is None:
             absent('session', 'client-binary-required', '/client-binary',
                    'no RFuzz client binary was named, so no session was started')

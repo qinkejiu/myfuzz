@@ -50,7 +50,9 @@ def test_the_derived_config_reproduces_from_its_pinned_input():
 
 #: Exactly which parameters the derivation is allowed to touch.  Kept as an
 #: explicit set rather than a count so that adding one is a deliberate edit here.
-DERIVED_PARAMETERS = {'EXT_MEM_SUPPORTED', 'EXT_MEM_BASE', 'EXT_MEM_RANGE', 'RESET_VECTOR', 'DCACHE_SUPPORTED'}
+#: ``D_SUPPORTED``/``ZCD_SUPPORTED`` belong to the pinned LLEN=32 derivation
+#: (D/Zcd disabled so FLEN=LLEN=XLEN=32 for the no-D-cache passthrough lane).
+DERIVED_PARAMETERS = {'EXT_MEM_SUPPORTED', 'EXT_MEM_BASE', 'EXT_MEM_RANGE', 'RESET_VECTOR', 'DCACHE_SUPPORTED', 'D_SUPPORTED', 'ZCD_SUPPORTED'}
 
 
 def test_the_derivation_changes_only_the_named_parameters():

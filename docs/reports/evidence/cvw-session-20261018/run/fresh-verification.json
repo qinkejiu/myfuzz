@@ -1,0 +1,16 @@
+{
+  "difference_context": null,
+  "event_count": 98,
+  "first_difference": null,
+  "manifest_sha256": "sha256:93e76e05b8eff9a4754577652888d149c89189d59f909e0e084e9dcfc60647bc",
+  "matches": true,
+  "not_a_substitute_for": "a fresh replay of the directed case is not a new search and confirms nothing the first run did not record",
+  "replay_entry": "myfuzz.integration.cvw_directed_session:run_cvw_directed_session",
+  "replayed_from": {
+    "mode": "fresh isolated directed re-run",
+    "session": "/home/qinkejiu/myfuzz/docs/reports/evidence/cvw-session-20261018/run/session"
+  },
+  "schema_version": "fresh_verification.v1",
+  "semantic_sha256": "sha256:93e76e05b8eff9a4754577652888d149c89189d59f909e0e084e9dcfc60647bc",
+  "verification_scope": "full"
+}

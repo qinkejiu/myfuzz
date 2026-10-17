@@ -131,15 +131,24 @@ def test_the_subordinate_is_reset_out_of_phase_with_the_core(tmp_path):
     assert expression and expression.group(1).strip() == signal, structural.wrapper_sv
 
 
+def command(process, sequence, operation, fields=()):
+    """Send one generated driver command; return ``(tick_before, tick_after, payload)``."""
+    line = (f'CMD {_EXECUTION} {sequence:x} {operation}'
+            + ('' if not fields else ' ' + ' '.join(f'{value:x}' for value in fields))
+            + '\n')
+    process.stdin.write(line)
+    process.stdin.flush()
+    answer = process.stdout.readline()
+    assert answer.startswith('RESULT '), answer.strip()
+    tokens = answer.split(' ', 5)
+    return (int(tokens[3], 16), int(tokens[4], 16),
+            json.loads(bytes.fromhex(tokens[5]).decode()))
+
+
 def step_memory(process, sequence, ready, rsp_valid=0, rdata=0):
     """Send one generated STEP_MEMORY beat and return the driver's reply payload."""
-    process.stdin.write(f'CMD {_EXECUTION} {sequence:x} STEP_MEMORY '
-                        f'{ready:x} {rsp_valid:x} {rdata:x} 0\n')
-    process.stdin.flush()
-    line = process.stdout.readline()
-    assert line.startswith('RESULT '), line.strip()
-    tokens = line.split(' ', 5)
-    return json.loads(bytes.fromhex(tokens[5]).decode())
+    return command(process, sequence, 'STEP_MEMORY',
+                   (ready, rsp_valid, rdata, 0))[2]
 
 
 def test_the_built_harness_drives_real_ahb_traffic_from_the_core(tmp_path):
@@ -171,10 +180,27 @@ def test_the_built_harness_drives_real_ahb_traffic_from_the_core(tmp_path):
         ready_line = process.stdout.readline().strip()
         assert ready_line.startswith('READY local_driver.v1'), ready_line
 
-        # 1. The core presents its boot fetch, and the harness accepts the beat.
+        # 0. The AHB driver captures the measured reset-release prefix through
+        #    zero-clock READ_AHB_STARTUP pages before it accepts a STEP_MEMORY.
+        #    This raw-wire test therefore has to read them first, exactly as the
+        #    generated session class does; skipping them is a protocol error, not
+        #    an absent request.
+        contract = artifact.runtime_document['ahb_startup_contract']
         sequence = 0
+        for page_index in range(contract['page_count']):
+            sequence += 1
+            before, after, payload = command(
+                process, sequence, 'READ_AHB_STARTUP', (page_index,))
+            assert before == after == 0, (before, after)
+            assert payload['samples'] == [], payload
+            startup = payload['observations']['ahb_startup']
+            assert startup['page_index'] == page_index, startup
+            assert startup['page_count'] == contract['page_count'], startup
+
+        # 1. The core presents its boot fetch, and the harness accepts the beat.
         first = None
-        for sequence in range(1, 401):
+        for _ in range(1, 401):
+            sequence += 1
             pre = step_memory(process, sequence, ready=1)['pre_backend']
             if pre['m_req_valid'] and pre['m_req_ready']:
                 first = pre
@@ -195,8 +221,9 @@ def test_the_built_harness_drives_real_ahb_traffic_from_the_core(tmp_path):
         # 3. The core adopted the word it was given and keeps fetching: the next
         #    accepted beat is a different address of the same boot line.
         following = None
-        for offset in range(1, 401):
-            pre = step_memory(process, sequence + offset, ready=1)['pre_backend']
+        for _ in range(1, 401):
+            sequence += 1
+            pre = step_memory(process, sequence, ready=1)['pre_backend']
             if pre['m_req_valid'] and pre['m_req_ready']:
                 following = pre
                 break

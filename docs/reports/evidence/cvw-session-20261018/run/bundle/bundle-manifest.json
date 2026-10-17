@@ -1,0 +1,33 @@
+{
+  "authenticated_online_prefix": false,
+  "files": [
+    {
+      "matches_session": true,
+      "name": "report.json",
+      "sha256": "164852750244d96db1b5f0c0187eafb6adfa0c5b2c7f2435aefa75122e82aed7"
+    },
+    {
+      "matches_session": true,
+      "name": "receipts.jsonl",
+      "sha256": "7d56472163a8652a05cce4c2876413cc3038e415f8dcbab137afc135f0d67148"
+    },
+    {
+      "matches_session": true,
+      "name": "directed-session.json",
+      "sha256": "041a09da2d411c9b8427bffe40e71e4c2511c0c83a0b8d6a5fbaeeefbddc8a4e"
+    },
+    {
+      "matches_session": true,
+      "name": "fresh-verification.json",
+      "sha256": "39803388876c466d24831f00e63ec8c9e6a57d469d6ee068ad1a473980a86fd4"
+    }
+  ],
+  "fresh_verification": "fresh-verification.json",
+  "kind": "directed_fixed_image",
+  "not_claimed": [
+    "an RFuzz authenticated prefix: this family runs a directed fixed-image session, not an online campaign"
+  ],
+  "schema_version": "directed_session_bundle.v1",
+  "session_dir": "/home/qinkejiu/myfuzz/docs/reports/evidence/cvw-session-20261018/run/session",
+  "status": "ok"
+}

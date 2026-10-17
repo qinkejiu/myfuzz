@@ -1,0 +1,26 @@
+{
+  "elaboration": {
+    "closure_files": 1,
+    "closure_roots": [
+      "third_party/soc-pulp-apb-gpio"
+    ],
+    "elaboration_status": "elaboration_verified",
+    "lint": {
+      "errors": 0,
+      "exit_code": 0,
+      "log": "runs/soc-source-elaboration/pulp/pulp_gpio.elaborate.log",
+      "warnings": 2
+    },
+    "tool": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+    "top_module": "apb_gpio"
+  },
+  "elaboration_status": "elaboration_verified",
+  "id": "pulp_gpio",
+  "lock_sha256": "4caf0ae616e99e3c7cac76a1b04daca41af9bcef0eee3b6b0923fb6bd7e2a29e",
+  "parse_status": "parameterized_ports_pending_elaboration",
+  "runtime_status": "runtime_unverified",
+  "schema_version": "local_source_lock_verification.v1",
+  "selected_content_hash": "sha256:7622917c85229ee645c720309c308a6506c2c547081f8c899d4e9338b4f5c7a9",
+  "selected_files": 1,
+  "source_status": "source_verified"
+}

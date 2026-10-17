@@ -1,0 +1,173 @@
+{
+  "assembly": {
+    "boot_image": {
+      "base": 3221225472,
+      "gpio_base": 3489595392,
+      "result": 3221226496,
+      "result_bytes": 64,
+      "schema_version": "cvw_boot_image.v1",
+      "sha256": "8444b6abf745055806f8fe0c7243d330cd0d62600889547def03aed72fef84b9",
+      "size_bytes": 256,
+      "source": "myfuzz.scenario.cvw_gpio_example:cvw_gpio_program",
+      "supply": "the AHB-Lite CPU memory service: the reset word is held until the core presents the measured reset vector, then supplied through accept_instructions with the rest of the declared image",
+      "words": 64
+    },
+    "factory": "myfuzz.scenario.cvw_session:make_cvw_gpio_session_factory",
+    "instruction_source": {
+      "boot_image": {
+        "base": 3221225472,
+        "gpio_base": 3489595392,
+        "result": 3221226496,
+        "result_bytes": 64,
+        "schema_version": "cvw_boot_image.v1",
+        "sha256": "8444b6abf745055806f8fe0c7243d330cd0d62600889547def03aed72fef84b9",
+        "size_bytes": 256,
+        "source": "myfuzz.scenario.cvw_gpio_example:cvw_gpio_program",
+        "supply": "the AHB-Lite CPU memory service: the reset word is held until the core presents the measured reset vector, then supplied through accept_instructions with the rest of the declared image",
+        "words": 64
+      },
+      "holds": "the reset word is declared as an instruction slot and held until the measured request address is the declared reset vector; the source then supplies the word through accept_instructions and the rest of the declared image as the initial image",
+      "kind": "fixed_boot_image_instruction_source",
+      "not_an_online_decoder": "this is a fixed boot-image instruction source: it decodes no RFuzz record and admits no random instruction.  The AHB session holds the reset word until the core really presents that address, the source supplies it and the declared image through the memory service, and the core then executes the fixed program.  An online RFuzz campaign needs an OnlineCaseDecoder, a reserved per-case instruction window and a checker; this assembly declares and runs none of them.",
+      "refuses": "a first measured fetch outside the declared reset vector, and any attempt to supply bytes for a request the core did not present",
+      "schema_version": "cvw_boot_instruction_source.v1",
+      "source_event_prefix": "cvw-boot:8444b6abf7450558"
+    },
+    "kind": "directed_fixed_image",
+    "not_an_rfuzz_online_campaign": "a directed fixed-image session: no OnlineCaseDecoder, no per-case reserved instruction window, no RFuzz client and no coverage-guided search",
+    "online_decoder": "myfuzz.scenario.cvw_session:make_cvw_boot_instruction_source",
+    "schema_version": "cvw_session_assembly.v1",
+    "target_boundary": {
+      "adapter": "src/myfuzz/protocols/rtl/ahb_lite_memory_target.sv",
+      "cpu_endpoint": "cpu.external_bus",
+      "cpu_protocol": [
+        "ahb-lite",
+        "1"
+      ],
+      "device_endpoint": "gpio.bus",
+      "device_instance": "gpio",
+      "device_protocol": [
+        "apb",
+        "3"
+      ],
+      "router": "myfuzz.scenario.router:DataflowRouter",
+      "window_base": 3489595392,
+      "window_size": 4096
+    }
+  },
+  "clock_model": {
+    "cpu": "generated AHB-Lite CPU driver local tick",
+    "gpio": "generated PULP GPIO APB driver local tick"
+  },
+  "completed_feedback_exchanges": 0,
+  "effective_search_seconds": 0.0,
+  "elapsed_seconds": 35.904533995002566,
+  "evidence": {
+    "accepted_beat_count": 43,
+    "artifact_digests": {
+      "cpu": "370388904ee6b149ab961060e99c82a413eec31e6e4196b9c53e602f40797282",
+      "gpio": "1331b597185e3b0915d0c946fe5ef2607482d003a299683cd276bd79d2576c41"
+    },
+    "boot_hold_ticks": 1,
+    "cpu_steps": 172,
+    "delivery_count": 7,
+    "final_target_state": {
+      "gpio_dir": 4294967295,
+      "gpio_in_sync": 165,
+      "gpio_out": 106,
+      "rdata": 0
+    },
+    "first_measured_fetch_address": 3221225472,
+    "result_words": [
+      53,
+      106,
+      1,
+      165
+    ]
+  },
+  "execution_mode": "directed_fixed_image",
+  "execution_status": "complete",
+  "fresh_replay": {
+    "event_count": 98,
+    "first_difference": null,
+    "matches": true
+  },
+  "generated": true,
+  "mutation_hint_updates": 0,
+  "not_claimed": [
+    "no RFuzz online campaign: no OnlineCaseDecoder, no per-case reserved instruction window, no coverage-guided search and no mutation feedback",
+    "no interrupt consumer (F5) and no DMA provider (F6)",
+    "no retirement observation or native IRQ receipt: the AHB-Lite boundary exports no RVFI port",
+    "no persistent multi-case session: one directed case per run"
+  ],
+  "receipt": {
+    "candidate_disposition": "admitted",
+    "candidate_disposition_reason": "rtl_case_committed",
+    "case_id": "cvw-directed-f4:cvw-session-gate-20261018",
+    "case_kind": "directed_fixed_image",
+    "coverage_hex": null,
+    "direction": "CPU_TO_IP",
+    "evidence": {
+      "accepted_beat_count": 43,
+      "assembly_sha256": "sha256:65273f0f6e0e42e01a977e2b398942b5ba1a65ea0f42871673cdf76950addc13",
+      "boot_hold_ticks": 1,
+      "delivery_count": 7,
+      "final_target_state": {
+        "gpio_dir": 4294967295,
+        "gpio_in_sync": 165,
+        "gpio_out": 106,
+        "rdata": 0
+      },
+      "first_measured_fetch_address": 3221225472,
+      "result_words": [
+        53,
+        106,
+        1,
+        165
+      ]
+    },
+    "flow_id": "F4",
+    "interaction_feature_deltas": {
+      "cpu:gpio:apb00_write": 1,
+      "cpu:gpio:apb04_write": 1,
+      "cpu:gpio:apb08_read": 1,
+      "cpu:gpio:apb0c_read": 1,
+      "cpu:gpio:apb0c_write": 1
+    },
+    "interaction_new_features": [
+      "cpu:gpio:apb00_write",
+      "cpu:gpio:apb04_write",
+      "cpu:gpio:apb0c_write",
+      "cpu:gpio:apb0c_read",
+      "cpu:gpio:apb08_read"
+    ],
+    "local_ticks": {
+      "cpu": 172,
+      "gpio": 201
+    },
+    "path_id": "F4:ram.image",
+    "run_id": "cvw-session-gate-20261018",
+    "schema_version": "cvw_directed_session_receipt.v1",
+    "status": "complete",
+    "target_id": "gpio",
+    "total_local_ticks": 373,
+    "violations": []
+  },
+  "record_semantics": {
+    "candidate_disposition_reason": "rtl_case_committed",
+    "case_kind": "directed_fixed_image",
+    "direction": "CPU_TO_IP",
+    "flow_id": "F4",
+    "receipt": "receipts.jsonl",
+    "search": "directed fixed-image program; no mutation or coverage feedback"
+  },
+  "run_id": "cvw-session-gate-20261018",
+  "runtime_path_status": "directed_fixed_image",
+  "schema_version": "cvw_directed_session_report.v1",
+  "session_status": "complete",
+  "statuses": {
+    "complete": 1
+  },
+  "tests": 1,
+  "total_local_ticks_semantics": "the runner's per-component local tick counts at the committed success marker"
+}

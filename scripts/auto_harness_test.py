@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """P7-E: one command from trusted declarations to a graded capability report.
 
-``auto_harness_test.py`` chains the accepted P7 stages over a real composition
-and, when a runtime family and a client binary are named, runs one real RFuzz
-session plus a fresh replay of its authenticated prefix:
+``auto_harness_test.py`` chains the accepted P7 stages over a real composition.
+When a runtime family is named it also starts that family's real session: an
+RFuzz live session when a client binary is supplied, or the family's own
+directed session when it declares one.  Either way the session is replayed fresh
+and the report is graded from the documents on disk:
 
     D1 ``declaration-review.json``   per-component declaration verdicts
     D2 ``generated/``                one harness per component + wiring contract
     D3 ``compiled_paths.v1.json``    per-path executable / unsupported + reasons
     D4 ``capability-report.json``    per-path and per-component tiers
-       ``session/``                  per-case receipts, trace, checker findings
-       ``bundle/``                   the authenticated prefix, for fresh replay
+       ``session/``                  real receipts, the session report and trace
+       ``bundle/``                   second view of the saved session, for review
        ``fresh-verification.json``   the fresh replay conclusion
 
 The runtime family is **never guessed**: ``--runtime`` selects one of the
@@ -48,19 +50,28 @@ The last line of stdout is the single machine-readable JSON summary.
 
 Known boundaries
 ----------------
-The composition shape both shipped runtime families wire - one CPU plus *two
-instances of one IP profile* - really does compile end to end.  D3 keys its
+The composition shape both shipped PULP runtime families wire - one CPU plus
+*two instances of one IP profile* - really does compile end to end.  D3 keys its
 input layout by instance id, so the second PULP GPIO instance is not read as a
 duplicate declaration, and the chain reaches the live session, the bundle and
 the fresh replay of the authenticated prefix.
 
+A family may instead declare its own **directed** session assembly.  When it
+does, the session stage starts that real chain without a client binary: the
+``cvw-ahb-pulp-gpio`` family ships a boot image supplied through the AHB-Lite
+memory service, a declared fixed-image instruction source and a real CVW + PULP
+GPIO runner factory, so its stage runs one bounded directed case and its fresh
+isolated re-run, writes ``session/``, ``bundle/`` and ``fresh-verification.json``
+and grades the F4 receipt it really produced.  That is a directed fixed-image
+session, not an RFuzz online campaign; naming ``--client-binary`` for such a
+family is refused by name instead of pretending the RFuzz transport exists.
+
 Nothing beyond that is claimed.  A path the composition cannot walk is reported
 by D3 as ``unsupported`` with a reason (for the shipped dual-GPIO composition:
 F5 ``interrupt-delivery-missing`` and F6 ``dma-master-not-declared``) and stops
-at ``Catalog`` in the report; the live session starts only when ``--runtime``
-*and* ``--client-binary`` are both named; and the runtime family is never
-guessed - ``cvw-ahb-pulp-gpio`` is registered, but its session stage still stops
-with ``cvw-online-assembly-undeclared``.
+at ``Catalog`` in the report; the RFuzz live session starts only when
+``--runtime`` *and* ``--client-binary`` are both named; and the runtime family
+is never guessed - an unknown family id is refused with the known ids.
 """
 from __future__ import annotations
 
@@ -90,7 +101,7 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument('--output', type=Path, required=True,
                         help='a NEW directory for this run (an existing one is refused)')
     parser.add_argument('--budget-seconds', type=float, default=60.0,
-                        help='wall-clock budget of the live session')
+                        help='wall-clock budget of the live or directed session')
     parser.add_argument('--runtime', default=None,
                         help='the runtime family that will start the RTL; the '
                              'composition is validated against it before generation')
@@ -102,16 +113,19 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
                              'back to a runtime family and cannot be combined with '
                              '--runtime')
     parser.add_argument('--client-binary', type=Path, default=None,
-                        help='the RFuzz client binary used by the live session')
+                        help='the RFuzz client binary used by an RFuzz live session; '
+                             'a family whose own directed session assembly is '
+                             'declared refuses it by name')
     parser.add_argument('--cache-dir', type=Path, default=None,
                         help='the shared identity-keyed local harness build cache; '
                              'defaults to <base-dir>/' + DEFAULT_CACHE_DIR)
     parser.add_argument('--build-cache', type=Path, default=None,
                         help='also compile every generated harness into this cache')
     parser.add_argument('--max-tests', type=int, default=200,
-                        help='maximum online cases for the live session')
+                        help='maximum online cases for the RFuzz live session; a '
+                             'directed session runs its own bounded case')
     parser.add_argument('--search-seed', type=int, default=None,
-                        help='the u64 search seed of the live session')
+                        help='the u64 search seed of the RFuzz live session')
     parser.add_argument('--rounds-per-case', type=int, default=128,
                         help='compiled route only: local advance rounds per '
                              'candidate case (1..4096); the family route keeps '

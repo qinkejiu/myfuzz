@@ -1,0 +1,252 @@
+{
+  "composition": {
+    "compose_base": "configs/scenarios/cvw-pulp-gpio",
+    "instance_ids": [
+      "cpu",
+      "gpio"
+    ],
+    "memory": [
+      {
+        "base": 3221225472,
+        "component_instance": "cpu",
+        "execute": true,
+        "read": true,
+        "resource_id": "ram",
+        "size": 268369920,
+        "write": true
+      }
+    ],
+    "path": "configs/scenarios/cvw-pulp-gpio/compose.json",
+    "requests": {
+      "cpu": "configs/cpus/cvw/component_profile.json",
+      "gpio": "configs/peripherals/pulp_gpio/component_profile.json"
+    },
+    "windows": [
+      {
+        "base": 3489595392,
+        "device_id": "gpio",
+        "instance_id": "gpio",
+        "size": 4096
+      }
+    ]
+  },
+  "family": {
+    "cpu_component_id": "cvw",
+    "cpu_master_protocol": [
+      "ahb-lite",
+      "1"
+    ],
+    "cpu_profile": "configs/cpus/cvw/component_profile.json",
+    "device_component_id": "pulp_gpio",
+    "device_endpoint_function": "mmio_slave",
+    "device_protocol": [
+      "apb",
+      "3"
+    ],
+    "execution_declaration": null,
+    "family_id": "cvw-ahb-pulp-gpio",
+    "note": "unified AHB-Lite CVW external bus and one PULP GPIO core on APB3. The family ships its own directed session assembly: a declared boot image supplied through the AHB-Lite memory service, a declared fixed-image instruction source that holds the reset word until the measured reset vector, and a real runner factory over GeneratedAhbMemorySession + GeneratedPulpGpioSession. Its session stage runs that directed case (no RFuzz client, no OnlineCaseDecoder); it is not an RFuzz online campaign",
+    "replay_entry": "myfuzz.integration.cvw_pulp_online:replay_cvw_pulp_online_files",
+    "runtime_entry": "myfuzz.integration.cvw_pulp_online:make_cvw_pulp_online_runtime",
+    "session_assembly": {
+      "boot_image": "myfuzz.scenario.cvw_session:make_cvw_boot_image",
+      "directed_session": "myfuzz.integration.cvw_pulp_online:run_cvw_directed_session",
+      "kind": "directed_fixed_image",
+      "note": "a fixed boot image, a declared instruction source and a real CVW+PULP GPIO runner factory.  The directed session starts the real chain and re-runs it fresh; it declares no RFuzz OnlineCaseDecoder, no per-case instruction window, no client binary and no coverage-guided search.",
+      "online_decoder": "myfuzz.scenario.cvw_session:make_cvw_boot_instruction_source",
+      "runner_factory": "myfuzz.scenario.cvw_session:make_cvw_gpio_session_factory",
+      "runtime_assembly": "myfuzz.integration.cvw_pulp_online:make_cvw_pulp_online_runtime",
+      "schema_version": "cvw_session_assembly_declaration.v1",
+      "status": "ok"
+    },
+    "wiring_declaration": "myfuzz.integration.cvw_pulp_online:cvw_pulp_gpio_wiring"
+  },
+  "refusals": [],
+  "requirements": {
+    "instances": [
+      "cpu",
+      "gpio"
+    ],
+    "memory_regions": [
+      {
+        "base": 3221225472,
+        "component_instance": "cpu",
+        "size": 268369920
+      }
+    ],
+    "windows": [
+      {
+        "base": 3489595392,
+        "device_id": "gpio",
+        "instance_id": "gpio",
+        "size": 4096
+      }
+    ]
+  },
+  "rows": [
+    {
+      "check": "cpu-component-id",
+      "code": null,
+      "detail": {
+        "expected": "cvw",
+        "observed": "cvw",
+        "profile": "configs/cpus/cvw/component_profile.json",
+        "profile_pointer": "/component_id"
+      },
+      "pointer": "/cpu/request",
+      "status": "ok"
+    },
+    {
+      "check": "cpu-master-endpoints",
+      "code": null,
+      "detail": {
+        "declared": [
+          "cpu.external_bus",
+          "cpu.manager_domain"
+        ],
+        "expected_functions": [
+          "instruction_memory_master",
+          "data_memory_master"
+        ],
+        "or_sole_unified": "memory_master",
+        "profile": "configs/cpus/cvw/component_profile.json"
+      },
+      "pointer": "/cpu/request",
+      "status": "ok"
+    },
+    {
+      "check": "cpu-master-protocol",
+      "code": null,
+      "detail": {
+        "endpoints": [],
+        "expected": [
+          "ahb-lite",
+          "1"
+        ],
+        "profile": "configs/cpus/cvw/component_profile.json"
+      },
+      "pointer": "/cpu/request",
+      "status": "ok"
+    },
+    {
+      "check": "cpu-data-endpoint-pointer",
+      "code": null,
+      "detail": {
+        "declared": "cpu.external_bus",
+        "function": "data_memory_master",
+        "requires": "cpu.external_bus"
+      },
+      "pointer": "/cpu/data_endpoint",
+      "status": "ok"
+    },
+    {
+      "check": "instances",
+      "code": null,
+      "detail": {
+        "missing": [],
+        "observed": [
+          "cpu",
+          "gpio"
+        ],
+        "required": [
+          "cpu",
+          "gpio"
+        ],
+        "requires": "the instance ids this family wires, exactly",
+        "unexpected": []
+      },
+      "pointer": "/devices",
+      "status": "ok"
+    },
+    {
+      "check": "device[gpio].component-id",
+      "code": null,
+      "detail": {
+        "expected": "pulp_gpio",
+        "observed": "pulp_gpio",
+        "profile": "configs/peripherals/pulp_gpio/component_profile.json",
+        "profile_pointer": "/component_id"
+      },
+      "pointer": "/devices/0/request",
+      "status": "ok"
+    },
+    {
+      "check": "device[gpio].bus-endpoint",
+      "code": null,
+      "detail": {
+        "declared": "gpio.bus",
+        "declared_endpoints": [
+          "gpio.bus",
+          "gpio.pins"
+        ],
+        "endpoint_id": "gpio.bus",
+        "problems": []
+      },
+      "pointer": "/devices/0/bus_endpoint",
+      "status": "ok"
+    },
+    {
+      "check": "device[gpio].device-id",
+      "code": null,
+      "detail": {
+        "declared": "gpio",
+        "requires": "gpio",
+        "requires_pointer": "the wiring declaration of this family"
+      },
+      "pointer": "/devices/0/device_id",
+      "status": "ok"
+    },
+    {
+      "check": "device[gpio].window-base",
+      "code": null,
+      "detail": {
+        "declared": 3489595392,
+        "instance_id": "gpio",
+        "requires": 3489595392
+      },
+      "pointer": "/devices/0/base",
+      "status": "ok"
+    },
+    {
+      "check": "device[gpio].window-size",
+      "code": null,
+      "detail": {
+        "declared": 4096,
+        "instance_id": "gpio",
+        "requires": 4096
+      },
+      "pointer": "/devices/0/size",
+      "status": "ok"
+    },
+    {
+      "check": "memory-regions",
+      "code": null,
+      "detail": {
+        "declared": [
+          {
+            "base": 3221225472,
+            "component_instance": "cpu",
+            "execute": true,
+            "read": true,
+            "resource_id": "ram",
+            "size": 268369920,
+            "write": true
+          }
+        ],
+        "missing": [],
+        "required": [
+          {
+            "base": 3221225472,
+            "component_instance": "cpu",
+            "size": 268369920
+          }
+        ],
+        "requires": "every region this family serves must be declared readable and executable by the composition"
+      },
+      "pointer": "/memory",
+      "status": "ok"
+    }
+  ],
+  "schema_version": "runtime_family_check.v1",
+  "status": "ok"
+}

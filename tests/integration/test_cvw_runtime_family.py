@@ -1,4 +1,4 @@
-"""The CVW runtime family: registered, derived from the real profiles, honest stop.
+"""The CVW runtime family: registered, derived, and really startable.
 
 ``cvw-ahb-pulp-gpio`` is the third family of the P7-E driver's closed set and the
 first non-PULP one.  Its CPU is CVW (CORE-V Wally) at its **unified** AHB-Lite
@@ -7,24 +7,27 @@ that one bus, so the profile declares a single ``memory_master`` endpoint and no
 instruction/data pair - and its device is one ``pulp_gpio`` on APB3 in a 4 KiB
 window inside the external aperture, with host RAM carved below MMIO.
 
-The four claims this file pins, each with a guard that can fail:
+The claims this file pins, each with a guard that can fail:
 
 * the family is registered and selectable by id, and its id/entry points are the
   ones the family module declares (a drifted literal is caught);
+* the family publishes a real session assembly - boot image, instruction source
+  and runner factory - and each named entry resolves to a callable/document in
+  the module that really implements it;
 * an unknown family id is still refused by name - the set did not become
   "anything goes" when a third entry was added;
 * the family's declared shape (component ids, protocols, endpoint, window,
   memory region, boot base) is what the two real profiles and the pinned derived
   configuration actually say, and a *mutated* declaration is refused by name
   (the scratch-tree tests below are those RED guards);
-* the run reaches its honest stage: D1..D3 plus the capability report complete
-  with ``--runtime cvw-ahb-pulp-gpio``, the session appears as the named absence
-  ``client-binary-required``, and the runtime entry point itself refuses with
-  ``cvw-online-assembly-undeclared`` before any RTL, session directory or
-  heavy-worker lock exists.
+* the pure run reaches D1..D3 plus the capability report with
+  ``--runtime cvw-ahb-pulp-gpio --skip-session``, and the old
+  ``cvw-online-assembly-undeclared`` refusal is gone;
+* the gated real run (``MYFUZZ_SCENARIO_REAL=1``) reaches the family's directed
+  session, with a real F4 receipt and a fresh replay conclusion.
 
-Nothing here fabricates a session: no test asserts that a CVW RFuzz campaign
-ran, because it cannot run yet (see the family module's ``CVW_ONLINE_MISSING``).
+Nothing here fabricates a session: the real case is skipped unless the caller
+explicitly opts in, and it is the CLI itself - not a fixture - that starts it.
 """
 from __future__ import annotations
 
@@ -100,7 +103,38 @@ def test_the_family_is_registered_and_selectable():
     # driver's own ``_load_entry`` requires before it starts anything.
     assert resolved_entry(selected.runtime_entry) is family_module.make_cvw_pulp_online_runtime
     assert resolved_entry(selected.replay_entry) is family_module.replay_cvw_pulp_online_files
+    # And the family's own session assembly is published, not restated here.
+    assembly = selected.session_assembly_document()
+    assert assembly is not None and assembly['status'] == 'ok', assembly
+    assert assembly == {'status': 'ok', **family_module.CVW_SESSION_ASSEMBLY}
+    assert assembly['kind'] == 'directed_fixed_image'
+    for key in ('boot_image', 'online_decoder', 'runner_factory',
+                'directed_session', 'runtime_assembly'):
+        assert resolved_entry(assembly[key]) is not None, key
+    assert selected.directed_session_entry() == assembly['directed_session']
 
+
+def test_the_assembly_declares_the_three_real_pieces():
+    """The boot image, instruction source and factory really exist as code."""
+    from myfuzz.scenario import cvw_session
+
+    boot_image = resolved_entry(family_module.CVW_SESSION_ASSEMBLY['boot_image'])
+    source = resolved_entry(family_module.CVW_SESSION_ASSEMBLY['online_decoder'])
+    factory = resolved_entry(family_module.CVW_SESSION_ASSEMBLY['runner_factory'])
+    assert boot_image is cvw_session.make_cvw_boot_image
+    assert source is cvw_session.make_cvw_boot_instruction_source
+    assert factory is cvw_session.make_cvw_gpio_session_factory
+    image = boot_image()
+    assert isinstance(image, cvw_session.CvwBootImage)
+    assert image.base == 0xC0000000 and image.result == 0xC0000400
+    assert image.words == len(image.data) // 4 == 64
+    instruction_source = source(image)
+    declaration = instruction_source.document()
+    assert declaration['schema_version'] == 'cvw_boot_instruction_source.v1'
+    assert declaration['kind'] == 'fixed_boot_image_instruction_source'
+    assert 'no RFuzz record' in declaration['not_an_online_decoder']
+    assert declaration['boot_image']['sha256'] == image.sha256
+    assert instruction_source.evidence()['delivered'] is False
 
 def test_the_family_requirements_come_from_its_own_declaration():
     facts = wiring_facts(family())
@@ -353,11 +387,17 @@ def test_a_cpu_without_its_unified_master_is_refused(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# (d) the run's honest stage, and the entry point's honest stop
+# (d) the real session route, and the boundaries it keeps
 # ---------------------------------------------------------------------------
 
-def test_the_runtime_entry_refuses_by_name_without_starting_rtl(tmp_path):
-    """The live path stops at the real gap, before RTL, a session dir or a lock."""
+def test_the_rfuzz_live_route_does_not_start_cvw_without_d3_inputs(tmp_path):
+    """The RFuzz transport is not silently borrowed by the directed family.
+
+    ``run_live_session`` is the shared RFuzz path.  Called without the D3
+    compiled inputs it refuses before the family entry point, so naming a client
+    binary cannot turn the directed family into an online campaign by accident.
+    No RTL is started and the heavy-worker lock is never taken.
+    """
     cache = ROOT / '.superpowers' / 'cache' / 'local-harness'
     if not cache.is_dir():
         pytest.skip('the shared local-harness build cache is not present')
@@ -370,15 +410,9 @@ def test_the_runtime_entry_refuses_by_name_without_starting_rtl(tmp_path):
                          budget_seconds=1.0, max_tests=1, search_seed=None,
                          max_runs_per_batch=1, base_dir=tmp_path)
 
-    assert raised.value.code == 'cvw-online-assembly-undeclared'
-    assert raised.value.pointer == '/runtime'
-    detail = raised.value.detail
-    assert detail['family_id'] == FAMILY_ID
-    assert [row['requirement'] for row in detail['missing']] == \
-        ['boot_image', 'online_decoder', 'runner_factory']
-    assert detail['declared']['cpu']['endpoint_id'] == 'cpu.external_bus'
-    assert detail['not_started']['rtl_processes'] == 0
-
+    assert raised.value.code == 'compiled-runtime-input-required'
+    assert raised.value.pointer == '/compiled_inputs'
+    assert family().directed_session_entry() is not None
     # Nothing was created: no session directory, and the repository's one heavy
     # worker lock was never taken for a run that cannot proceed.
     assert not (tmp_path / 'session').exists()
@@ -386,7 +420,7 @@ def test_the_runtime_entry_refuses_by_name_without_starting_rtl(tmp_path):
     assert sorted(path.name for path in tmp_path.iterdir()) == ['client']
 
 
-def test_the_opt_in_observations_are_refused_by_name():
+def test_the_opt_in_observations_are_refused_by_name(monkeypatch):
     """Every opt-in is off by default, and an unavailable one is refused, not dropped."""
     cache = ROOT / '.superpowers' / 'cache' / 'local-harness'
     entry = family_module.make_cvw_pulp_online_runtime
@@ -411,30 +445,56 @@ def test_the_opt_in_observations_are_refused_by_name():
         assert raised.value.code == code, overrides
         assert raised.value.pointer == pointer, overrides
 
-    # With every opt-in at its default the refusal is the assembly gap, not a
-    # policy: the defaults themselves are what the family ships.
-    with pytest.raises(AutoHarnessRefused) as raised:
-        entry(**call())
-    assert raised.value.code == 'cvw-online-assembly-undeclared'
+    # With every opt-in at its default the entry builds the real assembly and
+    # returns it.  The assembly builder is replaced here so this stays a pure
+    # test: constructing the real one renders CVW harnesses, which the gated
+    # test below does through the CLI.
+    class _Assembly:
+        def document(self):
+            return {'schema_version': 'cvw_session_assembly.v1',
+                    'kind': 'directed_fixed_image'}
+
+    monkeypatch.setattr(family_module, '_make_assembly',
+                        lambda **kwargs: _Assembly())
+    runtime = entry(**call())
+    assert isinstance(runtime, family_module.CvwOnlineRuntime)
+    # No ``.executor`` attribute at all: the RFuzz live transport is not this
+    # family's session, and the driver's own ``getattr(runtime, 'executor', None)``
+    # check names the absence rather than receiving a fabricated executor.
+    assert not hasattr(runtime, 'executor')
+    document = runtime.document()
+    assert document['kind'] == 'directed_fixed_image'
+    assert document['not_an_rfuzz_online_campaign'] is True
+    assert document['executor'] is None
+    assert 'run_cvw_directed_session' in document['fresh_replay']
+
+    # The old assembly-undeclared stop is gone from the module that used to
+    # declare it; the pieces it named are declared instead.
+    source = Path(family_module.__file__).read_text(encoding='utf-8')
+    assert 'cvw-online-assembly-undeclared' not in source
+    assert not hasattr(family_module, 'CVW_ONLINE_MISSING')
+    for key in ('boot_image', 'online_decoder', 'runner_factory',
+                'directed_session'):
+        assert key in family_module.CVW_SESSION_ASSEMBLY
 
 
-def test_the_replay_entry_refuses_because_no_session_can_have_produced_a_bundle():
+def test_the_replay_entry_refuses_because_a_directed_session_has_no_online_bundle():
     with pytest.raises(AutoHarnessRefused) as raised:
         family_module.replay_cvw_pulp_online_files(
             cache_dir=ROOT, plan_path='online_plan.json', trace_path='trace.json')
-    assert raised.value.code == 'cvw-online-assembly-undeclared'
-    assert 'nothing to replay' in raised.value.detail['requires']
+    assert raised.value.code == 'cvw-directed-session-has-no-online-bundle'
+    assert raised.value.pointer == '/runtime'
+    assert 'directed session entry re-runs' in raised.value.detail['requires']
+    assert raised.value.detail['family_id'] == FAMILY_ID
 
 
-def test_the_family_run_reaches_its_d1_to_d3_stage_and_names_the_missing_session(tmp_path):
+def test_the_family_run_reaches_its_d1_to_d3_stage_with_skip_session(tmp_path):
     """The exact shipped command with ``--runtime cvw-ahb-pulp-gpio``.
 
-    No client binary is named, so D1..D3 and the capability report all complete
-    and the session is the *named absence* ``client-binary-required`` - the family
-    is admitted and validated, and nothing pretends a session ran.  The driver
-    reports ``refused``/exit 1 for a named absence (``--skip-session`` is the
-    explicit way to ask for a software-only run), with an empty ``refusals``
-    list: nothing was refused, one stage is absent and its reason is written.
+    ``--skip-session`` is the explicit software-only request: D1..D3 and the
+    capability report complete, the family is admitted and validated with its
+    published assembly, and the session is ``not_requested`` rather than a
+    fabricated run.  The real directed session is the gated test below.
     """
     output = tmp_path / 'cvw-family-run'
     environment = {**os.environ, 'PYTHONPATH': str(ROOT / 'src')}
@@ -450,7 +510,7 @@ def test_the_family_run_reaches_its_d1_to_d3_stage_and_names_the_missing_session
          '--cpu', 'configs/cpus/cvw/component_profile.json',
          '--ip', 'configs/peripherals/pulp_gpio/component_profile.json',
          '--compose', 'configs/scenarios/cvw-pulp-gpio/compose.json',
-         '--output', str(output), '--runtime', FAMILY_ID],
+         '--output', str(output), '--runtime', FAMILY_ID, '--skip-session'],
         cwd=ROOT, capture_output=True, text=True, env=environment, timeout=1800,
         start_new_session=True)
     lines = [line for line in result.stdout.splitlines() if line.strip()]
@@ -467,30 +527,32 @@ def test_the_family_run_reaches_its_d1_to_d3_stage_and_names_the_missing_session
                     + ', '.join(row['code'] for row in payload['refusals']))
 
     assert payload['refusals'] == [], result.stderr[-4000:]
-    assert payload['status'] == 'refused'
-    assert result.returncode == payload['exit_code'] == 1
+    assert payload['status'] == 'complete'
+    assert result.returncode == payload['exit_code'] == 0
     assert payload['runtime_family']['status'] == 'ok'
     assert payload['runtime_family']['family'] == FAMILY_ID
     assert payload['runtime_family']['detail']['requirements']['instances'] == ['cpu', 'gpio']
     for stage in ('declaration_review', 'harness_set', 'path_compilation',
                   'capability_report'):
         assert payload['stages'][stage]['status'] == 'ok', stage
-    assert payload['stages']['session']['status'] == 'absent'
-    assert payload['stages']['session']['code'] == 'client-binary-required'
-    assert payload['stages']['fresh_verification']['status'] == 'absent'
-    assert [row['code'] for row in payload['absences']] == \
-        ['client-binary-required', 'fresh-replay-requires-a-session']
+    assert payload['stages']['session']['status'] == 'not_requested'
+    assert payload['stages']['fresh_verification']['status'] == 'not_requested'
+    assert payload['absences'] == []
 
-    # The family document and the composition it accepted are on disk.
+    # The family document and the composition it accepted are on disk, and the
+    # assembly declaration is the one the module really publishes.
     check = read(output / 'runtime-family.json')
     assert check['family']['family_id'] == FAMILY_ID
     assert check['status'] == 'ok' and check['refusals'] == []
     assert check['requirements']['memory_regions'] == [
         {'component_instance': 'cpu', 'base': 0xC0000000, 'size': 0x0FFF0000}]
+    assembly = check['family']['session_assembly']
+    assert assembly['status'] == 'ok'
+    assert assembly['kind'] == 'directed_fixed_image'
+    assert assembly['directed_session'].endswith(':run_cvw_directed_session')
     assert not (output / 'session').exists()
     assert not (output / 'fresh-verification.json').exists()
-    # A named absence still marks the run incomplete: it is not a finished run.
-    assert (output / '.incomplete').is_file()
+    assert not (output / '.incomplete').exists()
 
     # The four memory-image flows of the unified master really are executable;
     # the two that are not stay unsupported for their own real reasons.
@@ -500,6 +562,104 @@ def test_the_family_run_reaches_its_d1_to_d3_stage_and_names_the_missing_session
                for row in compiled['paths'] if row['status'] == 'unsupported'}
     assert reasons == {'F5': 'interrupt-consumer-missing',
                        'F6': 'dma-master-not-declared'}
+
+
+@pytest.mark.skipif(os.environ.get('MYFUZZ_SCENARIO_REAL') != '1',
+                    reason='set MYFUZZ_SCENARIO_REAL=1 to start real CVW RTL')
+def test_the_family_cli_starts_a_real_directed_session_and_grades_f4(tmp_path):
+    """The real gate: the CLI itself starts CVW, runs F4 and replays it fresh.
+
+    Run under the repository's heavy-worker lock.  Every assertion below is read
+    from the run's own documents, and the session is a *directed fixed-image*
+    case: the F4 receipt is the one CPU→PULP GPIO program this run really
+    executed, not an online campaign.
+    """
+    cache = Path(os.environ.get('MYFUZZ_CVW_SESSION_CACHE',
+                                str(ROOT / '.superpowers' / 'cache' / 'local-harness')))
+    if not cache.is_dir():
+        pytest.skip('the CVW session build cache is not present')
+    output = tmp_path / 'cvw-real-run'
+    environment = {**os.environ, 'PYTHONPATH': str(ROOT / 'src')}
+    result = subprocess.run(
+        [sys.executable, str(CLI),
+         '--cpu', 'configs/cpus/cvw/component_profile.json',
+         '--ip', 'configs/peripherals/pulp_gpio/component_profile.json',
+         '--compose', 'configs/scenarios/cvw-pulp-gpio/compose.json',
+         '--output', str(output), '--runtime', FAMILY_ID,
+         '--cache-dir', str(cache), '--budget-seconds', '600',
+         '--label', 'cvw-real-directed'],
+        cwd=ROOT, capture_output=True, text=True, env=environment, timeout=7200,
+        start_new_session=True)
+    lines = [line for line in result.stdout.splitlines() if line.strip()]
+    payload = json.loads(lines[-1]) if lines else None
+    assert payload is not None, result.stderr[-8000:]
+
+    if payload['stages']['declaration_review']['status'] != 'ok':
+        pytest.skip('the CVW declaration review refused first: '
+                    + ', '.join(row['code'] for row in payload['refusals']))
+    assert payload['refusals'] == [], result.stderr[-8000:]
+    assert payload['status'] == 'complete'
+    assert result.returncode == payload['exit_code'] == 0
+    assert payload['stages']['session']['status'] == 'ok'
+    assert payload['stages']['session']['transport']['mode'] == 'directed_fixed_image'
+    assert payload['stages']['fresh_verification']['status'] == 'ok'
+    assert payload['fresh_replay']['matches'] is True
+    assert payload['fresh_replay']['first_difference'] is None
+    assert payload['fresh_replay']['verification_scope'] == 'full'
+
+    report = read(output / 'session' / 'report.json')
+    assert report['execution_mode'] == 'directed_fixed_image'
+    assert report['execution_status'] == 'complete'
+    assert report['tests'] == 1
+    evidence = report['evidence']
+    assert evidence['delivery_count'] == 7
+    assert evidence['accepted_beat_count'] > 0
+    assert evidence['result_words'] == [0x35, 0x6A, 1, 0xA5]
+    assert evidence['first_measured_fetch_address'] == 0xC0000000
+    assert evidence['boot_hold_ticks'] >= 1
+    assert evidence['final_target_state']['gpio_out'] == 0x6A
+    assert evidence['final_target_state']['gpio_dir'] == 0xFFFFFFFF
+    assert report['assembly']['kind'] == 'directed_fixed_image'
+    assert report['not_claimed']
+
+    receipts = [json.loads(line) for line in
+                (output / 'session' / 'receipts.jsonl').read_text(
+                    encoding='utf-8').splitlines() if line.strip()]
+    assert len(receipts) == 1
+    receipt = receipts[0]
+    assert receipt['flow_id'] == 'F4' and receipt['direction'] == 'CPU_TO_IP'
+    assert receipt['candidate_disposition_reason'] == 'rtl_case_committed'
+    assert receipt['local_ticks']['cpu'] > 0 and receipt['local_ticks']['gpio'] > 0
+    assert any(token.startswith('cpu:gpio:')
+               for token in receipt['interaction_new_features'])
+
+    session = read(output / 'session' / 'directed-session.json')
+    assert session['comparison']['matches'] is True
+    # The raw documents carry each run's own execution keys; the observed
+    # device effects must be identical without them.
+    def rows(run):
+        return [(row['offset'], row['write'], row['write_value'],
+                 row['read_value']) for row in run['deliveries']]
+    def beats(run):
+        return [(row['step'], row['address'], row['write'], row['value'],
+                 row['byte_enable']) for row in run['accepted_beats']]
+    assert rows(session['first']) == rows(session['fresh'])
+    assert beats(session['first']) == beats(session['fresh'])
+
+    grading = read(output / 'capability-report.json')
+    f4 = [row for row in grading['paths'] if row.get('flow_id') == 'F4']
+    assert len(f4) == 1
+    tiers = {row['tier']: row['disposition'] for row in f4[0]['tiers']}
+    assert tiers['RTL operational'] == 'awarded', f4[0]
+    assert tiers['Cross-component accepted'] == 'awarded', f4[0]
+    assert tiers['Coverage-guided searched'] == 'grade_not_claimed'
+
+    # The seven artifacts the help text promises really exist.
+    for path in ('declaration-review.json', 'generated/harness_set.json',
+                 'compiled_paths.v1.json', 'capability-report.json',
+                 'session/report.json', 'bundle/bundle-manifest.json',
+                 'fresh-verification.json', 'run-summary.json'):
+        assert (output / path).is_file(), path
 
 
 def test_mmio_is_reachable_and_host_ram_is_carved():

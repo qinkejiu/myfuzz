@@ -1,0 +1,66 @@
+{
+  "capability_executable": 4,
+  "compiled_semantics_executed": false,
+  "execution_status": "directed_fixed_image",
+  "execution_supported": 1,
+  "requires": "the directed entry starts the real chain from a fixed declared boot image; it does not execute the D3 compiled source/assertion mapping, so no compiled-runtime admission is claimed",
+  "runtime_admitted": false,
+  "schema_version": "execution_projection.v1",
+  "session_assembly": {
+    "boot_image": {
+      "base": 3221225472,
+      "gpio_base": 3489595392,
+      "result": 3221226496,
+      "result_bytes": 64,
+      "schema_version": "cvw_boot_image.v1",
+      "sha256": "8444b6abf745055806f8fe0c7243d330cd0d62600889547def03aed72fef84b9",
+      "size_bytes": 256,
+      "source": "myfuzz.scenario.cvw_gpio_example:cvw_gpio_program",
+      "supply": "the AHB-Lite CPU memory service: the reset word is held until the core presents the measured reset vector, then supplied through accept_instructions with the rest of the declared image",
+      "words": 64
+    },
+    "factory": "myfuzz.scenario.cvw_session:make_cvw_gpio_session_factory",
+    "instruction_source": {
+      "boot_image": {
+        "base": 3221225472,
+        "gpio_base": 3489595392,
+        "result": 3221226496,
+        "result_bytes": 64,
+        "schema_version": "cvw_boot_image.v1",
+        "sha256": "8444b6abf745055806f8fe0c7243d330cd0d62600889547def03aed72fef84b9",
+        "size_bytes": 256,
+        "source": "myfuzz.scenario.cvw_gpio_example:cvw_gpio_program",
+        "supply": "the AHB-Lite CPU memory service: the reset word is held until the core presents the measured reset vector, then supplied through accept_instructions with the rest of the declared image",
+        "words": 64
+      },
+      "holds": "the reset word is declared as an instruction slot and held until the measured request address is the declared reset vector; the source then supplies the word through accept_instructions and the rest of the declared image as the initial image",
+      "kind": "fixed_boot_image_instruction_source",
+      "not_an_online_decoder": "this is a fixed boot-image instruction source: it decodes no RFuzz record and admits no random instruction.  The AHB session holds the reset word until the core really presents that address, the source supplies it and the declared image through the memory service, and the core then executes the fixed program.  An online RFuzz campaign needs an OnlineCaseDecoder, a reserved per-case instruction window and a checker; this assembly declares and runs none of them.",
+      "refuses": "a first measured fetch outside the declared reset vector, and any attempt to supply bytes for a request the core did not present",
+      "schema_version": "cvw_boot_instruction_source.v1",
+      "source_event_prefix": "cvw-boot:8444b6abf7450558"
+    },
+    "kind": "directed_fixed_image",
+    "not_an_rfuzz_online_campaign": "a directed fixed-image session: no OnlineCaseDecoder, no per-case reserved instruction window, no RFuzz client and no coverage-guided search",
+    "online_decoder": "myfuzz.scenario.cvw_session:make_cvw_boot_instruction_source",
+    "schema_version": "cvw_session_assembly.v1",
+    "target_boundary": {
+      "adapter": "src/myfuzz/protocols/rtl/ahb_lite_memory_target.sv",
+      "cpu_endpoint": "cpu.external_bus",
+      "cpu_protocol": [
+        "ahb-lite",
+        "1"
+      ],
+      "device_endpoint": "gpio.bus",
+      "device_instance": "gpio",
+      "device_protocol": [
+        "apb",
+        "3"
+      ],
+      "router": "myfuzz.scenario.router:DataflowRouter",
+      "window_base": 3489595392,
+      "window_size": 4096
+    }
+  },
+  "status": "directed_fixed_image"
+}

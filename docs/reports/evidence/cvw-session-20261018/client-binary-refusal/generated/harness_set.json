@@ -1,0 +1,94 @@
+{
+  "components": [
+    {
+      "artifact_digest": "370388904ee6b149ab961060e99c82a413eec31e6e4196b9c53e602f40797282",
+      "binary": null,
+      "device_id": null,
+      "harness": "cpu",
+      "instance_id": "cpu",
+      "kind": "ahb_lite_cpu",
+      "request": "requests/cpu.json",
+      "role": "cpu",
+      "template": {
+        "declared_role": "cpu-data",
+        "endpoint_id": "cpu.external_bus",
+        "identity_sha256": "694abb16b5afc89e3f4a679fa1ea37d2ea1ee9229988bf65a5c6fc69f46cec4b",
+        "instance_id": "cpu",
+        "protocol": [
+          "ahb-lite",
+          "1"
+        ],
+        "template_id": "cpu.ahb-lite",
+        "template_version": "1",
+        "variant_id": "cvw-external-bus"
+      }
+    },
+    {
+      "artifact_digest": "1331b597185e3b0915d0c946fe5ef2607482d003a299683cd276bd79d2576c41",
+      "binary": null,
+      "device_id": "gpio",
+      "harness": "gpio",
+      "instance_id": "gpio",
+      "kind": "apb_gpio",
+      "request": "requests/gpio.json",
+      "role": "device",
+      "template": {
+        "declared_role": "device-bus",
+        "endpoint_id": "gpio.bus",
+        "identity_sha256": "31a5a8add131e35375fdc972241ae9bb6f18030798b39edf9c4120952ea3d59a",
+        "instance_id": "gpio",
+        "protocol": [
+          "apb",
+          "3"
+        ],
+        "template_id": "target.apb3",
+        "template_version": "1",
+        "variant_id": "full-word"
+      }
+    }
+  ],
+  "not_claimed": [
+    "cross_component_accepted",
+    "rtl_operational",
+    "coverage_guided_searched",
+    "bug_confirmed"
+  ],
+  "schema_version": "harness_set.v1",
+  "tier": "generated",
+  "tier_scope": "harnesses were generated and admitted by template",
+  "wiring": {
+    "cpu": {
+      "endpoint_id": "cpu.external_bus",
+      "instance_id": "cpu",
+      "template": "cpu.ahb-lite",
+      "variant_id": "cvw-external-bus"
+    },
+    "cycle_accurate": false,
+    "delivery": "transaction_level_explicit",
+    "global_interconnect": false,
+    "resources": [
+      {
+        "base": 3221225472,
+        "component_instance": "cpu",
+        "execute": true,
+        "initialization_policy": "preload",
+        "read": true,
+        "resource_id": "ram",
+        "size": 268369920,
+        "write": true
+      }
+    ],
+    "schema_version": "wiring_contract.v1",
+    "windows": [
+      {
+        "base": 3489595392,
+        "device_id": "gpio",
+        "endpoint_id": "gpio.bus",
+        "size": 4096,
+        "target_instance": "gpio",
+        "template": "target.apb3",
+        "variant_id": "full-word"
+      }
+    ]
+  }
+}

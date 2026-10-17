@@ -1,0 +1,525 @@
+{
+  "dispositions": [
+    {
+      "bits": {
+        "hi": 33,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cvw",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "evidence": "elaborated_ports[HADDR]",
+      "instance_id": "cpu",
+      "port": "HADDR",
+      "port_width": 34,
+      "reason": "bound to interface cpu.external_bus role haddr",
+      "reset_domain": "local_reset",
+      "role": "haddr",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 2,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cvw",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "evidence": "elaborated_ports[HBURST]",
+      "instance_id": "cpu",
+      "port": "HBURST",
+      "port_width": 3,
+      "reason": "bound to interface cpu.external_bus role hburst",
+      "reset_domain": "local_reset",
+      "role": "hburst",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cvw",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[HCLK]",
+      "instance_id": "cpu",
+      "port": "HCLK",
+      "port_width": 1,
+      "reason": "SoC clock output of the AHB boundary; exported for passive monitoring, never driven.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cvw",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "evidence": "elaborated_ports[HMASTLOCK]",
+      "instance_id": "cpu",
+      "port": "HMASTLOCK",
+      "port_width": 1,
+      "reason": "bound to interface cpu.external_bus role hmastlock",
+      "reset_domain": "local_reset",
+      "role": "hmastlock",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 3,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cvw",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "evidence": "elaborated_ports[HPROT]",
+      "instance_id": "cpu",
+      "port": "HPROT",
+      "port_width": 4,
+      "reason": "bound to interface cpu.external_bus role hprot",
+      "reset_domain": "local_reset",
+      "role": "hprot",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cvw",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "evidence": "elaborated_ports[HRDATAEXT]",
+      "instance_id": "cpu",
+      "port": "HRDATAEXT",
+      "port_width": 32,
+      "reason": "bound to interface cpu.external_bus role hrdata",
+      "reset_domain": "local_reset",
+      "role": "hrdata",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cvw",
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": "cpu.manager_domain",
+      "evidence": "component_profile.endpoints[cpu.manager_domain]",
+      "instance_id": "cpu",
+      "port": "HREADY",
+      "port_width": 1,
+      "reason": "profile declares a passive observation output; it is exported, never driven",
+      "reset_domain": "local_reset",
+      "role": "manager_ready",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cvw",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "evidence": "elaborated_ports[HREADYEXT]",
+      "instance_id": "cpu",
+      "port": "HREADYEXT",
+      "port_width": 1,
+      "reason": "bound to interface cpu.external_bus role hready",
+      "reset_domain": "local_reset",
+      "role": "hready",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cvw",
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": "cpu.manager_domain",
+      "evidence": "component_profile.endpoints[cpu.manager_domain]",
+      "instance_id": "cpu",
+      "port": "HRESETn",
+      "port_width": 1,
+      "reason": "profile declares a passive observation output; it is exported, never driven",
+      "reset_domain": "local_reset",
+      "role": "bus_reset_n",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cvw",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "evidence": "elaborated_ports[HRESPEXT]",
+      "instance_id": "cpu",
+      "port": "HRESPEXT",
+      "port_width": 1,
+      "reason": "bound to interface cpu.external_bus role hresp",
+      "reset_domain": "local_reset",
+      "role": "hresp",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cvw",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "evidence": "elaborated_ports[HSELEXT]",
+      "instance_id": "cpu",
+      "port": "HSELEXT",
+      "port_width": 1,
+      "reason": "bound to interface cpu.external_bus role hsel",
+      "reset_domain": "local_reset",
+      "role": "hsel",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 2,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cvw",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "evidence": "elaborated_ports[HSIZE]",
+      "instance_id": "cpu",
+      "port": "HSIZE",
+      "port_width": 3,
+      "reason": "bound to interface cpu.external_bus role hsize",
+      "reset_domain": "local_reset",
+      "role": "hsize",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 1,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cvw",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "evidence": "elaborated_ports[HTRANS]",
+      "instance_id": "cpu",
+      "port": "HTRANS",
+      "port_width": 2,
+      "reason": "bound to interface cpu.external_bus role htrans",
+      "reset_domain": "local_reset",
+      "role": "htrans",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cvw",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "evidence": "elaborated_ports[HWDATA]",
+      "instance_id": "cpu",
+      "port": "HWDATA",
+      "port_width": 32,
+      "reason": "bound to interface cpu.external_bus role hwdata",
+      "reset_domain": "local_reset",
+      "role": "hwdata",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cvw",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "evidence": "elaborated_ports[HWRITE]",
+      "instance_id": "cpu",
+      "port": "HWRITE",
+      "port_width": 1,
+      "reason": "bound to interface cpu.external_bus role hwrite",
+      "reset_domain": "local_reset",
+      "role": "hwrite",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 3,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cvw",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "evidence": "elaborated_ports[HWSTRB]",
+      "instance_id": "cpu",
+      "port": "HWSTRB",
+      "port_width": 4,
+      "reason": "bound to interface cpu.external_bus role hwstrb",
+      "reset_domain": "local_reset",
+      "role": "hwstrb",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cvw",
+      "direction": "input",
+      "disposition": "functional",
+      "evidence": "component_profile.clocks[clk]",
+      "instance_id": "cpu",
+      "port": "clk",
+      "port_width": 1,
+      "reason": "clock port distributed from the SoC clock input",
+      "reset_domain": "local_reset",
+      "role": "clock",
+      "target": "clock_reset"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cvw",
+      "direction": "input",
+      "disposition": "functional",
+      "evidence": "component_profile.resets[reset_ext]",
+      "instance_id": "cpu",
+      "port": "reset_ext",
+      "port_width": 1,
+      "reason": "reset port distributed from the SoC reset input",
+      "reset_domain": "local_reset",
+      "role": "reset",
+      "target": "clock_reset"
+    }
+  ],
+  "module_name": "local_cpu",
+  "parameter_evidence": [],
+  "plan_sha256": "13e90a805babb355bdefbc742a12878dfa260e152c5918036c52f7c5d24270ee",
+  "ports": [
+    {
+      "bit_hi": 33,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "physical_port": "HADDR",
+      "role": "haddr",
+      "width": 34,
+      "wrapper_name": "lh_p_0_33_0"
+    },
+    {
+      "bit_hi": 2,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "physical_port": "HBURST",
+      "role": "hburst",
+      "width": 3,
+      "wrapper_name": "lh_p_1_2_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "HCLK",
+      "role": null,
+      "width": 1,
+      "wrapper_name": "lh_p_2_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "physical_port": "HMASTLOCK",
+      "role": "hmastlock",
+      "width": 1,
+      "wrapper_name": "lh_p_3_0_0"
+    },
+    {
+      "bit_hi": 3,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "physical_port": "HPROT",
+      "role": "hprot",
+      "width": 4,
+      "wrapper_name": "lh_p_4_3_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "physical_port": "HRDATAEXT",
+      "role": "hrdata",
+      "width": 32,
+      "wrapper_name": "lh_p_5_31_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": "cpu.manager_domain",
+      "physical_port": "HREADY",
+      "role": "manager_ready",
+      "width": 1,
+      "wrapper_name": "lh_p_6_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "physical_port": "HREADYEXT",
+      "role": "hready",
+      "width": 1,
+      "wrapper_name": "lh_p_7_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": "cpu.manager_domain",
+      "physical_port": "HRESETn",
+      "role": "bus_reset_n",
+      "width": 1,
+      "wrapper_name": "lh_p_8_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "physical_port": "HRESPEXT",
+      "role": "hresp",
+      "width": 1,
+      "wrapper_name": "lh_p_9_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "physical_port": "HSELEXT",
+      "role": "hsel",
+      "width": 1,
+      "wrapper_name": "lh_p_10_0_0"
+    },
+    {
+      "bit_hi": 2,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "physical_port": "HSIZE",
+      "role": "hsize",
+      "width": 3,
+      "wrapper_name": "lh_p_11_2_0"
+    },
+    {
+      "bit_hi": 1,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "physical_port": "HTRANS",
+      "role": "htrans",
+      "width": 2,
+      "wrapper_name": "lh_p_12_1_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "physical_port": "HWDATA",
+      "role": "hwdata",
+      "width": 32,
+      "wrapper_name": "lh_p_13_31_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "physical_port": "HWRITE",
+      "role": "hwrite",
+      "width": 1,
+      "wrapper_name": "lh_p_14_0_0"
+    },
+    {
+      "bit_hi": 3,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "cpu.external_bus",
+      "physical_port": "HWSTRB",
+      "role": "hwstrb",
+      "width": 4,
+      "wrapper_name": "lh_p_15_3_0"
+    }
+  ],
+  "reset_assertion": "active_high",
+  "schema_version": "local_harness_abi.v1"
+}
