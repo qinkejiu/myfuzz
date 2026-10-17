@@ -107,3 +107,40 @@ The actual timer source admission additionally requires the small
 explicitly alongside the candidate roots above. Source-level fixture/frontend
 cache writes remain subject to independent readiness review; neither the
 private lock nor this copy establishes that the eventual run is mutation-free.
+
+## Empty Git directories: actual first-gate failure and source correction
+
+The parent operation reported first-gate terminal exit 1 before N1–N8:
+`git status` exited 128 because the materialized Ibex `.git` was not recognized.
+The earlier independent metadata contained an empty `refs/` directory, but
+file-only staging/copy/transport dropped it. All file hashes could remain
+equal while Git's required directory layout was incomplete. The failed
+operation remains immutable; this correction does not turn it into a pass.
+
+Selection schema is now `p7_i5_snapshot_selection.v2`. It records every selected
+directory, including empty directories and required ancestor directories,
+with permission modes. It also records any generated private-lock parent
+directories explicitly. Preparation requires the same source directory map
+before and after copying, creates all destination directories before files,
+applies reviewed modes after child writes, and compares the complete final
+directory map. The receipt contains that map and its canonical SHA256.
+Old v1 selection manifests are refused, rather than silently assuming a
+directory layout.
+
+Git validation now requires HEAD plus actual `objects/` and `refs/`
+directories, and requires those directories to be part of the selected map.
+It checks discovered Git directories inside the selected root `.git/modules`
+metadata as well as root and selected component metadata. Missing empty
+directories therefore fail source preparation before a gate can start.
+
+The existing runner file-freeze format is unchanged. Its file hash equality
+alone cannot attest directory presence or modes. Root must preserve explicit
+directory entries during manual staging and tar transport, restore directory
+modes, and compare the receipt's whole directory map before authorizing a new
+operation. A tar assembled from file names only still loses empty `refs/`;
+the source preparation fix alone cannot repair that transport defect.
+The actual independent Git identity/status gate remains required; no ignored
+submodule/status errors, synthesized refs or source-identity rewrites are added.
+
+This source correction was not executed or tested by its author; root owns
+independent review and any later new-attempt preparation/transport.

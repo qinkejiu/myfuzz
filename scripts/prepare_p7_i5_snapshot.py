@@ -89,7 +89,50 @@ def selection_map(root, includes, excludes):
     return dict(sorted(result.items()))
 
 
-def validate_git(root, files):
+def directory_entry(path):
+    info = path.lstat()
+    if not stat.S_ISDIR(info.st_mode):
+        raise ValueError('directory-link-or-special-file:' + str(path))
+    return {'mode': stat.S_IMODE(info.st_mode)}
+
+
+def selection_directories(root, includes, excludes):
+    """Preserve selected empty directories and all required parent modes."""
+    result = {}
+    def add(path):
+        while path != root:
+            key = path.relative_to(root).as_posix()
+            result[key] = directory_entry(path)
+            path = path.parent
+    for prefix in includes:
+        path = root / prefix
+        no_path_links(path)
+        if selected(prefix, excludes):
+            raise ValueError('included-prefix-itself-excluded:' + prefix)
+        if path.is_file():
+            add(path.parent)
+            continue
+        if not path.is_dir():
+            raise ValueError('included-directory-missing:' + prefix)
+        for directory, dirs, _ in os.walk(path, followlinks=False):
+            add(Path(directory))
+            dirs[:] = [name for name in dirs if not selected(
+                (Path(directory) / name).relative_to(root).as_posix(), excludes)]
+            for name in dirs:
+                directory_entry(Path(directory) / name)
+    return dict(sorted(result.items()))
+
+
+def full_directories(root):
+    result = {}
+    for directory, dirs, _ in os.walk(root, followlinks=False):
+        for name in dirs:
+            path = Path(directory) / name
+            result[path.relative_to(root).as_posix()] = directory_entry(path)
+    return dict(sorted(result.items()))
+
+
+def validate_git(root, files, directories=None):
     """Validate copied Git topology without invoking Git or rewriting identity."""
     if '.git/HEAD' not in files:
         raise ValueError('standalone-root-git-directory-required')
@@ -107,6 +150,8 @@ def validate_git(root, files):
                 raise ValueError('git-pointer-metadata-not-selected:' + name)
             gitdirs.add(target)
         if name.endswith('/.git/HEAD'):
+            gitdirs.add(path.parent)
+        if path.name == 'HEAD' and (path.parent / 'config').relative_to(root).as_posix() in files:
             gitdirs.add(path.parent)
         if (name.endswith('/objects/info/alternates')
                 or name.endswith('/commondir')) and path.read_bytes().strip():
@@ -127,8 +172,13 @@ def validate_git(root, files):
     for directory in sorted(gitdirs):
         head = directory / 'HEAD'
         key = head.relative_to(root).as_posix()
-        if key not in files or not (directory / 'objects').is_dir():
+        if (key not in files or not (directory / 'objects').is_dir()
+                or not (directory / 'refs').is_dir()):
             raise ValueError('incomplete-git-metadata:' + str(directory))
+        if directories is not None and any(
+                (directory / name).relative_to(root).as_posix() not in directories
+                for name in ('objects', 'refs')):
+            raise ValueError('essential-git-directory-not-selected:' + str(directory))
         config = directory / 'config'
         if config.is_file():
             for match in re.finditer(r'^\s*worktree\s*=\s*(.+?)\s*$', config.read_text(), re.M | re.I):
@@ -218,14 +268,21 @@ def prepare(args, parser, source, destination):
         includes = sorted({str(relative(name)) for name in args.include})
         excludes = sorted({str(relative(name)) for name in args.exclude})
         files = selection_map(source, includes, excludes)
-        git_heads = validate_git(source, files)
+        directories = selection_directories(source, includes, excludes)
+        git_heads = validate_git(source, files, directories)
         generated = {} if PRIVATE_LOCK in files else {PRIVATE_LOCK: EMPTY_PIN}
+        generated_dirs = {}
+        if generated:
+            for parent in PurePosixPath(PRIVATE_LOCK).parents:
+                if str(parent) != '.' and str(parent) not in directories:
+                    generated_dirs[str(parent)] = {'mode': 0o755}
         if PRIVATE_LOCK in files and files[PRIVATE_LOCK]['bytes'] != 0:
             raise ValueError('selected-private-lock-must-be-empty')
-        document = {'schema_version': 'p7_i5_snapshot_selection.v1',
+        document = {'schema_version': 'p7_i5_snapshot_selection.v2',
                     'source': str(source), 'destination': str(destination),
                     'includes': includes, 'excludes': excludes, 'files': files,
                     'git_head_files': git_heads, 'generated_files': generated,
+                    'directories': directories, 'generated_directories': generated_dirs,
                     'closure_reviewed': False}
         write_new(args.manifest, document)
         print(json.dumps({'status': 'planned_not_copied', 'files': len(files),
@@ -237,13 +294,15 @@ def prepare(args, parser, source, destination):
     if not args.manifest_sha256 or sha(args.manifest) != args.manifest_sha256:
         parser.error('reviewed manifest digest required')
     document = json.loads(args.manifest.read_bytes())
-    if (document.get('schema_version') != 'p7_i5_snapshot_selection.v1'
+    if (document.get('schema_version') != 'p7_i5_snapshot_selection.v2'
             or document.get('source') != str(source)
             or document.get('destination') != str(destination)):
         parser.error('manifest source/destination/schema mismatch')
     includes = [str(relative(name)) for name in document['includes']]
     excludes = [str(relative(name)) for name in document['excludes']]
     expected = document['files']
+    expected_dirs = document['directories']
+    generated_dirs = document['generated_directories']
     generated = document.get('generated_files')
     if generated not in ({}, {PRIVATE_LOCK: EMPTY_PIN}):
         parser.error('only-reviewed-empty-private-lock-generation-is-supported')
@@ -253,10 +312,18 @@ def prepare(args, parser, source, destination):
         parser.error('private-operation-lock-must-exist-before-freeze')
     if PRIVATE_LOCK in expected and expected[PRIVATE_LOCK]['bytes'] != 0:
         parser.error('selected-private-lock-must-be-empty')
-    for name in expected:
+    allowed_generated_dirs = {}
+    if generated:
+        for parent in PurePosixPath(PRIVATE_LOCK).parents:
+            if str(parent) != '.' and str(parent) not in expected_dirs:
+                allowed_generated_dirs[str(parent)] = {'mode': 0o755}
+    if generated_dirs != allowed_generated_dirs:
+        parser.error('unexpected-generated-directories')
+    for name in [*expected, *expected_dirs, *generated_dirs]:
         relative(name)
     current = selection_map(source, includes, excludes)
-    if current != expected or validate_git(source, current) != document['git_head_files']:
+    if (current != expected or selection_directories(source, includes, excludes) != expected_dirs
+            or validate_git(source, current, expected_dirs) != document['git_head_files']):
         parser.error('selected source changed since manifest review')
     if args.freeze_map.exists() or args.receipt.exists():
         parser.error('freeze and receipt paths must be new')
@@ -264,6 +331,9 @@ def prepare(args, parser, source, destination):
     receipt = {'status': 'failed', 'source': str(source), 'destination': str(destination),
                'manifest_sha256': args.manifest_sha256, 'formal_p7_complete': False}
     try:
+        final_dirs = {**expected_dirs, **generated_dirs}
+        for name in sorted(final_dirs, key=lambda value: (len(PurePosixPath(value).parts), value)):
+            (destination / name).mkdir(exist_ok=False)
         for name, pin in expected.items():
             original = source / name
             if file_entry(original) != pin:
@@ -280,6 +350,8 @@ def prepare(args, parser, source, destination):
                 raise ValueError('copy-or-source-race:' + name)
         if selection_map(source, includes, excludes) != expected:
             raise ValueError('selected-source-changed-during-copy')
+        if selection_directories(source, includes, excludes) != expected_dirs:
+            raise ValueError('selected-source-directory-layout-changed-during-copy')
         for name, pin in generated.items():
             target = destination / name
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -287,14 +359,24 @@ def prepare(args, parser, source, destination):
                 stream.flush()
                 os.fsync(stream.fileno())
             target.chmod(pin['mode'])
+        # Apply directory modes only after writing children, including empty
+        # refs/objects directories that a file-only copy would omit.
+        for name in sorted(final_dirs, key=lambda value: len(PurePosixPath(value).parts), reverse=True):
+            (destination / name).chmod(final_dirs[name]['mode'])
         actual = full_map(destination)
         if actual != {**expected, **generated}:
             raise ValueError('whole-destination-map-differs')
-        if validate_git(destination, actual) != document['git_head_files']:
+        actual_dirs = full_directories(destination)
+        if actual_dirs != final_dirs:
+            raise ValueError('whole-destination-directory-layout-differs')
+        if validate_git(destination, actual, actual_dirs) != document['git_head_files']:
             raise ValueError('copied-git-topology-differs')
         write_new(args.freeze_map, actual)
         receipt.update(status='copied_pending_closure_and_tool_review', files=len(actual),
                        bytes=sum(row['bytes'] for row in actual.values()),
+                       directories=actual_dirs,
+                       directory_manifest_sha256=hashlib.sha256(json.dumps(
+                           actual_dirs, sort_keys=True, separators=(',', ':')).encode()).hexdigest(),
                        freeze_sha256=sha(args.freeze_map), native_run=False)
     except BaseException as error:
         # main() records one best-effort failure without masking this exception.
