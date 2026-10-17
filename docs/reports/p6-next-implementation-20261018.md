@@ -67,3 +67,11 @@ CVW 最新 directed session 与 Vexii 固定 CPU/IP/IRQ 报告同样应覆盖旧
 - 软件控制与 native 分列；保留进程身份、构建身份、逐命令 receipt、完整原始边沿、事件引用、终态/回收记录。
 - first/fresh 仅规范化声明身份；语义、时钟和逐边消费差异不可抹平。失败不覆盖、不自动重试后伪装首轮通过。
 - 每行同步 LOCAL_HARNESS_RUNTIME、报告索引与 P6 checklist 后再改总计划。P6/P7/P8 整体继续开放。
+
+## 5. Stage A 最小 admission 修正（源码增量）
+
+只读追踪确认原缺口：CV32 入口只验证 retirement/native IRQ 参数；共享 online builder 先 session.begin/warmup，随后 ScenarioRfuzzExecutor 才通过 `_closed_loop_switch` 读取 `MYFUZZ_CLOSED_LOOP_ENERGY`。真值会实例化默认 Ibex ChainCertificates，而不是在 CPU 能力边界提前拒绝。没有请求时默认关闭，不影响历史 partial/阶段能力。
+
+修正仅限 `src/myfuzz/integration/cv32e40p_pulp_online.py:make_cv32e40p_pulp_online_runtime`：增加可选 `closed_loop_energy`，复用原 `_closed_loop_switch` 的布尔/环境解析及参数优先级，在 generated-artifact admission、bootstrap、factory、begin 之前拒绝真值。将解析后的 false 显式传给共享 builder，避免后续再次读取环境。非法环境仍使用原 resolver 错误，显式 false 按原规则覆盖环境 true。共享 Ibex builder/executor/producer 均未改动，也没有新增 producer 注入入口。
+
+行为边界：CV32 默认在线及已有 partial/交互反馈路径保留；该 wrapper 的关闭状态现在明确作为 constructor 参数传递，因此 executor 决策来源字段会标 constructor，不再区分 default/environment 关闭来源。拒绝能力不授任何新的认证、退休/IRQ观察或 P6通过。按本次任务限制未新增/运行测试、原生模型或远程命令；本节是源码追踪和差异说明，尚无执行验证结论。

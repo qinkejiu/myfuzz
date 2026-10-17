@@ -22,6 +22,7 @@ from myfuzz.scenario.session_runtime import OnlineCaseReceipt
 from .ibex_pulp_online import (IbexPulpOnlineRuntime,
                                make_pulp_dual_source_online_runtime,
                                replay_pulp_dual_source_online_files)
+from .scenario_rfuzz import _closed_loop_switch
 from myfuzz.scenario.cv32e40p_pulp_dual_source import (
     _validate_cv32e40p_retirement_flags, make_cv32e40p_pulp_dual_source_factory,
     make_cv32e40p_pulp_dual_source_online_decoder,
@@ -36,6 +37,7 @@ def make_cv32e40p_pulp_online_runtime(
         cpu_retirement: bool = False,
         gpio_consumption: bool = False,
         native_irq_receipts: bool = False,
+        closed_loop_energy: bool | None = None,
         generated_artifacts=None, compiled_inputs=None, observation_modes=None,
         generated_execution_scope='compiled_paths') -> IbexPulpOnlineRuntime:
     """Start one real CV32E40P/PULP session; caller feeds RFuzz slots.
@@ -43,7 +45,15 @@ def make_cv32e40p_pulp_online_runtime(
     ``cpu_retirement`` and ``native_irq_receipts`` are refused before any
     harness is rendered, because this CPU has no authenticated retirement
     profile and native parsed receipts are an Ibex RVFI observation.
+    The default closed-loop certificate producer requires those observations,
+    so its explicit or environment-selected energy mode is refused as well.
     """
+    resolved_closed_loop_energy, _ = _closed_loop_switch(
+        closed_loop_energy, online=True)
+    if resolved_closed_loop_energy:
+        raise ValueError(
+            'CV32E40P closed-loop certificate energy requires an authenticated '
+            'retirement/native IRQ producer; the default producer is Ibex-only')
     if (generated_artifacts is not None or compiled_inputs is not None
             or generated_execution_scope != 'compiled_paths'):
         from myfuzz.local_harness.generated_execution_admission import select_execution_artifacts
@@ -64,7 +74,8 @@ def make_cv32e40p_pulp_online_runtime(
     return make_pulp_dual_source_online_runtime(
         bootstrap=bootstrap, decoder=decoder, factory=factory, run_id=run_id,
         evidence_dir=evidence_dir, checker=checker,
-        feedback_interval=feedback_interval, max_warmup_rounds=max_warmup_rounds)
+        feedback_interval=feedback_interval, max_warmup_rounds=max_warmup_rounds,
+        closed_loop_energy=resolved_closed_loop_energy)
 
 
 def replay_cv32e40p_pulp_online_files(*, cache_dir: Path, plan_path: Path,
