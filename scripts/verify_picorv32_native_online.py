@@ -62,7 +62,8 @@ class ProcessCapture:
                 raise ValueError('actual-process-not-running:' + component)
             row = dict(pid=process.pid, execution_nonce=session._execution,
                        reset_epoch=session.reset_epoch,
-                       artifact_digest=session._artifact_document['artifact_digest'])
+                       artifact_digest=session._artifact_document['artifact_digest'],
+                       runner_namespace=f'runner-{self.runners.index(runner)}')
             if type(row['pid']) is not int or row['pid'] <= 0 or not row['execution_nonce']:
                 raise ValueError('actual-process-identity-missing')
             self.processes[id(process)] = (process, component, row)
@@ -80,6 +81,71 @@ class ProcessCapture:
     def document(self):
         return [dict(component=component, **row, terminal_returncode=process.poll())
                 for process, component, row in self.processes.values()]
+
+
+def cleanup_registered(capture, output):
+    """Finalize every actual runner, including a failed fresh begin/submit.
+
+    All namespaces are preserved independently. Failure collecting one receipt
+    must not prevent cleanup or collection of the remaining actual processes.
+    """
+    errors, partials = [], []
+    seen = set()
+    for index, runner in enumerate(capture.runners):
+        if id(runner) in seen:
+            continue
+        seen.add(id(runner))
+        namespace = f'runner-{index}'
+        partial = dict(namespace=namespace)
+        try:
+            partial['failure_event_count_before_cleanup'] = runner.event_count
+            partial['failure_ticks_before_cleanup'] = dict(runner.local_ticks)
+        except BaseException as error:
+            errors.append(dict(namespace=namespace, phase='failure_boundary', error=repr(error)))
+        for component, session in runner.sessions.items():
+            try:
+                process = session.process
+                if process is not None:
+                    row = dict(pid=process.pid, execution_nonce=session._execution,
+                        reset_epoch=session.reset_epoch,
+                        artifact_digest=session._artifact_document['artifact_digest'],
+                        runner_namespace=namespace)
+                    capture.processes[id(process)] = (process, component, row)
+            except BaseException as error:
+                errors.append(dict(namespace=namespace, phase='capture_before_close', error=repr(error)))
+        try:
+            # Already finalized runners must not be finalized a second time.
+            if runner._status in ('running', 'quiescing', 'failed'):
+                runner.finalize()
+        except BaseException as error:
+            errors.append(dict(namespace=namespace, phase='finalize', error=repr(error)))
+        # A partial begin or a guard failure before finalize's close loop can
+        # retain a live session. Use its real close path once, never an external
+        # kill/restart. end_case clears the owned handle before actual reaping.
+        for component, session in runner.sessions.items():
+            try:
+                if session.process is not None:
+                    session.end_case()
+            except BaseException as error:
+                errors.append(dict(namespace=namespace, component=component,
+                                   phase='remaining_session_close', error=repr(error)))
+        for key, read in (('events', lambda: list(runner.events)),
+                          ('local_ticks', lambda: dict(runner.local_ticks)),
+                          ('runner_status', lambda: runner._status)):
+            try:
+                partial[key] = read()
+            except BaseException as error:
+                errors.append(dict(namespace=namespace, phase='collect_' + key, error=repr(error)))
+        try:
+            partial['processes'] = [row for row in capture.document()
+                                    if row['runner_namespace'] == namespace]
+        except BaseException as error:
+            errors.append(dict(namespace=namespace, phase='collect_lifecycles', error=repr(error)))
+        try:
+            partials.append(save(output / (namespace + '-partial.json.gz'), partial))
+        except BaseException as error:
+            errors.append(dict(namespace=namespace, phase='save_partial', error=repr(error)))
+    return partials, errors
 
 
 def install_corruption(runner, records):
@@ -180,6 +246,7 @@ def run_gate(output, cache_dir, *, corrupt):
     runtime.factory = fresh_factory
     records = []
     result = {'status': 'failed', 'controlled_fault': corrupt, 'cases': records}
+    primary = None
     try:
         with observe_local_command_timings(capture):
             runtime.begin()
@@ -233,25 +300,32 @@ def run_gate(output, cache_dir, *, corrupt):
             if corrupt and len(fault_records) != 2:
                 raise ValueError('controlled-fault-not-once-per-first-fresh')
             result['status'] = 'bounded_directed_gate_passed'
-    except Exception as error:
+    except BaseException as error:
+        primary = error
         result['error'] = {'type': type(error).__name__, 'message': str(error)}
-        try:
-            runtime.session.runner.finalize()
-        except Exception as cleanup:
-            result['cleanup_error'] = repr(cleanup)
-        partial = dict(events=list(runtime.session.runner.events),
-            local_ticks=dict(runtime.session.runner.local_ticks),
-            boundary_failure=runtime.boundary_failure)
-        try:
-            partial['attempted_plan'] = json.loads(runtime.session.encode_plan())
-        except Exception as collection:
-            partial['plan_collection_error'] = repr(collection)
-        result['partial_bundle'] = save(output / 'partial.json.gz', partial)
     finally:
-        result['processes'] = capture.document()
-        result['capture_errors'] = capture.errors
-        result['controlled_response_records'] = fault_records
-        save(output / 'result.json.gz', result)
+        if primary is not None:
+            result['status'] = 'failed'
+            result['partial_bundles'], result['cleanup_collection_errors'] = cleanup_registered(capture, output)
+            result['boundary_failure'] = runtime.boundary_failure
+            try:
+                result['attempted_plan'] = json.loads(runtime.session.encode_plan())
+            except BaseException as error:
+                result['plan_collection_error'] = repr(error)
+        try:
+            result['processes'] = capture.document()
+            result['capture_errors'] = capture.errors
+            result['controlled_response_records'] = fault_records
+            save(output / 'result.json.gz', result)
+        except BaseException as error:
+            if primary is not None:
+                primary.add_note('secondary gate evidence write failure: ' + repr(error))
+                raise primary
+            # Even a final receipt-write failure may not strand a fresh model.
+            cleanup_registered(capture, output)
+            raise
+    if primary is not None and not isinstance(primary, Exception):
+        raise primary
     return result
 
 
