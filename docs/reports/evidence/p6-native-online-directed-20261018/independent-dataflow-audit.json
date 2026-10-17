@@ -1,0 +1,153 @@
+{
+  "archive_sha256": "dc399360c1b72d5754effad7ba0563b823ce2cffa396bef85b93cbb81937d784",
+  "conclusion": "bounded actual directed CPU/IP/CPU and controlled-response fresh data relations independently accepted; no IRQ/retirement/source/closed-loop certificate grant",
+  "runs": {
+    "controlled-response": {
+      "case_audits": [
+        {
+          "accepted_CPU_pending_before_after": [
+            null,
+            null
+          ],
+          "actual_A": 62,
+          "actual_B": 0,
+          "actual_RAM_and_GPIO": 63,
+          "actual_fetch_word": 65013011,
+          "actual_target_request_response_count": 4,
+          "after_ticks": {
+            "cpu": 174,
+            "gpio0": 198
+          },
+          "before_ticks": {
+            "cpu": 46,
+            "gpio0": 54
+          },
+          "cpu_read_values": [
+            63,
+            0
+          ],
+          "difference": 1,
+          "expected_actual_target_XOR": 62,
+          "index": 0,
+          "next_slot": 544,
+          "pending_reconstruction": "4 queue accepts/deliveries and4 target req/resps; actual next unaccepted instruction with no valid response; native single-outstanding tracker drained",
+          "raw_hex": "400de73efbc88151",
+          "source_id": "cpu.instructions"
+        }
+      ],
+      "entire_first_fresh_document_equal": true,
+      "event_count": 982,
+      "local_ticks": {
+        "cpu": 174,
+        "gpio0": 198
+      },
+      "plan_sha256": "bb52a3af08c37b9a3fcb36a818137c4d8e7cc0507b71a4bf4ad8259ce9446260",
+      "scope_note": "No APB PSEL/PENABLE protocol tap/raw full DriverReceipt journal in this legacy GPIO artifact; actual pinned APB target backend req/rsp +GPIO physical samples audited. Provenance remains unknown transport candidates, not authenticated terminal edges.",
+      "semantic_sha256": "a85227a59ec489e27a0e9fee6ec5782f00fe5a5e497b9f8384fc4468e5ece838"
+    },
+    "positive": {
+      "case_audits": [
+        {
+          "accepted_CPU_pending_before_after": [
+            null,
+            null
+          ],
+          "actual_A": 62,
+          "actual_B": 0,
+          "actual_RAM_and_GPIO": 62,
+          "actual_fetch_word": 65013011,
+          "actual_target_request_response_count": 4,
+          "after_ticks": {
+            "cpu": 174,
+            "gpio0": 198
+          },
+          "before_ticks": {
+            "cpu": 46,
+            "gpio0": 54
+          },
+          "cpu_read_values": [
+            62,
+            0
+          ],
+          "difference": 0,
+          "expected_actual_target_XOR": 62,
+          "index": 0,
+          "next_slot": 544,
+          "pending_reconstruction": "4 queue accepts/deliveries and4 target req/resps; actual next unaccepted instruction with no valid response; native single-outstanding tracker drained",
+          "raw_hex": "400de73efbc88151",
+          "source_id": "cpu.instructions"
+        },
+        {
+          "accepted_CPU_pending_before_after": [
+            null,
+            null
+          ],
+          "actual_A": 62,
+          "actual_B": 167,
+          "actual_RAM_and_GPIO": 153,
+          "actual_fetch_word": 19,
+          "actual_target_request_response_count": 4,
+          "after_ticks": {
+            "cpu": 302,
+            "gpio0": 342
+          },
+          "before_ticks": {
+            "cpu": 174,
+            "gpio0": 198
+          },
+          "cpu_read_values": [
+            62,
+            167
+          ],
+          "difference": 0,
+          "expected_actual_target_XOR": 153,
+          "index": 1,
+          "next_slot": 576,
+          "pending_reconstruction": "4 queue accepts/deliveries and4 target req/resps; actual next unaccepted instruction with no valid response; native single-outstanding tracker drained",
+          "raw_hex": "d01068a7b035a92a",
+          "source_id": "gpio0.pin_byte"
+        },
+        {
+          "accepted_CPU_pending_before_after": [
+            null,
+            null
+          ],
+          "actual_A": 62,
+          "actual_B": 167,
+          "actual_RAM_and_GPIO": 153,
+          "actual_fetch_word": 65013011,
+          "actual_target_request_response_count": 4,
+          "after_ticks": {
+            "cpu": 430,
+            "gpio0": 486
+          },
+          "before_ticks": {
+            "cpu": 302,
+            "gpio0": 342
+          },
+          "cpu_read_values": [
+            62,
+            167
+          ],
+          "difference": 0,
+          "expected_actual_target_XOR": 153,
+          "index": 2,
+          "next_slot": 608,
+          "pending_reconstruction": "4 queue accepts/deliveries and4 target req/resps; actual next unaccepted instruction with no valid response; native single-outstanding tracker drained",
+          "raw_hex": "400de73efbc88151",
+          "source_id": "cpu.instructions"
+        }
+      ],
+      "entire_first_fresh_document_equal": true,
+      "event_count": 2246,
+      "local_ticks": {
+        "cpu": 430,
+        "gpio0": 486
+      },
+      "plan_sha256": "1dcfcd32cc412b061a2e111f2b8f2621a047c1e80a2611be49abf3228d936a96",
+      "scope_note": "No APB PSEL/PENABLE protocol tap/raw full DriverReceipt journal in this legacy GPIO artifact; actual pinned APB target backend req/rsp +GPIO physical samples audited. Provenance remains unknown transport candidates, not authenticated terminal edges.",
+      "semantic_sha256": "240fe5c4350a4b88d60e41705c27de462a56f63bf32033bd09f075800bf41504"
+    }
+  },
+  "scope": "independent saved-data audit only, no project import or gate/checker invocation"
+}
