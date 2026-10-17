@@ -173,7 +173,7 @@ def test_real_vexii_gpio_irq_fixed_row_and_fresh_replay(tmp_path):
     assert summary['counts']['first']['apb_deliveries'] == 4 + 3 * 4
     assert all(check['ok'] for check in summary['row_checks']['first'])
     assert all(check['ok'] for check in summary['row_checks']['fresh'])
-    assert summary['first_execution']['cpu'] != summary['fresh_execution']['cpu']
+    assert summary['execution']['cpu'] != summary['fresh_execution']['cpu']
     assert not (output / 'first.json').exists()
     for label in ('first', 'fresh'):
         raw = (output / f'{label}.json.gz').read_bytes()
