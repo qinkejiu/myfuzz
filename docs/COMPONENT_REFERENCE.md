@@ -7,6 +7,19 @@
 
 ---
 
+## 2026-10-18 native 完成观测与持久 packet 增量
+
+以下补充对应实际源码，不改上方2026-10-08扫描计数。[冻结真实门与独立审计](reports/native-completion-directed-independent-20261018.md)验证有界传输观察和完整warm fresh；P6/P7/P8整体仍开放。
+
+| 源码 | 职责与边界 |
+| --- | --- |
+| `local_harness/plan.py`、`native_contract.py`、`runtime_renderer.py` | 显式V2 raw请求的单native endpoint严格准入；从实际ABI导出valid/ready/addr/wdata/wstrb/rdata被动抽头，并校验声明的instruction marker；不新增输入或时钟 |
+| `local_harness/native_session.py`、`scenario/picorv32_native_cpu_example.py` | 真实单步回执和实际MemoryService快照；保留backend已消费但CPU尚待完成的pending，reset取消、abort终止、close清理 |
+| `scenario/native_cpu_events.py` | 跨全部memory事务关联accepted→backend response→下一PRE native valid&&ready；保留真实nonce/epoch/命令/tick/快照，不授source或retirement权威 |
+| `scenario/native_packet_session.py`、`integration/picorv32_native_online.py` | 固定32字节packet与97预留槽；实际提交前后边界守卫、128轮调度和失败终止；fixture的RV32输入语法不等于任意CPU通用执行能力 |
+| `scenario/session_runtime.py`、`native_replay_identity.py` | 显式重建同一guarded会话；验证两侧原始语义哈希，按真实owner只规范化指定execution字段后比较完整副本，原始日志不变 |
+| `scripts/verify_picorv32_native_online.py`、`scripts/verifier/native_completion_gate_checks.py` | 显式定向门及独立raw reducer；先保存证据再检查，正向三例与受控响应完整fresh；不授RFuzz/四反馈或精确四lane来源证书 |
+
 ## 0. 组件全景（按层）
 
 ```text

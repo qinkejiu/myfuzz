@@ -6,6 +6,12 @@ P1–P5 已按各阶段报告的声明范围验收，P6–P8 未验收；本次�
 
 用户原件 `SoC内部数据流动与去向.docx` 是取指、数据读、数据写、MMIO、中断和 DMA 六类数据流的设计来源，逐类目标与当前状态见[实施计划](superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md)。运行时路径应编译自受信组件事实和显式场景声明；该 Word 文件本身不是自动接线配置。
 
+## 2026-10-18 native 显式观测执行链
+
+`verify_picorv32_native_online.py --native-completion-observation` 显式选择V2 raw请求，经 `local_harness/plan.py` 的typed native准入和 `native_contract.py` 的实际ABI绑定，生成被动抽头。实际CPU session每个verified receipt交给 `scenario/native_cpu_events.py`，真实RAM读后绑定不可变快照；Runner保留全部PRE/POST及对应传输事件。
+
+`NativePacketSession`保护原始及fresh提交的物理packet边界。`session_runtime.replay_online_session(native_max_cases=...)`重建该会话，`native_replay_identity.py`只在比较副本中改写已验证的真实process身份；raw事件和原始hash均保留。独立gate reducer与离线审计分别从保存raw重建全部事务。完整证据见[真实门报告](reports/native-completion-directed-independent-20261018.md)；这条路径尚无精确source authority、四反馈或持续RFuzz授予。
+
 ## 一次 testcase 的执行链
 
 ```text
