@@ -1,11 +1,18 @@
 # 当前工作进度与证据入口
 
+## 2026-10-18 最新：远端 root 输入已审计，后续运行门准备中
+
+- [远端 root 输入独立审计](reports/p8-root-remote-input-independent-20261018.md)已通过：冻结 HEAD `269717b`，10347 文件/524 目录，传输、实际解包、远端双次映射及进程终态证据已关联。此为 root 输入，尚未组装三组件完整项目或运行 DMA 标量测量。
+- 四输入转换器正在独立源码复核。发现 ZipCPU 的后补 `.rev` 与 clean-map 未完整绑定原归档、补包及 audit2 解包收据；修复和复核通过前不生成合格输入收据，不执行完整项目复制。已通过的组件审计结论保持原范围。
+- `9b5e190` [native 来源绑定 opt-in](reports/native-source-binding-optin-source-20261018.md)已接入实际 service 返回、SourceAdmission 和 host 输入事件，并通过源码复核；HARNESS v2 为70路径。[下一运行门输入](reports/native-source-binding-next-gate-inputs-20261018.md)及12文件覆盖包正在独立审查，尚未部署或实测。
+- 新事件仅声明 host 指令输入绑定；来源四字节到 CPU 实际完成握手的认证尚未实现。旧冻结真实门不验证新源码。P6/P7/P8 与 DMA 5×目标仍 OPEN；本次未新增或运行测试。
+
 ## 2026-10-18 P8 三组件源码准备独立审计通过
 
 - [ZipCPU](reports/p8-zipcpu-metadata-attempt2-independent-20261018.md)：394对象、368路径、2链接，1198个Git子命令均0；首次采集漏`.rev`的审计失败保留，补采精确绑定原映射后audit2通过。
 - [OpenTitan](reports/p8-opentitan-metadata-attempt2-independent-20261018.md)：第二轮父463069 exit0、485个Git子命令均0；14732对象/13870路径，新副本重建原缺65项并独立逐字节关联，saved audit exit0。首轮完整工作树拒绝保留。
 - [Ibex](reports/p8-ibex-metadata-attempt1-independent-20261018.md)：父650898 exit0、155个Git子命令均0；4040对象/3693路径，新副本重建原缺59项并独立逐字节关联，saved audit exit0。两个原工作树均未修写。
-- `583436c` 完整项目typed复制工具已独立源码复核，尚未实际复制；三组件准备不等于完整项目/tool冻结或运行。[root输入实际复制及独立审计](reports/p8-root-local-input-independent-20261018.md)已通过：固定HEAD`269717b`、10347文件/524目录、493088962字节，前后映射一致。root归档也已独立审计，尚未上传/组装完整项目。DMA标量测量、普通/失败fresh及5×目标仍OPEN。
+- `583436c` 完整项目typed复制工具已独立源码复核，尚未实际复制；三组件准备不等于完整项目/tool冻结或运行。[root输入实际复制及独立审计](reports/p8-root-local-input-independent-20261018.md)已通过：固定HEAD`269717b`、10347文件/524目录、493088962字节，前后映射一致。root归档及远端传输已独立审计，尚未组装完整项目。DMA标量测量、普通/失败fresh及5×目标仍OPEN。
 
 ## 2026-10-18 native 来源连接第一步（源码增量）
 

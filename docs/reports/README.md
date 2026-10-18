@@ -1,3 +1,7 @@
+[远端 root 输入独立审计](p8-root-remote-input-independent-20261018.md)：固定 HEAD `269717b`，10347文件/524目录；实际传输和解包链通过，仅授 root 输入准备。四输入合并仍待 ZipCPU 补采链转换修复和复核。
+
+[Native 来源绑定 opt-in 源码增量](native-source-binding-optin-source-20261018.md)与[下一运行门输入](native-source-binding-next-gate-inputs-20261018.md)：源码复核通过，70路径新运行门准备中，尚未实测；不授来源到 CPU 完成认证。
+
 [P8本地root输入实际复制与独立审计](p8-root-local-input-independent-20261018.md)：HEAD`269717b`固定输入，10347文件/524目录；仅本地root准备，不授remote或完整项目验收。
 
 [OpenTitan组件独立审计](p8-opentitan-metadata-attempt2-independent-20261018.md)、[Ibex组件独立审计](p8-ibex-metadata-attempt1-independent-20261018.md)：actual saved audit均exit0；仅授组件准备，完整P8项目和性能仍开放。
