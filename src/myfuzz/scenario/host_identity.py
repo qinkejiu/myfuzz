@@ -82,6 +82,12 @@ HARNESS_HOST_SOURCE_PATHS = HOST_SOURCE_PATHS + (
     'src/myfuzz/scenario/ibex_uart_online_checker.py',
     'src/myfuzz/integration/ibex_uart_online.py',
     'scripts/run_ibex_uart_online.py',
+    # Native packet execution, decoding, live observation and full replay.
+    'src/myfuzz/scenario/native_packet_session.py',
+    'src/myfuzz/scenario/picorv32_native_online.py',
+    'src/myfuzz/integration/picorv32_native_online.py',
+    'src/myfuzz/scenario/picorv32_native_cpu_example.py',
+    'src/myfuzz/scenario/native_cpu_events.py',
 )
 
 
