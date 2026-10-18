@@ -1,0 +1,20 @@
+{
+  "started_unix": 1792316751.8709416,
+  "pid": 44808,
+  "script_sha256": "597927501db70080616280408a45e8b82edd1f4725bb8ed2561500b6689781ea",
+  "status": "independent_saved_archive_verified",
+  "root_files": 10347,
+  "root_directories": 524,
+  "control_files": 20,
+  "all_files": 10367,
+  "all_directories": 526,
+  "archive_bytes": 413926054,
+  "archive_sha256": "01e2d7740d8606ff67beec557d3e56e0fb771db0117826b291f02b96275bb321",
+  "manifest_sha256": "2e749cb696b5ac001176a453de2471f3d3d5f22d4949f16caee1e40c57530c05",
+  "control_inputs_sha256": "646948b9fc633fbdc192627c85a3a10f3edd7c8085e8b747110f332307c1c504",
+  "archive_before_after_unchanged": true,
+  "root_HEAD": "269717b7e9cc7c92da5e427ac950bc82446b3ac6",
+  "scope": "local_saved_archive_only_no_remote_adapter_or_P8_grant",
+  "ended_unix": 1792316753.329142,
+  "returncode": 0
+}

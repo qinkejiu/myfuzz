@@ -1,0 +1,13 @@
+# Independent local root package audit
+
+Scope: actual local packaging and saved archive bytes only. This does not authorize a remote transfer, source adapter, component runtime, whole project, P7 or P8 pass.
+
+The root-owned package launch ran as PID 44547 on 2026-10-18, 09:44:26–09:44:35 UTC, actual return code 0 and empty stderr. It used the unchanged reviewed package controller (`7054fef5b61717ba45dd849a92e36225b946d0602f09356c3dae69ff01d5343b`).
+
+The archive has 413,926,054 bytes and SHA256 `01e2d7740d8606ff67beec557d3e56e0fb771db0117826b291f02b96275bb321`. External transfer-manifest SHA256 is `2e749cb696b5ac001176a453de2471f3d3d5f22d4949f16caee1e40c57530c05`; closed 20-file control-inputs SHA256 is `646948b9fc633fbdc192627c85a3a10f3edd7c8085e8b747110f332307c1c504`. The control manifest is not self-included.
+
+Independent pure standard library saved-data audit PID 44808 ran at 09:45:51.870942–09:45:53.329142 UTC, actual rc0. It streamed every regular payload and checked exact bytes, SHA256 and mode, canonical member paths, duplicate/type rejection, complete root/control file and directory sets (including empty directories), 10,347 root files / 524 root directories and all 20 closed control files. Total membership is 10,367 regular files and 526 directories. Root maps exactly matched freeze SHA256 `27ec3b8a97d22b3272acf3dd90bf44f05a20f7ffd8c984be9b6b49054a2a6ba5` and the actual prepare receipt directory map; root HEAD/ref is `269717b7e9cc7c92da5e427ac950bc82446b3ac6`. Archive SHA and size were unchanged before and after the main audit.
+
+A separate read-only raw gzip/tar header supplement at 09:46:04.022308–09:46:04.523481 UTC returned 0: all 10,893 raw headers had exact USTAR magic/version, valid header checksum and ordinary regular/directory types, with no hidden extension records. It also verified two zero end blocks and zero trailing padding. This supplement was executed as an inline standard library command; its actual result is preserved separately, rather than represented as part of the earlier audit script.
+
+Small controller sources, actual launch/package receipts, audit source/results and original path/SHA/byte pins are in [evidence/p8-root-package-20261018](evidence/p8-root-package-20261018/). The archive and full transfer manifest remain outside-source at `/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/`; the archive is not committed. No frozen root or original 20 control inputs were changed, and the audit did not execute package/extractor controllers, Git, project imports, tests, models or remote operations. Transport drafts still require their separate review and authorization.

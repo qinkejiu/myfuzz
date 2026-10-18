@@ -1,0 +1,12 @@
+{
+  "archive": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/root-input.tar.gz",
+  "archive_bytes": 413926054,
+  "archive_sha256": "01e2d7740d8606ff67beec557d3e56e0fb771db0117826b291f02b96275bb321",
+  "manifest_sha256": "2e749cb696b5ac001176a453de2471f3d3d5f22d4949f16caee1e40c57530c05",
+  "native_execution": false,
+  "root_directories": 524,
+  "root_files": 10347,
+  "schema_version": "p8_root_package_receipt.v1",
+  "source_unchanged": true,
+  "status": "packaged_pending_archive_audit"
+}

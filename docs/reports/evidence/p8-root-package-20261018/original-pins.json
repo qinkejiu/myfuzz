@@ -1,0 +1,74 @@
+{
+  "package_root_input.py": {
+    "bytes": 7499,
+    "sha256": "7054fef5b61717ba45dd849a92e36225b946d0602f09356c3dae69ff01d5343b",
+    "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/package_root_input.py"
+  },
+  "extract_remote_root_input.py": {
+    "bytes": 7760,
+    "sha256": "a91faf9603cb639f16413fed30dd9b2d69d2a4814c9adf0c730614dd7f63b343",
+    "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/extract_remote_root_input.py"
+  },
+  "TRANSFER-SOURCE-DRAFT.md": {
+    "bytes": 4241,
+    "sha256": "beda2d92e84b308e7700bee8ec43ff8f59c5dfd0cdd123afd1d0dc098b39cdb8",
+    "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/TRANSFER-SOURCE-DRAFT.md"
+  },
+  "control-inputs.json": {
+    "bytes": 5395,
+    "sha256": "646948b9fc633fbdc192627c85a3a10f3edd7c8085e8b747110f332307c1c504",
+    "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/control-inputs.json"
+  },
+  "package-launch-start.json": {
+    "bytes": 580,
+    "sha256": "b36f53f7352bb34c8517c14c442525232bc9784edbfe6e903c99080f4503702b",
+    "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/package-launch-start.json"
+  },
+  "package-launch-terminal.json": {
+    "bytes": 875,
+    "sha256": "3e315d9de8bf59ccc52bc01ef670161394849bb8c12132e06f485bf105a9e65a",
+    "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/package-launch-terminal.json"
+  },
+  "package-receipt.json": {
+    "bytes": 503,
+    "sha256": "ba4f1707169c52baf10a192748d02d23e1daa8a3e8fcdc8103c042ed1c7b4c78",
+    "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/package-receipt.json"
+  },
+  "package.stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/package.stdout"
+  },
+  "package.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/package.stderr"
+  },
+  "independent-archive-audit.py": {
+    "bytes": 4289,
+    "sha256": "597927501db70080616280408a45e8b82edd1f4725bb8ed2561500b6689781ea",
+    "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/independent-archive-audit.py"
+  },
+  "independent-archive-audit.json": {
+    "bytes": 841,
+    "sha256": "04accf218cf96963fe12412dbda37ecd1b5283dc8c577f48a9f8d9843300c12a",
+    "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/independent-archive-audit.json"
+  },
+  "independent-archive-ustar-audit.json": {
+    "bytes": 216,
+    "sha256": "30725bedbb6169238de581f20f1ee77d3db321f168396763e371ca199bae052a",
+    "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/independent-archive-ustar-audit.json"
+  },
+  "transfer-manifest.json": {
+    "bytes": 4132852,
+    "sha256": "2e749cb696b5ac001176a453de2471f3d3d5f22d4949f16caee1e40c57530c05",
+    "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/transfer-manifest.json",
+    "copied_to_repository": false
+  },
+  "root-input.tar.gz": {
+    "bytes": 413926054,
+    "sha256": "01e2d7740d8606ff67beec557d3e56e0fb771db0117826b291f02b96275bb321",
+    "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/root-input.tar.gz",
+    "copied_to_repository": false
+  }
+}

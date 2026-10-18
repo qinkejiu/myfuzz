@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-B",
+    "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/package_root_input.py",
+    "--control-inputs",
+    "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/control-inputs.json",
+    "--control-inputs-sha256",
+    "646948b9fc633fbdc192627c85a3a10f3edd7c8085e8b747110f332307c1c504"
+  ],
+  "ended_at": "2026-10-18T09:44:35.453436+00:00",
+  "package.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "package.stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "pid": 44547,
+  "returncode": 0,
+  "scope": "root_input_package_only_no_runtime_grant",
+  "script_sha256": "7054fef5b61717ba45dd849a92e36225b946d0602f09356c3dae69ff01d5343b",
+  "started_at": "2026-10-18T09:44:26.405727+00:00"
+}

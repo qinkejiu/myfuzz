@@ -1,0 +1,126 @@
+{
+  "files": {
+    "TRANSFER-SOURCE-DRAFT.md": {
+      "bytes": 4241,
+      "mode": 420,
+      "path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/TRANSFER-SOURCE-DRAFT.md",
+      "sha256": "beda2d92e84b308e7700bee8ec43ff8f59c5dfd0cdd123afd1d0dc098b39cdb8"
+    },
+    "extract_remote_root_input.py": {
+      "bytes": 7760,
+      "mode": 420,
+      "path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/extract_remote_root_input.py",
+      "sha256": "a91faf9603cb639f16413fed30dd9b2d69d2a4814c9adf0c730614dd7f63b343"
+    },
+    "freeze.json": {
+      "bytes": 1902102,
+      "mode": 420,
+      "path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/freeze.json",
+      "sha256": "27ec3b8a97d22b3272acf3dd90bf44f05a20f7ffd8c984be9b6b49054a2a6ba5"
+    },
+    "independent-selection-review.json": {
+      "bytes": 2413,
+      "mode": 420,
+      "path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/independent-selection-review.json",
+      "sha256": "a08b917082f0c6f1dd4ac53e9d28fbb0e367cbced9206f41bfd14cfe2d0980b1"
+    },
+    "independent-selection-review.py": {
+      "bytes": 7473,
+      "mode": 420,
+      "path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/independent-selection-review.py",
+      "sha256": "25ed90c4874e9e7a71d1a8890d1822e4a3272f14ec904857745515a23dd7576e"
+    },
+    "independent-source-final-directories.json": {
+      "bytes": 28508,
+      "mode": 420,
+      "path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/independent-source-final-directories.json",
+      "sha256": "5300e5b3284c95cfc86c36ccf521424b3b9bea39a22e55723eb70c1cf59afc5e"
+    },
+    "independent-source-final-files.json": {
+      "bytes": 1901934,
+      "mode": 420,
+      "path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/independent-source-final-files.json",
+      "sha256": "6a2a22a8b7ec531ed7f63193cb690e63895ee1aba13fe5aaaf153b7a9d68ed39"
+    },
+    "independent-stage-audit.json": {
+      "bytes": 1656,
+      "mode": 420,
+      "path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/independent-stage-audit.json",
+      "sha256": "87b3cb12b14858a90ff1c7ed51343cbdb4f85e4cc99bf5f0c1d9e453770d2191"
+    },
+    "independent-stage-audit.py": {
+      "bytes": 6645,
+      "mode": 420,
+      "path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/independent-stage-audit.py",
+      "sha256": "330410d8544cfdb52a66327f78b609b8ea2ea403c23500e59074c6e3966bda5f"
+    },
+    "independent-stage-directories.json": {
+      "bytes": 28594,
+      "mode": 420,
+      "path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/independent-stage-directories.json",
+      "sha256": "2b29d5f45c4c084199b98ed24e824c5d89b82d178770691ae124660cf6596417"
+    },
+    "independent-stage-files.json": {
+      "bytes": 1902102,
+      "mode": 420,
+      "path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/independent-stage-files.json",
+      "sha256": "27ec3b8a97d22b3272acf3dd90bf44f05a20f7ffd8c984be9b6b49054a2a6ba5"
+    },
+    "launch_prepare.py": {
+      "bytes": 2031,
+      "mode": 420,
+      "path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/launch_prepare.py",
+      "sha256": "08773a5034c1b51872cb3cb5081a1143d549378685727a4f1c9ed19d76dea7f8"
+    },
+    "package_root_input.py": {
+      "bytes": 7499,
+      "mode": 420,
+      "path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/package_root_input.py",
+      "sha256": "7054fef5b61717ba45dd849a92e36225b946d0602f09356c3dae69ff01d5343b"
+    },
+    "prepare-launch-start.json": {
+      "bytes": 973,
+      "mode": 420,
+      "path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/prepare-launch-start.json",
+      "sha256": "69bb54748a8bf4663919e98a6a1e000e363ee4b3ba0b25925c05485d2ff9afe8"
+    },
+    "prepare-launch-terminal.json": {
+      "bytes": 1272,
+      "mode": 420,
+      "path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/prepare-launch-terminal.json",
+      "sha256": "3f54a5a5a074b725286858a7211ab44ba29807ad72edd70f8c8a8da7a1a6f48d"
+    },
+    "prepare-receipt.json": {
+      "bytes": 32295,
+      "mode": 420,
+      "path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/prepare-receipt.json",
+      "sha256": "07fbab00a65dd862afd794fd2d5254707a55ad90b8170cea099eebf63c6ce920"
+    },
+    "prepare.stderr": {
+      "bytes": 0,
+      "mode": 420,
+      "path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/prepare.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "prepare.stdout": {
+      "bytes": 23883,
+      "mode": 420,
+      "path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/prepare.stdout",
+      "sha256": "0ec0fc285b4614911ca7d319766f74b140558d8a9cc3afc82bf579550463e216"
+    },
+    "selected-argv.json": {
+      "bytes": 1654,
+      "mode": 420,
+      "path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/selected-argv.json",
+      "sha256": "7700a06b5a12fb2f295e475a0358f149455d350c9ee88baf150a257decb4449b"
+    },
+    "selection.json": {
+      "bytes": 2038550,
+      "mode": 420,
+      "path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/selection.json",
+      "sha256": "11e1e298379b54973836de4ec57d4383ab84f9302081e688db0edf1cb7a908f8"
+    }
+  },
+  "independent_stage_review_accepted": true,
+  "schema_version": "p8_root_transfer_control_inputs.v1"
+}
