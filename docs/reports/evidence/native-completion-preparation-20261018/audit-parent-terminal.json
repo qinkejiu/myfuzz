@@ -1,0 +1,7 @@
+{
+  "returncode": 0,
+  "started_at": "2026-10-18T08:28:00.100939+00:00",
+  "ended_at": "2026-10-18T08:28:11.912328+00:00",
+  "script_sha256": "982a4e08e0fab0aae57dc815e70ca2326f38167c2be1ac10c1aafcd22b669697",
+  "remote_operation": "read_only_full_maps_no_gate"
+}
