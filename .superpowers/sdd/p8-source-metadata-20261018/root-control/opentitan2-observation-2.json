@@ -1,0 +1,118 @@
+{
+  "actual_parent_proc": {
+    "cmdline": "/usr/bin/python3 /root/fanzehui/myfuzz/operations/p8-source-metadata-inputs-20261018-attempt4/materialize_snapshot_reconstructed.py --component opentitan --recover-missing-pinned-files --output /root/fanzehui/myfuzz/operations/p8-source-opentitan-metadata-20261018-attempt2 --git /usr/bin/git --git-sha256 2a8c18fbf43da9f692d75474c72bea9dfd796c260b0f3dfe456376abc3bbd668 ",
+    "pid": 463069,
+    "stat": "463069 (python3) S 462590 463069 463069 0 -1 4194560 15691 196680 0 1 2137 405 4952 380 20 0 1 0 5512957 68960256 13739 18446744073709551615 4325376 7352253 140734457698336 0 0 0 0 16781312 2 1 0 0 17 125 0 0 0 0 0 10653128 12216448 938049536 140734457703529 140734457703900 140734457703900 140734457704423 0\n"
+  },
+  "children_started": 127,
+  "children_terminal": 126,
+  "completed_child_returncodes": {
+    "0": 126
+  },
+  "last_child_start": {
+    "argv": [
+      "/usr/bin/git",
+      "-c",
+      "protocol.allow=never",
+      "-c",
+      "core.hooksPath=/dev/null",
+      "-c",
+      "core.fsmonitor=false",
+      "--git-dir=/root/fanzehui/myfuzz/operations/p8-source-opentitan-metadata-20261018-attempt2/clean.git",
+      "index-pack",
+      "--stdin"
+    ],
+    "cwd": "/root/fanzehui/myfuzz/operations/p8-source-opentitan-metadata-20261018-attempt2",
+    "pid": 499437,
+    "returncode": null,
+    "started_unix": 1792315195.9588327,
+    "stdin_sha256": "237000589c34baae77f867b689a8343b8e18508080faeb77ac480432bf715e69"
+  },
+  "last_child_terminal": {
+    "argv": [
+      "/usr/bin/git",
+      "-c",
+      "protocol.allow=never",
+      "-c",
+      "core.hooksPath=/dev/null",
+      "-c",
+      "core.fsmonitor=false",
+      "init",
+      "--bare",
+      "--template=",
+      "/root/fanzehui/myfuzz/operations/p8-source-opentitan-metadata-20261018-attempt2/clean.git"
+    ],
+    "cwd": "/root/fanzehui/myfuzz/operations/p8-source-opentitan-metadata-20261018-attempt2",
+    "ended_unix": 1792315194.8185608,
+    "error": null,
+    "pid": 498704,
+    "returncode": 0,
+    "started_unix": 1792315194.759399,
+    "stderr_sha256": "7cc74f74cc8a8f9938bd00571e2c171ce3c59d048f2242a836ccca722182d430",
+    "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_sha256": "b9e81f4fcc9db65fa888220b93a8b38ada0ece01af67aa6803fc6ea7b6f91183"
+  },
+  "maps": {
+    "missing-pinned-files-plan.json": {
+      "bytes": 41213,
+      "exists": true,
+      "modified_unix": 1792315181.5327919
+    },
+    "missing-pinned-files-reconstruction.json": {
+      "exists": false
+    },
+    "snapshot-objects.json": {
+      "bytes": 1337052,
+      "exists": true,
+      "modified_unix": 1792315180.6588178
+    },
+    "snapshot-paths.json": {
+      "bytes": 7346045,
+      "exists": true,
+      "modified_unix": 1792315181.2590454
+    },
+    "source-after-directories.json": {
+      "exists": false
+    },
+    "source-after-files.json": {
+      "exists": false
+    },
+    "source-before-directories.json": {
+      "bytes": 133845,
+      "exists": true,
+      "modified_unix": 1792315138.4494958
+    },
+    "source-before-files.json": {
+      "bytes": 2799348,
+      "exists": true,
+      "modified_unix": 1792315138.1647215
+    },
+    "stage-directories.json": {
+      "exists": false
+    },
+    "stage-files.json": {
+      "exists": false
+    }
+  },
+  "no_git_or_model_invocation": true,
+  "observed_unix": 1792315200.366684,
+  "operation": "/root/fanzehui/myfuzz/operations/p8-source-opentitan-metadata-20261018-attempt2",
+  "parent_start": {
+    "batch_objects": 128,
+    "component": "opentitan",
+    "controller_sha256": "fc5faa4abc0bccd561a6ebfea2e779b32b8cdde09ef534bed75c0013ce4ff276",
+    "git_sha256": "2a8c18fbf43da9f692d75474c72bea9dfd796c260b0f3dfe456376abc3bbd668",
+    "network_allowed": false,
+    "pid": 463069,
+    "recover_missing_pinned_files": true,
+    "revision": "fca045df919a26c47e71616b9dac917b1ea4fd07",
+    "runtime_grant": false,
+    "schema_version": "p8_offline_snapshot_materialization_reconstructed.v1",
+    "source": "/root/fanzehui/myfuzz/project/third_party/soc-opentitan",
+    "started_unix": 1792315115.4704046,
+    "status": "failed"
+  },
+  "parent_terminal": null,
+  "schema_version": "p8_opentitan_readonly_observation.v1",
+  "unreadable_terminal_receipts": []
+}

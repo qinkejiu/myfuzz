@@ -1,0 +1,10 @@
+{
+  "component": "opentitan",
+  "controller_sha256": "fc5faa4abc0bccd561a6ebfea2e779b32b8cdde09ef534bed75c0013ce4ff276",
+  "models": false,
+  "network_fallback": false,
+  "recover_missing_pinned_files": true,
+  "schema_version": "p8_opentitan_offline_root_launch.v1",
+  "ssh_pid": 39831,
+  "started_at": "2026-10-18T09:18:34.189723+00:00"
+}

@@ -1,0 +1,20 @@
+{
+  "component": "ibex",
+  "controller_sha256": "fc5faa4abc0bccd561a6ebfea2e779b32b8cdde09ef534bed75c0013ce4ff276",
+  "ended_at": "2026-10-18T09:26:01.381119+00:00",
+  "ibex1-launch.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "ibex1-launch.stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "models": false,
+  "network_fallback": false,
+  "recover_missing_pinned_files": true,
+  "returncode": 0,
+  "schema_version": "p8_ibex_offline_root_launch.v1",
+  "ssh_pid": 41237,
+  "started_at": "2026-10-18T09:24:47.124023+00:00"
+}

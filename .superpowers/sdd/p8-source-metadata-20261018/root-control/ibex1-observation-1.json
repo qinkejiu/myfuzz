@@ -1,0 +1,150 @@
+{
+  "actual_parent_proc": {
+    "observation_error": "FileNotFoundError(2, 'No such file or directory')",
+    "pid": 650898
+  },
+  "children_started": 155,
+  "children_terminal": 155,
+  "completed_child_returncodes": {
+    "0": 155
+  },
+  "last_child_start": {
+    "argv": [
+      "/usr/bin/git",
+      "-c",
+      "protocol.allow=never",
+      "-c",
+      "core.hooksPath=/dev/null",
+      "-c",
+      "core.fsmonitor=false",
+      "--git-dir=/root/fanzehui/myfuzz/operations/p8-source-ibex-metadata-20261018-attempt1/stage/.git",
+      "fsck",
+      "--full",
+      "--strict",
+      "--no-reflogs"
+    ],
+    "cwd": "/root/fanzehui/myfuzz/operations/p8-source-ibex-metadata-20261018-attempt1",
+    "pid": 687748,
+    "returncode": null,
+    "started_unix": 1792315556.4643981,
+    "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "last_child_terminal": {
+    "argv": [
+      "/usr/bin/git",
+      "-c",
+      "protocol.allow=never",
+      "-c",
+      "core.hooksPath=/dev/null",
+      "-c",
+      "core.fsmonitor=false",
+      "--git-dir=/root/fanzehui/myfuzz/operations/p8-source-ibex-metadata-20261018-attempt1/stage/.git",
+      "fsck",
+      "--full",
+      "--strict",
+      "--no-reflogs"
+    ],
+    "cwd": "/root/fanzehui/myfuzz/operations/p8-source-ibex-metadata-20261018-attempt1",
+    "ended_unix": 1792315557.0053182,
+    "error": null,
+    "pid": 687748,
+    "returncode": 0,
+    "started_unix": 1792315556.4643981,
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "maps": {
+    "missing-pinned-files-plan.json": {
+      "bytes": 36265,
+      "exists": true,
+      "modified_unix": 1792315518.8939357
+    },
+    "missing-pinned-files-reconstruction.json": {
+      "bytes": 37150,
+      "exists": true,
+      "modified_unix": 1792315539.729914
+    },
+    "snapshot-objects.json": {
+      "bytes": 366979,
+      "exists": true,
+      "modified_unix": 1792315518.3735166
+    },
+    "snapshot-paths.json": {
+      "bytes": 2001096,
+      "exists": true,
+      "modified_unix": 1792315518.573281
+    },
+    "source-after-directories.json": {
+      "bytes": 24559,
+      "exists": true,
+      "modified_unix": 1792315560.7248895
+    },
+    "source-after-files.json": {
+      "bytes": 789436,
+      "exists": true,
+      "modified_unix": 1792315560.555296
+    },
+    "source-before-directories.json": {
+      "bytes": 24559,
+      "exists": true,
+      "modified_unix": 1792315507.805946
+    },
+    "source-before-files.json": {
+      "bytes": 789436,
+      "exists": true,
+      "modified_unix": 1792315507.446965
+    },
+    "stage-directories.json": {
+      "bytes": 26588,
+      "exists": true,
+      "modified_unix": 1792315558.7764742
+    },
+    "stage-files.json": {
+      "bytes": 794770,
+      "exists": true,
+      "modified_unix": 1792315558.6292458
+    }
+  },
+  "no_git_or_model_invocation": true,
+  "observed_unix": 1792315611.5909367,
+  "operation": "/root/fanzehui/myfuzz/operations/p8-source-ibex-metadata-20261018-attempt1",
+  "parent_start": {
+    "batch_objects": 128,
+    "component": "ibex",
+    "controller_sha256": "fc5faa4abc0bccd561a6ebfea2e779b32b8cdde09ef534bed75c0013ce4ff276",
+    "git_sha256": "2a8c18fbf43da9f692d75474c72bea9dfd796c260b0f3dfe456376abc3bbd668",
+    "network_allowed": false,
+    "pid": 650898,
+    "recover_missing_pinned_files": true,
+    "revision": "34b0705760ef3dfa00e99637432473d2be8f22f3",
+    "runtime_grant": false,
+    "schema_version": "p8_offline_snapshot_materialization_reconstructed.v1",
+    "source": "/root/fanzehui/myfuzz/project/third_party/rfuzz/upstream/ibex",
+    "started_unix": 1792315488.510732,
+    "status": "failed"
+  },
+  "parent_terminal": {
+    "batch_objects": 128,
+    "children": 155,
+    "component": "ibex",
+    "controller_sha256": "fc5faa4abc0bccd561a6ebfea2e779b32b8cdde09ef534bed75c0013ce4ff276",
+    "ended_unix": 1792315560.771278,
+    "git_sha256": "2a8c18fbf43da9f692d75474c72bea9dfd796c260b0f3dfe456376abc3bbd668",
+    "missing_pinned_files": 59,
+    "network_allowed": false,
+    "original_working_tree_full": false,
+    "pid": 650898,
+    "recover_missing_pinned_files": true,
+    "returncode": 0,
+    "revision": "34b0705760ef3dfa00e99637432473d2be8f22f3",
+    "runtime_grant": false,
+    "schema_version": "p8_offline_snapshot_materialization_reconstructed.v1",
+    "source": "/root/fanzehui/myfuzz/project/third_party/rfuzz/upstream/ibex",
+    "staged_reconstructed_full_snapshot": true,
+    "started_unix": 1792315488.510732,
+    "status": "prepared_pending_independent_audit_no_runtime_grant"
+  },
+  "schema_version": "p8_ibex_readonly_observation.v1",
+  "unreadable_terminal_receipts": []
+}
