@@ -1,6 +1,9 @@
 2026-10-18 最新：[P7 I5 attempt2 独立终态审计](P7_I5_ATTEMPT2_INDEPENDENT_AUDIT_20261018.md)（`c3d65db`）。N1–N8 共20项负例实际执行全部通过（2/1/1/5/2/1/2/6，零失败/错误/跳过）；CVE2＋PULP timer 真实 RFuzz 2 certified，536 events/2 records 的完整 fresh 匹配，receipt SHA join通过。父控制器exit0，source/tool/client及文件/目录冻结前后一致。fresh DUT明确reaped/exit0；原始DUT已无进程，但独立exit rc回执仍缺。P6/P7/P8整体保持OPEN。
 
-## Native 完成观测：最新源码状态
+## Native 完成观测：最新实际状态
+
+- [第二轮真实完成握手与独立审计](native-completion-directed-independent-20261018.md)：47/21次实际native完成、完整warm fresh、8DUT reaped0及冻结前后核验；仅授有界观察，P6/P7/P8 OPEN。
+- [第二轮单文件修复副本独立准备](native-completion-attempt2-preparation-independent-20261018.md)。
 
 - [新副本独立准备](native-completion-preparation-independent-20261018.md)、[首轮真实规划拒绝](native-completion-attempt1-failure-independent-20261018.md)及[最小准入修复](native-observation-planner-admission-fix-20261018.md)：新观测门未通过，第二轮使用新目录。
 

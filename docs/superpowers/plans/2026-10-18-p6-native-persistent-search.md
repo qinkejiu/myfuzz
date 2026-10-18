@@ -1,7 +1,14 @@
 # P6 native persistent search and feedback implementation plan
 
-Status: **proposed source interfaces and acceptance gates; no implementation or
-execution in this change**. Implements Stage C of
+Latest execution note (2026-10-18): passive native taps, guarded submit/fresh,
+commit-failure cleanup and typed process-identity comparison are now implemented;
+[the new frozen directed gate and independent audit](../../reports/native-completion-directed-independent-20261018.md)
+passed for actual native transfer observation (47 positive/21 controlled completions,
+full warm fresh,8 actual DUT rc0). Exact source admission joins, native source/IP
+consumers, four feedback classes and persistent RFuzz acceptance below remain open.
+
+Original planning status (historical): **proposed source interfaces and acceptance
+gates; no implementation or execution in that planning change**. Implements Stage C of
 [the next-step record](../../reports/p6-next-implementation-20261018.md).
 The bounded three-case real gate is accepted at its frozen scope; it is not
 persistent RFuzz search, four-feedback acceptance, or P6 completion.

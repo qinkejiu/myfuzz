@@ -1,5 +1,8 @@
 # P6 逐协议行适配清单（可执行）
 
+> **2026-10-18 native 新冻结实际增量（整行仍开放）：** [第二轮完成握手门及独立审计](../../reports/native-completion-directed-independent-20261018.md)实际exit0，CPU/IP/CPU三例共用进程；原/fresh各3247事件、47次native PRE valid&&ready完成（30 instruction/17 data），受控各1393事件、21完成。真实target62仅交付63后RAM/GPIO传播63，8个DUT均reaped0。仅规范化真实nonce的完整warm fresh匹配；source/tool/file+dir前后不变。该版本实际导出了mem_ready并验证backend响应T后native PRE T+1完成；不能把旧backend-only记录升级为这份新证据。来源四lane精确认证、四类反馈、持续RFuzz、独立APB相位与整行验收仍未完成。
+
+
 日期：2026-10-13。上游依据：[总计划](2026-10-06-current-dataflow-fuzz-implementation-plan.md) 的 P6 节（第 313–337 行，含第 329–335 行的五行表）与阶段状态总览（第 163 行）。本文把 P6 的验收句落成**逐行、可执行、可判定的适配清单**，并标明每行当前**已有什么、缺什么**。
 
 > **写作方法：** 本文的"已有/缺失"不是从文档转抄，而是用**实际规划器**（`plan_local_harness` + `load_local_harness_request`）与模板契约注册表（`list_template_contracts()`）逐 profile 实测得出（见 §1、§2）。凡未实测的一律标注"未核实"。

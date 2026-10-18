@@ -1,6 +1,8 @@
+2026-10-18 最新native观察：[真实完成握手与独立审计](reports/native-completion-directed-independent-20261018.md)冻结`68f81b6`实际exit0。正向CPU/IP/CPU持续三例，原/fresh各3247事件、47次native PRE valid&&ready完成（30取指标记/17数据）；受控各1393事件、21完成，真实62→交付63传播被检出。8个DUT实际reaped0，完整warm fresh和source/tool/file+dir前后核验通过。仅授真实native bus transfer观察；不授来源认证/退休/IRQ/APB相位/四反馈/RFuzz搜索/冷缓存或P6整行。下方未导出mem_ready的描述限定于旧冻结版本。
+
 2026-10-18 最新P7 I5终态：[P7 I5 attempt2 独立终态审计](reports/P7_I5_ATTEMPT2_INDEPENDENT_AUDIT_20261018.md)（`c3d65db`）。N1–N8 共20项负例实际执行全部通过（2/1/1/5/2/1/2/6，零失败/错误/跳过）；CVE2＋PULP timer 真实 RFuzz 2 certified，536 events/2 records 的完整 fresh 匹配，receipt SHA join通过。父控制器exit0，source/tool/client及文件/目录冻结前后一致。fresh DUT明确reaped/exit0；原始DUT已无进程，但独立exit rc回执仍缺。P6/P7/P8整体保持OPEN。
 
-2026-10-18 最新增量：[Pico native＋PULP GPIO 有界持久门实际通过](reports/p6-native-persistent-directed-20261018.md)。同PID/nonce/epoch三例CPU/IP/CPU，真实后端响应、RAM/GPIO结果与受控响应扰动检出，完整fresh及8个DUT terminal0经两份独立审计；source/tool/file+directory前后不变。边界：钉定目标backend与GPIO物理采样，未导出native mem_ready，response_consumed仅adapter/backend握手；无独立APB相位抽头；来源仍unknown/transport_candidates_only、RAM observation_only，无退休/IRQ/闭环证书、四反馈、持续搜索或P6整行授予。
+2026-10-18 较早冻结增量：[Pico native＋PULP GPIO 有界持久门实际通过](reports/p6-native-persistent-directed-20261018.md)。同PID/nonce/epoch三例CPU/IP/CPU，真实后端响应、RAM/GPIO结果与受控响应扰动检出，完整fresh及8个DUT terminal0经两份独立审计；source/tool/file+directory前后不变。边界：钉定目标backend与GPIO物理采样，未导出native mem_ready，response_consumed仅adapter/backend握手；无独立APB相位抽头；来源仍unknown/transport_candidates_only、RAM observation_only，无退休/IRQ/闭环证书、四反馈、持续搜索或P6整行授予。
 
 # 生成式独立 Harness 的实际运行边界
 
