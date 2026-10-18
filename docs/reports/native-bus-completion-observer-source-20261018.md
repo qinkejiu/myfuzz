@@ -68,3 +68,18 @@ offered-request stability through completion PRE, completion POST switching,
 real snapshot binding, failure cleanup and single-outstanding sequencing. This
 is source reasoning, not execution evidence; independent review and an actual
 new source-frozen gate remain required.
+
+## Lifecycle source correction (`34f01e3`)
+
+Independent source review found that backend response consumption cleared the
+old pending counter one tick before the actual native CPU completion PRE. The
+source now counts the same outstanding transfer until the observer completes it;
+Deferred MMIO uses the combined parent counter without double counting. Both
+reset paths explicitly cancel observation state, while abort poisons it and a
+failed observer cannot launch another case. Direct close with an incomplete
+transfer closes the owned process first and then raises the original protocol
+error, retaining any cleanup exception as a note.
+
+The reviewer re-read these changes and closed the Important finding at source
+level. No tests, imports, builds or DUT runs were executed for this correction;
+the previous frozen directed gate does not validate this new source.
