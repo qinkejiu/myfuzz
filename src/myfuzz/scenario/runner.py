@@ -2101,6 +2101,17 @@ class ScenarioRunner:
         if (not isinstance(document, dict) or 'base_protocol_traces' not in document
                 or getattr(session, '_physical_tick_samples_enabled', False) is not True):
             return None
+        if document.get('kind') == 'native_memory_cpu':
+            # Native completion has a dedicated live producer, not the OBI
+            # observer or the generic peripheral protocol checker.
+            from .native_cpu_events import NativeBusObserver
+            from myfuzz.local_harness.native_contract import verify_native_completion_observation
+            verify_native_completion_observation(artifact)
+            observer = getattr(session, '_native_bus_observer', None)
+            if type(observer) is not NativeBusObserver or observer.session is not session:
+                raise ValueError('native-bus-observer-producer-required')
+            self._protocol_trace_sets[component] = None
+            return None
         from .protocol_trace_sets import ProtocolTraceSetObserver
         observer = ProtocolTraceSetObserver(component, artifact)
         self._protocol_trace_sets[component] = observer
@@ -2114,7 +2125,8 @@ class ScenarioRunner:
     def protocol_trace_set_reports(self):
         """Bounded boundary proofs and coverage from this Runner's raw journal."""
         return {component: observer.report(self._events)
-                for component, observer in self._protocol_trace_sets.items()}
+                for component, observer in self._protocol_trace_sets.items()
+                if observer is not None}
 
     def _drain_tick_samples(self, producer_event_id: int) -> None:
         """Route every real receipt phase, including indirectly clocked targets.
@@ -2154,6 +2166,15 @@ class ScenarioRunner:
                                  "producer_event_id": producer_event_id,
                                  "component": component, "local_tick": tick,
                                  "phase": phase, "outputs": dict(observed)}
+                    native_scope = sample.get('native_driver_scope')
+                    if native_scope is not None:
+                        from .native_cpu_events import NativeBusObserver
+                        observer = getattr(session, '_native_bus_observer', None)
+                        if type(observer) is not NativeBusObserver or observer.session is not session:
+                            raise ValueError('native-bus-raw-producer-required')
+                        raw_event['native_driver_scope'] = deepcopy(native_scope)
+                        if 'clock_edges' in sample:
+                            raw_event['clock_edges'] = deepcopy(sample['clock_edges'])
                     epoch = getattr(session, 'reset_epoch', 0)
                     runtime_document = getattr(getattr(session, 'artifact', None),
                                                'runtime_document', None)
@@ -2172,6 +2193,12 @@ class ScenarioRunner:
                     if self._ordinary_apb_access_evidence is not None and 'ordinary_apb_access_ref' in sample:
                         raw_event['ordinary_apb_access_ref'] = deepcopy(sample['ordinary_apb_access_ref'])
                     self._append_ordinary_observed_event(raw_event)
+                    if native_scope is not None:
+                        for projection in sample['native_bus_events']:
+                            if projection['phase'] == phase:
+                                self._append_ordinary_observed_event({**deepcopy(projection),
+                                    'component': component, 'event_id': len(self._events) + 1,
+                                    'producer_event_id': event_id})
                     self._route_observed_outputs(component, outputs, event_id, tick, phase)
                     if base_event_normalizer is not None:
                         for base_event in base_event_normalizer.consume_local_tick(

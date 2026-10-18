@@ -400,6 +400,7 @@ class DeferredNativeMemorySession(GeneratedNativeMemorySession):
             raise ProtocolEnvironmentError('native command handshake observation mismatch')
         self.last_samples = tuple(copy.deepcopy(payload['samples']))
         self._observe_verified_memory_edge(receipt)
+        self._record_native_bus_receipt(receipt, pending)
         accepted = int(bool(pre['m_req_valid'] and pre['m_req_ready']))
         consumed = int(bool(pre['m_rsp_valid'] and pre['m_rsp_ready']))
         if consumed:

@@ -64,6 +64,12 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
         self.accepted_addresses=[]
         self.last_samples=()
         self._online_instruction_slots=False
+        self._native_bus_observer = None
+        self._physical_tick_samples_enabled = False
+        if 'native_completion_observation' in self._artifact_document:
+            from myfuzz.scenario.native_cpu_events import NativeBusObserver
+            self._native_bus_observer = NativeBusObserver(self)
+            self._physical_tick_samples_enabled = True
 
     def declare_instruction_slots(self, address, count=1):
         """Opt in before startup; only an authenticated physical marker may gate fetches."""
@@ -158,7 +164,10 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
             self.service.write(key,address,value,width_bytes=4,byte_enable=be)
             self.memory_write_count+=1
             return 0
-        return self.service.read(key,address,width_bytes=4).value
+        snapshot = self.service.read(key,address,width_bytes=4)
+        if self._native_bus_observer is not None:
+            self._native_bus_observer.bind_read_snapshot(key, snapshot)
+        return snapshot.value
 
     def reset_local(self):
         cancelled=self.pending_responses
@@ -169,6 +178,28 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
     def _observe_verified_memory_edge(self, receipt):
         """Optional passive measurement, after receipt checks and before service."""
         return None
+
+    def _record_native_bus_receipt(self, receipt, pending_response):
+        if self._native_bus_observer is not None:
+            try:
+                self._native_bus_observer.observe(receipt, pending_response)
+            except BaseException as primary:
+                self._native_bus_observer.failed = True
+                try:
+                    self._abort()
+                except BaseException as cleanup:
+                    try:
+                        primary.add_note('native bus observation cleanup: ' + repr(cleanup))
+                    except BaseException:
+                        pass
+                raise
+
+    @property
+    def drain_tick_samples(self):
+        # Absence of an opt-in stream must retain Runner's legacy output route.
+        if self._native_bus_observer is None:
+            return None
+        return self._native_bus_observer.drain
 
     def step_local(self,inputs:Mapping[str,int]):
         if not isinstance(inputs,Mapping) or inputs:
@@ -187,6 +218,7 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
             raise ProtocolEnvironmentError('native command handshake observation mismatch')
         self.last_samples=tuple(copy.deepcopy(payload['samples']))
         self._observe_verified_memory_edge(receipt)
+        self._record_native_bus_receipt(receipt, pending)
         accepted=int(bool(pre['m_req_valid'] and pre['m_req_ready']))
         consumed=int(bool(pre['m_rsp_valid'] and pre['m_rsp_ready']))
         if consumed:
