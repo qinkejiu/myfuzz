@@ -2687,41 +2687,58 @@ def replay_online_session(plan: bytes,
         _canonical(_online_manifest(session.runner, checker, runtime_paths=session.runtime_path_document))).hexdigest()
     if actual_manifest != reference.manifest_sha256:
         raise ValueError("online replay manifest identity mismatch")
-    session.begin()
-    for order in document["warmup_advances"]:
-        session.advance_initial(tuple(order))
-    reset_index = 0
-    for case_index, (case, source_role) in enumerate(zip(decoded_cases, decoded_roles)):
-        if trusted_plan:
-            try:
-                trusted_gate.register_replay_case(case, document['prerequisite_admissions'][case_index])
-            except BaseException as admission_error:
-                try:
-                    session.finish()
-                except BaseException as cleanup_error:
-                    admission_error.add_note(
-                        f'online replay cleanup failed: {type(cleanup_error).__name__}: {cleanup_error}')
-                raise
-        if expected_failure is None:
-            session.submit_case(case, source_role=source_role)
-        else:
-            try:
+    if native_max_cases is not None:
+        try:
+            session.begin()
+            for order in document["warmup_advances"]:
+                session.advance_initial(tuple(order))
+            for case_index, (case, source_role) in enumerate(zip(decoded_cases, decoded_roles)):
+                if trusted_plan:
+                    trusted_gate.register_replay_case(
+                        case, document['prerequisite_admissions'][case_index])
                 session.submit_case(case, source_role=source_role)
-            except BaseException:
-                break
-        while (reset_index < len(reset_operations)
-               and reset_operations[reset_index]['after_cases'] == case_index + 1):
-            try:
-                session.reset(reset_operations[reset_index]['policy'])
-            except BaseException as reset_error:
+            actual = session.finish()
+        except BaseException as primary:
+            # Includes malformed packets refused before the guarded submit's
+            # own physical-operation try block, after fresh processes started.
+            NativePacketSession.abort_packet_submission(session, primary)
+            raise
+    else:
+        session.begin()
+        for order in document["warmup_advances"]:
+            session.advance_initial(tuple(order))
+        reset_index = 0
+        for case_index, (case, source_role) in enumerate(zip(decoded_cases, decoded_roles)):
+            if trusted_plan:
                 try:
-                    session.finish()
-                except BaseException as cleanup_error:
-                    reset_error.add_note(
-                        f'online replay cleanup failed: {type(cleanup_error).__name__}: {cleanup_error}')
-                raise
-            reset_index += 1
-    actual = session.finish()
+                    trusted_gate.register_replay_case(case, document['prerequisite_admissions'][case_index])
+                except BaseException as admission_error:
+                    try:
+                        session.finish()
+                    except BaseException as cleanup_error:
+                        admission_error.add_note(
+                            f'online replay cleanup failed: {type(cleanup_error).__name__}: {cleanup_error}')
+                    raise
+            if expected_failure is None:
+                session.submit_case(case, source_role=source_role)
+            else:
+                try:
+                    session.submit_case(case, source_role=source_role)
+                except BaseException:
+                    break
+            while (reset_index < len(reset_operations)
+                   and reset_operations[reset_index]['after_cases'] == case_index + 1):
+                try:
+                    session.reset(reset_operations[reset_index]['policy'])
+                except BaseException as reset_error:
+                    try:
+                        session.finish()
+                    except BaseException as cleanup_error:
+                        reset_error.add_note(
+                            f'online replay cleanup failed: {type(cleanup_error).__name__}: {cleanup_error}')
+                    raise
+                reset_index += 1
+        actual = session.finish()
     missing = object()
     for index, (expected_item, actual_item) in enumerate(zip_longest(
             reference.events, actual.events, fillvalue=missing)):
