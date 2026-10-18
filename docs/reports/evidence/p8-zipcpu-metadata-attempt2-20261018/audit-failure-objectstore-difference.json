@@ -1,0 +1,24 @@
+{
+  "clean": {
+    "missing_from_capture": {
+      "objects/pack/pack-104b395e65458215c1b98692a068c689164cf1c5.rev": {
+        "bytes": 1628,
+        "kind": "regular",
+        "mode": 292,
+        "sha256": "b738d526e48cefa8f2eb559c7b02c7eb171d7f70cbb754ae312bf4893206a2e9"
+      }
+    },
+    "extra_in_capture": []
+  },
+  "stage-git": {
+    "missing_from_capture": {
+      "objects/pack/pack-104b395e65458215c1b98692a068c689164cf1c5.rev": {
+        "bytes": 1628,
+        "kind": "regular",
+        "mode": 292,
+        "sha256": "b738d526e48cefa8f2eb559c7b02c7eb171d7f70cbb754ae312bf4893206a2e9"
+      }
+    },
+    "extra_in_capture": []
+  }
+}

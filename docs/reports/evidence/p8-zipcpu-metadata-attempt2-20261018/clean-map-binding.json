@@ -1,0 +1,20 @@
+{
+  "schema_version": "p8_separate_clean_map_binding.v1",
+  "original_archive_path": "docs/reports/evidence/p8-zipcpu-metadata-attempt2-20261018/actual-remote.tar.gz",
+  "original_archive_sha256": "9a91c2cf3366345527708a7038ba406ea696e427e3f74ea662423382ce2578b5",
+  "original_archive_download_ended_at": "2026-10-18T09:07:07.953933+00:00",
+  "supplement_path": "docs/reports/evidence/p8-zipcpu-metadata-attempt2-20261018/clean-map-supplement.json",
+  "supplement_sha256": "84601b7f3fbeccca591baaf6d7b7d9401fc83028fc8c6b24e5870454e61ece1c",
+  "supplement_collected_at": "2026-10-18T09:09:35.667798+00:00",
+  "supplement_remote_store": "/root/fanzehui/myfuzz/operations/p8-source-zipcpu-metadata-20261018-attempt2/clean.git",
+  "read_only_current_store_inventory": true,
+  "is_original_terminal_time_capture": false,
+  "original_archive_metadata_file_pins_rechecked": [
+    "HEAD",
+    "config",
+    "objects/pack/pack-104b395e65458215c1b98692a068c689164cf1c5.idx",
+    "objects/pack/pack-104b395e65458215c1b98692a068c689164cf1c5.pack",
+    "refs/heads/pinned",
+    "shallow"
+  ]
+}

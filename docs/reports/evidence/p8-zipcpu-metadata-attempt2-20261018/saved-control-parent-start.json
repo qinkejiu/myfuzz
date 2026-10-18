@@ -1,0 +1,13 @@
+{
+  "component": "zipcpu",
+  "controller_sha256": "23e3aa49cd2f498250c939cf10b751e8a669c20b3c190870784b16ec80cf6e14",
+  "git_sha256": "2a8c18fbf43da9f692d75474c72bea9dfd796c260b0f3dfe456376abc3bbd668",
+  "network_allowed": false,
+  "pid": 4100959,
+  "revision": "42606d2d6ef55df313772232977621b2d72f0159",
+  "runtime_grant": false,
+  "schema_version": "p8_offline_snapshot_materialization.v1",
+  "source": "/root/fanzehui/myfuzz/project/third_party/soc-zipcpu",
+  "started_unix": 1792314114.9083376,
+  "status": "failed"
+}

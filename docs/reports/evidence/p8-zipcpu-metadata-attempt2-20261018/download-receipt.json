@@ -1,0 +1,10 @@
+{
+  "returncode": 0,
+  "started_at": "2026-10-18T09:06:47.571681+00:00",
+  "ended_at": "2026-10-18T09:07:07.953933+00:00",
+  "bytes": 218999928,
+  "sha256": "9a91c2cf3366345527708a7038ba406ea696e427e3f74ea662423382ce2578b5",
+  "collector_sha256": "4c189bfd4534190beddbd6b90f94cccc6dd4305dda16c05b407ec6834680545e",
+  "remote_read_only": true,
+  "git_or_model_reexecution": false
+}

@@ -1,0 +1,32 @@
+{
+  "original_archive_sha256": "9a91c2cf3366345527708a7038ba406ea696e427e3f74ea662423382ce2578b5",
+  "supplement_archive_sha256": "21b14866b43dbc4b27786fd78703bb338ada84a8790a45a9a1e7762ac5d6789c",
+  "observation": {
+    "collected_at": "2026-10-18T09:13:39.744794+00:00",
+    "files": [
+      {
+        "bytes": 1628,
+        "mode": 292,
+        "relative_path": "objects/pack/pack-104b395e65458215c1b98692a068c689164cf1c5.rev",
+        "remote_path": "/root/fanzehui/myfuzz/operations/p8-source-zipcpu-metadata-20261018-attempt2/clean.git/objects/pack/pack-104b395e65458215c1b98692a068c689164cf1c5.rev",
+        "sha256": "b738d526e48cefa8f2eb559c7b02c7eb171d7f70cbb754ae312bf4893206a2e9",
+        "store": "clean"
+      },
+      {
+        "bytes": 1628,
+        "mode": 292,
+        "relative_path": "objects/pack/pack-104b395e65458215c1b98692a068c689164cf1c5.rev",
+        "remote_path": "/root/fanzehui/myfuzz/operations/p8-source-zipcpu-metadata-20261018-attempt2/stage/.git/objects/pack/pack-104b395e65458215c1b98692a068c689164cf1c5.rev",
+        "sha256": "b738d526e48cefa8f2eb559c7b02c7eb171d7f70cbb754ae312bf4893206a2e9",
+        "store": "stage-git"
+      }
+    ],
+    "git_or_models_reexecuted": false,
+    "original_archive_member": false,
+    "remote_read_only": true,
+    "separate_later_capture": true
+  },
+  "matched_clean_later_map": true,
+  "matched_stage_original_map": true,
+  "not_inserted_into_first_extraction": true
+}

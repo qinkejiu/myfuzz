@@ -1,0 +1,17 @@
+{
+  "actual_children": 1198,
+  "actual_source_matches_beforeafter": true,
+  "actual_stage_matches_saved": true,
+  "child_returncodes": [
+    0
+  ],
+  "collected_at": "2026-10-18T09:06:49.563323+00:00",
+  "git_or_models_reexecuted": false,
+  "link_targets_followed": false,
+  "original_source_symlinks": 2,
+  "parent_pid": 4100959,
+  "parent_proc_present": false,
+  "parent_returncode": 0,
+  "remote_read_only": true,
+  "stage_symlinks": 2
+}

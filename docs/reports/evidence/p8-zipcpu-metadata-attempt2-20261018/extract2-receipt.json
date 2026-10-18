@@ -1,0 +1,90 @@
+{
+  "archive_bytes": 218999928,
+  "archive_sha256": "9a91c2cf3366345527708a7038ba406ea696e427e3f74ea662423382ce2578b5",
+  "auditor_executed": false,
+  "clean_original_archive_files_independently_rechecked": [
+    {
+      "bytes": 23,
+      "path": "HEAD",
+      "sha256": "3396227d4cc684cc517b7e2d1f9730011252a10c7092227bee4447f0a725da5a"
+    },
+    {
+      "bytes": 66,
+      "path": "config",
+      "sha256": "dd548269913b6adbdfa7049170ea86850050cb762ea3b9c510a0b2986d2113e3"
+    },
+    {
+      "bytes": 12104,
+      "path": "objects/pack/pack-104b395e65458215c1b98692a068c689164cf1c5.idx",
+      "sha256": "cbc942c7fd205d1e14084824cce352a42ea39f9df6b8b33207776fc10be3474e"
+    },
+    {
+      "bytes": 31039562,
+      "path": "objects/pack/pack-104b395e65458215c1b98692a068c689164cf1c5.pack",
+      "sha256": "eab55b374b3285791cf1ef7fff0c960f8921267e0590c8060bd8bcf84f54143b"
+    },
+    {
+      "bytes": 41,
+      "path": "refs/heads/pinned",
+      "sha256": "24c6ede5e1e59b5ab3e9a9a037402aaf689be54f120be5b9013bcd1550cae2ec"
+    },
+    {
+      "bytes": 41,
+      "path": "shallow",
+      "sha256": "24c6ede5e1e59b5ab3e9a9a037402aaf689be54f120be5b9013bcd1550cae2ec"
+    }
+  ],
+  "ended_at": "2026-10-18T09:14:30.589915+00:00",
+  "explicit_copy_without_extractall": true,
+  "extracted_file_bytes": 240796532,
+  "git_or_models_executed": false,
+  "link_members_refused": true,
+  "member_index_sha256": "916fe0355a351ea66eb98ab6389f5c686edae21938a02441e12f80a781aab538",
+  "original_archive": "/home/qinkejiu/myfuzz/docs/reports/evidence/p8-zipcpu-metadata-attempt2-20261018/actual-remote.tar.gz",
+  "original_archive_unchanged": true,
+  "original_member_count": 6024,
+  "original_regular_files": 6023,
+  "reverse_index_clean_map_sha256": "84601b7f3fbeccca591baaf6d7b7d9401fc83028fc8c6b24e5870454e61ece1c",
+  "reverse_index_collected_at": "2026-10-18T09:13:39.744794+00:00",
+  "reverse_index_insertions": [
+    {
+      "bytes": 1628,
+      "destination": "metadata/clean/objects/pack/pack-104b395e65458215c1b98692a068c689164cf1c5.rev",
+      "mode": 292,
+      "relative_path": "objects/pack/pack-104b395e65458215c1b98692a068c689164cf1c5.rev",
+      "remote_path": "/root/fanzehui/myfuzz/operations/p8-source-zipcpu-metadata-20261018-attempt2/clean.git/objects/pack/pack-104b395e65458215c1b98692a068c689164cf1c5.rev",
+      "sha256": "b738d526e48cefa8f2eb559c7b02c7eb171d7f70cbb754ae312bf4893206a2e9",
+      "store": "clean"
+    },
+    {
+      "bytes": 1628,
+      "destination": "metadata/stage-git/objects/pack/pack-104b395e65458215c1b98692a068c689164cf1c5.rev",
+      "mode": 292,
+      "relative_path": "objects/pack/pack-104b395e65458215c1b98692a068c689164cf1c5.rev",
+      "remote_path": "/root/fanzehui/myfuzz/operations/p8-source-zipcpu-metadata-20261018-attempt2/stage/.git/objects/pack/pack-104b395e65458215c1b98692a068c689164cf1c5.rev",
+      "sha256": "b738d526e48cefa8f2eb559c7b02c7eb171d7f70cbb754ae312bf4893206a2e9",
+      "store": "stage-git"
+    }
+  ],
+  "reverse_index_original_archive_members": false,
+  "reverse_index_original_stage_map_sha256": "8bc7074890f6de1569e8d10be1d921325a0ada9c45b76653b4d17fbd54948c51",
+  "reverse_index_supplement_sha256": "21b14866b43dbc4b27786fd78703bb338ada84a8790a45a9a1e7762ac5d6789c",
+  "schema_version": "p8_safe_saved_extract.v1",
+  "separate_supplement_collected_at": "2026-10-18T09:09:35.667798+00:00",
+  "started_at": "2026-10-18T09:14:28.733774+00:00",
+  "supplement_insertions": [
+    {
+      "destination": "observed/clean-map.json",
+      "separate_later_observation": true,
+      "sha256": "84601b7f3fbeccca591baaf6d7b7d9401fc83028fc8c6b24e5870454e61ece1c",
+      "source": "/home/qinkejiu/myfuzz/docs/reports/evidence/p8-zipcpu-metadata-attempt2-20261018/clean-map-supplement.json"
+    },
+    {
+      "destination": "observed/clean-map-binding.json",
+      "separate_later_observation": true,
+      "sha256": "e27ac7f2a71e6b0088ac4da1521dc7b758dedab25dcc9dc03363432cc752d615",
+      "source": "/home/qinkejiu/myfuzz/docs/reports/evidence/p8-zipcpu-metadata-attempt2-20261018/clean-map-binding.json"
+    }
+  ],
+  "target": "/home/qinkejiu/myfuzz/.superpowers/sdd/p8-source-metadata-20261018/offline-zipcpu-attempt2-audit2"
+}

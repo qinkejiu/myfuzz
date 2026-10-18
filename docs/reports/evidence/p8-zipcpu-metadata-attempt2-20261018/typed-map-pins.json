@@ -1,0 +1,22 @@
+{
+  "source_files": {
+    "count": 401,
+    "sha256": "d1cb11b393b47e3c7534060a6caeb1c7a3f5e43d328056f08e75d97bc2c07025",
+    "bytes": 70448
+  },
+  "source_directories": {
+    "count": 41,
+    "sha256": "6613cd7ec46789ab7c215f2cad88501f6ca5fb97f42be894f9bb0122cda4f355",
+    "bytes": 1646
+  },
+  "stage_files": {
+    "count": 376,
+    "sha256": "8bc7074890f6de1569e8d10be1d921325a0ada9c45b76653b4d17fbd54948c51",
+    "bytes": 65711
+  },
+  "stage_directories": {
+    "count": 31,
+    "sha256": "11378bd97daf464b01b7cc0a54033c121ece7b4895b293b8259ac202522533e1",
+    "bytes": 1189
+  }
+}

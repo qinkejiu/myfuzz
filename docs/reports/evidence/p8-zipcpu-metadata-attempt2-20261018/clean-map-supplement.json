@@ -1,0 +1,69 @@
+{
+  "collected_at": "2026-10-18T09:09:35.667798+00:00",
+  "directories": {
+    "objects": {
+      "mode": 493
+    },
+    "objects/info": {
+      "mode": 493
+    },
+    "objects/pack": {
+      "mode": 493
+    },
+    "refs": {
+      "mode": 493
+    },
+    "refs/heads": {
+      "mode": 493
+    },
+    "refs/tags": {
+      "mode": 493
+    }
+  },
+  "files": {
+    "HEAD": {
+      "bytes": 23,
+      "kind": "regular",
+      "mode": 420,
+      "sha256": "3396227d4cc684cc517b7e2d1f9730011252a10c7092227bee4447f0a725da5a"
+    },
+    "config": {
+      "bytes": 66,
+      "kind": "regular",
+      "mode": 420,
+      "sha256": "dd548269913b6adbdfa7049170ea86850050cb762ea3b9c510a0b2986d2113e3"
+    },
+    "objects/pack/pack-104b395e65458215c1b98692a068c689164cf1c5.idx": {
+      "bytes": 12104,
+      "kind": "regular",
+      "mode": 292,
+      "sha256": "cbc942c7fd205d1e14084824cce352a42ea39f9df6b8b33207776fc10be3474e"
+    },
+    "objects/pack/pack-104b395e65458215c1b98692a068c689164cf1c5.pack": {
+      "bytes": 31039562,
+      "kind": "regular",
+      "mode": 292,
+      "sha256": "eab55b374b3285791cf1ef7fff0c960f8921267e0590c8060bd8bcf84f54143b"
+    },
+    "objects/pack/pack-104b395e65458215c1b98692a068c689164cf1c5.rev": {
+      "bytes": 1628,
+      "kind": "regular",
+      "mode": 292,
+      "sha256": "b738d526e48cefa8f2eb559c7b02c7eb171d7f70cbb754ae312bf4893206a2e9"
+    },
+    "refs/heads/pinned": {
+      "bytes": 41,
+      "kind": "regular",
+      "mode": 420,
+      "sha256": "24c6ede5e1e59b5ab3e9a9a037402aaf689be54f120be5b9013bcd1550cae2ec"
+    },
+    "shallow": {
+      "bytes": 41,
+      "kind": "regular",
+      "mode": 420,
+      "sha256": "24c6ede5e1e59b5ab3e9a9a037402aaf689be54f120be5b9013bcd1550cae2ec"
+    }
+  },
+  "git_executed": false,
+  "read_only": true
+}

@@ -1,0 +1,26 @@
+{
+  "actual_stage_matches_snapshot": true,
+  "child_count": 1198,
+  "complete_source_beforeafter_equal": true,
+  "environment_evidence": "reviewed_pinned_controller_enforcement_not_separate_OS_capture",
+  "models_executed_by_audit": false,
+  "object_count": 394,
+  "pack_verification": "checksum_index_names_exact_transcript_bytes_and_rehashed_actual_Git_object_reads_no_independent_pack_decompression",
+  "parent_pid": 4100959,
+  "repository_network": false,
+  "revision": "42606d2d6ef55df313772232977621b2d72f0159",
+  "runtime_grant": false,
+  "schema_version": "zipcpu_independent_offline_snapshot_audit.v1",
+  "status": "saved_metadata_audit_passed",
+  "symlinks": [
+    {
+      "path": "sim/verilator/zipelf.cpp",
+      "text": "../cpp/zipelf.cpp"
+    },
+    {
+      "path": "sim/verilator/zipelf.h",
+      "text": "../cpp/zipelf.h"
+    }
+  ],
+  "tracked_paths": 368
+}

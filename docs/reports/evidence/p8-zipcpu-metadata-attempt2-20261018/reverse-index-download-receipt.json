@@ -1,0 +1,11 @@
+{
+  "returncode": 0,
+  "started_at": "2026-10-18T09:13:38.556462+00:00",
+  "ended_at": "2026-10-18T09:13:40.127381+00:00",
+  "bytes": 1462,
+  "sha256": "21b14866b43dbc4b27786fd78703bb338ada84a8790a45a9a1e7762ac5d6789c",
+  "collector_sha256": "ff0c9f94bda33467b22e6d420afccb67a715a5a4fd969c5570a1d6d2e6343d1e",
+  "remote_read_only": true,
+  "original_archive_unchanged": true,
+  "auditor_reexecuted": false
+}

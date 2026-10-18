@@ -1,0 +1,22 @@
+{
+  "started_at": "2026-10-18T09:12:47.259653+00:00",
+  "auditor_sha256": "cc1a4741e7aa8b14299ac3390936fee17b834755ec62aa7b0f7cff00276e270d",
+  "argv": [
+    "/usr/bin/python3",
+    "/home/qinkejiu/myfuzz/.superpowers/sdd/p8-source-metadata-20261018/audit_zipcpu_saved.py",
+    "--evidence-dir",
+    "/home/qinkejiu/myfuzz/.superpowers/sdd/p8-source-metadata-20261018/offline-zipcpu-attempt2"
+  ],
+  "evidence_archive_sha256": "9a91c2cf3366345527708a7038ba406ea696e427e3f74ea662423382ce2578b5",
+  "git_models_project_imports_or_remote_executed": false,
+  "returncode": 1,
+  "ended_at": "2026-10-18T09:12:48.024936+00:00",
+  "audit.stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "audit.stderr": {
+    "bytes": 980,
+    "sha256": "e84284bfb852fd631edebd5ac58dccd006c57e5757a7d20ac0232f9ea5be19fe"
+  }
+}
