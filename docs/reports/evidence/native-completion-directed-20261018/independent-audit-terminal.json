@@ -1,0 +1,23 @@
+{
+  "started_at": "2026-10-18T08:51:22.600047+00:00",
+  "auditor_sha256": "31e5fdeaaae74952f179535a93fffa200053c251444e12bfc12c9b8762f356d1",
+  "archive_sha256": "e67eda81cc791d5950c9eda48d35789659ede40c546f1efc08e48d2b5efd5e36",
+  "argv": [
+    "/usr/bin/python3",
+    "/home/qinkejiu/myfuzz/docs/reports/evidence/native-completion-directed-20261018/independent_audit.py",
+    "--operation-dir",
+    "/home/qinkejiu/myfuzz/.superpowers/sdd/native-completion-20261018/offline-actual-attempt2"
+  ],
+  "model_reexecuted": false,
+  "project_imports": false,
+  "returncode": 0,
+  "ended_at": "2026-10-18T08:51:23.232083+00:00",
+  "independent-audit.stdout": {
+    "bytes": 4460,
+    "sha256": "e436534ec9366629e3754e6c52e4e55c9c68e5c3ae8a5ddd1037c44d0ea69f4f"
+  },
+  "independent-audit.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

@@ -1,0 +1,3155 @@
+{
+  "scope": "terminal_and_frozen_metadata_only_independent_raw_auditor_not_executed",
+  "parent": {
+    "argv": [
+      "/root/fanzehui/myfuzz/operations/p6-native-completion-inputs-20261018-attempt2/run_native_gate.py",
+      "--freeze-sha256",
+      "3c287137bfa7e98c6b28444b20b26fa2e6ab25d6a01c2262594408fa380e44be",
+      "--receipt-sha256",
+      "35704ba49d94e5a6e2ed59d60e365a618445a8687f18dd47530845ddfae11080",
+      "--directories-file-sha256",
+      "861e192518e1d809231b676b91b17c149466000f83138969eac6cbfaff68fb36"
+    ],
+    "controller_sha256": "4e08528bbc01f587f888ba3de1fd3dfbb1af04b6824bcf776a105f2df259a8a5",
+    "cwd": "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/project",
+    "ended_unix": 1792313309.4911194,
+    "errors": [],
+    "formal_p6_complete": false,
+    "gate_returncode": 0,
+    "git_metadata": [
+      {
+        "name": "git-root-head",
+        "returncode": 0
+      },
+      {
+        "name": "git-closures-tracked",
+        "returncode": 0
+      },
+      {
+        "name": "git-picorv32_upstream_reference-connectivity",
+        "returncode": 0
+      },
+      {
+        "name": "git-soc-pulp-apb-gpio-connectivity",
+        "returncode": 0
+      }
+    ],
+    "pid": 3454454,
+    "returncode": 0,
+    "schema_version": "native_completion_gate_parent.v1",
+    "started_unix": 1792312967.7809913,
+    "status": "collected_pending_independent_audit",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "gate_child": {
+    "argv": [
+      "/usr/bin/python3",
+      "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/project/scripts/verify_picorv32_native_online.py",
+      "--output",
+      "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/run-directed",
+      "--cache-dir",
+      "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/cache-native",
+      "--heavy-lock",
+      "/root/fanzehui/system-20261016/project/.superpowers/heavy-worker.lock",
+      "--native-completion-observation"
+    ],
+    "cwd": "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/project",
+    "ended_unix": 1792313295.0219622,
+    "error": null,
+    "pid": 3469032,
+    "returncode": 0,
+    "started_unix": 1792312991.8308847,
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "processes": [
+    {
+      "artifact_digest": "9d701790f0048d8e5d9384b9e3c59f141da4b13684a3334e697de9a0160bc8f8",
+      "component": "cpu",
+      "execution_nonce": "7068450890ce4547b2cd8b45bff53da4",
+      "pid": 3538157,
+      "reset_epoch": 0,
+      "runner_namespace": "runner-0",
+      "terminal_returncode": 0
+    },
+    {
+      "artifact_digest": "2d9355fd1bfc3b7910961267ef298a34132ddafb337ed5c90058cf137806dfe8",
+      "component": "gpio0",
+      "execution_nonce": "70d459af98844b3591af321a0481aaec",
+      "pid": 3538385,
+      "reset_epoch": 0,
+      "runner_namespace": "runner-0",
+      "terminal_returncode": 0
+    },
+    {
+      "artifact_digest": "9d701790f0048d8e5d9384b9e3c59f141da4b13684a3334e697de9a0160bc8f8",
+      "component": "cpu",
+      "execution_nonce": "942cdd81acf543eb8dd09bb5746b4ac3",
+      "pid": 3572592,
+      "reset_epoch": 0,
+      "runner_namespace": "runner-1",
+      "terminal_returncode": 0
+    },
+    {
+      "artifact_digest": "2d9355fd1bfc3b7910961267ef298a34132ddafb337ed5c90058cf137806dfe8",
+      "component": "gpio0",
+      "execution_nonce": "f115e3920f504b6d9acab516d749a8c9",
+      "pid": 3572730,
+      "reset_epoch": 0,
+      "runner_namespace": "runner-1",
+      "terminal_returncode": 0
+    },
+    {
+      "artifact_digest": "9d701790f0048d8e5d9384b9e3c59f141da4b13684a3334e697de9a0160bc8f8",
+      "component": "cpu",
+      "execution_nonce": "5067d3de24c8477595210fb864a71572",
+      "pid": 3615572,
+      "reset_epoch": 0,
+      "runner_namespace": "runner-0",
+      "terminal_returncode": 0
+    },
+    {
+      "artifact_digest": "2d9355fd1bfc3b7910961267ef298a34132ddafb337ed5c90058cf137806dfe8",
+      "component": "gpio0",
+      "execution_nonce": "e50ce1be91c44adeb69d8cf646f4c8e1",
+      "pid": 3615717,
+      "reset_epoch": 0,
+      "runner_namespace": "runner-0",
+      "terminal_returncode": 0
+    },
+    {
+      "artifact_digest": "9d701790f0048d8e5d9384b9e3c59f141da4b13684a3334e697de9a0160bc8f8",
+      "component": "cpu",
+      "execution_nonce": "c564a2a4e2824b1c84fa62d503add377",
+      "pid": 3649988,
+      "reset_epoch": 0,
+      "runner_namespace": "runner-1",
+      "terminal_returncode": 0
+    },
+    {
+      "artifact_digest": "2d9355fd1bfc3b7910961267ef298a34132ddafb337ed5c90058cf137806dfe8",
+      "component": "gpio0",
+      "execution_nonce": "ff57ee75bfef47a599836849c5baea38",
+      "pid": 3650135,
+      "reset_epoch": 0,
+      "runner_namespace": "runner-1",
+      "terminal_returncode": 0
+    }
+  ],
+  "run_saved_statuses": {
+    "positive": "bounded_directed_gate_passed",
+    "controlled-response": "bounded_directed_gate_passed"
+  },
+  "source_files_directories_and_tools_beforeafter_equal": true,
+  "source_revision": "68f81b6adfb72d201a47804b26ca57a78a3d1fba",
+  "source_file_sha256": "3c287137bfa7e98c6b28444b20b26fa2e6ab25d6a01c2262594408fa380e44be",
+  "source_directories_sha256": "861e192518e1d809231b676b91b17c149466000f83138969eac6cbfaff68fb36",
+  "tool_inputs": {
+    "inventory.json": {
+      "bytes": 140527,
+      "sha256": "9672f2b6ab65a587c8533e574851cf8990ead9867e0d089d0c3f030af1470d10"
+    },
+    "tool-freeze.json": {
+      "bytes": 1847,
+      "sha256": "6591a2023be5c4564d72d4a224d8c6c4b543fd811884f540355273eefbd63b4b"
+    },
+    "environment.sh": {
+      "bytes": 1174,
+      "sha256": "9141ae65b8af8a0a1fdd891b64afb6bfc1cf4497a686bf14e35f0d926574f15c"
+    }
+  },
+  "observation": {
+    "cache_inventory": [
+      {
+        "bytes": 6138,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/build.log"
+      },
+      {
+        "bytes": 305800,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/harness"
+      },
+      {
+        "bytes": 5735,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/configs/peripherals/pulp_gpio/component_profile.json"
+      },
+      {
+        "bytes": 8573,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/configs/soc/closures/pulp_gpio.json"
+      },
+      {
+        "bytes": 242102,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/configs/soc/sources.lock.json"
+      },
+      {
+        "bytes": 32480,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/generated/artifact.json"
+      },
+      {
+        "bytes": 10060,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/generated/driver.cpp"
+      },
+      {
+        "bytes": 2398,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/generated/runtime.sv"
+      },
+      {
+        "bytes": 2086,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/generated/structural.sv"
+      },
+      {
+        "bytes": 24875,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/scripts/verify_soc_sources.py"
+      },
+      {
+        "bytes": 38,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/__init__.py"
+      },
+      {
+        "bytes": 891,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/components/__init__.py"
+      },
+      {
+        "bytes": 27402,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/components/catalog.py"
+      },
+      {
+        "bytes": 5831,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/components/model.py"
+      },
+      {
+        "bytes": 7989,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/__init__.py"
+      },
+      {
+        "bytes": 14939,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/address.py"
+      },
+      {
+        "bytes": 31499,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/auto.py"
+      },
+      {
+        "bytes": 4479,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/coherent_memory.py"
+      },
+      {
+        "bytes": 107675,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/component_profile.py"
+      },
+      {
+        "bytes": 14255,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/constraint_ir.py"
+      },
+      {
+        "bytes": 37224,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/constraints.py"
+      },
+      {
+        "bytes": 30542,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/contract_transducer.py"
+      },
+      {
+        "bytes": 13556,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/cva6_source_closure.py"
+      },
+      {
+        "bytes": 8065,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/cycle_input.py"
+      },
+      {
+        "bytes": 11743,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/declarations.py"
+      },
+      {
+        "bytes": 23500,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/endpoint_capabilities.py"
+      },
+      {
+        "bytes": 5494,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/facts.py"
+      },
+      {
+        "bytes": 12089,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/generic_axi_lite.py"
+      },
+      {
+        "bytes": 74452,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/generic_planner.py"
+      },
+      {
+        "bytes": 9478,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/generic_protocol_routes.py"
+      },
+      {
+        "bytes": 946,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/ids.py"
+      },
+      {
+        "bytes": 37074,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/input_constraints.py"
+      },
+      {
+        "bytes": 19131,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/input_layout.py"
+      },
+      {
+        "bytes": 12947,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/interface_description.py"
+      },
+      {
+        "bytes": 35233,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/ip_test_levels.py"
+      },
+      {
+        "bytes": 13360,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/ir.py"
+      },
+      {
+        "bytes": 5274,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/manifest.py"
+      },
+      {
+        "bytes": 5339,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/metadata.py"
+      },
+      {
+        "bytes": 17823,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/processor_adapters.py"
+      },
+      {
+        "bytes": 10725,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/processor_backend.py"
+      },
+      {
+        "bytes": 17334,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/processor_boundary.py"
+      },
+      {
+        "bytes": 17920,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/processor_execution.py"
+      },
+      {
+        "bytes": 48714,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/processor_renderer.py"
+      },
+      {
+        "bytes": 97534,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/protocol_composer.py"
+      },
+      {
+        "bytes": 11176,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/protocol_manifest.py"
+      },
+      {
+        "bytes": 4631,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/protocol_transducer.py"
+      },
+      {
+        "bytes": 30303,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/pulp_spi_oracle.py"
+      },
+      {
+        "bytes": 3364,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/registry.py"
+      },
+      {
+        "bytes": 4519,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/rfuzz_transport.py"
+      },
+      {
+        "bytes": 16369,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/runtime_projection.py"
+      },
+      {
+        "bytes": 22100,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/search.py"
+      },
+      {
+        "bytes": 4772,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/shared_native_bus.py"
+      },
+      {
+        "bytes": 1917,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/soc_boundary_replay.py"
+      },
+      {
+        "bytes": 93621,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/soc_candidate_program.py"
+      },
+      {
+        "bytes": 5740,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/soc_checker_profile.py"
+      },
+      {
+        "bytes": 86516,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/soc_composition.py"
+      },
+      {
+        "bytes": 75562,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/soc_contracts.py"
+      },
+      {
+        "bytes": 16501,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/soc_fabric.py"
+      },
+      {
+        "bytes": 65766,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/soc_failure_evidence.py"
+      },
+      {
+        "bytes": 45139,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/soc_image.py"
+      },
+      {
+        "bytes": 12583,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/soc_instruction_stimulus.py"
+      },
+      {
+        "bytes": 31770,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/soc_interrupt_plan.py"
+      },
+      {
+        "bytes": 61783,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/soc_peer_oracle.py"
+      },
+      {
+        "bytes": 37038,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/soc_peer_plan.py"
+      },
+      {
+        "bytes": 11505,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/soc_peer_replay.py"
+      },
+      {
+        "bytes": 38218,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/soc_plan.py"
+      },
+      {
+        "bytes": 33920,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/soc_port_dispositions.py"
+      },
+      {
+        "bytes": 83288,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/soc_profile_renderer.py"
+      },
+      {
+        "bytes": 102064,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/soc_renderer.py"
+      },
+      {
+        "bytes": 100037,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/soc_runtime.py"
+      },
+      {
+        "bytes": 80975,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/soc_scope.py"
+      },
+      {
+        "bytes": 52878,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/soc_stimulus.py"
+      },
+      {
+        "bytes": 100875,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/soc_structure_audit.py"
+      },
+      {
+        "bytes": 60825,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/source_crawler.py"
+      },
+      {
+        "bytes": 46202,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/source_elaboration.py"
+      },
+      {
+        "bytes": 37774,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/target_adapters.py"
+      },
+      {
+        "bytes": 32101,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/test_capability.py"
+      },
+      {
+        "bytes": 24602,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/composition/transducer_rtl.py"
+      },
+      {
+        "bytes": 272,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/contracts/__init__.py"
+      },
+      {
+        "bytes": 420,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/contracts/canonical.py"
+      },
+      {
+        "bytes": 30164,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/contracts/validation.py"
+      },
+      {
+        "bytes": 149,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/dependency/__init__.py"
+      },
+      {
+        "bytes": 2166,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/dependency/csr.py"
+      },
+      {
+        "bytes": 10295,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/dependency/dynamic.py"
+      },
+      {
+        "bytes": 1235,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/dependency/graph.py"
+      },
+      {
+        "bytes": 1882,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/dependency/replay.py"
+      },
+      {
+        "bytes": 4736,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/dependency/static.py"
+      },
+      {
+        "bytes": 19723,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/elaboration_probe.py"
+      },
+      {
+        "bytes": 2506,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/experiments/__init__.py"
+      },
+      {
+        "bytes": 34267,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/experiments/configs.py"
+      },
+      {
+        "bytes": 1577,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/experiments/identity.py"
+      },
+      {
+        "bytes": 7369,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/experiments/jobs.py"
+      },
+      {
+        "bytes": 3044,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/experiments/pipeline.py"
+      },
+      {
+        "bytes": 48403,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/experiments/planner.py"
+      },
+      {
+        "bytes": 41512,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/experiments/report.py"
+      },
+      {
+        "bytes": 26191,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/experiments/resource_policy.py"
+      },
+      {
+        "bytes": 4540,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/experiments/rfuzz_adapter.py"
+      },
+      {
+        "bytes": 4729,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/experiments/scheduler.py"
+      },
+      {
+        "bytes": 15252,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/experiments/static_portfolio.py"
+      },
+      {
+        "bytes": 2524,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/harness/__init__.py"
+      },
+      {
+        "bytes": 16961,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/harness/abi.py"
+      },
+      {
+        "bytes": 61560,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/harness/compiler.py"
+      },
+      {
+        "bytes": 15677,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/harness/depaware.py"
+      },
+      {
+        "bytes": 9624,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/harness/direct.py"
+      },
+      {
+        "bytes": 23392,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/harness/projection.py"
+      },
+      {
+        "bytes": 37488,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/harness/static_policy.py"
+      },
+      {
+        "bytes": 14364,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/harness/static_projection.py"
+      },
+      {
+        "bytes": 3465,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/__init__.py"
+      },
+      {
+        "bytes": 66852,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/campaign.py"
+      },
+      {
+        "bytes": 15726,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/campaign_report.py"
+      },
+      {
+        "bytes": 12583,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/compiled_candidate_layout.py"
+      },
+      {
+        "bytes": 49838,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/compiled_f4.py"
+      },
+      {
+        "bytes": 30635,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/compiled_storage_producer.py"
+      },
+      {
+        "bytes": 38956,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/experiment_matrix.py"
+      },
+      {
+        "bytes": 10479,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/generated_register_writer.py"
+      },
+      {
+        "bytes": 41717,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/generated_storage_consumer.py"
+      },
+      {
+        "bytes": 14857,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/low_resource_smoke.py"
+      },
+      {
+        "bytes": 4430,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/manifest.py"
+      },
+      {
+        "bytes": 25165,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/memory_lock.py"
+      },
+      {
+        "bytes": 17436,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/pipeline.py"
+      },
+      {
+        "bytes": 23224,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/reference_adapter.py"
+      },
+      {
+        "bytes": 3180,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/rfuzz_fifo.py"
+      },
+      {
+        "bytes": 50924,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/rfuzz_live.py"
+      },
+      {
+        "bytes": 24515,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/rfuzz_runner.py"
+      },
+      {
+        "bytes": 4316,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/rfuzz_shmem.py"
+      },
+      {
+        "bytes": 60844,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/rfuzz_simulator.py"
+      },
+      {
+        "bytes": 9168,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/rfuzz_toolchain.py"
+      },
+      {
+        "bytes": 4257,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/rfuzz_wire.py"
+      },
+      {
+        "bytes": 15062,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/riscv_execution.py"
+      },
+      {
+        "bytes": 13406,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/rtl_execution_monitor.py"
+      },
+      {
+        "bytes": 27041,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/semantic_projection.py"
+      },
+      {
+        "bytes": 156227,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/soc_builder.py"
+      },
+      {
+        "bytes": 56799,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/soc_campaign.py"
+      },
+      {
+        "bytes": 53175,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/soc_comparison.py"
+      },
+      {
+        "bytes": 20549,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/soc_coverage.py"
+      },
+      {
+        "bytes": 107086,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/integration/soc_matrix_smoke.py"
+      },
+      {
+        "bytes": 603,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/isa/__init__.py"
+      },
+      {
+        "bytes": 18416,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/isa/catalog.py"
+      },
+      {
+        "bytes": 8249,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/isa/constraints.py"
+      },
+      {
+        "bytes": 1831,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/isa/model.py"
+      },
+      {
+        "bytes": 15454,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/isa/transducer.py"
+      },
+      {
+        "bytes": 3543,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/__init__.py"
+      },
+      {
+        "bytes": 790,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/ahb_lite_register_session.py"
+      },
+      {
+        "bytes": 2047,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/ahb_lite_register_template.py"
+      },
+      {
+        "bytes": 20611,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/ahb_lite_session.py"
+      },
+      {
+        "bytes": 27640,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/ahb_manager_domain.py"
+      },
+      {
+        "bytes": 9399,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/ahb_startup.py"
+      },
+      {
+        "bytes": 26094,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/apb3_register_session.py"
+      },
+      {
+        "bytes": 6016,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/apb3_register_template.py"
+      },
+      {
+        "bytes": 2622,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/apb_storage_probe_contract.py"
+      },
+      {
+        "bytes": 14049,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/apb_storage_probe_verification.py"
+      },
+      {
+        "bytes": 9168,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/apb_storage_source_contract.py"
+      },
+      {
+        "bytes": 14658,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/apb_storage_startup.py"
+      },
+      {
+        "bytes": 11725,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/axi4_cpu_session.py"
+      },
+      {
+        "bytes": 1413,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/axi4_fields.py"
+      },
+      {
+        "bytes": 3218,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/axi4lite_register_session.py"
+      },
+      {
+        "bytes": 12693,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/axi4lite_register_template.py"
+      },
+      {
+        "bytes": 8610,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/axi4lite_uart_peer_session.py"
+      },
+      {
+        "bytes": 3089,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/axi_lite_session.py"
+      },
+      {
+        "bytes": 10945,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/axil_uart_session.py"
+      },
+      {
+        "bytes": 30993,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/build.py"
+      },
+      {
+        "bytes": 6598,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/clock_schedule.py"
+      },
+      {
+        "bytes": 7773,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/compiled_artifact_admission.py"
+      },
+      {
+        "bytes": 36057,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/cpu_session.py"
+      },
+      {
+        "bytes": 1572,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/cva6_axi4_fields.py"
+      },
+      {
+        "bytes": 20193,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/cva6_axi4_session.py"
+      },
+      {
+        "bytes": 10912,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/cvw_contract.py"
+      },
+      {
+        "bytes": 61754,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/driver_renderer.py"
+      },
+      {
+        "bytes": 6042,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/generated_artifact_admission.py"
+      },
+      {
+        "bytes": 7433,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/generated_execution_admission.py"
+      },
+      {
+        "bytes": 8528,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/generated_register_factory.py"
+      },
+      {
+        "bytes": 26984,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/gpio_session.py"
+      },
+      {
+        "bytes": 7530,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/i2c_session.py"
+      },
+      {
+        "bytes": 8367,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/ibex_irq_receipt_contract.py"
+      },
+      {
+        "bytes": 4356,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/ibex_rvfi_contract.py"
+      },
+      {
+        "bytes": 8892,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/native_contract.py"
+      },
+      {
+        "bytes": 16306,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/native_physical_observation.py"
+      },
+      {
+        "bytes": 22012,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/native_reset_observation.py"
+      },
+      {
+        "bytes": 8126,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/native_reset_producer_contract.py"
+      },
+      {
+        "bytes": 15124,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/native_session.py"
+      },
+      {
+        "bytes": 5933,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/opentitan_gpio_contract.py"
+      },
+      {
+        "bytes": 6944,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/opentitan_gpio_session.py"
+      },
+      {
+        "bytes": 5651,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/opentitan_i2c_contract.py"
+      },
+      {
+        "bytes": 6229,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/opentitan_i2c_session.py"
+      },
+      {
+        "bytes": 3903,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/opentitan_pattgen_contract.py"
+      },
+      {
+        "bytes": 4769,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/opentitan_rv_timer_contract.py"
+      },
+      {
+        "bytes": 6056,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/opentitan_rv_timer_session.py"
+      },
+      {
+        "bytes": 5784,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/opentitan_spi_device_contract.py"
+      },
+      {
+        "bytes": 9742,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/opentitan_spi_device_session.py"
+      },
+      {
+        "bytes": 5090,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/opentitan_spi_host_contract.py"
+      },
+      {
+        "bytes": 12641,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/opentitan_spi_host_session.py"
+      },
+      {
+        "bytes": 6370,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/opentitan_sysrst_ctrl_contract.py"
+      },
+      {
+        "bytes": 4829,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/opentitan_sysrst_ctrl_session.py"
+      },
+      {
+        "bytes": 4923,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/opentitan_uart_contract.py"
+      },
+      {
+        "bytes": 25418,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/opentitan_uart_fifo_contract.py"
+      },
+      {
+        "bytes": 42949,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/opentitan_uart_session.py"
+      },
+      {
+        "bytes": 19326,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/ordinary_apb_access_receipts.py"
+      },
+      {
+        "bytes": 5551,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/parameter_evidence.py"
+      },
+      {
+        "bytes": 11789,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/plan.py"
+      },
+      {
+        "bytes": 7882,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/port_rendering.py"
+      },
+      {
+        "bytes": 7647,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/pulp_gpio_probe_contract.py"
+      },
+      {
+        "bytes": 7114,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/pulp_spi_contract.py"
+      },
+      {
+        "bytes": 4159,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/renderer.py"
+      },
+      {
+        "bytes": 4251,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/request.py"
+      },
+      {
+        "bytes": 19524,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/rtl/local_driver_v1.h"
+      },
+      {
+        "bytes": 474,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/runtime_artifact.py"
+      },
+      {
+        "bytes": 91481,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/runtime_renderer.py"
+      },
+      {
+        "bytes": 12617,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/rvx_memory_session.py"
+      },
+      {
+        "bytes": 38154,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/session.py"
+      },
+      {
+        "bytes": 12024,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/source_lock.py"
+      },
+      {
+        "bytes": 6455,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/spi_session.py"
+      },
+      {
+        "bytes": 37830,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/template_contracts.py"
+      },
+      {
+        "bytes": 4653,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/timer_session.py"
+      },
+      {
+        "bytes": 13753,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/tlul_register_session.py"
+      },
+      {
+        "bytes": 12158,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/tlul_register_template.py"
+      },
+      {
+        "bytes": 2743,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/tlul_session_factory.py"
+      },
+      {
+        "bytes": 8491,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/tlul_spi_mode0_peer_session.py"
+      },
+      {
+        "bytes": 5783,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/tlul_uart_peer_session.py"
+      },
+      {
+        "bytes": 15996,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/tuning.py"
+      },
+      {
+        "bytes": 930,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/uart_controlled_irq_contract.py"
+      },
+      {
+        "bytes": 1109,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/vexii_axi_fields.py"
+      },
+      {
+        "bytes": 15225,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/vexii_axi_session.py"
+      },
+      {
+        "bytes": 8236,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/vexii_irq_contract.py"
+      },
+      {
+        "bytes": 2827,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/vexii_source_contract.py"
+      },
+      {
+        "bytes": 9830,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/wire.py"
+      },
+      {
+        "bytes": 12371,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/wishbone_cpu_session.py"
+      },
+      {
+        "bytes": 1582,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/wishbone_dma_fields.py"
+      },
+      {
+        "bytes": 4784,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/wishbone_dma_scenario_session.py"
+      },
+      {
+        "bytes": 18248,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/wishbone_dma_session.py"
+      },
+      {
+        "bytes": 3344,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/wishbone_dma_template.py"
+      },
+      {
+        "bytes": 1045,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/wishbone_register_session.py"
+      },
+      {
+        "bytes": 3705,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/wishbone_register_template.py"
+      },
+      {
+        "bytes": 11053,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/wishbone_uart_session.py"
+      },
+      {
+        "bytes": 6086,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/local_harness/zip_timer_session.py"
+      },
+      {
+        "bytes": 42481,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/original_rfuzz.py"
+      },
+      {
+        "bytes": 1067,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/protocols/__init__.py"
+      },
+      {
+        "bytes": 17356,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/protocols/bridge.py"
+      },
+      {
+        "bytes": 22702,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/protocols/catalog.py"
+      },
+      {
+        "bytes": 6295,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/protocols/compiler.py"
+      },
+      {
+        "bytes": 2481,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/protocols/model.py"
+      },
+      {
+        "bytes": 8782,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/protocols/rtl/beat_to_apb.sv"
+      },
+      {
+        "bytes": 3964,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/protocols/widths.py"
+      },
+      {
+        "bytes": 9988,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/rfuzz_compat.py"
+      },
+      {
+        "bytes": 929,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/__init__.py"
+      },
+      {
+        "bytes": 78430,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/acceptance_metrics.py"
+      },
+      {
+        "bytes": 21189,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/ahb_cpu_events.py"
+      },
+      {
+        "bytes": 35028,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/apb_storage_register_version.py"
+      },
+      {
+        "bytes": 84073,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/assertion_classes.py"
+      },
+      {
+        "bytes": 15221,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/batch.py"
+      },
+      {
+        "bytes": 70392,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/chain_certificates.py"
+      },
+      {
+        "bytes": 54634,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/checker.py"
+      },
+      {
+        "bytes": 139357,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/compiled_paths.py"
+      },
+      {
+        "bytes": 61109,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/contracts.py"
+      },
+      {
+        "bytes": 14613,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/cpu_ip_protocol_join.py"
+      },
+      {
+        "bytes": 30439,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/cpu_retirement.py"
+      },
+      {
+        "bytes": 23582,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/dependency.py"
+      },
+      {
+        "bytes": 10667,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/dependency_evidence.py"
+      },
+      {
+        "bytes": 5040,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/dependency_lifecycle.py"
+      },
+      {
+        "bytes": 117393,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/edge_provenance.py"
+      },
+      {
+        "bytes": 14733,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/event_journal.py"
+      },
+      {
+        "bytes": 5403,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/event_provenance.py"
+      },
+      {
+        "bytes": 1463,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/feedback.py"
+      },
+      {
+        "bytes": 13668,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/full_axi_events.py"
+      },
+      {
+        "bytes": 13797,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/genome.py"
+      },
+      {
+        "bytes": 35920,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/gpio_consumption.py"
+      },
+      {
+        "bytes": 18446,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/gpio_register_evidence.py"
+      },
+      {
+        "bytes": 8970,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/gpio_register_version.py"
+      },
+      {
+        "bytes": 5434,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/gpio_sync_evidence.py"
+      },
+      {
+        "bytes": 7263,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/host_identity.py"
+      },
+      {
+        "bytes": 117916,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/ibex_pulp_dual_source.py"
+      },
+      {
+        "bytes": 5385,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/ibex_pulp_rfuzz.py"
+      },
+      {
+        "bytes": 23898,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/ibex_uart_online.py"
+      },
+      {
+        "bytes": 26149,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/initial_ram_data.py"
+      },
+      {
+        "bytes": 17356,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/ip_base_coverage.py"
+      },
+      {
+        "bytes": 18481,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/ip_base_events.py"
+      },
+      {
+        "bytes": 8999,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/ip_binding_evidence.py"
+      },
+      {
+        "bytes": 48277,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/ip_protocol_checker.py"
+      },
+      {
+        "bytes": 58091,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/ip_protocol_events.py"
+      },
+      {
+        "bytes": 17491,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/ip_protocol_evidence.py"
+      },
+      {
+        "bytes": 3930,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/ip_semantic_capabilities.py"
+      },
+      {
+        "bytes": 9415,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/ip_semantic_evidence.py"
+      },
+      {
+        "bytes": 8389,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/irq.py"
+      },
+      {
+        "bytes": 13010,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/irq_dependency_evidence.py"
+      },
+      {
+        "bytes": 22844,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/irq_serial_certificates.py"
+      },
+      {
+        "bytes": 8786,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/ledger.py"
+      },
+      {
+        "bytes": 20988,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/live_memory_prerequisites.py"
+      },
+      {
+        "bytes": 17254,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/memory.py"
+      },
+      {
+        "bytes": 1782,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/memory_authority_distribution.py"
+      },
+      {
+        "bytes": 6821,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/memory_commit_authority.py"
+      },
+      {
+        "bytes": 12613,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/memory_dependency_evidence.py"
+      },
+      {
+        "bytes": 7473,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/memory_read_authority.py"
+      },
+      {
+        "bytes": 14333,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/memory_service.py"
+      },
+      {
+        "bytes": 9468,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/mutation.py"
+      },
+      {
+        "bytes": 9735,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/native_cpu_events.py"
+      },
+      {
+        "bytes": 8963,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/native_packet_session.py"
+      },
+      {
+        "bytes": 5635,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/native_replay_identity.py"
+      },
+      {
+        "bytes": 40140,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/native_reset_evidence.py"
+      },
+      {
+        "bytes": 81644,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/online_case_decoder.py"
+      },
+      {
+        "bytes": 31323,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/ordinary_apb_access_evidence.py"
+      },
+      {
+        "bytes": 5976,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/ownership.py"
+      },
+      {
+        "bytes": 30132,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/picorv32_native_cpu_example.py"
+      },
+      {
+        "bytes": 10569,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/picorv32_native_online.py"
+      },
+      {
+        "bytes": 15016,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/pin8_consumption_certificates.py"
+      },
+      {
+        "bytes": 12160,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/pin8_cpu_irq_certificates.py"
+      },
+      {
+        "bytes": 16605,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/pin8_irq_certificates.py"
+      },
+      {
+        "bytes": 6324,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/protocol_io.py"
+      },
+      {
+        "bytes": 2532,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/protocol_trace_sets.py"
+      },
+      {
+        "bytes": 4841,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/pulp_spi_peer.py"
+      },
+      {
+        "bytes": 10328,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/reduced_axi_events.py"
+      },
+      {
+        "bytes": 14828,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/register_program.py"
+      },
+      {
+        "bytes": 15782,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/register_program_capabilities.py"
+      },
+      {
+        "bytes": 26434,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/register_program_runtime.py"
+      },
+      {
+        "bytes": 50955,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/register_program_verifier.py"
+      },
+      {
+        "bytes": 80397,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/register_reset_default_verifier.py"
+      },
+      {
+        "bytes": 4273,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/register_source_access.py"
+      },
+      {
+        "bytes": 15599,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/rejection_codes.py"
+      },
+      {
+        "bytes": 13394,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/replay.py"
+      },
+      {
+        "bytes": 20013,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/retirement_delivery.py"
+      },
+      {
+        "bytes": 17617,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/rfuzz_decoder.py"
+      },
+      {
+        "bytes": 17358,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/router.py"
+      },
+      {
+        "bytes": 2571,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/rtl/local_command_replay.h"
+      },
+      {
+        "bytes": 188737,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/runner.py"
+      },
+      {
+        "bytes": 21602,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/runtime_edge_index.py"
+      },
+      {
+        "bytes": 24301,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/runtime_path_contract.py"
+      },
+      {
+        "bytes": 29272,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/rv32i_sources.py"
+      },
+      {
+        "bytes": 14286,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/scheduler.py"
+      },
+      {
+        "bytes": 2699,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/semantic_evidence_plugins.py"
+      },
+      {
+        "bytes": 170771,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/session_runtime.py"
+      },
+      {
+        "bytes": 129747,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/source_actions.py"
+      },
+      {
+        "bytes": 7068,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/source_provenance.py"
+      },
+      {
+        "bytes": 4308,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/spi_peer.py"
+      },
+      {
+        "bytes": 4353,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/state_dependency.py"
+      },
+      {
+        "bytes": 39607,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/uart_consumption.py"
+      },
+      {
+        "bytes": 38701,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/uart_irq_consumption.py"
+      },
+      {
+        "bytes": 30003,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/uart_irq_entry.py"
+      },
+      {
+        "bytes": 14114,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/uart_memory_readback.py"
+      },
+      {
+        "bytes": 10545,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/uart_operand_seed.py"
+      },
+      {
+        "bytes": 9362,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/uart_operand_use.py"
+      },
+      {
+        "bytes": 4287,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/uart_peer.py"
+      },
+      {
+        "bytes": 21710,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/uart_retired_read.py"
+      },
+      {
+        "bytes": 14551,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scenario/uart_store_memory.py"
+      },
+      {
+        "bytes": 53076,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scripts/composition_api.py"
+      },
+      {
+        "bytes": 5080,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scripts/frontend_api.py"
+      },
+      {
+        "bytes": 99429,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scripts/run_design_flow.py"
+      },
+      {
+        "bytes": 8314,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/src/myfuzz/scripts/source_only_frontend.py"
+      },
+      {
+        "bytes": 28990,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv"
+      },
+      {
+        "bytes": 99792,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/manifest.json"
+      },
+      {
+        "bytes": 4441,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/obj/Vlocal_runtime_gpio0.cpp"
+      },
+      {
+        "bytes": 4163,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/obj/Vlocal_runtime_gpio0.h"
+      },
+      {
+        "bytes": 2531,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/obj/Vlocal_runtime_gpio0.mk"
+      },
+      {
+        "bytes": 50634,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/obj/Vlocal_runtime_gpio0__ALL.a"
+      },
+      {
+        "bytes": 332,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/obj/Vlocal_runtime_gpio0__ALL.cpp"
+      },
+      {
+        "bytes": 811,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/obj/Vlocal_runtime_gpio0__ALL.d"
+      },
+      {
+        "bytes": 46840,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/obj/Vlocal_runtime_gpio0__ALL.o"
+      },
+      {
+        "bytes": 1064,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/obj/Vlocal_runtime_gpio0__Syms.h"
+      },
+      {
+        "bytes": 928,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/obj/Vlocal_runtime_gpio0__Syms__Slow.cpp"
+      },
+      {
+        "bytes": 6375,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/obj/Vlocal_runtime_gpio0___024root.h"
+      },
+      {
+        "bytes": 325662,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/obj/Vlocal_runtime_gpio0___024root__0.cpp"
+      },
+      {
+        "bytes": 168693,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/obj/Vlocal_runtime_gpio0___024root__0__Slow.cpp"
+      },
+      {
+        "bytes": 808,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/obj/Vlocal_runtime_gpio0___024root__Slow.cpp"
+      },
+      {
+        "bytes": 825,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/obj/Vlocal_runtime_gpio0__pch.h"
+      },
+      {
+        "bytes": 3455,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/obj/Vlocal_runtime_gpio0__ver.d"
+      },
+      {
+        "bytes": 7292,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/obj/Vlocal_runtime_gpio0__verFiles.dat"
+      },
+      {
+        "bytes": 1755,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/obj/Vlocal_runtime_gpio0_classes.mk"
+      },
+      {
+        "bytes": 1121,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/obj/driver.d"
+      },
+      {
+        "bytes": 109200,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/obj/driver.o"
+      },
+      {
+        "bytes": 305800,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/obj/harness"
+      },
+      {
+        "bytes": 1069,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/obj/verilated.d"
+      },
+      {
+        "bytes": 300672,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/obj/verilated.o"
+      },
+      {
+        "bytes": 641,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/obj/verilated_threads.d"
+      },
+      {
+        "bytes": 63064,
+        "path": "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/obj/verilated_threads.o"
+      },
+      {
+        "bytes": 5522,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/build.log"
+      },
+      {
+        "bytes": 293208,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/harness"
+      },
+      {
+        "bytes": 8192,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/configs/cpus/picorv32/component_profile.json"
+      },
+      {
+        "bytes": 1020,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/configs/soc/closures/picorv32.json"
+      },
+      {
+        "bytes": 242102,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/configs/soc/sources.lock.json"
+      },
+      {
+        "bytes": 53354,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/generated/artifact.json"
+      },
+      {
+        "bytes": 10579,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/generated/driver.cpp"
+      },
+      {
+        "bytes": 3238,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/generated/runtime.sv"
+      },
+      {
+        "bytes": 3142,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/generated/structural.sv"
+      },
+      {
+        "bytes": 24875,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/scripts/verify_soc_sources.py"
+      },
+      {
+        "bytes": 38,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/__init__.py"
+      },
+      {
+        "bytes": 891,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/components/__init__.py"
+      },
+      {
+        "bytes": 27402,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/components/catalog.py"
+      },
+      {
+        "bytes": 5831,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/components/model.py"
+      },
+      {
+        "bytes": 7989,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/__init__.py"
+      },
+      {
+        "bytes": 14939,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/address.py"
+      },
+      {
+        "bytes": 31499,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/auto.py"
+      },
+      {
+        "bytes": 4479,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/coherent_memory.py"
+      },
+      {
+        "bytes": 107675,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/component_profile.py"
+      },
+      {
+        "bytes": 14255,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/constraint_ir.py"
+      },
+      {
+        "bytes": 37224,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/constraints.py"
+      },
+      {
+        "bytes": 30542,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/contract_transducer.py"
+      },
+      {
+        "bytes": 13556,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/cva6_source_closure.py"
+      },
+      {
+        "bytes": 8065,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/cycle_input.py"
+      },
+      {
+        "bytes": 11743,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/declarations.py"
+      },
+      {
+        "bytes": 23500,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/endpoint_capabilities.py"
+      },
+      {
+        "bytes": 5494,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/facts.py"
+      },
+      {
+        "bytes": 12089,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/generic_axi_lite.py"
+      },
+      {
+        "bytes": 74452,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/generic_planner.py"
+      },
+      {
+        "bytes": 9478,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/generic_protocol_routes.py"
+      },
+      {
+        "bytes": 946,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/ids.py"
+      },
+      {
+        "bytes": 37074,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/input_constraints.py"
+      },
+      {
+        "bytes": 19131,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/input_layout.py"
+      },
+      {
+        "bytes": 12947,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/interface_description.py"
+      },
+      {
+        "bytes": 35233,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/ip_test_levels.py"
+      },
+      {
+        "bytes": 13360,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/ir.py"
+      },
+      {
+        "bytes": 5274,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/manifest.py"
+      },
+      {
+        "bytes": 5339,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/metadata.py"
+      },
+      {
+        "bytes": 17823,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/processor_adapters.py"
+      },
+      {
+        "bytes": 10725,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/processor_backend.py"
+      },
+      {
+        "bytes": 17334,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/processor_boundary.py"
+      },
+      {
+        "bytes": 17920,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/processor_execution.py"
+      },
+      {
+        "bytes": 48714,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/processor_renderer.py"
+      },
+      {
+        "bytes": 97534,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/protocol_composer.py"
+      },
+      {
+        "bytes": 11176,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/protocol_manifest.py"
+      },
+      {
+        "bytes": 4631,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/protocol_transducer.py"
+      },
+      {
+        "bytes": 30303,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/pulp_spi_oracle.py"
+      },
+      {
+        "bytes": 3364,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/registry.py"
+      },
+      {
+        "bytes": 4519,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/rfuzz_transport.py"
+      },
+      {
+        "bytes": 16369,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/runtime_projection.py"
+      },
+      {
+        "bytes": 22100,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/search.py"
+      },
+      {
+        "bytes": 4772,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/shared_native_bus.py"
+      },
+      {
+        "bytes": 1917,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/soc_boundary_replay.py"
+      },
+      {
+        "bytes": 93621,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/soc_candidate_program.py"
+      },
+      {
+        "bytes": 5740,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/soc_checker_profile.py"
+      },
+      {
+        "bytes": 86516,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/soc_composition.py"
+      },
+      {
+        "bytes": 75562,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/soc_contracts.py"
+      },
+      {
+        "bytes": 16501,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/soc_fabric.py"
+      },
+      {
+        "bytes": 65766,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/soc_failure_evidence.py"
+      },
+      {
+        "bytes": 45139,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/soc_image.py"
+      },
+      {
+        "bytes": 12583,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/soc_instruction_stimulus.py"
+      },
+      {
+        "bytes": 31770,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/soc_interrupt_plan.py"
+      },
+      {
+        "bytes": 61783,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/soc_peer_oracle.py"
+      },
+      {
+        "bytes": 37038,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/soc_peer_plan.py"
+      },
+      {
+        "bytes": 11505,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/soc_peer_replay.py"
+      },
+      {
+        "bytes": 38218,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/soc_plan.py"
+      },
+      {
+        "bytes": 33920,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/soc_port_dispositions.py"
+      },
+      {
+        "bytes": 83288,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/soc_profile_renderer.py"
+      },
+      {
+        "bytes": 102064,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/soc_renderer.py"
+      },
+      {
+        "bytes": 100037,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/soc_runtime.py"
+      },
+      {
+        "bytes": 80975,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/soc_scope.py"
+      },
+      {
+        "bytes": 52878,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/soc_stimulus.py"
+      },
+      {
+        "bytes": 100875,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/soc_structure_audit.py"
+      },
+      {
+        "bytes": 60825,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/source_crawler.py"
+      },
+      {
+        "bytes": 46202,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/source_elaboration.py"
+      },
+      {
+        "bytes": 37774,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/target_adapters.py"
+      },
+      {
+        "bytes": 32101,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/test_capability.py"
+      },
+      {
+        "bytes": 24602,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/composition/transducer_rtl.py"
+      },
+      {
+        "bytes": 272,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/contracts/__init__.py"
+      },
+      {
+        "bytes": 420,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/contracts/canonical.py"
+      },
+      {
+        "bytes": 30164,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/contracts/validation.py"
+      },
+      {
+        "bytes": 149,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/dependency/__init__.py"
+      },
+      {
+        "bytes": 2166,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/dependency/csr.py"
+      },
+      {
+        "bytes": 10295,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/dependency/dynamic.py"
+      },
+      {
+        "bytes": 1235,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/dependency/graph.py"
+      },
+      {
+        "bytes": 1882,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/dependency/replay.py"
+      },
+      {
+        "bytes": 4736,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/dependency/static.py"
+      },
+      {
+        "bytes": 19723,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/elaboration_probe.py"
+      },
+      {
+        "bytes": 2506,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/experiments/__init__.py"
+      },
+      {
+        "bytes": 34267,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/experiments/configs.py"
+      },
+      {
+        "bytes": 1577,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/experiments/identity.py"
+      },
+      {
+        "bytes": 7369,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/experiments/jobs.py"
+      },
+      {
+        "bytes": 3044,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/experiments/pipeline.py"
+      },
+      {
+        "bytes": 48403,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/experiments/planner.py"
+      },
+      {
+        "bytes": 41512,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/experiments/report.py"
+      },
+      {
+        "bytes": 26191,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/experiments/resource_policy.py"
+      },
+      {
+        "bytes": 4540,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/experiments/rfuzz_adapter.py"
+      },
+      {
+        "bytes": 4729,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/experiments/scheduler.py"
+      },
+      {
+        "bytes": 15252,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/experiments/static_portfolio.py"
+      },
+      {
+        "bytes": 2524,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/harness/__init__.py"
+      },
+      {
+        "bytes": 16961,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/harness/abi.py"
+      },
+      {
+        "bytes": 61560,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/harness/compiler.py"
+      },
+      {
+        "bytes": 15677,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/harness/depaware.py"
+      },
+      {
+        "bytes": 9624,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/harness/direct.py"
+      },
+      {
+        "bytes": 23392,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/harness/projection.py"
+      },
+      {
+        "bytes": 37488,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/harness/static_policy.py"
+      },
+      {
+        "bytes": 14364,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/harness/static_projection.py"
+      },
+      {
+        "bytes": 3465,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/__init__.py"
+      },
+      {
+        "bytes": 66852,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/campaign.py"
+      },
+      {
+        "bytes": 15726,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/campaign_report.py"
+      },
+      {
+        "bytes": 12583,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/compiled_candidate_layout.py"
+      },
+      {
+        "bytes": 49838,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/compiled_f4.py"
+      },
+      {
+        "bytes": 30635,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/compiled_storage_producer.py"
+      },
+      {
+        "bytes": 38956,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/experiment_matrix.py"
+      },
+      {
+        "bytes": 10479,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/generated_register_writer.py"
+      },
+      {
+        "bytes": 41717,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/generated_storage_consumer.py"
+      },
+      {
+        "bytes": 14857,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/low_resource_smoke.py"
+      },
+      {
+        "bytes": 4430,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/manifest.py"
+      },
+      {
+        "bytes": 25165,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/memory_lock.py"
+      },
+      {
+        "bytes": 17436,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/pipeline.py"
+      },
+      {
+        "bytes": 23224,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/reference_adapter.py"
+      },
+      {
+        "bytes": 3180,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/rfuzz_fifo.py"
+      },
+      {
+        "bytes": 50924,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/rfuzz_live.py"
+      },
+      {
+        "bytes": 24515,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/rfuzz_runner.py"
+      },
+      {
+        "bytes": 4316,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/rfuzz_shmem.py"
+      },
+      {
+        "bytes": 60844,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/rfuzz_simulator.py"
+      },
+      {
+        "bytes": 9168,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/rfuzz_toolchain.py"
+      },
+      {
+        "bytes": 4257,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/rfuzz_wire.py"
+      },
+      {
+        "bytes": 15062,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/riscv_execution.py"
+      },
+      {
+        "bytes": 13406,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/rtl_execution_monitor.py"
+      },
+      {
+        "bytes": 27041,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/semantic_projection.py"
+      },
+      {
+        "bytes": 156227,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/soc_builder.py"
+      },
+      {
+        "bytes": 56799,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/soc_campaign.py"
+      },
+      {
+        "bytes": 53175,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/soc_comparison.py"
+      },
+      {
+        "bytes": 20549,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/soc_coverage.py"
+      },
+      {
+        "bytes": 107086,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/integration/soc_matrix_smoke.py"
+      },
+      {
+        "bytes": 603,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/isa/__init__.py"
+      },
+      {
+        "bytes": 18416,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/isa/catalog.py"
+      },
+      {
+        "bytes": 8249,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/isa/constraints.py"
+      },
+      {
+        "bytes": 1831,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/isa/model.py"
+      },
+      {
+        "bytes": 15454,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/isa/transducer.py"
+      },
+      {
+        "bytes": 3543,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/__init__.py"
+      },
+      {
+        "bytes": 790,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/ahb_lite_register_session.py"
+      },
+      {
+        "bytes": 2047,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/ahb_lite_register_template.py"
+      },
+      {
+        "bytes": 20611,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/ahb_lite_session.py"
+      },
+      {
+        "bytes": 27640,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/ahb_manager_domain.py"
+      },
+      {
+        "bytes": 9399,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/ahb_startup.py"
+      },
+      {
+        "bytes": 26094,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/apb3_register_session.py"
+      },
+      {
+        "bytes": 6016,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/apb3_register_template.py"
+      },
+      {
+        "bytes": 2622,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/apb_storage_probe_contract.py"
+      },
+      {
+        "bytes": 14049,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/apb_storage_probe_verification.py"
+      },
+      {
+        "bytes": 9168,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/apb_storage_source_contract.py"
+      },
+      {
+        "bytes": 14658,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/apb_storage_startup.py"
+      },
+      {
+        "bytes": 11725,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/axi4_cpu_session.py"
+      },
+      {
+        "bytes": 1413,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/axi4_fields.py"
+      },
+      {
+        "bytes": 3218,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/axi4lite_register_session.py"
+      },
+      {
+        "bytes": 12693,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/axi4lite_register_template.py"
+      },
+      {
+        "bytes": 8610,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/axi4lite_uart_peer_session.py"
+      },
+      {
+        "bytes": 3089,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/axi_lite_session.py"
+      },
+      {
+        "bytes": 10945,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/axil_uart_session.py"
+      },
+      {
+        "bytes": 30993,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/build.py"
+      },
+      {
+        "bytes": 6598,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/clock_schedule.py"
+      },
+      {
+        "bytes": 7773,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/compiled_artifact_admission.py"
+      },
+      {
+        "bytes": 36057,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/cpu_session.py"
+      },
+      {
+        "bytes": 1572,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/cva6_axi4_fields.py"
+      },
+      {
+        "bytes": 20193,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/cva6_axi4_session.py"
+      },
+      {
+        "bytes": 10912,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/cvw_contract.py"
+      },
+      {
+        "bytes": 61754,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/driver_renderer.py"
+      },
+      {
+        "bytes": 6042,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/generated_artifact_admission.py"
+      },
+      {
+        "bytes": 7433,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/generated_execution_admission.py"
+      },
+      {
+        "bytes": 8528,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/generated_register_factory.py"
+      },
+      {
+        "bytes": 26984,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/gpio_session.py"
+      },
+      {
+        "bytes": 7530,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/i2c_session.py"
+      },
+      {
+        "bytes": 8367,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/ibex_irq_receipt_contract.py"
+      },
+      {
+        "bytes": 4356,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/ibex_rvfi_contract.py"
+      },
+      {
+        "bytes": 8892,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/native_contract.py"
+      },
+      {
+        "bytes": 16306,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/native_physical_observation.py"
+      },
+      {
+        "bytes": 22012,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/native_reset_observation.py"
+      },
+      {
+        "bytes": 8126,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/native_reset_producer_contract.py"
+      },
+      {
+        "bytes": 15124,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/native_session.py"
+      },
+      {
+        "bytes": 5933,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/opentitan_gpio_contract.py"
+      },
+      {
+        "bytes": 6944,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/opentitan_gpio_session.py"
+      },
+      {
+        "bytes": 5651,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/opentitan_i2c_contract.py"
+      },
+      {
+        "bytes": 6229,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/opentitan_i2c_session.py"
+      },
+      {
+        "bytes": 3903,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/opentitan_pattgen_contract.py"
+      },
+      {
+        "bytes": 4769,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/opentitan_rv_timer_contract.py"
+      },
+      {
+        "bytes": 6056,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/opentitan_rv_timer_session.py"
+      },
+      {
+        "bytes": 5784,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/opentitan_spi_device_contract.py"
+      },
+      {
+        "bytes": 9742,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/opentitan_spi_device_session.py"
+      },
+      {
+        "bytes": 5090,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/opentitan_spi_host_contract.py"
+      },
+      {
+        "bytes": 12641,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/opentitan_spi_host_session.py"
+      },
+      {
+        "bytes": 6370,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/opentitan_sysrst_ctrl_contract.py"
+      },
+      {
+        "bytes": 4829,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/opentitan_sysrst_ctrl_session.py"
+      },
+      {
+        "bytes": 4923,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/opentitan_uart_contract.py"
+      },
+      {
+        "bytes": 25418,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/opentitan_uart_fifo_contract.py"
+      },
+      {
+        "bytes": 42949,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/opentitan_uart_session.py"
+      },
+      {
+        "bytes": 19326,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/ordinary_apb_access_receipts.py"
+      },
+      {
+        "bytes": 5551,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/parameter_evidence.py"
+      },
+      {
+        "bytes": 11789,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/plan.py"
+      },
+      {
+        "bytes": 7882,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/port_rendering.py"
+      },
+      {
+        "bytes": 7647,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/pulp_gpio_probe_contract.py"
+      },
+      {
+        "bytes": 7114,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/pulp_spi_contract.py"
+      },
+      {
+        "bytes": 4159,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/renderer.py"
+      },
+      {
+        "bytes": 4251,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/request.py"
+      },
+      {
+        "bytes": 19524,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/rtl/local_driver_v1.h"
+      },
+      {
+        "bytes": 474,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/runtime_artifact.py"
+      },
+      {
+        "bytes": 91481,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/runtime_renderer.py"
+      },
+      {
+        "bytes": 12617,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/rvx_memory_session.py"
+      },
+      {
+        "bytes": 38154,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/session.py"
+      },
+      {
+        "bytes": 12024,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/source_lock.py"
+      },
+      {
+        "bytes": 6455,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/spi_session.py"
+      },
+      {
+        "bytes": 37830,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/template_contracts.py"
+      },
+      {
+        "bytes": 4653,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/timer_session.py"
+      },
+      {
+        "bytes": 13753,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/tlul_register_session.py"
+      },
+      {
+        "bytes": 12158,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/tlul_register_template.py"
+      },
+      {
+        "bytes": 2743,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/tlul_session_factory.py"
+      },
+      {
+        "bytes": 8491,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/tlul_spi_mode0_peer_session.py"
+      },
+      {
+        "bytes": 5783,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/tlul_uart_peer_session.py"
+      },
+      {
+        "bytes": 15996,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/tuning.py"
+      },
+      {
+        "bytes": 930,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/uart_controlled_irq_contract.py"
+      },
+      {
+        "bytes": 1109,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/vexii_axi_fields.py"
+      },
+      {
+        "bytes": 15225,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/vexii_axi_session.py"
+      },
+      {
+        "bytes": 8236,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/vexii_irq_contract.py"
+      },
+      {
+        "bytes": 2827,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/vexii_source_contract.py"
+      },
+      {
+        "bytes": 9830,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/wire.py"
+      },
+      {
+        "bytes": 12371,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/wishbone_cpu_session.py"
+      },
+      {
+        "bytes": 1582,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/wishbone_dma_fields.py"
+      },
+      {
+        "bytes": 4784,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/wishbone_dma_scenario_session.py"
+      },
+      {
+        "bytes": 18248,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/wishbone_dma_session.py"
+      },
+      {
+        "bytes": 3344,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/wishbone_dma_template.py"
+      },
+      {
+        "bytes": 1045,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/wishbone_register_session.py"
+      },
+      {
+        "bytes": 3705,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/wishbone_register_template.py"
+      },
+      {
+        "bytes": 11053,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/wishbone_uart_session.py"
+      },
+      {
+        "bytes": 6086,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/local_harness/zip_timer_session.py"
+      },
+      {
+        "bytes": 42481,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/original_rfuzz.py"
+      },
+      {
+        "bytes": 1067,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/protocols/__init__.py"
+      },
+      {
+        "bytes": 17356,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/protocols/bridge.py"
+      },
+      {
+        "bytes": 22702,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/protocols/catalog.py"
+      },
+      {
+        "bytes": 6295,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/protocols/compiler.py"
+      },
+      {
+        "bytes": 2481,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/protocols/model.py"
+      },
+      {
+        "bytes": 3089,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/protocols/rtl/native_completion_memory_adapter.sv"
+      },
+      {
+        "bytes": 3964,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/protocols/widths.py"
+      },
+      {
+        "bytes": 9988,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/rfuzz_compat.py"
+      },
+      {
+        "bytes": 929,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/__init__.py"
+      },
+      {
+        "bytes": 78430,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/acceptance_metrics.py"
+      },
+      {
+        "bytes": 21189,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/ahb_cpu_events.py"
+      },
+      {
+        "bytes": 35028,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/apb_storage_register_version.py"
+      },
+      {
+        "bytes": 84073,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/assertion_classes.py"
+      },
+      {
+        "bytes": 15221,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/batch.py"
+      },
+      {
+        "bytes": 70392,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/chain_certificates.py"
+      },
+      {
+        "bytes": 54634,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/checker.py"
+      },
+      {
+        "bytes": 139357,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/compiled_paths.py"
+      },
+      {
+        "bytes": 61109,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/contracts.py"
+      },
+      {
+        "bytes": 14613,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/cpu_ip_protocol_join.py"
+      },
+      {
+        "bytes": 30439,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/cpu_retirement.py"
+      },
+      {
+        "bytes": 23582,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/dependency.py"
+      },
+      {
+        "bytes": 10667,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/dependency_evidence.py"
+      },
+      {
+        "bytes": 5040,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/dependency_lifecycle.py"
+      },
+      {
+        "bytes": 117393,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/edge_provenance.py"
+      },
+      {
+        "bytes": 14733,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/event_journal.py"
+      },
+      {
+        "bytes": 5403,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/event_provenance.py"
+      },
+      {
+        "bytes": 1463,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/feedback.py"
+      },
+      {
+        "bytes": 13668,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/full_axi_events.py"
+      },
+      {
+        "bytes": 13797,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/genome.py"
+      },
+      {
+        "bytes": 35920,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/gpio_consumption.py"
+      },
+      {
+        "bytes": 18446,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/gpio_register_evidence.py"
+      },
+      {
+        "bytes": 8970,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/gpio_register_version.py"
+      },
+      {
+        "bytes": 5434,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/gpio_sync_evidence.py"
+      },
+      {
+        "bytes": 7263,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/host_identity.py"
+      },
+      {
+        "bytes": 117916,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/ibex_pulp_dual_source.py"
+      },
+      {
+        "bytes": 5385,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/ibex_pulp_rfuzz.py"
+      },
+      {
+        "bytes": 23898,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/ibex_uart_online.py"
+      },
+      {
+        "bytes": 26149,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/initial_ram_data.py"
+      },
+      {
+        "bytes": 17356,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/ip_base_coverage.py"
+      },
+      {
+        "bytes": 18481,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/ip_base_events.py"
+      },
+      {
+        "bytes": 8999,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/ip_binding_evidence.py"
+      },
+      {
+        "bytes": 48277,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/ip_protocol_checker.py"
+      },
+      {
+        "bytes": 58091,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/ip_protocol_events.py"
+      },
+      {
+        "bytes": 17491,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/ip_protocol_evidence.py"
+      },
+      {
+        "bytes": 3930,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/ip_semantic_capabilities.py"
+      },
+      {
+        "bytes": 9415,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/ip_semantic_evidence.py"
+      },
+      {
+        "bytes": 8389,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/irq.py"
+      },
+      {
+        "bytes": 13010,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/irq_dependency_evidence.py"
+      },
+      {
+        "bytes": 22844,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/irq_serial_certificates.py"
+      },
+      {
+        "bytes": 8786,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/ledger.py"
+      },
+      {
+        "bytes": 20988,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/live_memory_prerequisites.py"
+      },
+      {
+        "bytes": 17254,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/memory.py"
+      },
+      {
+        "bytes": 1782,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/memory_authority_distribution.py"
+      },
+      {
+        "bytes": 6821,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/memory_commit_authority.py"
+      },
+      {
+        "bytes": 12613,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/memory_dependency_evidence.py"
+      },
+      {
+        "bytes": 7473,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/memory_read_authority.py"
+      },
+      {
+        "bytes": 14333,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/memory_service.py"
+      },
+      {
+        "bytes": 9468,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/mutation.py"
+      },
+      {
+        "bytes": 9735,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/native_cpu_events.py"
+      },
+      {
+        "bytes": 8963,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/native_packet_session.py"
+      },
+      {
+        "bytes": 5635,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/native_replay_identity.py"
+      },
+      {
+        "bytes": 40140,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/native_reset_evidence.py"
+      },
+      {
+        "bytes": 81644,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/online_case_decoder.py"
+      },
+      {
+        "bytes": 31323,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/ordinary_apb_access_evidence.py"
+      },
+      {
+        "bytes": 5976,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/ownership.py"
+      },
+      {
+        "bytes": 30132,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/picorv32_native_cpu_example.py"
+      },
+      {
+        "bytes": 10569,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/picorv32_native_online.py"
+      },
+      {
+        "bytes": 15016,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/pin8_consumption_certificates.py"
+      },
+      {
+        "bytes": 12160,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/pin8_cpu_irq_certificates.py"
+      },
+      {
+        "bytes": 16605,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/pin8_irq_certificates.py"
+      },
+      {
+        "bytes": 6324,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/protocol_io.py"
+      },
+      {
+        "bytes": 2532,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/protocol_trace_sets.py"
+      },
+      {
+        "bytes": 4841,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/pulp_spi_peer.py"
+      },
+      {
+        "bytes": 10328,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/reduced_axi_events.py"
+      },
+      {
+        "bytes": 14828,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/register_program.py"
+      },
+      {
+        "bytes": 15782,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/register_program_capabilities.py"
+      },
+      {
+        "bytes": 26434,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/register_program_runtime.py"
+      },
+      {
+        "bytes": 50955,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/register_program_verifier.py"
+      },
+      {
+        "bytes": 80397,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/register_reset_default_verifier.py"
+      },
+      {
+        "bytes": 4273,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/register_source_access.py"
+      },
+      {
+        "bytes": 15599,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/rejection_codes.py"
+      },
+      {
+        "bytes": 13394,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/replay.py"
+      },
+      {
+        "bytes": 20013,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/retirement_delivery.py"
+      },
+      {
+        "bytes": 17617,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/rfuzz_decoder.py"
+      },
+      {
+        "bytes": 17358,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/router.py"
+      },
+      {
+        "bytes": 2571,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/rtl/local_command_replay.h"
+      },
+      {
+        "bytes": 188737,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/runner.py"
+      },
+      {
+        "bytes": 21602,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/runtime_edge_index.py"
+      },
+      {
+        "bytes": 24301,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/runtime_path_contract.py"
+      },
+      {
+        "bytes": 29272,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/rv32i_sources.py"
+      },
+      {
+        "bytes": 14286,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/scheduler.py"
+      },
+      {
+        "bytes": 2699,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/semantic_evidence_plugins.py"
+      },
+      {
+        "bytes": 170771,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/session_runtime.py"
+      },
+      {
+        "bytes": 129747,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/source_actions.py"
+      },
+      {
+        "bytes": 7068,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/source_provenance.py"
+      },
+      {
+        "bytes": 4308,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/spi_peer.py"
+      },
+      {
+        "bytes": 4353,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/state_dependency.py"
+      },
+      {
+        "bytes": 39607,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/uart_consumption.py"
+      },
+      {
+        "bytes": 38701,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/uart_irq_consumption.py"
+      },
+      {
+        "bytes": 30003,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/uart_irq_entry.py"
+      },
+      {
+        "bytes": 14114,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/uart_memory_readback.py"
+      },
+      {
+        "bytes": 10545,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/uart_operand_seed.py"
+      },
+      {
+        "bytes": 9362,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/uart_operand_use.py"
+      },
+      {
+        "bytes": 4287,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/uart_peer.py"
+      },
+      {
+        "bytes": 21710,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/uart_retired_read.py"
+      },
+      {
+        "bytes": 14551,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scenario/uart_store_memory.py"
+      },
+      {
+        "bytes": 53076,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scripts/composition_api.py"
+      },
+      {
+        "bytes": 5080,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scripts/frontend_api.py"
+      },
+      {
+        "bytes": 99429,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scripts/run_design_flow.py"
+      },
+      {
+        "bytes": 8314,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/src/myfuzz/scripts/source_only_frontend.py"
+      },
+      {
+        "bytes": 94657,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/third_party/picorv32_upstream_reference/picorv32.v"
+      },
+      {
+        "bytes": 99857,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/manifest.json"
+      },
+      {
+        "bytes": 5167,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/obj/Vlocal_runtime_cpu.cpp"
+      },
+      {
+        "bytes": 4688,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/obj/Vlocal_runtime_cpu.h"
+      },
+      {
+        "bytes": 2523,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/obj/Vlocal_runtime_cpu.mk"
+      },
+      {
+        "bytes": 39126,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/obj/Vlocal_runtime_cpu__ALL.a"
+      },
+      {
+        "bytes": 322,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/obj/Vlocal_runtime_cpu__ALL.cpp"
+      },
+      {
+        "bytes": 789,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/obj/Vlocal_runtime_cpu__ALL.d"
+      },
+      {
+        "bytes": 35744,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/obj/Vlocal_runtime_cpu__ALL.o"
+      },
+      {
+        "bytes": 1046,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/obj/Vlocal_runtime_cpu__Syms.h"
+      },
+      {
+        "bytes": 915,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/obj/Vlocal_runtime_cpu__Syms__Slow.cpp"
+      },
+      {
+        "bytes": 14321,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/obj/Vlocal_runtime_cpu___024root.h"
+      },
+      {
+        "bytes": 130954,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/obj/Vlocal_runtime_cpu___024root__0.cpp"
+      },
+      {
+        "bytes": 56551,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/obj/Vlocal_runtime_cpu___024root__0__Slow.cpp"
+      },
+      {
+        "bytes": 786,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/obj/Vlocal_runtime_cpu___024root__Slow.cpp"
+      },
+      {
+        "bytes": 815,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/obj/Vlocal_runtime_cpu__pch.h"
+      },
+      {
+        "bytes": 3457,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/obj/Vlocal_runtime_cpu__ver.d"
+      },
+      {
+        "bytes": 7316,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/obj/Vlocal_runtime_cpu__verFiles.dat"
+      },
+      {
+        "bytes": 1743,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/obj/Vlocal_runtime_cpu_classes.mk"
+      },
+      {
+        "bytes": 1119,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/obj/driver.d"
+      },
+      {
+        "bytes": 112960,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/obj/driver.o"
+      },
+      {
+        "bytes": 293208,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/obj/harness"
+      },
+      {
+        "bytes": 1069,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/obj/verilated.d"
+      },
+      {
+        "bytes": 300672,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/obj/verilated.o"
+      },
+      {
+        "bytes": 641,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/obj/verilated_threads.d"
+      },
+      {
+        "bytes": 63064,
+        "path": "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/obj/verilated_threads.o"
+      }
+    ],
+    "collected_at": "2026-10-18T08:49:38.167381+00:00",
+    "compiled_cache_bytes_archived": false,
+    "model_execution_by_collection": false,
+    "operation": "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2",
+    "remote_read_only": true,
+    "specified_pid_presence": {
+      "3454454": false,
+      "3469032": false
+    }
+  },
+  "build_receipt_members": [
+    "build-receipts/10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/configs/peripherals/pulp_gpio/component_profile.json",
+    "build-receipts/10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/configs/soc/closures/pulp_gpio.json",
+    "build-receipts/10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/configs/soc/sources.lock.json",
+    "build-receipts/10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/inputs/generated/artifact.json",
+    "build-receipts/10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/manifest.json",
+    "build-receipts/75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/configs/cpus/picorv32/component_profile.json",
+    "build-receipts/75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/configs/soc/closures/picorv32.json",
+    "build-receipts/75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/configs/soc/sources.lock.json",
+    "build-receipts/75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/inputs/generated/artifact.json",
+    "build-receipts/75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/manifest.json"
+  ]
+}

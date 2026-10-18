@@ -1,0 +1,153 @@
+{
+  "actual_process_count": 8,
+  "controlled": {
+    "cases": 1,
+    "processes": [
+      {
+        "artifact_digest": "9d701790f0048d8e5d9384b9e3c59f141da4b13684a3334e697de9a0160bc8f8",
+        "component": "cpu",
+        "execution_nonce": "5067d3de24c8477595210fb864a71572",
+        "pid": 3615572,
+        "reset_epoch": 0,
+        "runner_namespace": "runner-0",
+        "terminal_returncode": 0
+      },
+      {
+        "artifact_digest": "2d9355fd1bfc3b7910961267ef298a34132ddafb337ed5c90058cf137806dfe8",
+        "component": "gpio0",
+        "execution_nonce": "e50ce1be91c44adeb69d8cf646f4c8e1",
+        "pid": 3615717,
+        "reset_epoch": 0,
+        "runner_namespace": "runner-0",
+        "terminal_returncode": 0
+      },
+      {
+        "artifact_digest": "9d701790f0048d8e5d9384b9e3c59f141da4b13684a3334e697de9a0160bc8f8",
+        "component": "cpu",
+        "execution_nonce": "c564a2a4e2824b1c84fa62d503add377",
+        "pid": 3649988,
+        "reset_epoch": 0,
+        "runner_namespace": "runner-1",
+        "terminal_returncode": 0
+      },
+      {
+        "artifact_digest": "2d9355fd1bfc3b7910961267ef298a34132ddafb337ed5c90058cf137806dfe8",
+        "component": "gpio0",
+        "execution_nonce": "ff57ee75bfef47a599836849c5baea38",
+        "pid": 3650135,
+        "reset_epoch": 0,
+        "runner_namespace": "runner-1",
+        "terminal_returncode": 0
+      }
+    ],
+    "traces": {
+      "fresh": {
+        "controlled_responses": 1,
+        "counts": {
+          "accepted": 21,
+          "completed": 21,
+          "data_completed": 7,
+          "instruction_completed": 14,
+          "raw_post": 174,
+          "raw_pre": 174,
+          "responses": 21
+        },
+        "events": 1393,
+        "joins": 21
+      },
+      "original": {
+        "controlled_responses": 1,
+        "counts": {
+          "accepted": 21,
+          "completed": 21,
+          "data_completed": 7,
+          "instruction_completed": 14,
+          "raw_post": 174,
+          "raw_pre": 174,
+          "responses": 21
+        },
+        "events": 1393,
+        "joins": 21
+      }
+    },
+    "warmup_advances": 46
+  },
+  "coverage_guided_search": false,
+  "formal_p6_complete": false,
+  "positive": {
+    "cases": 3,
+    "processes": [
+      {
+        "artifact_digest": "9d701790f0048d8e5d9384b9e3c59f141da4b13684a3334e697de9a0160bc8f8",
+        "component": "cpu",
+        "execution_nonce": "7068450890ce4547b2cd8b45bff53da4",
+        "pid": 3538157,
+        "reset_epoch": 0,
+        "runner_namespace": "runner-0",
+        "terminal_returncode": 0
+      },
+      {
+        "artifact_digest": "2d9355fd1bfc3b7910961267ef298a34132ddafb337ed5c90058cf137806dfe8",
+        "component": "gpio0",
+        "execution_nonce": "70d459af98844b3591af321a0481aaec",
+        "pid": 3538385,
+        "reset_epoch": 0,
+        "runner_namespace": "runner-0",
+        "terminal_returncode": 0
+      },
+      {
+        "artifact_digest": "9d701790f0048d8e5d9384b9e3c59f141da4b13684a3334e697de9a0160bc8f8",
+        "component": "cpu",
+        "execution_nonce": "942cdd81acf543eb8dd09bb5746b4ac3",
+        "pid": 3572592,
+        "reset_epoch": 0,
+        "runner_namespace": "runner-1",
+        "terminal_returncode": 0
+      },
+      {
+        "artifact_digest": "2d9355fd1bfc3b7910961267ef298a34132ddafb337ed5c90058cf137806dfe8",
+        "component": "gpio0",
+        "execution_nonce": "f115e3920f504b6d9acab516d749a8c9",
+        "pid": 3572730,
+        "reset_epoch": 0,
+        "runner_namespace": "runner-1",
+        "terminal_returncode": 0
+      }
+    ],
+    "traces": {
+      "fresh": {
+        "controlled_responses": 0,
+        "counts": {
+          "accepted": 47,
+          "completed": 47,
+          "data_completed": 17,
+          "instruction_completed": 30,
+          "raw_post": 430,
+          "raw_pre": 430,
+          "responses": 47
+        },
+        "events": 3247,
+        "joins": 47
+      },
+      "original": {
+        "controlled_responses": 0,
+        "counts": {
+          "accepted": 47,
+          "completed": 47,
+          "data_completed": 17,
+          "instruction_completed": 30,
+          "raw_post": 430,
+          "raw_pre": 430,
+          "responses": 47
+        },
+        "events": 3247,
+        "joins": 47
+      }
+    },
+    "warmup_advances": 46
+  },
+  "retirement": false,
+  "schema_version": "native_completion_independent_saved_audit.v1",
+  "source_authority": false,
+  "status": "saved_evidence_checks_passed"
+}
