@@ -226,11 +226,12 @@ def check_case(events, case):
         ram_event_id=writes[0]['event_id'], response_consumers=consumed, findings=failures)
 
 
-def run_gate(output, cache_dir, *, corrupt):
+def run_gate(output, cache_dir, *, corrupt, native_completion_observation=False):
     from myfuzz.local_harness.session import observe_local_command_timings
     from myfuzz.integration.picorv32_native_online import make_picorv32_native_online_runtime
     output.mkdir()
-    runtime = make_picorv32_native_online_runtime(cache_dir=cache_dir, max_cases=3)
+    runtime = make_picorv32_native_online_runtime(cache_dir=cache_dir, max_cases=3,
+        native_completion_observation=native_completion_observation)
     capture = ProcessCapture()
     capture.register(runtime.session.runner)
     fault_records = []
@@ -245,7 +246,8 @@ def run_gate(output, cache_dir, *, corrupt):
         return runner
     runtime.factory = fresh_factory
     records = []
-    result = {'status': 'failed', 'controlled_fault': corrupt, 'cases': records}
+    result = {'status': 'failed', 'controlled_fault': corrupt, 'cases': records,
+              'native_completion_observation': native_completion_observation}
     primary = None
     try:
         with observe_local_command_timings(capture):
@@ -334,6 +336,8 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--cache-dir', type=Path, required=True)
     parser.add_argument('--heavy-lock', type=Path, required=True)
+    parser.add_argument('--native-completion-observation', action='store_true',
+                        help='select passive native CPU PRE/POST observation')
     args = parser.parse_args()
     for name in ('output', 'cache_dir', 'heavy_lock'):
         if getattr(args, name).resolve().is_relative_to(ROOT):
@@ -342,12 +346,15 @@ def main():
     with args.heavy_lock.open('a+b') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         sys.path.insert(0, str(ROOT / 'src'))
-        positive = run_gate(args.output / 'positive', args.cache_dir, corrupt=False)
+        positive = run_gate(args.output / 'positive', args.cache_dir, corrupt=False,
+            native_completion_observation=args.native_completion_observation)
         if positive['status'] != 'bounded_directed_gate_passed':
             return 1
-        negative = run_gate(args.output / 'controlled-response', args.cache_dir, corrupt=True)
+        negative = run_gate(args.output / 'controlled-response', args.cache_dir, corrupt=True,
+            native_completion_observation=args.native_completion_observation)
         summary = dict(schema_version='native_online_directed_gate.v1',
             positive_status=positive['status'], controlled_status=negative['status'],
+            native_completion_observation=args.native_completion_observation,
             script_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             formal_p6_complete=False, source_authority=False, retirement_authority=False,
             coverage_guided_search=False)
