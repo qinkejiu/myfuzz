@@ -1,0 +1,21 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-B",
+    "/root/fanzehui/myfuzz/operations/p8-full-project-inputs-20261018-attempt1/prepare_p8_project.py",
+    "prepare",
+    "--selection",
+    "/root/fanzehui/myfuzz/operations/p8-full-project-inputs-20261018-attempt1/selection.json",
+    "--selection-sha256",
+    "ea5ef54d5a674fabf9f95c3527c9d90a0d8ad1d85e36f465862bf3874d5bd626",
+    "--plan",
+    "/root/fanzehui/myfuzz/operations/p8-full-project-inputs-20261018-attempt1/project-plan.json",
+    "--plan-sha256",
+    "aca9b2582f64e08a793853c5f9d2c143ed927b822d170204c56c47f2c027e201",
+    "--destination",
+    "/root/fanzehui/myfuzz/operations/p8-scalar-20261018-attempt1/project",
+    "--receipt",
+    "/root/fanzehui/myfuzz/operations/p8-full-project-inputs-20261018-attempt1/project-prepare-receipt.json"
+  ],
+  "pid": 3040164
+}

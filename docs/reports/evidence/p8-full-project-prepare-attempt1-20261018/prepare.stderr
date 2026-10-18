@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/root/fanzehui/myfuzz/operations/p8-full-project-inputs-20261018-attempt1/prepare_p8_project.py", line 313, in <module>
+    main()
+  File "/root/fanzehui/myfuzz/operations/p8-full-project-inputs-20261018-attempt1/prepare_p8_project.py", line 309, in main
+    raise primary
+  File "/root/fanzehui/myfuzz/operations/p8-full-project-inputs-20261018-attempt1/prepare_p8_project.py", line 260, in main
+    stage.mkdir()
+  File "/usr/lib/python3.12/pathlib.py", line 1313, in mkdir
+    os.mkdir(self, mode)
+FileNotFoundError: [Errno 2] No such file or directory: '/root/fanzehui/myfuzz/operations/p8-scalar-20261018-attempt1/project.unpublished-stage'

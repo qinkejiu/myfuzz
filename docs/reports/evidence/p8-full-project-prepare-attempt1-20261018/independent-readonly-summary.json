@@ -1,0 +1,11 @@
+{
+  "copier_sources_before_after_equal": true,
+  "error": "FileNotFoundError(2, 'No such file or directory')",
+  "runtime_grant": false,
+  "schema_version": "p8_prepare_attempt1_saved_failure_diagnosis.v1",
+  "source_prepared": false,
+  "source_unchanged": true,
+  "status": "failed_before_stage_creation",
+  "wrapper_copier_maps_equal": true,
+  "wrapper_sources_before_after_equal": true
+}
