@@ -1,0 +1,281 @@
+{
+  "cache_empty": true,
+  "failure": "native-physical-observation-protocol-unsupported",
+  "failure_source": "frozen src/myfuzz/local_harness/plan.py:212",
+  "formal_p6_complete": false,
+  "frontend_elaboration_may_have_occurred": true,
+  "full_fresh_pass": false,
+  "gate_pid": 3130216,
+  "gate_returncode": 1,
+  "git_returncodes": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "members": [
+    {
+      "bytes": 0,
+      "kind": "directory",
+      "path": "gate-control",
+      "sha256": null
+    },
+    {
+      "bytes": 35081,
+      "kind": "file",
+      "path": "gate-control/after-directories.json",
+      "sha256": "861e192518e1d809231b676b91b17c149466000f83138969eac6cbfaff68fb36"
+    },
+    {
+      "bytes": 1632255,
+      "kind": "file",
+      "path": "gate-control/after-files.json",
+      "sha256": "94de100ab2ab50f3674f179378c9138d73cec873c68ae401bc43f9cb63e76cd1"
+    },
+    {
+      "bytes": 88,
+      "kind": "file",
+      "path": "gate-control/after-layout.json",
+      "sha256": "4082b12530fdd9262337dd1b0e8d0440ccef51a7936fb66f86c01307f8be3d15"
+    },
+    {
+      "bytes": 108920,
+      "kind": "file",
+      "path": "gate-control/after-tools.json",
+      "sha256": "e24235d7f56f7d5e784a94ebd1bffadc28d530ea4423794c13c7c22afe7d0beb"
+    },
+    {
+      "bytes": 35081,
+      "kind": "file",
+      "path": "gate-control/before-directories.json",
+      "sha256": "861e192518e1d809231b676b91b17c149466000f83138969eac6cbfaff68fb36"
+    },
+    {
+      "bytes": 1632255,
+      "kind": "file",
+      "path": "gate-control/before-files.json",
+      "sha256": "94de100ab2ab50f3674f179378c9138d73cec873c68ae401bc43f9cb63e76cd1"
+    },
+    {
+      "bytes": 88,
+      "kind": "file",
+      "path": "gate-control/before-layout.json",
+      "sha256": "4082b12530fdd9262337dd1b0e8d0440ccef51a7936fb66f86c01307f8be3d15"
+    },
+    {
+      "bytes": 108920,
+      "kind": "file",
+      "path": "gate-control/before-tools.json",
+      "sha256": "e24235d7f56f7d5e784a94ebd1bffadc28d530ea4423794c13c7c22afe7d0beb"
+    },
+    {
+      "bytes": 324,
+      "kind": "file",
+      "path": "gate-control/git-closures-tracked.launch.json",
+      "sha256": "18217eb43c2963f5fb57cd26e1ee3b1327f25b5930afa3d43a5f60f5209f1435"
+    },
+    {
+      "bytes": 0,
+      "kind": "file",
+      "path": "gate-control/git-closures-tracked.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 71,
+      "kind": "file",
+      "path": "gate-control/git-closures-tracked.stdout",
+      "sha256": "0d7854eb5edb1e1daf2af09a7c8488a7d9eb889b7fadd74176373a7d56297b71"
+    },
+    {
+      "bytes": 548,
+      "kind": "file",
+      "path": "gate-control/git-closures-tracked.terminal.json",
+      "sha256": "7910b402d89c1b63f1b60aa24b97bc0d11521d5a95106eaed45addf5b5b1715c"
+    },
+    {
+      "bytes": 397,
+      "kind": "file",
+      "path": "gate-control/git-picorv32_upstream_reference-connectivity.launch.json",
+      "sha256": "bd57f6a495adc086ebef81785dfe0ee349303156740769aa8a518e58ceff6b6c"
+    },
+    {
+      "bytes": 0,
+      "kind": "file",
+      "path": "gate-control/git-picorv32_upstream_reference-connectivity.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "kind": "file",
+      "path": "gate-control/git-picorv32_upstream_reference-connectivity.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 621,
+      "kind": "file",
+      "path": "gate-control/git-picorv32_upstream_reference-connectivity.terminal.json",
+      "sha256": "44a77773580860bf86665ad0051382e7cb3a151fedacd3aee91bdd8f2f76a9d8"
+    },
+    {
+      "bytes": 229,
+      "kind": "file",
+      "path": "gate-control/git-root-head.launch.json",
+      "sha256": "39ccf4c136ac7d4a8349644f661a99daad8c30ba457996b2648c1f3b68d13803"
+    },
+    {
+      "bytes": 0,
+      "kind": "file",
+      "path": "gate-control/git-root-head.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 41,
+      "kind": "file",
+      "path": "gate-control/git-root-head.stdout",
+      "sha256": "9020ed77cbdc575a03fde67e03c775197b3a964d76457a3a8f6726c7c1f47e77"
+    },
+    {
+      "bytes": 453,
+      "kind": "file",
+      "path": "gate-control/git-root-head.terminal.json",
+      "sha256": "9f9a29816516c186653ac36bd3e849157ad11ec288d24dc451e629624229ab8d"
+    },
+    {
+      "bytes": 384,
+      "kind": "file",
+      "path": "gate-control/git-soc-pulp-apb-gpio-connectivity.launch.json",
+      "sha256": "b2cf31d6cf833ee62b7b0959705112c739cc76f8b9489427204fc735d42375bf"
+    },
+    {
+      "bytes": 0,
+      "kind": "file",
+      "path": "gate-control/git-soc-pulp-apb-gpio-connectivity.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "kind": "file",
+      "path": "gate-control/git-soc-pulp-apb-gpio-connectivity.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 608,
+      "kind": "file",
+      "path": "gate-control/git-soc-pulp-apb-gpio-connectivity.terminal.json",
+      "sha256": "085890f2dd4528bcb14e60af31330b9879d26b047d176e8c60913dd0dfdb605b"
+    },
+    {
+      "bytes": 696,
+      "kind": "file",
+      "path": "gate-control/native-directed-gate.launch.json",
+      "sha256": "3fd4c5ee8320f04de73a6bc3bf1625721aa13bbfe5f5f9293c018409c0a2c0f1"
+    },
+    {
+      "bytes": 2177,
+      "kind": "file",
+      "path": "gate-control/native-directed-gate.stderr",
+      "sha256": "84ca18f45ccea8992b335b93d0e74fe0965d61e38948f38b78967ea05df7bc92"
+    },
+    {
+      "bytes": 0,
+      "kind": "file",
+      "path": "gate-control/native-directed-gate.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 920,
+      "kind": "file",
+      "path": "gate-control/native-directed-gate.terminal.json",
+      "sha256": "5fcd5057ac6b40654b7a3512fd58e678145db9ead5ef513d3514090c16dd6e41"
+    },
+    {
+      "bytes": 746,
+      "kind": "file",
+      "path": "gate-control/parent-start.json",
+      "sha256": "65d3b682b7422f6bd3c9f9119dae8109a119387b88e7272cdb58527fae594b8a"
+    },
+    {
+      "bytes": 1384,
+      "kind": "file",
+      "path": "gate-control/parent-terminal.json",
+      "sha256": "586d10e4301ad61131cb2a00c48dc091eb3b701a7d06ff6941aa8583e15a807f"
+    },
+    {
+      "bytes": 0,
+      "kind": "directory",
+      "path": "run-directed",
+      "sha256": null
+    },
+    {
+      "bytes": 0,
+      "kind": "directory",
+      "path": "run-directed/positive",
+      "sha256": null
+    },
+    {
+      "bytes": 0,
+      "kind": "file",
+      "path": "gate-parent.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "kind": "file",
+      "path": "gate-parent.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 13261,
+      "kind": "file",
+      "path": "inputs/run_native_gate.py",
+      "sha256": "ca10ae105d03b4b5a031677d4f254070827a66c046acb1a339346c091840b1be"
+    },
+    {
+      "bytes": 795,
+      "kind": "file",
+      "path": "inputs/launch-native-gate.sh",
+      "sha256": "353dcca1d2776e96f489a3f76a9df794caf0c2bb557beac9da6e70b1bacf3df9"
+    },
+    {
+      "bytes": 510,
+      "kind": "file",
+      "path": "readonly-terminal-observation.json",
+      "sha256": "ed39c9b930a5778aaee6126890ac6197e6a667964c0aefa9fbd69636882b15d2"
+    }
+  ],
+  "native_completion_observed": false,
+  "native_gate_pass": false,
+  "no_saved_cases_or_model_receipts": true,
+  "observation": {
+    "cache": {
+      "directories": {},
+      "exists": true,
+      "files": {}
+    },
+    "collected_at": "2026-10-18T08:35:58.883984+00:00",
+    "native_execution_by_collection": false,
+    "operation": "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt1",
+    "remote_read_only": true,
+    "run_directed": {
+      "directories": {
+        "positive": {
+          "mode": 493
+        }
+      },
+      "exists": true,
+      "files": {}
+    },
+    "specified_pid_presence": {
+      "3107064": false,
+      "3130216": false
+    }
+  },
+  "parent_pid": 3107064,
+  "parent_returncode": 1,
+  "positive_directory_empty": true,
+  "schema_version": "native_completion_failed_attempt_saved_audit.v1",
+  "source_files_directories_unchanged": true,
+  "specified_parent_and_child_gone": true,
+  "status": "actual_failed_planning_attempt_confirmed",
+  "tools_environment_unchanged": true
+}

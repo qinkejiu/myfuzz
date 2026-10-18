@@ -1,0 +1,10 @@
+{
+  "returncode": 0,
+  "started_at": "2026-10-18T08:35:57.779221+00:00",
+  "ended_at": "2026-10-18T08:35:59.929943+00:00",
+  "bytes": 1233195,
+  "sha256": "61360b181155ef0f4e6778afb16bbc90aae6264ea74b00ff3a92c62f1fdd8b3e",
+  "script_sha256": "56d5086a1d7bf12d4da6000b83ef8ff699d71a4ba1083571d99607b95d100ec0",
+  "remote_read_only": true,
+  "includes_project_or_cache": false
+}
