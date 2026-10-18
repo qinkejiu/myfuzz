@@ -5,7 +5,7 @@
 - [ZipCPU](reports/p8-zipcpu-metadata-attempt2-independent-20261018.md)：394对象、368路径、2链接，1198个Git子命令均0；首次采集漏`.rev`的审计失败保留，补采精确绑定原映射后audit2通过。
 - [OpenTitan](reports/p8-opentitan-metadata-attempt2-independent-20261018.md)：第二轮父463069 exit0、485个Git子命令均0；14732对象/13870路径，新副本重建原缺65项并独立逐字节关联，saved audit exit0。首轮完整工作树拒绝保留。
 - [Ibex](reports/p8-ibex-metadata-attempt1-independent-20261018.md)：父650898 exit0、155个Git子命令均0；4040对象/3693路径，新副本重建原缺59项并独立逐字节关联，saved audit exit0。两个原工作树均未修写。
-- `583436c` 完整项目typed复制工具已独立源码复核，尚未实际复制；三组件准备不等于完整项目/tool冻结或运行。当前正在冻结root源码输入，DMA标量测量、普通/失败fresh及5×目标仍OPEN。
+- `583436c` 完整项目typed复制工具已独立源码复核，尚未实际复制；三组件准备不等于完整项目/tool冻结或运行。[root输入实际复制及独立审计](reports/p8-root-local-input-independent-20261018.md)已通过：固定HEAD`269717b`、10347文件/524目录、493088962字节，前后映射一致。root归档也已独立审计，尚未上传/组装完整项目。DMA标量测量、普通/失败fresh及5×目标仍OPEN。
 
 ## 2026-10-18 native 来源连接第一步（源码增量）
 

@@ -1,3 +1,5 @@
+[P8本地root输入实际复制与独立审计](p8-root-local-input-independent-20261018.md)：HEAD`269717b`固定输入，10347文件/524目录；仅本地root准备，不授remote或完整项目验收。
+
 [OpenTitan组件独立审计](p8-opentitan-metadata-attempt2-independent-20261018.md)、[Ibex组件独立审计](p8-ibex-metadata-attempt1-independent-20261018.md)：actual saved audit均exit0；仅授组件准备，完整P8项目和性能仍开放。
 
 [Native真实指令接受凭据源码增量](native-instruction-acceptance-source-increment-20261018.md)（`9e0666f`）：已独立源码复核，未实测，尚不授来源或完成权限。
