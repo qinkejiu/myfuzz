@@ -1,0 +1,155 @@
+{
+  "N1": {
+    "executed": 2,
+    "errors": 0,
+    "failures": 0,
+    "skips": 0,
+    "returncode": 0
+  },
+  "N2": {
+    "executed": 1,
+    "errors": 0,
+    "failures": 0,
+    "skips": 0,
+    "returncode": 0
+  },
+  "N3": {
+    "executed": 1,
+    "errors": 0,
+    "failures": 0,
+    "skips": 0,
+    "returncode": 0
+  },
+  "N4": {
+    "executed": 5,
+    "errors": 0,
+    "failures": 0,
+    "skips": 0,
+    "returncode": 0
+  },
+  "N5": {
+    "executed": 2,
+    "errors": 0,
+    "failures": 0,
+    "skips": 0,
+    "returncode": 0
+  },
+  "N6": {
+    "executed": 1,
+    "errors": 0,
+    "failures": 0,
+    "skips": 0,
+    "returncode": 0
+  },
+  "N7": {
+    "executed": 2,
+    "errors": 0,
+    "failures": 0,
+    "skips": 0,
+    "returncode": 0
+  },
+  "N8": {
+    "executed": 6,
+    "errors": 0,
+    "failures": 0,
+    "skips": 0,
+    "returncode": 0
+  },
+  "observed_utc": "2026-10-18T08:01:18.766590+00:00",
+  "source_equal": true,
+  "tools_equal": true,
+  "client_equal": true,
+  "receipt_hash_join_verified": true,
+  "runner_returncode": 0,
+  "fresh": {
+    "actual_prefix_sha256": "7bcd567aa3b2a67f1db5a091f0229d496313bc2a259c92fb6c324f228ccbaa47",
+    "actual_semantic_hash": "72ca393739e6872cf45bf05a27cb3b93d83b68dacaa297161bc2f74f9f681fdc",
+    "difference_context": null,
+    "event_count": 536,
+    "expected_prefix_sha256": "7bcd567aa3b2a67f1db5a091f0229d496313bc2a259c92fb6c324f228ccbaa47",
+    "expected_semantic_hash": "72ca393739e6872cf45bf05a27cb3b93d83b68dacaa297161bc2f74f9f681fdc",
+    "first_difference": null,
+    "fresh_process_identities": {
+      "peripheral": {
+        "artifact_digest": "53dc55cb1d0493ccb241130370076685489c1ff5d5d38d3e2fbba24210733654",
+        "component": "peripheral",
+        "execution_nonce": "daad637ebb5d479fb28f463539466443",
+        "pid": 4034503,
+        "role": "bound_target"
+      },
+      "processor": {
+        "artifact_digest": "1531ddcd58fe1536faf6f9e13df8f6b70ee10627b8dd8fe376bb71a5c9aba400",
+        "component": "processor",
+        "execution_nonce": "d286a9c8d44f4893ab84e63085a1c746",
+        "pid": 4035411,
+        "role": "cpu"
+      }
+    },
+    "matches": true,
+    "not_a_substitute_for": "a full fresh replay of the saved compiled prefix is not a new search and confirms nothing the session did not already record",
+    "original_process_identities": {
+      "peripheral": {
+        "artifact_digest": "53dc55cb1d0493ccb241130370076685489c1ff5d5d38d3e2fbba24210733654",
+        "component": "peripheral",
+        "execution_nonce": "8ddadd99054f4b0fa3e524121078bdc9",
+        "pid": 3894782,
+        "role": "bound_target"
+      },
+      "processor": {
+        "artifact_digest": "1531ddcd58fe1536faf6f9e13df8f6b70ee10627b8dd8fe376bb71a5c9aba400",
+        "component": "processor",
+        "execution_nonce": "8d1b75e0722e482ea7374145d562597d",
+        "pid": 3895649,
+        "role": "cpu"
+      }
+    },
+    "record_count": 2,
+    "replay_entry": "myfuzz.integration.compiled_rfuzz:run_compiled_f4_rfuzz_session",
+    "replayed_from": {
+      "compiled_prefix": "compiled_f4_prefix.json",
+      "session": "/root/fanzehui/myfuzz/operations/p7-i5-independent-601964f-20261018-attempt2/run-attempt2/real-run/session"
+    },
+    "schema_version": "fresh_verification.v1",
+    "semantic_sha256": "72ca393739e6872cf45bf05a27cb3b93d83b68dacaa297161bc2f74f9f681fdc",
+    "verification_scope": "full",
+    "verification_scope_basis": "full_fresh_prefix_real_RTL_and_live_register_prerequisites"
+  },
+  "fresh_process_audit": {
+    "closed": true,
+    "exits": {
+      "peripheral": {
+        "reaped": true,
+        "returncode": 0
+      },
+      "processor": {
+        "reaped": true,
+        "returncode": 0
+      }
+    },
+    "identities": {
+      "peripheral": {
+        "artifact_digest": "53dc55cb1d0493ccb241130370076685489c1ff5d5d38d3e2fbba24210733654",
+        "component": "peripheral",
+        "execution_nonce": "daad637ebb5d479fb28f463539466443",
+        "pid": 4034503,
+        "role": "bound_target"
+      },
+      "processor": {
+        "artifact_digest": "1531ddcd58fe1536faf6f9e13df8f6b70ee10627b8dd8fe376bb71a5c9aba400",
+        "component": "processor",
+        "execution_nonce": "d286a9c8d44f4893ab84e63085a1c746",
+        "pid": 4035411,
+        "role": "cpu"
+      }
+    },
+    "schema_version": "compiled_F4_execution_audit.v1"
+  },
+  "process_observation": {
+    "command": "ps -p 3340261,3346197,3783383,3894782,3895649,4034503,4035411 and ps filtered operation path",
+    "stdout": "",
+    "returncode": 1,
+    "interpretation": "No listed PID or operation-path process observed; no new workload started."
+  },
+  "formal_p7_complete": false,
+  "overall_P6_P7_P8": "OPEN"
+}
