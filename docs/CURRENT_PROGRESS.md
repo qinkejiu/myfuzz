@@ -6,7 +6,7 @@
 - 正向同CPU/GPIO进程连续CPU/IP/CPU三例，A/B→RAM/GPIO为62/0→62、62/167→153、62/167→153。原/fresh各3247事件，47次实际native PRE valid&&ready完成（30 instruction、17 data）；受控原/fresh各1393事件、21完成（14＋7），真实target62仅交付为63，三处关系不符被检出。
 - 独立标准库审计actual exit0：逐raw重建全部事务及response T→native completion PRE T+1，完整前缀仅规范化声明的真实nonce，保留原始raw；工具和复制闭包也独立复算。首轮规划拒绝仍保留，不重标为通过。
 - 关闭的是有界真实native传输观察及完整warm fresh；未授来源四字节认证、退休/IRQ、独立APB相位、四反馈、持续RFuzz、cold-cache门或P6整行。P6/P7/P8仍OPEN。
-- P8标量归因的[现有元数据盘点](reports/p8-existing-remote-metadata-inventory-20261018.md)未找到可直接使用的non-promisor store；[独立snapshot物化设计](reports/p8-source-metadata-materialization-design-20261018.md)已写，ZipCPU 第二轮离线物化已实际退出0（父4100959、1198个Git子进程均0），原始218,999,928字节证据已只读采集，独立对象闭包审计进行中；首轮符号链接拒绝保留。OpenTitan物化、完整P8项目冻结及标量测量尚未执行，不能据此授予性能或DMA验收。
+- P8标量归因的[现有元数据盘点](reports/p8-existing-remote-metadata-inventory-20261018.md)未找到可直接使用的non-promisor store；[独立snapshot物化设计](reports/p8-source-metadata-materialization-design-20261018.md)已写，ZipCPU 第二轮离线物化已实际退出0（父4100959、1198个Git子进程均0），原始218,999,928字节证据已只读采集，独立审计首跑因归档对象存储文件集合不完整而退出1，失败保留并定位缺项；首轮符号链接拒绝保留。OpenTitan批量物化父257434实际exit1（124个Git子命令均0），拒绝working-tree-not-full-snapshot，正在独立核对路径差集；完整P8项目冻结及标量测量尚未执行，不能据此授予性能或DMA验收。
 
 ## 2026-10-18 native 新观测首轮实际拒绝与修复
 
