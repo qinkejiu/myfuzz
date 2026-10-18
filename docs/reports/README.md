@@ -1,3 +1,7 @@
+[P8 四输入转换与输出独立审计](p8-four-input-adapters-independent-20261018.md)：补齐ZipCPU补采关联，实际生成四份资格映射；完整远端项目计划/复制及性能尚未执行。
+
+[Native 来源绑定首次部署失败](native-source-binding-deployment-attempt1-failure-20261018.md)：归档缺顶层目录，复制前拒绝；失败原件保留。
+
 [远端 root 输入独立审计](p8-root-remote-input-independent-20261018.md)：固定 HEAD `269717b`，10347文件/524目录；实际传输和解包链通过，仅授 root 输入准备。四输入合并仍待 ZipCPU 补采链转换修复和复核。
 
 [Native 来源绑定 opt-in 源码增量](native-source-binding-optin-source-20261018.md)与[下一运行门输入](native-source-binding-next-gate-inputs-20261018.md)：源码复核通过，70路径新运行门准备中，尚未实测；不授来源到 CPU 完成认证。
