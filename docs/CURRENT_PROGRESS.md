@@ -5,7 +5,9 @@
 - `34f01e3` 修复 CPU 完成握手前的 pending/排空、reset 取消、abort 终止及 close 清理；[独立源码复核](reports/native-bus-observer-independent-source-review-20261018.md)关闭原 Important。
 - `db83d60` [显式观测开关](reports/native-online-completion-optin-20261018.md)接通 CPU 的 V2 PRE/POST 被动抽头，默认保持旧路径。`1f0f6d4` 将实际 native 模块加入 HARNESS v2 显式源码身份。
 - `cb28a70` [执行器提交解码器失败收尾](reports/native-executor-commit-failure-source-20261018.md)：实际提交之后的 commit 异常或拒绝会终止 guarded session，防止直接重提；源码复核未发现新增 Important。
-- 本组仅源码/静态检查，未运行新测试或模型；旧冻结实际门不能验证新源码。guarded fresh 重建、真实 nonce 的窄类型比较、四字节来源精确连接、新冻结实际门及四类反馈仍开放；P6/P7/P8 保持 OPEN。
+- `29048b3`＋`ae13270` 已实现 [guarded fresh 构造与异常清理](reports/native-guarded-fresh-cleanup-20261018.md)，独立源码复核关闭清理缺口。`b7c8087`＋`16e9b12` [窄类型身份比较](reports/native-replay-identity-source-20261018.md)保留原始 nonce，先重算两侧 raw hash，再比较完整规范化副本；HARNESS v2 显式69路径。
+- `9b04f8d` [实际门 CLI 开关](reports/native-completion-gate-cli-source-20261018.md)使正向、controlled 与 factory fresh 一致选择观测模式。
+- 本组仅源码/静态检查，未运行新测试或模型；旧冻结实际门不能验证新源码。raw 观测独立指标/负例、packet 持久文档与 max_cases 绑定、失败序列化、四字节来源精确连接、新冻结实际门及四类反馈仍开放；P6/P7/P8 保持 OPEN。
 
 ## 2026-10-18 P7 I5 第二轮独立终态（最新）
 

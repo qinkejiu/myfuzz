@@ -1,5 +1,15 @@
 # Native completion next directed real gate (2026-10-18)
 
+## 后续源码推进（尚未实际开跑）
+
+本文初始 NOT READY 清单之后，CLI `9b04f8d`、guarded fresh
+`29048b3`/`ae13270` 及 typed nonce full-comparison `b7c8087`/`16e9b12`
+已完成源码增量。独立源码复核关闭 fresh 清理 Important，未发现新重要项。
+对应显式 HARNESS v2 闭包现为69路径，须包含 native_replay_identity.py。
+下文68及未接线描述是设计冻结时状态。仍需独立 raw 指标与负例、新源码冻结、
+工具/目录闭包审查及新实际门；没有原/fresh pass 可继承，不得据源码宣布 READY。
+
+
 Status: read-only source design; **NOT READY TO LAUNCH**. No tests, project imports, frontend, build, model, tool query or remote command ran for this report. P6/P7/P8 remain OPEN. The old bounded directed evidence validates its own frozen source only; it cannot validate the new opt-in, observer, guarded session or host identity.
 
 Source basis: [persistent-search plan](../superpowers/plans/2026-10-18-p6-native-persistent-search.md), [observer source](native-bus-completion-observer-source-20261018.md), [opt-in](native-online-completion-optin-20261018.md), [68-path host identity](native-host-identity-20261018.md), and current `scripts/verify_picorv32_native_online.py`, `scenario/native_cpu_events.py`, `scenario/native_packet_session.py`, `scenario/session_runtime.py`, and both native-online assembly modules. This is a future bounded directed observation gate, not RFuzz/four-feedback acceptance.

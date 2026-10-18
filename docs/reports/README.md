@@ -2,6 +2,8 @@
 
 ## Native 完成观测：最新源码状态
 
+- [guarded fresh 异常清理](native-guarded-fresh-cleanup-20261018.md)、[真实 nonce 完整比较接线](native-replay-identity-source-20261018.md)与[门禁 CLI 观测开关](native-completion-gate-cli-source-20261018.md)：均仅源码，未新实测。
+
 - [显式 V2 观测开关](native-online-completion-optin-20261018.md)：源码接通，未实测。
 - [生命周期修复及独立复核](native-bus-observer-independent-source-review-20261018.md)：原 Important 在源码层面关闭。
 - [实际提交后 decoder commit 失败收尾](native-executor-commit-failure-source-20261018.md)：guarded session 终止，不授反馈或新的运行通过。
