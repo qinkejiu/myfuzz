@@ -1,9 +1,17 @@
 # 当前工作进度与证据入口
 
+## 2026-10-18 P8 三组件源码准备独立审计通过
+
+- [ZipCPU](reports/p8-zipcpu-metadata-attempt2-independent-20261018.md)：394对象、368路径、2链接，1198个Git子命令均0；首次采集漏`.rev`的审计失败保留，补采精确绑定原映射后audit2通过。
+- [OpenTitan](reports/p8-opentitan-metadata-attempt2-independent-20261018.md)：第二轮父463069 exit0、485个Git子命令均0；14732对象/13870路径，新副本重建原缺65项并独立逐字节关联，saved audit exit0。首轮完整工作树拒绝保留。
+- [Ibex](reports/p8-ibex-metadata-attempt1-independent-20261018.md)：父650898 exit0、155个Git子命令均0；4040对象/3693路径，新副本重建原缺59项并独立逐字节关联，saved audit exit0。两个原工作树均未修写。
+- `583436c` 完整项目typed复制工具已独立源码复核，尚未实际复制；三组件准备不等于完整项目/tool冻结或运行。当前正在冻结root源码输入，DMA标量测量、普通/失败fresh及5×目标仍OPEN。
+
 ## 2026-10-18 native 来源连接第一步（源码增量）
 
 - `9e0666f` [实际指令接受凭据](reports/native-instruction-acceptance-source-increment-20261018.md)：保留多word真实写入，返回全部byte/version/writer及memory身份；closure-issued身份验证、reset撤销，拒绝替换原方法与override重放旧凭据。两项独立源码审查问题已修复并复核。
-- 未运行测试/导入/模型；尚未绑定SourceAdmission、native完成、case/path或反馈。下方真实门绑定旧冻结`68f81b6`，不验证这次新源码；来源认证和P6/P7/P8仍OPEN。
+- `44ce100` [closed typed binding seam](reports/native-source-binding-closed-seam-source-20261018.md)及成功service result传播已独立源码复核，未安装执行hook/optin，不能mint live binding。
+- 未运行测试/导入/模型；尚未实际绑定SourceAdmission、native完成、case/path或反馈。下方真实门绑定旧冻结`68f81b6`，不验证这次新源码；来源认证和P6/P7/P8仍OPEN。
 
 ## 2026-10-18 native 实际完成握手门及独立审计通过
 
@@ -11,7 +19,6 @@
 - 正向同CPU/GPIO进程连续CPU/IP/CPU三例，A/B→RAM/GPIO为62/0→62、62/167→153、62/167→153。原/fresh各3247事件，47次实际native PRE valid&&ready完成（30 instruction、17 data）；受控原/fresh各1393事件、21完成（14＋7），真实target62仅交付为63，三处关系不符被检出。
 - 独立标准库审计actual exit0：逐raw重建全部事务及response T→native completion PRE T+1，完整前缀仅规范化声明的真实nonce，保留原始raw；工具和复制闭包也独立复算。首轮规划拒绝仍保留，不重标为通过。
 - 关闭的是有界真实native传输观察及完整warm fresh；未授来源四字节认证、退休/IRQ、独立APB相位、四反馈、持续RFuzz、cold-cache门或P6整行。P6/P7/P8仍OPEN。
-- P8标量归因准备：[ZipCPU第二轮独立审计](reports/p8-zipcpu-metadata-attempt2-independent-20261018.md)实际audit2 exit0：394对象、368路径、2个保留符号链接，1198个Git子命令均0，源前后完整映射一致。首次审计因采集漏收两份`.rev`而exit1；失败保留，补采逐hash绑定原映射后在新目录用同审计器通过。只授ZipCPU组件元数据准备，不授完整P8项目或运行。OpenTitan父257434实际exit1（124个Git子命令均0），[独立诊断](reports/p8-opentitan-metadata-attempt1-diagnosis-20261018.md)确认官方13870路径中实际缺65、extra0、共同文件内容一致；原source未改，新目录第二轮父463069已实际exit0（09:18:34–09:23:25 UTC，控制`fc5faa4`），新副本重建65项，独立审计待执行。Ibex父650898也实际exit0（155个Git子命令均0），新副本重建59项；原工作树未修写，独立审计待执行。标量测量与5×仍OPEN。
 
 ## 2026-10-18 native 新观测首轮实际拒绝与修复
 
