@@ -1,3 +1,5 @@
+[Native真实指令接受凭据源码增量](native-instruction-acceptance-source-increment-20261018.md)（`9e0666f`）：已独立源码复核，未实测，尚不授来源或完成权限。
+
 ## P8 源码准备最新进度
 
 - [ZipCPU 第二轮独立审计](p8-zipcpu-metadata-attempt2-independent-20261018.md)：actual audit2 exit0；首轮采集遗漏及失败保留，只授组件准备。
