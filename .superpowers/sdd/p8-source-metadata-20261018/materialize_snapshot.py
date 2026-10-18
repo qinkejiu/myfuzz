@@ -4,6 +4,7 @@ import fcntl
 import hashlib
 import json
 import os
+import posixpath
 from pathlib import Path
 import shutil
 import stat
@@ -36,21 +37,38 @@ def safe(path):
     return path
 
 
-def maps(root):
+def maps(root, *, working_tree=False):
     safe(root)
     files, dirs = {}, {}
     require(root.is_dir(), 'missing-source-directory')
     for parent, children, names in os.walk(root, followlinks=False):
-        for name in children:
+        for name in list(children):
             path = Path(parent) / name
             info = path.lstat()
+            relative = path.relative_to(root).as_posix()
+            if (stat.S_ISLNK(info.st_mode) and working_tree
+                    and relative != '.git' and not relative.startswith('.git/')):
+                children.remove(name)
+                raw = os.fsencode(os.readlink(path))
+                files[relative] = dict(kind='symlink', bytes=len(raw),
+                    mode=stat.S_IMODE(info.st_mode), linkbytes_hex=raw.hex(),
+                    sha256=hashlib.sha256(raw).hexdigest())
+                continue
             require(stat.S_ISDIR(info.st_mode), 'directory-not-regular:' + str(path))
             dirs[path.relative_to(root).as_posix()] = {'mode': stat.S_IMODE(info.st_mode)}
         for name in names:
             path = Path(parent) / name
             info = path.lstat()
+            relative = path.relative_to(root).as_posix()
+            if (stat.S_ISLNK(info.st_mode) and working_tree
+                    and relative != '.git' and not relative.startswith('.git/')):
+                raw = os.fsencode(os.readlink(path))
+                files[relative] = dict(kind='symlink', bytes=len(raw),
+                    mode=stat.S_IMODE(info.st_mode), linkbytes_hex=raw.hex(),
+                    sha256=hashlib.sha256(raw).hexdigest())
+                continue
             require(stat.S_ISREG(info.st_mode), 'file-not-regular:' + str(path))
-            files[path.relative_to(root).as_posix()] = dict(bytes=info.st_size,
+            files[path.relative_to(root).as_posix()] = dict(kind='regular', bytes=info.st_size,
                 mode=stat.S_IMODE(info.st_mode), sha256=sha(path))
     return files, dirs
 
@@ -224,7 +242,7 @@ def main():
         with LOCK.open('a+b') as lock:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             try:
-                before = maps(source)
+                before = maps(source, working_tree=True)
                 op.write('source-before-files.json', before[0])
                 op.write('source-before-directories.json', before[1])
                 quarantine = output / 'quarantine.git'
@@ -247,8 +265,18 @@ def main():
                 working = {name: row for name, row in before[0].items() if not name.startswith('.git/')}
                 require(set(working) == set(paths), 'working-tree-not-full-snapshot')
                 for name, pin in paths.items():
-                    require(pin['mode'] != '120000' and working[name]['bytes'] == pin['bytes']
+                    require(working[name]['kind'] == ('symlink' if pin['mode'] == '120000' else 'regular')
+                            and working[name]['bytes'] == pin['bytes']
                             and working[name]['sha256'] == pin['sha256'], 'working-tree-blob-mismatch:' + name)
+                    if pin['mode'] == '120000':
+                        raw = bytes.fromhex(working[name]['linkbytes_hex'])
+                        target = os.fsdecode(raw)
+                        normalized = posixpath.normpath(posixpath.join(posixpath.dirname(name), target))
+                        require(target and not target.startswith('/') and normalized != '..'
+                                and not normalized.startswith('../') and '\x00' not in target,
+                                'symlink-target-outside-component:' + name)
+                        _, blob = batch(op, quarantine, pin['oid'], 'blob')
+                        require(blob == raw, 'symlink-blob-bytes:' + name)
                 oids = ''.join(oid + '\n' for oid in sorted(objects)).encode()
                 pack = op.gitdir(quarantine, ['pack-objects', '--stdout', '--no-reuse-delta',
                                              '--no-reuse-object'], data=oids)
@@ -285,6 +313,9 @@ def main():
                 for name, pin in paths.items():
                     target = stage / name
                     target.parent.mkdir(parents=True, exist_ok=True)
+                    if pin['mode'] == '120000':
+                        os.symlink(os.fsdecode(bytes.fromhex(working[name]['linkbytes_hex'])), target)
+                        continue
                     with (source / name).open('rb') as src, target.open('xb') as dst:
                         shutil.copyfileobj(src, dst)
                     target.chmod(int(pin['mode'][-3:], 8))
@@ -298,9 +329,11 @@ def main():
                     op.child(['-C', stage, 'ls-files', '--error-unmatch', '--', *names[offset:offset + 128]])
                 for name, pin in paths.items():
                     blob = op.child(['-C', stage, 'cat-file', 'blob', revision + ':' + name])
-                    require(sha(blob) == pin['sha256'] == sha(stage / name), 'stage-git-blob:' + name)
+                    actual = (hashlib.sha256(os.fsencode(os.readlink(stage / name))).hexdigest()
+                              if pin['mode'] == '120000' else sha(stage / name))
+                    require(sha(blob) == pin['sha256'] == actual, 'stage-git-blob:' + name)
                 op.gitdir(stage / '.git', ['fsck', '--full', '--strict', '--no-reflogs'])
-                final = maps(stage)
+                final = maps(stage, working_tree=True)
                 op.write('stage-files.json', final[0])
                 op.write('stage-directories.json', final[1])
                 parent['status'] = 'prepared_pending_independent_audit_no_runtime_grant'
@@ -309,7 +342,7 @@ def main():
                 raise
             finally:
                 try:
-                    after = maps(source)
+                    after = maps(source, working_tree=True)
                     op.write('source-after-files.json', after[0])
                     op.write('source-after-directories.json', after[1])
                     require(before is not None and before == after, 'original-source-drift')
