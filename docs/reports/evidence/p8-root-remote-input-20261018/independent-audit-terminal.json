@@ -1,0 +1,19 @@
+{
+  "started_unix": 1792317706.7052937,
+  "argv": [
+    "/usr/bin/python3",
+    "-B",
+    "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/transport-drafts/audit_remote_root_saved.py",
+    "--archive",
+    "/home/qinkejiu/myfuzz/docs/reports/evidence/p8-root-remote-input-20261018/actual-remote.tar",
+    "--archive-sha256",
+    "40341bc81f8de8afc0787185d2dde2317b0660762c4e0cdb4a958f4872915ff8"
+  ],
+  "source_sha256": "31f07ab84385afa191fd88796d488fbdf3520e55c82abf4000b42a72fdd5911b",
+  "returncode": 0,
+  "pid": 50461,
+  "ended_unix": 1792317706.8717976,
+  "error": null,
+  "stdout_sha256": "088cefdeb6d23b7be4a566d854e42eaae21309ab0b4f598e3c83d121ad02b9ca",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

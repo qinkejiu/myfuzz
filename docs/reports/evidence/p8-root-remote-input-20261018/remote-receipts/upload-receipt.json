@@ -1,0 +1,28 @@
+{
+  "ended_unix": 1792317001.2527232,
+  "pid": 1565099,
+  "pins": {
+    "control-inputs.json": {
+      "bytes": 5395,
+      "mode": 420,
+      "sha256": "646948b9fc633fbdc192627c85a3a10f3edd7c8085e8b747110f332307c1c504"
+    },
+    "extract_remote_root_input.py": {
+      "bytes": 7760,
+      "mode": 420,
+      "sha256": "a91faf9603cb639f16413fed30dd9b2d69d2a4814c9adf0c730614dd7f63b343"
+    },
+    "root-input.tar.gz": {
+      "bytes": 413926054,
+      "mode": 420,
+      "sha256": "01e2d7740d8606ff67beec557d3e56e0fb771db0117826b291f02b96275bb321"
+    },
+    "transfer-manifest.json": {
+      "bytes": 4132852,
+      "mode": 420,
+      "sha256": "2e749cb696b5ac001176a453de2471f3d3d5f22d4949f16caee1e40c57530c05"
+    }
+  },
+  "started_unix": 1792316964.6631572,
+  "status": "uploaded_four_inputs_pending_separate_extract_launch"
+}

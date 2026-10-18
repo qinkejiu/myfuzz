@@ -1,0 +1,20 @@
+{
+  "archive": "/home/qinkejiu/myfuzz/docs/reports/evidence/p8-root-remote-input-20261018/actual-remote.tar",
+  "archive_bytes": 16445440,
+  "archive_sha256": "40341bc81f8de8afc0787185d2dde2317b0660762c4e0cdb4a958f4872915ff8",
+  "auditor_or_Git_or_models_executed": false,
+  "directory_modes_preserved": true,
+  "ended_at": "2026-10-18T10:01:46.659660+00:00",
+  "explicit_copy_without_extractall": true,
+  "fsync_policy": "final_receipt_only_no_per_file_crash_durability_claim",
+  "links_hardlinks_specials_refused": true,
+  "member_index": "/home/qinkejiu/myfuzz/docs/reports/evidence/p8-root-remote-input-20261018/safe-extract-member-index.json",
+  "member_index_sha256": "1f88185a53893d533a04ff899ace3de761b9cce8286459e4ad23ac614f28acb8",
+  "original_archive_unchanged": true,
+  "original_members": 33,
+  "regular_bytes": 16409719,
+  "regular_files": 33,
+  "schema_version": "p8_safe_complete_metadata_extract.v1",
+  "started_at": "2026-10-18T10:01:46.561943+00:00",
+  "target": "/home/qinkejiu/myfuzz/.superpowers/sdd/p8-source-metadata-20261018/offline-remote-root-attempt1"
+}

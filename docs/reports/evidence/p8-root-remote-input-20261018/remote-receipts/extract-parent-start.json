@@ -1,0 +1,47 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-B",
+    "/root/fanzehui/myfuzz/operations/p8-root-input-transfer-20261018-attempt1/extract_remote_root_input.py",
+    "--archive",
+    "/root/fanzehui/myfuzz/operations/p8-root-input-transfer-20261018-attempt1/root-input.tar.gz",
+    "--archive-sha256",
+    "01e2d7740d8606ff67beec557d3e56e0fb771db0117826b291f02b96275bb321",
+    "--archive-bytes",
+    "413926054",
+    "--manifest",
+    "/root/fanzehui/myfuzz/operations/p8-root-input-transfer-20261018-attempt1/transfer-manifest.json",
+    "--manifest-sha256",
+    "2e749cb696b5ac001176a453de2471f3d3d5f22d4949f16caee1e40c57530c05"
+  ],
+  "child_pid": 1673512,
+  "cwd": "/root/fanzehui/myfuzz/operations/p8-root-input-transfer-20261018-attempt1",
+  "local_step1_postcheck_sha256": "725255f43a97c3c97e9e1a82e745164886f50e0e1329dde1ae19b1aac9b25e9f",
+  "local_step1_terminal_sha256": "20a811f7ccc6ee92126bed67bba7f123ce388bc6edb5f88891e2da9ecd31b9e7",
+  "pid": 1672031,
+  "pins": {
+    "control-inputs.json": {
+      "bytes": 5395,
+      "mode": 420,
+      "sha256": "646948b9fc633fbdc192627c85a3a10f3edd7c8085e8b747110f332307c1c504"
+    },
+    "extract_remote_root_input.py": {
+      "bytes": 7760,
+      "mode": 420,
+      "sha256": "a91faf9603cb639f16413fed30dd9b2d69d2a4814c9adf0c730614dd7f63b343"
+    },
+    "root-input.tar.gz": {
+      "bytes": 413926054,
+      "mode": 420,
+      "sha256": "01e2d7740d8606ff67beec557d3e56e0fb771db0117826b291f02b96275bb321"
+    },
+    "transfer-manifest.json": {
+      "bytes": 4132852,
+      "mode": 420,
+      "sha256": "2e749cb696b5ac001176a453de2471f3d3d5f22d4949f16caee1e40c57530c05"
+    }
+  },
+  "returncode": null,
+  "schema_version": "p8_root_extract_parent.v1",
+  "started_unix": 1792317130.3542142
+}

@@ -1,0 +1,23 @@
+{
+  "started_unix": 1792317706.5360508,
+  "argv": [
+    "/usr/bin/python3",
+    "-B",
+    "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/transport-drafts/extract_remote_root_saved.py",
+    "--archive",
+    "/home/qinkejiu/myfuzz/docs/reports/evidence/p8-root-remote-input-20261018/actual-remote.tar",
+    "--archive-sha256",
+    "40341bc81f8de8afc0787185d2dde2317b0660762c4e0cdb4a958f4872915ff8",
+    "--archive-bytes",
+    "16445440",
+    "--target",
+    "/home/qinkejiu/myfuzz/.superpowers/sdd/p8-source-metadata-20261018/offline-remote-root-attempt1",
+    "--receipt",
+    "/home/qinkejiu/myfuzz/docs/reports/evidence/p8-root-remote-input-20261018/safe-extract-receipt.json",
+    "--member-index",
+    "/home/qinkejiu/myfuzz/docs/reports/evidence/p8-root-remote-input-20261018/safe-extract-member-index.json"
+  ],
+  "source_sha256": "4c0af797ad53fed8a9a752c40ce766abf45b47f96e95e96ab535665bee23e849",
+  "returncode": null,
+  "pid": 50460
+}

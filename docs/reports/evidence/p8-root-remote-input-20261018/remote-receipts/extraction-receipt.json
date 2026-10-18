@@ -1,0 +1,19 @@
+{
+  "archive_bytes": 413926054,
+  "archive_sha256": "01e2d7740d8606ff67beec557d3e56e0fb771db0117826b291f02b96275bb321",
+  "destination": "/root/fanzehui/myfuzz/operations/p8-root-input-20261018-attempt1",
+  "directories": 526,
+  "ended_unix": 1792317153.1018867,
+  "files": 10367,
+  "git_or_model_execution": false,
+  "manifest_sha256": "2e749cb696b5ac001176a453de2471f3d3d5f22d4949f16caee1e40c57530c05",
+  "maps_equal": true,
+  "pid": 1673512,
+  "returncode": 0,
+  "root_directories": 524,
+  "root_files": 10347,
+  "schema_version": "p8_root_remote_extraction.v1",
+  "source_prepared": true,
+  "started_unix": 1792317132.7085102,
+  "status": "copied_pending_independent_remote_audit"
+}

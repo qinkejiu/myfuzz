@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-B",
+    "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/transport-drafts/upload_root_inputs.py",
+    "--package-receipt-sha256",
+    "ba4f1707169c52baf10a192748d02d23e1daa8a3e8fcdc8103c042ed1c7b4c78",
+    "--manifest-sha256",
+    "2e749cb696b5ac001176a453de2471f3d3d5f22d4949f16caee1e40c57530c05",
+    "--control-inputs-sha256",
+    "646948b9fc633fbdc192627c85a3a10f3edd7c8085e8b747110f332307c1c504"
+  ],
+  "script_sha256": "5d680a265985445f64ecc4e8ae1adc1bb6d3546025855007667c56880b7b832a",
+  "common_sha256": "2b2d1a97b5bf11936b0a28494e13a6f0231cff18384647a2b48081628d20e4ac",
+  "archive_sha256": "01e2d7740d8606ff67beec557d3e56e0fb771db0117826b291f02b96275bb321",
+  "root_read_archive_audit_status": "independent_saved_archive_verified"
+}

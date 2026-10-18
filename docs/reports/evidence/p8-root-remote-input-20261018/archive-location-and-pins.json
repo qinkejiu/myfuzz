@@ -1,0 +1,17 @@
+{
+  "/home/qinkejiu/myfuzz/docs/reports/evidence/p8-root-remote-input-20261018/actual-remote.tar": {
+    "bytes": 16445440,
+    "sha256": "40341bc81f8de8afc0787185d2dde2317b0660762c4e0cdb4a958f4872915ff8",
+    "git_payload_included": false
+  },
+  "/home/qinkejiu/myfuzz/.superpowers/sdd/p8-source-metadata-20261018/offline-remote-root-attempt1/observed.json": {
+    "bytes": 4352114,
+    "sha256": "d785b8b66db17ee2c178a2713e113ed1b626a192a0e9ca7117763c5bfc7704fe",
+    "git_payload_included": false
+  },
+  "/home/qinkejiu/myfuzz/.superpowers/sdd/p8-source-metadata-20261018/offline-remote-root-attempt1/member-index.json": {
+    "bytes": 4627,
+    "sha256": "4776d69848b36ff3e2dbd59cb367e8ffa418d315ff53823dfe4e6653c04c484e",
+    "git_payload_included": false
+  }
+}
