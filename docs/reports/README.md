@@ -1,6 +1,7 @@
 ## P8 源码准备最新进度
 
 - [ZipCPU 第二轮独立审计](p8-zipcpu-metadata-attempt2-independent-20261018.md)：actual audit2 exit0；首轮采集遗漏及失败保留，只授组件准备。
+- [OpenTitan 首轮失败诊断](p8-opentitan-metadata-attempt1-diagnosis-20261018.md)：实际缺65个官方路径；124个Git读取成功不代表工作树完整。
 - [完整项目冻结设计](p8-full-project-freeze-design-20261018.md)：尚未实施；OpenTitan完整工作树检查拒绝、Ibex独立store仍待准备。标量性能与5×目标仍开放。
 
 2026-10-18 最新：[P7 I5 attempt2 独立终态审计](P7_I5_ATTEMPT2_INDEPENDENT_AUDIT_20261018.md)（`c3d65db`）。N1–N8 共20项负例实际执行全部通过（2/1/1/5/2/1/2/6，零失败/错误/跳过）；CVE2＋PULP timer 真实 RFuzz 2 certified，536 events/2 records 的完整 fresh 匹配，receipt SHA join通过。父控制器exit0，source/tool/client及文件/目录冻结前后一致。fresh DUT明确reaped/exit0；原始DUT已无进程，但独立exit rc回执仍缺。P6/P7/P8整体保持OPEN。

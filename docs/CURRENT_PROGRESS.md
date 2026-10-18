@@ -6,7 +6,7 @@
 - 正向同CPU/GPIO进程连续CPU/IP/CPU三例，A/B→RAM/GPIO为62/0→62、62/167→153、62/167→153。原/fresh各3247事件，47次实际native PRE valid&&ready完成（30 instruction、17 data）；受控原/fresh各1393事件、21完成（14＋7），真实target62仅交付为63，三处关系不符被检出。
 - 独立标准库审计actual exit0：逐raw重建全部事务及response T→native completion PRE T+1，完整前缀仅规范化声明的真实nonce，保留原始raw；工具和复制闭包也独立复算。首轮规划拒绝仍保留，不重标为通过。
 - 关闭的是有界真实native传输观察及完整warm fresh；未授来源四字节认证、退休/IRQ、独立APB相位、四反馈、持续RFuzz、cold-cache门或P6整行。P6/P7/P8仍OPEN。
-- P8标量归因准备：[ZipCPU第二轮独立审计](reports/p8-zipcpu-metadata-attempt2-independent-20261018.md)实际audit2 exit0：394对象、368路径、2个保留符号链接，1198个Git子命令均0，源前后完整映射一致。首次审计因采集漏收两份`.rev`而exit1；失败保留，补采逐hash绑定原映射后在新目录用同审计器通过。只授ZipCPU组件元数据准备，不授完整P8项目或运行。OpenTitan父257434实际exit1（124个Git子命令均0），完整工作树检查拒绝，正在核对路径差集。标量测量与5×仍OPEN。
+- P8标量归因准备：[ZipCPU第二轮独立审计](reports/p8-zipcpu-metadata-attempt2-independent-20261018.md)实际audit2 exit0：394对象、368路径、2个保留符号链接，1198个Git子命令均0，源前后完整映射一致。首次审计因采集漏收两份`.rev`而exit1；失败保留，补采逐hash绑定原映射后在新目录用同审计器通过。只授ZipCPU组件元数据准备，不授完整P8项目或运行。OpenTitan父257434实际exit1（124个Git子命令均0），[独立诊断](reports/p8-opentitan-metadata-attempt1-diagnosis-20261018.md)确认官方13870路径中实际缺65、extra0、共同文件内容一致；原source未改，正在准备从经验证Git对象构造新完整副本。标量测量与5×仍OPEN。
 
 ## 2026-10-18 native 新观测首轮实际拒绝与修复
 

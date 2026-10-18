@@ -1,4 +1,4 @@
-2026-10-18 P8准备：[ZipCPU组件离线元数据独立审计](reports/p8-zipcpu-metadata-attempt2-independent-20261018.md)audit2实际exit0，394对象/368路径/2链接及1198个实际Git子进程全链核对；首次采集漏`.rev`造成的审计exit1保留，后采明确绑定原映射。仅授该组件准备。OpenTitan父257434实际exit1（124个Git子命令均0），完整工作树检查拒绝，正在核对路径差集；完整P8项目冻结、DMA标量测量和5×仍开放。
+2026-10-18 P8准备：[ZipCPU组件离线元数据独立审计](reports/p8-zipcpu-metadata-attempt2-independent-20261018.md)audit2实际exit0，394对象/368路径/2链接及1198个实际Git子进程全链核对；首次采集漏`.rev`造成的审计exit1保留，后采明确绑定原映射。仅授该组件准备。OpenTitan父257434实际exit1（124个Git子命令均0），[独立诊断](reports/p8-opentitan-metadata-attempt1-diagnosis-20261018.md)确认缺65个官方路径，尚未构造完整新副本；完整P8项目冻结、DMA标量测量和5×仍开放。
 
 2026-10-18 最新native观察：[真实完成握手与独立审计](reports/native-completion-directed-independent-20261018.md)冻结`68f81b6`实际exit0。正向CPU/IP/CPU持续三例，原/fresh各3247事件、47次native PRE valid&&ready完成（30取指标记/17数据）；受控各1393事件、21完成，真实62→交付63传播被检出。8个DUT实际reaped0，完整warm fresh和source/tool/file+dir前后核验通过。仅授真实native bus transfer观察；不授来源认证/退休/IRQ/APB相位/四反馈/RFuzz搜索/冷缓存或P6整行。下方未导出mem_ready的描述限定于旧冻结版本。
 
