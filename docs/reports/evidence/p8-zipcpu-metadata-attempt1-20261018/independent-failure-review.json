@@ -1,0 +1,33 @@
+{
+  "status": "actual_offline_metadata_failure_confirmed",
+  "parent_pid": 3940481,
+  "actual_parent_returncode": 1,
+  "outer_ssh_returncode": 1,
+  "actual_children": 0,
+  "before_full_map_recorded": false,
+  "after_full_map_recorded": false,
+  "whole_freeze_unchanged_proven": false,
+  "source_error": "ValueError('file-not-regular:/root/fanzehui/myfuzz/project/third_party/soc-zipcpu/sim/verilator/zipelf.h')",
+  "source_after_error": "ValueError('file-not-regular:/root/fanzehui/myfuzz/project/third_party/soc-zipcpu/sim/verilator/zipelf.h')",
+  "observed_link_text": "../cpp/zipelf.h",
+  "link_target_followed": false,
+  "specified_parent_gone": true,
+  "git_children_executed": 0,
+  "models_executed": 0,
+  "repository_network_fallback": false,
+  "collection_read_only": true,
+  "controller_sha256": "f8c4f32f58629864133db59eceadf1b66452931b8896c3657e00e637ff45a1fe",
+  "observation": {
+    "collected_at": "2026-10-18T08:59:37.578585+00:00",
+    "git_or_models_or_network_fallback_executed": false,
+    "link_is_symlink": true,
+    "link_lstat_bytes": 15,
+    "link_mode": 511,
+    "link_path": "/root/fanzehui/myfuzz/project/third_party/soc-zipcpu/sim/verilator/zipelf.h",
+    "link_target_followed": false,
+    "link_text": "../cpp/zipelf.h",
+    "parent_pid": 3940481,
+    "parent_proc_present": false,
+    "remote_read_only": true
+  }
+}

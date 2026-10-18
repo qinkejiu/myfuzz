@@ -1,0 +1,50 @@
+[
+  {
+    "path": "control",
+    "kind": "directory",
+    "bytes": 0,
+    "sha256": null
+  },
+  {
+    "path": "control/parent-start.json",
+    "kind": "file",
+    "bytes": 523,
+    "sha256": "abc7a33a4b8c1c8e7e9e0969670aa9b104eabd8ea930f3f92e6885588bb7d33c"
+  },
+  {
+    "path": "control/parent-terminal.json",
+    "kind": "file",
+    "bytes": 849,
+    "sha256": "d9c10d4b326e9054408a9156b62220ba9c65e88129811dc0274f538a95fe7c9c"
+  },
+  {
+    "path": "inputs/materialize_snapshot.py",
+    "kind": "file",
+    "bytes": 16872,
+    "sha256": "f8c4f32f58629864133db59eceadf1b66452931b8896c3657e00e637ff45a1fe"
+  },
+  {
+    "path": "inputs/selected-launch.json",
+    "kind": "file",
+    "bytes": 465,
+    "sha256": "554d89c48b2b77c1fca1b4220b620ff755bd1af0979d83e76824e373e8cd07a2"
+  },
+  {
+    "path": "inputs/parent.stdout",
+    "kind": "file",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "inputs/parent.stderr",
+    "kind": "file",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "readonly-observation.json",
+    "kind": "file",
+    "bytes": 431,
+    "sha256": "929babbd90d2c3ccc57022c9cac65f869f49523efd42a8638b4e7ef95de6757c"
+  }
+]

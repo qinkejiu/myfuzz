@@ -1,0 +1,10 @@
+{
+  "returncode": 0,
+  "started_at": "2026-10-18T08:59:35.701072+00:00",
+  "ended_at": "2026-10-18T08:59:38.031657+00:00",
+  "bytes": 6445,
+  "sha256": "77b4b51c2b5f4bc261129559c70311febdff8a22354ff9304be66cf34ae813ce",
+  "collector_sha256": "31b7a6ace3ea8adb367d6b726e7f1d9711a5c0d9b3cf0a88981d9bd0d8a96fb4",
+  "source_target_followed": false,
+  "remote_read_only": true
+}
