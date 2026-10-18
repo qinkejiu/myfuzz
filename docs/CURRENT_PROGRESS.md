@@ -3,9 +3,9 @@
 ## 2026-10-18 最新：远端 root 输入已审计，后续运行门准备中
 
 - [远端 root 输入独立审计](reports/p8-root-remote-input-independent-20261018.md)已通过：冻结 HEAD `269717b`，10347 文件/524 目录，传输、实际解包、远端双次映射及进程终态证据已关联。此为 root 输入，尚未组装三组件完整项目或运行 DMA 标量测量。
-- [四输入转换与输出独立审计](reports/p8-four-input-adapters-independent-20261018.md)已完成：ZipCPU 补采链绑定修复，实际转换 exit0；root/ZipCPU/OpenTitan/Ibex 分别10347/376/13878/3701文件，2/93条组件链接保留真实Git对象与原始链接字节。仅输入资格，完整远端计划与项目复制尚未执行。
-- `9b5e190` [native 来源绑定 opt-in](reports/native-source-binding-optin-source-20261018.md)已接入实际 service 返回、SourceAdmission 和 host 输入事件，并通过源码复核；HARNESS v2 为70路径。[下一运行门输入](reports/native-source-binding-next-gate-inputs-20261018.md)及12文件覆盖包正在独立审查，尚未部署或实测。
-- [首次部署失败](reports/native-source-binding-deployment-attempt1-failure-20261018.md)已保留：缺顶层 `overlay/` 归档条目，在复制前被严格校验拒绝；新归档补齐目录并独立复核后，第二次纯文件部署/复制正在执行，尚未运行模型。
+- [四输入转换与输出独立审计](reports/p8-four-input-adapters-independent-20261018.md)已完成：ZipCPU 补采链绑定修复，实际转换 exit0；root/ZipCPU/OpenTitan/Ibex 分别10347/376/13878/3701文件，2/93条组件链接保留真实Git对象与原始链接字节。仅输入资格；11份规划输入已实际上传 exit0，完整远端计划正在执行，项目复制及DMA标量测量尚未执行。
+- `9b5e190` [native 来源绑定 opt-in](reports/native-source-binding-optin-source-20261018.md)已接入实际 service 返回、SourceAdmission 和 host 输入事件，并通过源码复核；HARNESS v2 为70路径。[下一运行门输入](reports/native-source-binding-next-gate-inputs-20261018.md)及12文件覆盖包已独立审查；新副本实际复制及独立审计通过，新的真实门正在执行，尚无终态。
+- [首次部署失败](reports/native-source-binding-deployment-attempt1-failure-20261018.md)已保留：缺顶层 `overlay/` 归档条目，在复制前被严格校验拒绝；新归档补齐目录并独立复核后，第二次[实际复制及独立审计](reports/native-source-binding-preparation-independent-20261018.md)通过，8892文件/601目录/70路径；复制父2687677/子2687977 exit0、保存数据审计57995 exit0。新模型门随后启动，仍待终态和独立审计。
 - 新事件仅声明 host 指令输入绑定；来源四字节到 CPU 实际完成握手的认证尚未实现。旧冻结真实门不验证新源码。P6/P7/P8 与 DMA 5×目标仍 OPEN；本次未新增或运行测试。
 
 ## 2026-10-18 P8 三组件源码准备独立审计通过

@@ -1,3 +1,5 @@
+[Native 来源绑定新副本实际复制与独立审计](native-source-binding-preparation-independent-20261018.md)：8892文件/601目录/70路径，复制和保存数据审计 exit0；仅准备，新运行门尚待终态。
+
 [P8 四输入转换与输出独立审计](p8-four-input-adapters-independent-20261018.md)：补齐ZipCPU补采关联，实际生成四份资格映射；完整远端项目计划/复制及性能尚未执行。
 
 [Native 来源绑定首次部署失败](native-source-binding-deployment-attempt1-failure-20261018.md)：归档缺顶层目录，复制前拒绝；失败原件保留。

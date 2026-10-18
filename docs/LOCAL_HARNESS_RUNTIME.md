@@ -1,4 +1,4 @@
-2026-10-18 当前源码准备：[native 来源绑定 opt-in](reports/native-source-binding-optin-source-20261018.md)（`9b5e190`）已通过源码复核，70路径新门准备包为8892文件/601目录；尚未部署或运行。新增事件仅记录 host 指令输入绑定，来源到实际 native 完成的消费认证尚未实现，旧68f81b6实测不验证新源码。[远端 root 输入](reports/p8-root-remote-input-independent-20261018.md)已实际审计通过；P8完整项目组装仍待四输入转换中的ZipCPU补采链修复，DMA标量测量尚未执行，5×仍OPEN。
+2026-10-18 当前源码准备：[native 来源绑定 opt-in](reports/native-source-binding-optin-source-20261018.md)（`9b5e190`）已通过源码复核，70路径新门准备包为8892文件/601目录；实际复制及独立审计已通过（[报告](reports/native-source-binding-preparation-independent-20261018.md)），新的真实门正在执行、尚无终态。新增事件仅记录 host 指令输入绑定，来源到实际 native 完成的消费认证尚未实现，旧68f81b6实测不验证新源码。[远端 root 输入](reports/p8-root-remote-input-independent-20261018.md)已实际审计通过；四输入转换及输出已独立审计，P8完整复制计划正在执行，项目组装与DMA标量测量尚未执行，5×仍OPEN。
 
 2026-10-18 P8准备：ZipCPU、[OpenTitan](reports/p8-opentitan-metadata-attempt2-independent-20261018.md)、[Ibex](reports/p8-ibex-metadata-attempt1-independent-20261018.md)组件独立保存数据审计均实际exit0。后两者在新副本重建原缺65/59项，完整Git对象/路径与实际stage字节核对；原工作树未改。仅授三组件源码准备，完整项目复制/tool冻结、DMA标量测量和5×仍开放。
 
