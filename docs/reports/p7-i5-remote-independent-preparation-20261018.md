@@ -1,6 +1,6 @@
 # P7 I5 独立远程工作集准备终态（2026-10-18）
 
-状态：**首次独立验收已启动，但在Git前置检查失败；N1–N8和原生门均未执行，不授P7完成。工具元数据查询已实际通过，详情见文末最新实际结果。**
+状态：**首轮独立验收Git前置失败已保留；第二轮独立副本已完成文件/目录核验并启动验收控制器，实际负例/client/native子进程结果待采集，不授P7完成。工具元数据查询已实际通过，详情见文末最新实际结果。**
 
 ## 实际远程副本
 
@@ -64,3 +64,11 @@ Ibex提交`34b0705760ef3dfa00e99637432473d2be8f22f3`；GPIO提交`f82caeb7f7d894
 截至本次检查，复制仍运行（SSH session19867，最近观察1,470个 staging 文件），**尚无已审核 v2 selection、最终 project 或 ready 标记**；尚未执行第二次 N1–N8/原生门。控制脚本不会自动从 plan 进入 prepare；root 必须审查实际 manifest 后单独调用 v2 prepare，再核最终文件及目录清单。新验收父进程控制器增加实际 PID/退出和 stdout/stderr SHA 回执、运行前后独立目录核验，但仍未启动。
 
 [第二轮控制输入与活动操作记录](evidence/p7-i5-attempt2-preparation-20261018/operation.json)保存已审查控制脚本、精确目录 recipe 和上传结果。复制耗时不触发重启；继续观察同一进程。此记录不是复制完成或 P7 通过。
+
+## 第二轮准备已实际完成，验收控制器已启动（子进程结果待采集）
+
+新的 `/root/fanzehui/myfuzz/operations/p7-i5-independent-601964f-20261018-attempt2/project`已由显式prepare完成（root会话71779 terminal0），独立layout会话40761及copy-ready会话72755均terminal0。归档final-copy-receipt与实际ready-layout输出一致：15,333文件、1,330目录、798,107,295字节；file freeze `e3d2eaa2937fd665ad816250e976e7745cefe220a71e51a5815a892bd35a13fa`、directory SHA `9e055be358785fdd196c3be6e35dd0e61fb4d986643430cc77c9d766577c750c`，selection为`1227ac39a03200b6646bbc1ca91a24ae748c6c8600cd2cf6675530f82b333e55`。独立离线重算完整映射摘要、总数/字节及原source前后文件/目录相同均通过，不再把file-only检查冒充空目录证明。
+
+client独立复制回执为23,894,296字节、SHA `16434544a4a0712fa7716f6f3e3ff8e0dd949139f6a047780f4d08694ff31dcc`，复制时未执行。root随后启动验收父控制器会话8913，固定脚本SHA `deb9ef0398c317735f921dd4e2acceb6cc220e6d86b3d32c220596fe24015776`。本节归档时尚未采集具名负例、client或原生子进程的实际终态，**不得推断N1已开始或通过**；operation状态为`gate_running_pending_actual_children`，不是验收完成。
+
+[第二轮新增准备归档](evidence/p7-i5-attempt2-preparation-20261018/final-preparation-archive-receipt.json)保存17份稳定remote control文件、final-copy/ready/client回执、selection及源前后maps，明确排除正在变化的gate日志；另存本地prepare/ready stdout/stderr、固定launcher/controller与初次观察。旧control-inputs、stage原包及历史operation均保留。此次只读SSH采集没有改旧/新source或启动工具/测试/模型。本地新增native taps/guard不在远程e3d…freeze内，不能混用源码或继承能力。

@@ -1,0 +1,18 @@
+{
+  "status": "saved_copy_receipts_and_maps_match_reviewed_pins",
+  "files": 15333,
+  "directories": 1330,
+  "bytes": 798107295,
+  "freeze_sha256": "e3d2eaa2937fd665ad816250e976e7745cefe220a71e51a5815a892bd35a13fa",
+  "directory_manifest_sha256": "9e055be358785fdd196c3be6e35dd0e61fb4d986643430cc77c9d766577c750c",
+  "old_source_file_directory_before_after_equal": true,
+  "ready_status": "source_file_directory_copy_verified_only",
+  "client_receipt": {
+    "status": "independent_client_copy_verified_only",
+    "sha256": "16434544a4a0712fa7716f6f3e3ff8e0dd949139f6a047780f4d08694ff31dcc",
+    "bytes": 23894296,
+    "source_unchanged": true,
+    "client_executed": false
+  },
+  "no_project_or_test_execution_by_collector": true
+}

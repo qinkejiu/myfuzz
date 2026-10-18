@@ -1,0 +1,26 @@
+{
+  "final-preparation-independent-summary.json": {
+    "bytes": 733,
+    "sha256": "e39962a1c7e79c9975a1748805165d80f45b386d4a71635074cad3ce1bd98f81"
+  },
+  "local-final-preparation-control.tar.gz": {
+    "bytes": 9443,
+    "sha256": "439fbc0745e3f97e4225b3e20e2bcaff75c748a8f1778d183430979ba72110dd"
+  },
+  "operation-final-copy-running-history.json": {
+    "bytes": 1736,
+    "sha256": "9bd206e7e56c780815f3505f3dcd3d487f03125edb6468362a0048ed4070d284"
+  },
+  "operation.json": {
+    "bytes": 2509,
+    "sha256": "595d1bb3177e3fe07c225932abb44f9e914b2210345ab4eebcf5ffb4a1da40b0"
+  },
+  "remote-final-preparation-control.tar.gz": {
+    "bytes": 4618280,
+    "sha256": "c351d2d9777d80cf13fcbfc835144cd89f9f4c3e7247fc6585762f4874930824"
+  },
+  "remote-final-preparation-members.json": {
+    "bytes": 2698,
+    "sha256": "a402353b2e15faffb99480a9d7335031b672225cb9a898229e973dedb9c8e40f"
+  }
+}
