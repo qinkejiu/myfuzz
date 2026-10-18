@@ -1,0 +1,9 @@
+{
+  "component": "opentitan",
+  "controller_sha256": "ab600cfd5362fdaa2d8036f695731cb0851c3ac779e9fb5cfde444f82da205a0",
+  "models": false,
+  "network_fallback": false,
+  "schema_version": "p8_opentitan_offline_root_launch.v1",
+  "ssh_pid": 38344,
+  "started_at": "2026-10-18T09:12:25.849870+00:00"
+}
