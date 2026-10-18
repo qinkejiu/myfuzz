@@ -1,9 +1,9 @@
 """Guarded fixed native packets; no source, bus-completion or feedback grant.
 
 The session owns packet position and actual pre/post boundary checks. It never
-commits a decoder. Generic executor commit-refusal notification and guarded
-fresh reconstruction require separate integration; this class alone grants
-neither safe RFuzz assembly nor a new native result.
+commits a decoder. The executor notifies this guarded session when a post-submit decoder commit
+fails. Guarded fresh reconstruction still requires separate integration; this
+class alone grants neither safe RFuzz assembly nor a new native result.
 """
 from __future__ import annotations
 

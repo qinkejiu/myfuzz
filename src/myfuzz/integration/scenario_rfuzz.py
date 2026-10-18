@@ -2253,14 +2253,22 @@ class ScenarioRfuzzExecutor:
                     # The session does not own this gate, so feed the admitted
                     # case's real events here: later cases may consume them.
                     self.source_action_gate.observe(result)
-                committed = self.online_decoder.commit_candidate(case)
-                if committed.disposition != "admitted":
-                    # The case already reached the session, so a refused commit
-                    # cannot claim a clean candidate rejection.
+                try:
+                    committed = self.online_decoder.commit_candidate(case)
+                    if committed.disposition != "admitted":
+                        # The case already reached the session, so a refused
+                        # commit cannot claim a clean candidate rejection.
+                        raise RuntimeError(
+                            "online commit is uncertain after submit: "
+                            f"{committed.reason} [{committed.rejection}]")
+                except BaseException as primary:
                     commit_refused = True
-                    raise RuntimeError(
-                        "online commit is uncertain after submit: "
-                        f"{committed.reason} [{committed.rejection}]")
+                    # Failure-only notification to the code-owned guarded
+                    # session. Never grants a successful commit or feedback.
+                    from myfuzz.scenario.native_packet_session import NativePacketSession
+                    if isinstance(self.session, NativePacketSession):
+                        self.session.abort_packet_submission(primary)
+                    raise
                 decision["committed"] = True
                 self._online_pending_sources[case.source.action_id] = (case, key)
                 if isinstance(case.source, OnlineInstruction):
