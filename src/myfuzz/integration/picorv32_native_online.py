@@ -106,19 +106,25 @@ class PicoNativeOnlineRuntime:
 
 
 def make_picorv32_native_online_runtime(*, cache_dir: Path, base_dir: Path = ROOT,
-                                       max_cases: int = PACKET_COUNT):
+                                       max_cases: int = PACKET_COUNT,
+                                       native_completion_observation: bool = False):
     """Construct only; begin explicitly starts/builds real hardware.
 
     No per-case pair.runner(), reset, memory replacement or direct GPIO ACCESS
     occurs here. Each case schedules128 CPU and128 GPIO operations; CPU
     operations each advance one tick. Queued GPIO accesses retain their actual
     multi-tick accounting. Native timeout1024 remains enforced by actual RTL.
+    Explicit native_completion_observation selects passive CPU PRE/POST taps;
+    it grants no source-consumption or retirement authority.
     """
     if type(max_cases) is not int or not 1 <= max_cases <= PACKET_COUNT:
         raise ValueError(f'native online max_cases must be within1..{PACKET_COUNT}')
+    if type(native_completion_observation) is not bool:
+        raise ValueError('native_completion_observation must be boolean')
     bootstrap = make_picorv32_native_online_bootstrap()
     decoder = make_picorv32_native_online_decoder()
-    factory = make_picorv32_native_online_factory(cache_dir=cache_dir, base_dir=base_dir)
+    factory = make_picorv32_native_online_factory(cache_dir=cache_dir, base_dir=base_dir,
+        native_completion_observation=native_completion_observation)
     runner = factory()
     session = NativePacketSession(bootstrap.template, runner, max_cases=max_cases)
     session.configure_runtime_paths(decoder.graph, decoder.runtime_contract,

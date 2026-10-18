@@ -150,20 +150,35 @@ def make_picorv32_native_online_decoder():
         allowed_mmio_operations=('LW', 'SW'), graph=graph, runtime_contract=contract)
 
 
-def _online_artifact(profile, instance, base_dir, *, max_wait_cycles):
-    request = load_local_harness_request(dict(schema_version='local_harness.v1',
+def _online_artifact(profile, instance, base_dir, *, max_wait_cycles,
+                     native_completion_observation=False):
+    if type(native_completion_observation) is not bool:
+        raise ValueError('native_completion_observation must be boolean')
+    document = dict(schema_version='local_harness.v1',
         profile_path=profile, instance_id=instance, reset_assert_ticks=8,
-        reset_release_ticks=8, max_wait_cycles=max_wait_cycles))
+        reset_release_ticks=8, max_wait_cycles=max_wait_cycles)
+    if native_completion_observation:
+        document.update(schema_version='local_harness.v2',
+                        tuning={'raw_tick_stream': [{'sampling': 'pre_post'}]})
+    request = load_local_harness_request(document)
     plan = plan_local_harness(request, base_dir=base_dir)
     runtime = render_local_runtime(plan, render_local_harness(plan),
         verify_local_source_lock(plan.profile, base_dir=base_dir), base_dir=base_dir)
     return render_local_driver(runtime, base_dir=base_dir)
 
 
-def make_picorv32_native_online_factory(*, cache_dir: Path, base_dir: Path = ROOT):
-    """Each invocation makes one independent runner; no per-case pair.runner resets."""
+def make_picorv32_native_online_factory(*, cache_dir: Path, base_dir: Path = ROOT,
+                                       native_completion_observation: bool = False):
+    """Each invocation makes one independent runner; optionally observe CPU bus.
+
+    The explicit option selects the admitted v2 passive PRE/POST CPU trace.
+    Observation alone grants no source consumption or retirement authority.
+    """
+    if type(native_completion_observation) is not bool:
+        raise ValueError('native_completion_observation must be boolean')
     base_dir, cache_dir = Path(base_dir), Path(cache_dir)
-    cpu_artifact = _online_artifact(CPU_PROFILE, 'cpu', base_dir, max_wait_cycles=1024)
+    cpu_artifact = _online_artifact(CPU_PROFILE, 'cpu', base_dir, max_wait_cycles=1024,
+        native_completion_observation=native_completion_observation)
     gpio_artifact = _online_artifact(GPIO_PROFILE, GPIO_COMPONENT, base_dir, max_wait_cycles=16)
 
     def factory():
