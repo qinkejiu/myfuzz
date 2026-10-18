@@ -1,0 +1,40 @@
+{
+  "archive_sha256": "e53e12938a13f60861e716fd58ffbaee17b4668bb6440447f5505540b1ad2cfc",
+  "member_count": 8,
+  "members": {
+    "plan-parent-start.json": {
+      "bytes": 2763,
+      "sha256": "264c3ef920ab30310aec60f4b9198b46ddd99b97cad869dbd2493b79507913d9"
+    },
+    "plan-parent-terminal.json": {
+      "bytes": 3559,
+      "sha256": "07d3ba91e02b3d0b73e4d1078685fb7afce600d098059d74728c4d4454fce81e"
+    },
+    "plan.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "plan.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "project-plan-receipt.json": {
+      "bytes": 14175505,
+      "sha256": "8799c03770c074df8cdae5dc448ddf505cfd42a2eed51fa9fbb5f1302e7be37f"
+    },
+    "project-plan.json": {
+      "bytes": 14376945,
+      "sha256": "aca9b2582f64e08a793853c5f9d2c143ed927b822d170204c56c47f2c027e201"
+    },
+    "returned-member-pins.json": {
+      "bytes": 825,
+      "sha256": "e0ccb5d15caca41e7585dfce13c2ebbdd98dfa37213e845b2474d79cf38be705"
+    },
+    "upload-receipt.json": {
+      "bytes": 2016,
+      "sha256": "fa84fd585846926fa20f39c7de444ab9ac25c8c9229ecf1d4eeedb27e1ec2756"
+    }
+  },
+  "schema_version": "p8_safe_saved_plan_extract.v1",
+  "status": "safely_extracted_pending_independent_audit"
+}

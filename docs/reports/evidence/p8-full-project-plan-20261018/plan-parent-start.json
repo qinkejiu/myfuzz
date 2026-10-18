@@ -1,0 +1,81 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-B",
+    "/root/fanzehui/myfuzz/operations/p8-full-project-inputs-20261018-attempt1/prepare_p8_project.py",
+    "plan",
+    "--selection",
+    "/root/fanzehui/myfuzz/operations/p8-full-project-inputs-20261018-attempt1/selection.json",
+    "--selection-sha256",
+    "ea5ef54d5a674fabf9f95c3527c9d90a0d8ad1d85e36f465862bf3874d5bd626",
+    "--plan",
+    "/root/fanzehui/myfuzz/operations/p8-full-project-inputs-20261018-attempt1/project-plan.json",
+    "--destination",
+    "/root/fanzehui/myfuzz/operations/p8-scalar-20261018-attempt1/project",
+    "--receipt",
+    "/root/fanzehui/myfuzz/operations/p8-full-project-inputs-20261018-attempt1/project-plan-receipt.json"
+  ],
+  "child_pid": 2818001,
+  "cwd": "/root/fanzehui/myfuzz/operations/p8-full-project-inputs-20261018-attempt1",
+  "pid": 2817937,
+  "pins": {
+    "ibex-input-audit.json": {
+      "bytes": 4863,
+      "mode": 420,
+      "sha256": "2d4c69b7ca5660b84658a2b446341c16d9489a17d9ef7e626700e1ff02a14a0e"
+    },
+    "ibex-qualified-map.json": {
+      "bytes": 868291,
+      "mode": 420,
+      "sha256": "c4daa45849673775fb240aab1688abf12438bbf5bff06c2443a75c4c6b7d8ec6"
+    },
+    "opentitan-input-audit.json": {
+      "bytes": 4950,
+      "mode": 420,
+      "sha256": "d8ecaa1992176f86cc87eeda74a334bf4b1d06ab1722c13c06b1a589fcb050a8"
+    },
+    "opentitan-qualified-map.json": {
+      "bytes": 3132530,
+      "mode": 420,
+      "sha256": "735e57cf315a7c04dc95771a9ec4d7f171f0509e7b9408a7d29970ebf982324c"
+    },
+    "prepare_p8_project.py": {
+      "bytes": 15682,
+      "mode": 420,
+      "sha256": "b3bb05ef870551045539a1626690b2987fe08f362ef4c04ba58f2d3d2b342cf6"
+    },
+    "root-input-audit.json": {
+      "bytes": 2801,
+      "mode": 420,
+      "sha256": "f89cf4bcab5101580e4c5c54d0ef23e426e2cae6819c72bbe190f987b10dc3ac"
+    },
+    "root-qualified-map.json": {
+      "bytes": 2296022,
+      "mode": 420,
+      "sha256": "1d9e35ff1fcf15fd04bbcfb1111350d00a2946b57be8794f645adce2ea712506"
+    },
+    "selected-copy-paths.json": {
+      "bytes": 655,
+      "mode": 420,
+      "sha256": "6430d58390937303d606716ab8cfde14da4f4340761b0f7f5f7b0994f41ecc71"
+    },
+    "selection.json": {
+      "bytes": 31882,
+      "mode": 420,
+      "sha256": "ea5ef54d5a674fabf9f95c3527c9d90a0d8ad1d85e36f465862bf3874d5bd626"
+    },
+    "zipcpu-input-audit.json": {
+      "bytes": 7070,
+      "mode": 420,
+      "sha256": "17deb946a21566b8f52ee9483f7139d566a512e76f7dd14ea87efc9a5f4f28a9"
+    },
+    "zipcpu-qualified-map.json": {
+      "bytes": 71761,
+      "mode": 420,
+      "sha256": "8c8da0b485f3f0fc8144998062d2ff464b04dd905b42d9f07250f261b107252b"
+    }
+  },
+  "returncode": null,
+  "schema_version": "p8_actual_plan_parent.v1",
+  "started_unix": 1792319055.51136
+}

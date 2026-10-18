@@ -1,0 +1,1 @@
+{"actual_copier_pid": 2818001, "actual_parent_pid": 2817937, "directories": 3242, "files": 28302, "plan_sha256": "aca9b2582f64e08a793853c5f9d2c143ed927b822d170204c56c47f2c027e201", "scope": "pure_plan_no_prepare_or_runtime_grant", "status": "independent_saved_plan_verified_pending_root_prepare_decision"}

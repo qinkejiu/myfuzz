@@ -1,0 +1,138 @@
+{
+  "large_originals_retained_unmodified_not_in_git": {
+    "actual_copier_plan": {
+      "bytes": 14376945,
+      "path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/full-copy-drafts/offline-plan-attempt1/project-plan.json",
+      "sha256": "aca9b2582f64e08a793853c5f9d2c143ed927b822d170204c56c47f2c027e201"
+    },
+    "actual_copier_plan_receipt": {
+      "bytes": 14175505,
+      "path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/full-copy-drafts/offline-plan-attempt1/project-plan-receipt.json",
+      "sha256": "8799c03770c074df8cdae5dc448ddf505cfd42a2eed51fa9fbb5f1302e7be37f"
+    },
+    "original_ssh_stdout_tar": {
+      "bytes": 28569600,
+      "path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/full-copy-drafts/full-input-plan.stdout",
+      "sha256": "e53e12938a13f60861e716fd58ffbaee17b4668bb6440447f5505540b1ad2cfc"
+    }
+  },
+  "schema_version": "p8_full_project_plan_evidence_locations.v1",
+  "scope": "actual_plan_only_no_prepare_or_runtime_grant",
+  "small_evidence": {
+    "actual-plan-audit.start.json": {
+      "bytes": 1518,
+      "path": "docs/reports/evidence/p8-full-project-plan-20261018/actual-plan-audit.start.json",
+      "sha256": "3ad3ec6e1845396106a01cef5fa50a5deebdebd8301b96d79f5b6194cb016b92"
+    },
+    "actual-plan-audit.stderr": {
+      "bytes": 0,
+      "path": "docs/reports/evidence/p8-full-project-plan-20261018/actual-plan-audit.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "actual-plan-audit.stdout": {
+      "bytes": 306,
+      "path": "docs/reports/evidence/p8-full-project-plan-20261018/actual-plan-audit.stdout",
+      "sha256": "5d75d80a464ff1992034331b5226966cdaa6737b87c984dc3875b5118b57e575"
+    },
+    "actual-plan-audit.terminal.json": {
+      "bytes": 1764,
+      "path": "docs/reports/evidence/p8-full-project-plan-20261018/actual-plan-audit.terminal.json",
+      "sha256": "642262989c8627156e2405cadbd94585cb3a18aba055d9ff8e65accdb7eda680"
+    },
+    "actual-safe-extract.start.json": {
+      "bytes": 665,
+      "path": "docs/reports/evidence/p8-full-project-plan-20261018/actual-safe-extract.start.json",
+      "sha256": "d94b4825fd9d72f22cc350fd46cc926380148f0339cb16531a29768cca8e5a9a"
+    },
+    "actual-safe-extract.stderr": {
+      "bytes": 0,
+      "path": "docs/reports/evidence/p8-full-project-plan-20261018/actual-safe-extract.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "actual-safe-extract.stdout": {
+      "bytes": 0,
+      "path": "docs/reports/evidence/p8-full-project-plan-20261018/actual-safe-extract.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "actual-safe-extract.terminal.json": {
+      "bytes": 911,
+      "path": "docs/reports/evidence/p8-full-project-plan-20261018/actual-safe-extract.terminal.json",
+      "sha256": "7a3430b900435da14c81b6ef20e5a4cf6709b30d5de431d06e1edb92c3816648"
+    },
+    "audit_saved_plan.py": {
+      "bytes": 8114,
+      "path": "docs/reports/evidence/p8-full-project-plan-20261018/audit_saved_plan.py",
+      "sha256": "c1c138b1bf4a95f312a5a67a6a3d91023453e6c5d6f5607ee536393ab1450550"
+    },
+    "eleven-inputs.json": {
+      "bytes": 2784,
+      "path": "docs/reports/evidence/p8-full-project-plan-20261018/eleven-inputs.json",
+      "sha256": "671239187ae35ad61c21693870ceaad1a2cb1d376a8121e9f37b23ea89c49280"
+    },
+    "extract-plan-receipt.json": {
+      "bytes": 1365,
+      "path": "docs/reports/evidence/p8-full-project-plan-20261018/extract-plan-receipt.json",
+      "sha256": "4a636f9f54abe5b8230c5d35519d6b8170ac7e649fd3948811f4cb3784fb8e1a"
+    },
+    "extract_saved_plan.py": {
+      "bytes": 2690,
+      "path": "docs/reports/evidence/p8-full-project-plan-20261018/extract_saved_plan.py",
+      "sha256": "a405e71929b3b8efb5938f654707ef8b3fd8af7ed2f1b2de5c6f1b677cf080dd"
+    },
+    "full-input-plan.postcheck.json": {
+      "bytes": 2632,
+      "path": "docs/reports/evidence/p8-full-project-plan-20261018/full-input-plan.postcheck.json",
+      "sha256": "4f268731080359615f8f5c1da06b82f9c9c2fdf6066b183e6636354e196e6909"
+    },
+    "full-input-plan.start.json": {
+      "bytes": 13463,
+      "path": "docs/reports/evidence/p8-full-project-plan-20261018/full-input-plan.start.json",
+      "sha256": "e40e184427a0984309a424fe456d27cf5103f8ac363abcb92745369aaf2dd1ef"
+    },
+    "full-input-plan.stderr": {
+      "bytes": 0,
+      "path": "docs/reports/evidence/p8-full-project-plan-20261018/full-input-plan.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "full-input-plan.terminal.json": {
+      "bytes": 13687,
+      "path": "docs/reports/evidence/p8-full-project-plan-20261018/full-input-plan.terminal.json",
+      "sha256": "b981d2056a22874b1e3579e5aaaf226c9486b22759551c8428f3440fa2d47e56"
+    },
+    "full_project_controls.py": {
+      "bytes": 14296,
+      "path": "docs/reports/evidence/p8-full-project-plan-20261018/full_project_controls.py",
+      "sha256": "e3b5ac67e0123db6bc7fcd26b565d49d62d5c21b65130179f02733cce34cefae"
+    },
+    "plan-parent-start.json": {
+      "bytes": 2763,
+      "path": "docs/reports/evidence/p8-full-project-plan-20261018/plan-parent-start.json",
+      "sha256": "264c3ef920ab30310aec60f4b9198b46ddd99b97cad869dbd2493b79507913d9"
+    },
+    "plan-parent-terminal.json": {
+      "bytes": 3559,
+      "path": "docs/reports/evidence/p8-full-project-plan-20261018/plan-parent-terminal.json",
+      "sha256": "07d3ba91e02b3d0b73e4d1078685fb7afce600d098059d74728c4d4454fce81e"
+    },
+    "plan.stderr": {
+      "bytes": 0,
+      "path": "docs/reports/evidence/p8-full-project-plan-20261018/plan.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "plan.stdout": {
+      "bytes": 0,
+      "path": "docs/reports/evidence/p8-full-project-plan-20261018/plan.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "returned-member-pins.json": {
+      "bytes": 825,
+      "path": "docs/reports/evidence/p8-full-project-plan-20261018/returned-member-pins.json",
+      "sha256": "e0ccb5d15caca41e7585dfce13c2ebbdd98dfa37213e845b2474d79cf38be705"
+    },
+    "upload-receipt.json": {
+      "bytes": 2016,
+      "path": "docs/reports/evidence/p8-full-project-plan-20261018/upload-receipt.json",
+      "sha256": "fa84fd585846926fa20f39c7de444ab9ac25c8c9229ecf1d4eeedb27e1ec2756"
+    }
+  }
+}

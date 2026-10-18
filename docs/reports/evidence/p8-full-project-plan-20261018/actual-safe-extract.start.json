@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-B",
+    "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/full-copy-drafts/extract_saved_plan.py",
+    "--archive",
+    "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/full-copy-drafts/full-input-plan.stdout",
+    "--archive-sha256",
+    "e53e12938a13f60861e716fd58ffbaee17b4668bb6440447f5505540b1ad2cfc",
+    "--target",
+    "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/full-copy-drafts/offline-plan-attempt1",
+    "--receipt",
+    "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/full-copy-drafts/extract-plan-receipt.json"
+  ],
+  "started_unix": 1792319306.7544355,
+  "pid": 60287
+}
