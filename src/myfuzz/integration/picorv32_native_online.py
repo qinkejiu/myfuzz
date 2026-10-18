@@ -1,8 +1,9 @@
 """One bounded native/PULP session across cases; explicit begin and full replay.
 
 This source entry has no RFuzz/closed-loop certificate grant. The guarded
-session protects direct submit calls; generic executor commit-refusal notification
-and guarded fresh reconstruction remain separate integration requirements.
+session protects direct submit calls and receives executor commit-failure
+notification. Fresh reconstruction uses the same guard and explicit observed
+process identity comparison; a new actual gate remains required.
 Decoded bytes are admitted source inputs, not proof of instruction fetch, retirement or terminal
 consumption. The actual Runner journal remains the observation source.
 """
@@ -102,8 +103,18 @@ class PicoNativeOnlineRuntime:
     def replay(self, plan, reference):
         if not self._terminal:
             raise RuntimeError('finish the original session before fresh replay')
+        cpu = self.session.runner.sessions['cpu']
+        observer = getattr(cpu, '_native_bus_observer', None)
+        execution = None
+        if observer is not None:
+            from myfuzz.scenario.native_cpu_events import NativeBusObserver
+            if (type(observer) is not NativeBusObserver or observer.session is not cpu
+                    or observer.failed or observer.pending is not None
+                    or cpu.reset_epoch != 0):
+                raise ValueError('native reference observation is not complete')
+            execution = cpu._execution
         return replay_online_session(plan, self.factory, reference,
-                                     native_max_cases=self.max_cases)
+            native_max_cases=self.max_cases, native_reference_execution=execution)
 
 
 def make_picorv32_native_online_runtime(*, cache_dir: Path, base_dir: Path = ROOT,

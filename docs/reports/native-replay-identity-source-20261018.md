@@ -32,3 +32,22 @@ builds, models, frontend queries or remote commands were executed. Independent
 source review found the actual Runner raw/projection field shapes consistent
 and no Important issue within this helper scope. Old frozen native evidence
 does not validate this code.
+
+## Full replay source wiring
+
+The explicit native runtime now supplies the actual original CPU owner's
+execution nonce. Fresh replay requires its own exact NativeBusObserver owner,
+healthy and without an unfinished transfer, epoch0 and a distinct process nonce.
+Each side's unmodified full raw semantic hash is recomputed before comparison.
+The whole projected events/status/ticks payload is compared semantically;
+manifest, plan, schedules, admissions and terminal checks remain in force.
+Returned actual traces retain original fresh nonces and raw hashes. Legacy
+callers with no native reference identity keep exact original comparison.
+HARNESS v2 now explicitly includes the comparison module (69 paths); HOST v1
+is unchanged. The guarded fresh cleanup correction also received independent
+source review, closing its earlier process cleanup finding.
+
+Independent review of this wiring found no new Important issue. Static AST and
+whitespace checks only; no tests, imports, models or remote gate were run.
+Packet persisted-document/max_cases binding, terminal failure serialization,
+exact source joins, native gate metrics and new actual gate remain open.

@@ -2481,7 +2481,8 @@ def replay_online_session(plan: bytes,
                           reference: ScenarioTrace, *,
                           checker: Callable[[OnlineCaseReceipt], tuple[str, ...]] | None = None,
                           register_runtime_factory=None,
-                          native_max_cases: int | None = None
+                          native_max_cases: int | None = None,
+                          native_reference_execution: str | None = None
                           ) -> ReplayComparison:
     """Rebuild from initial state and compare the complete committed prefix."""
     if not isinstance(plan, bytes) or not isinstance(reference, ScenarioTrace):
@@ -2489,6 +2490,11 @@ def replay_online_session(plan: bytes,
     if native_max_cases is not None and (
             type(native_max_cases) is not int or not 1 <= native_max_cases <= 96):
         raise ValueError('native replay max_cases must be within1..96')
+    if native_reference_execution is not None:
+        import re
+        if (native_max_cases is None or type(native_reference_execution) is not str
+                or re.fullmatch(r'[0-9a-f]{32}', native_reference_execution) is None):
+            raise ValueError('native comparison requires an explicit owned execution')
     document = json.loads(plan)
     base_keys = {"schema_version", "template", "instruction_slots",
                  "warmup_advances", "cases"}
@@ -2739,9 +2745,31 @@ def replay_online_session(plan: bytes,
                     raise
                 reset_index += 1
         actual = session.finish()
+    expected_events, actual_events = reference.events, actual.events
+    semantic_matches = reference.semantic_sha256 == actual.semantic_sha256
+    if native_reference_execution is not None:
+        from .native_cpu_events import NativeBusObserver
+        from .native_replay_identity import native_observation_comparison_events
+        cpu = session.runner.sessions['cpu']
+        observer = getattr(cpu, '_native_bus_observer', None)
+        if (type(observer) is not NativeBusObserver or observer.session is not cpu
+                or observer.failed or observer.pending is not None
+                or cpu.reset_epoch != 0 or cpu._execution == native_reference_execution):
+            raise ValueError('native comparison requires a completed fresh owned observer')
+        for trace in (reference, actual):
+            if trace.semantic_sha256 != _trace_semantic_sha256(
+                    trace.status, trace.events, trace.local_ticks):
+                raise ValueError('native comparison raw semantic identity mismatch')
+        expected_events = native_observation_comparison_events(reference.events,
+            component='cpu', reset_epoch=0, execution=native_reference_execution)
+        actual_events = native_observation_comparison_events(actual.events,
+            component='cpu', reset_epoch=0, execution=cpu._execution)
+        semantic_matches = (_trace_semantic_sha256(reference.status,
+            expected_events, reference.local_ticks) == _trace_semantic_sha256(
+                actual.status, actual_events, actual.local_ticks))
     missing = object()
     for index, (expected_item, actual_item) in enumerate(zip_longest(
-            reference.events, actual.events, fillvalue=missing)):
+            expected_events, actual_events, fillvalue=missing)):
         expected_event = None if expected_item is missing else expected_item
         actual_event = None if actual_item is missing else actual_item
         if _canonical(expected_event) != _canonical(actual_event):
@@ -2756,7 +2784,7 @@ def replay_online_session(plan: bytes,
                and admissions_match
                and reference.status == actual.status
                and reference.local_ticks == actual.local_ticks
-               and reference.semantic_sha256 == actual.semantic_sha256
+               and semantic_matches
                and reference.manifest_sha256 == actual.manifest_sha256)
     context = None
     if expected_failure != session._terminal_failure or not schedule_matches or not admissions_match:

@@ -88,6 +88,7 @@ HARNESS_HOST_SOURCE_PATHS = HOST_SOURCE_PATHS + (
     'src/myfuzz/integration/picorv32_native_online.py',
     'src/myfuzz/scenario/picorv32_native_cpu_example.py',
     'src/myfuzz/scenario/native_cpu_events.py',
+    'src/myfuzz/scenario/native_replay_identity.py',
 )
 
 
