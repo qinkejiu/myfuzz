@@ -98,7 +98,7 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
     def accept_instructions(self,address,data,*,source_event_id):
         if not self._online_instruction_slots:
             raise ValueError('native instruction slots were not declared')
-        self.service.accept_instructions(address,data,source_event_id=source_event_id)
+        return self.service.accept_instructions(address,data,source_event_id=source_event_id)
 
     def _native_request_ready(self,available):
         # Withheld readiness leaves the real adapter in REQUEST. Its original
