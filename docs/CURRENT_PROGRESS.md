@@ -1,12 +1,19 @@
 # 当前工作进度与证据入口
 
+## 2026-10-18 最新：native host 输入绑定真实门已独立审计通过
+
+- [真实门与独立审计](reports/native-source-binding-directed-independent-20261018.md)：新冻结 `d5ce57a…`，父2795948/门2801008均exit0，8个DUT均实际退出0；独立审计62467 exit0。
+- 正向CPU/IP/CPU原始与fresh各3249事件、47次native完成、2条host绑定；受控原始与fresh各1394事件、21次完成、1条host绑定。总6条host绑定，完整fresh、逐raw重建和真实响应XOR1检出通过。归档格式及局部service索引的两次审计拒绝均保留，未重跑模型或覆盖旧证据。
+- 此门仅验收host指令输入绑定和分别重建的native传输观察。来源到CPU完成的消费认证、退休、四反馈、通用campaign及P6/P7/P8整体验收仍OPEN。
+- [P8完整复制计划独立审计](reports/p8-full-project-plan-independent-20261018.md)通过：28302文件/3242目录。[首次实际复制失败](reports/p8-full-project-prepare-attempt1-failure-20261018.md)因新operation父目录缺失，在stage创建前退出；原输入与计划未变。第二次控制器补齐独占父目录创建并经独立源码复核，实际复制正在执行，完整项目审计与DMA标量测量仍待完成。
+
 ## 2026-10-18 最新：远端 root 输入已审计，后续运行门准备中
 
 - [远端 root 输入独立审计](reports/p8-root-remote-input-independent-20261018.md)已通过：冻结 HEAD `269717b`，10347 文件/524 目录，传输、实际解包、远端双次映射及进程终态证据已关联。此为 root 输入，尚未组装三组件完整项目或运行 DMA 标量测量。
 - [四输入转换与输出独立审计](reports/p8-four-input-adapters-independent-20261018.md)已完成：ZipCPU 补采链绑定修复，实际转换 exit0；root/ZipCPU/OpenTitan/Ibex 分别10347/376/13878/3701文件，2/93条组件链接保留真实Git对象与原始链接字节。仅输入资格；11份规划输入已实际上传 exit0，完整远端计划正在执行，项目复制及DMA标量测量尚未执行。
 - `9b5e190` [native 来源绑定 opt-in](reports/native-source-binding-optin-source-20261018.md)已接入实际 service 返回、SourceAdmission 和 host 输入事件，并通过源码复核；HARNESS v2 为70路径。[下一运行门输入](reports/native-source-binding-next-gate-inputs-20261018.md)及12文件覆盖包已独立审查；新副本实际复制及独立审计通过，新的真实门正在执行，尚无终态。
 - [首次部署失败](reports/native-source-binding-deployment-attempt1-failure-20261018.md)已保留：缺顶层 `overlay/` 归档条目，在复制前被严格校验拒绝；新归档补齐目录并独立复核后，第二次[实际复制及独立审计](reports/native-source-binding-preparation-independent-20261018.md)通过，8892文件/601目录/70路径；复制父2687677/子2687977 exit0、保存数据审计57995 exit0。新模型门随后启动，仍待终态和独立审计。
-- 新事件仅声明 host 指令输入绑定；来源四字节到 CPU 实际完成握手的认证尚未实现。旧冻结真实门不验证新源码。P6/P7/P8 与 DMA 5×目标仍 OPEN；本次未新增或运行测试。
+- 新事件仅声明 host 指令输入绑定；来源四字节到 CPU 实际完成握手的认证尚未实现。旧冻结真实门不验证新源码。P6/P7/P8 与 DMA 5×目标仍 OPEN；本轮未新增或运行单元测试。
 
 ## 2026-10-18 P8 三组件源码准备独立审计通过
 

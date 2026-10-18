@@ -1,3 +1,7 @@
+[Native host输入绑定真实门与独立审计](native-source-binding-directed-independent-20261018.md)：8DUT实际exit0、6条host绑定、raw47/21、完整fresh与XOR1检出；仅host输入范围，来源消费/四反馈/整体仍OPEN。
+
+[P8完整复制计划独立审计](p8-full-project-plan-independent-20261018.md)与[首次实际复制失败](p8-full-project-prepare-attempt1-failure-20261018.md)：计划通过；首次缺operation父目录，在stage创建前拒绝，第二次实际复制另留收据。
+
 [Native 来源绑定新副本实际复制与独立审计](native-source-binding-preparation-independent-20261018.md)：8892文件/601目录/70路径，复制和保存数据审计 exit0；仅准备，新运行门尚待终态。
 
 [P8 四输入转换与输出独立审计](p8-four-input-adapters-independent-20261018.md)：补齐ZipCPU补采关联，实际生成四份资格映射；完整远端项目计划/复制及性能尚未执行。
