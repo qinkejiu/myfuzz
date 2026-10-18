@@ -6,14 +6,14 @@
 - 正向同CPU/GPIO进程连续CPU/IP/CPU三例，A/B→RAM/GPIO为62/0→62、62/167→153、62/167→153。原/fresh各3247事件，47次实际native PRE valid&&ready完成（30 instruction、17 data）；受控原/fresh各1393事件、21完成（14＋7），真实target62仅交付为63，三处关系不符被检出。
 - 独立标准库审计actual exit0：逐raw重建全部事务及response T→native completion PRE T+1，完整前缀仅规范化声明的真实nonce，保留原始raw；工具和复制闭包也独立复算。首轮规划拒绝仍保留，不重标为通过。
 - 关闭的是有界真实native传输观察及完整warm fresh；未授来源四字节认证、退休/IRQ、独立APB相位、四反馈、持续RFuzz、cold-cache门或P6整行。P6/P7/P8仍OPEN。
-- P8标量归因的[现有元数据盘点](reports/p8-existing-remote-metadata-inventory-20261018.md)未找到可直接使用的non-promisor store；[独立snapshot物化设计](reports/p8-source-metadata-materialization-design-20261018.md)已写，Git实际物化/标量测量尚未执行。
+- P8标量归因的[现有元数据盘点](reports/p8-existing-remote-metadata-inventory-20261018.md)未找到可直接使用的non-promisor store；[独立snapshot物化设计](reports/p8-source-metadata-materialization-design-20261018.md)已写，ZipCPU 第二轮离线物化已实际退出0（父4100959、1198个Git子进程均0），原始218,999,928字节证据已只读采集，独立对象闭包审计进行中；首轮符号链接拒绝保留。OpenTitan物化、完整P8项目冻结及标量测量尚未执行，不能据此授予性能或DMA验收。
 
 ## 2026-10-18 native 新观测首轮实际拒绝与修复
 
 - [独立准备审计](reports/native-completion-preparation-independent-20261018.md)：新副本8891文件/601目录、1111完整src/scripts及69显式host路径精确相符，旧基线未变。
 - [首轮实际失败及独立归档](reports/native-completion-attempt1-failure-independent-20261018.md)：parent3107064/gate3130216均exit1，四Git子命令exit0，source/tools前后不变；规划器以protocol unsupported拒绝，cache/positive均空，无DUT模型/case/fresh通过，frontend elaboration可能发生。
 - `68f81b6` [准入源码修复](reports/native-observation-planner-admission-fix-20261018.md)：仅在显式raw V2路径接入单native endpoint及严格typed contract；独立源码复核通过。第二轮独立输入仅覆盖plan.py一项，新目录准备推进中，未重用首轮失败目录。
-- 新观测尚无实际通过；来源精确连接、四类反馈和P6/P7/P8均保持OPEN。
+- 本节为首轮历史状态；第二轮实际门及独立审计已通过，见顶部。来源精确连接、四类反馈和P6/P7/P8仍保持OPEN。
 
 ## 2026-10-18 native 完成观测接入（源码增量，未实测）
 

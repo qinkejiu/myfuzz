@@ -66,3 +66,9 @@ The user reports `/root/fanzehui/myfuzz/project` is local42a9ce9 plus later omit
 5. Observe the same PID through startup/build/runtime/finalization. Timeout observation does not authorize restart/kill/rerun. Retain `operation.json`, `timing.json`, original compressed scalar document, stdout/stderr, actual process/child lifecycle, build manifests and full before/after source+tool maps. Failed first attempts remain immutable.
 6. Independently check original result: complete four cases, no error/source drift/uncertain effects, actual process closure and saved actual PRE/POST samples/ticks. Count callback command calls separately from plan commands/events. Callback excludes the initial owner guard and includes later failed/prewire attempts; no fake wire byte/ACK count or isolated pipe-time claim.
 7. Treat timing as cost attribution only: wall includes runtime setup/build/startup/finalization; import measured separately; build and steady state are not separated. Native-only CPU/effective RFuzz search/fresh are unavailable. Schedule ordinary full/failure fresh in a distinct reviewed operation before a correctness grant. Only after measured attribution and root design review consider UART batching.5× and P8 S1c remain open.
+
+## 2026-10-18 实际准备进度补记
+
+ZipCPU metadata attempt2已实际完成（父4100959 exit0，1198个Git子进程均exit0）。只读采集包保存在 `evidence/p8-zipcpu-metadata-attempt2-20261018/actual-remote.tar.gz`，218,999,928 bytes，SHA256 `9a91c2cf3366345527708a7038ba406ea696e427e3f74ea662423382ce2578b5`；大包保留本地与远端原件，不纳入Git。下载回执与独立审计结果分别维护；目前独立对象闭包审计尚未完成，不能只凭控制器exit0授予源码准备完成。首轮因真实tracked symlink拒绝的失败记录保留。
+
+批量对象读取是新的未执行源码草稿，用于减少后续OpenTitan准备进程数量；旧实际控制保持原字节。尚未执行OpenTitan物化、完整P8项目冻结或标量运行。此处准备耗时不属于DMA吞吐证据，5×目标仍OPEN。
