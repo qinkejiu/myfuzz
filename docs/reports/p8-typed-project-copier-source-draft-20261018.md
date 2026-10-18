@@ -1,6 +1,6 @@
 # Independent P8 typed project copier — source draft
 
-Source-only draft at `.superpowers/sdd/p8-source-metadata-20261018/prepare_p8_project.py`, pending independent review. No script import/execution, tests, Git subprocess, remote action, model or upload occurred. Strict P7 preparer and all existing actual materialization controls/evidence remain unchanged. This draft does not establish full P8 project readiness.
+Source independently reviewed, not executed: `.superpowers/sdd/p8-source-metadata-20261018/prepare_p8_project.py`. No script import/execution, tests, Git subprocess, remote action, model or upload occurred. Strict P7 preparer and all existing actual materialization controls/evidence remain unchanged. This draft does not establish full P8 project readiness.
 
 The new schema `p8_project_selection.v1` requires exactly four inputs: root plus Ibex/OpenTitan/ZipCPU. Each input has id/kind, absolute source, normalized mount/includes/excludes, exact qualified-map file/hash, independent audit receipt file/hash and exact tracked-link map. All sources/pins/control/destinations are limited to `/root/fanzehui`, with new absent stage/destination/receipt. Root must include all src/scripts/configs/.git/.gitmodules and explicitly exclude the three old component roots plus `.git/modules`. Components mount at their exact declared paths, include their complete independently qualified stage (including new standalone `.git`), and exclude nothing. Mount parent directory modes are explicit in `mount_directories`.
 
