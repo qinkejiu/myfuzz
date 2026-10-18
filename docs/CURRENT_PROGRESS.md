@@ -1,5 +1,12 @@
 # 当前工作进度与证据入口
 
+## 2026-10-18 native 完成观测接入（源码增量，未实测）
+
+- `34f01e3` 修复 CPU 完成握手前的 pending/排空、reset 取消、abort 终止及 close 清理；[独立源码复核](reports/native-bus-observer-independent-source-review-20261018.md)关闭原 Important。
+- `db83d60` [显式观测开关](reports/native-online-completion-optin-20261018.md)接通 CPU 的 V2 PRE/POST 被动抽头，默认保持旧路径。`1f0f6d4` 将实际 native 模块加入 HARNESS v2 显式源码身份。
+- `cb28a70` [执行器提交解码器失败收尾](reports/native-executor-commit-failure-source-20261018.md)：实际提交之后的 commit 异常或拒绝会终止 guarded session，防止直接重提；源码复核未发现新增 Important。
+- 本组仅源码/静态检查，未运行新测试或模型；旧冻结实际门不能验证新源码。guarded fresh 重建、真实 nonce 的窄类型比较、四字节来源精确连接、新冻结实际门及四类反馈仍开放；P6/P7/P8 保持 OPEN。
+
 ## 2026-10-18 P7 I5 第二轮独立终态（最新）
 
 [P7 I5 attempt2 独立终态审计](reports/P7_I5_ATTEMPT2_INDEPENDENT_AUDIT_20261018.md)（审计提交`c3d65db`）：N1–N8 共20项负例实际执行全部通过（2/1/1/5/2/1/2/6，零失败/错误/跳过）；CVE2＋PULP timer 真实 RFuzz 2 certified，536 events/2 records 的完整 fresh 匹配，receipt SHA join通过。父控制器exit0，source/tool/client及文件/目录冻结前后一致。fresh DUT明确reaped/exit0；原始DUT已无进程，但独立exit rc回执仍缺。P6/P7/P8整体保持OPEN。

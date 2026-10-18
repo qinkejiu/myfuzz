@@ -1,5 +1,13 @@
 2026-10-18 最新：[P7 I5 attempt2 独立终态审计](P7_I5_ATTEMPT2_INDEPENDENT_AUDIT_20261018.md)（`c3d65db`）。N1–N8 共20项负例实际执行全部通过（2/1/1/5/2/1/2/6，零失败/错误/跳过）；CVE2＋PULP timer 真实 RFuzz 2 certified，536 events/2 records 的完整 fresh 匹配，receipt SHA join通过。父控制器exit0，source/tool/client及文件/目录冻结前后一致。fresh DUT明确reaped/exit0；原始DUT已无进程，但独立exit rc回执仍缺。P6/P7/P8整体保持OPEN。
 
+## Native 完成观测：最新源码状态
+
+- [显式 V2 观测开关](native-online-completion-optin-20261018.md)：源码接通，未实测。
+- [生命周期修复及独立复核](native-bus-observer-independent-source-review-20261018.md)：原 Important 在源码层面关闭。
+- [实际提交后 decoder commit 失败收尾](native-executor-commit-failure-source-20261018.md)：guarded session 终止，不授反馈或新的运行通过。
+- [HARNESS v2 native 源码身份](native-host-identity-20261018.md)：68 条显式路径；旧门不能验证新身份。
+
+
 2026-10-18 [P6 native 固定实例持久定向门通过](p6-native-persistent-directed-20261018.md)：同一CPU/GPIO三例双侧源；正向2,246、受控982事件的完整fresh分别精确相同，8个DUT均terminal0，进程/fresh和原始数据流双独立审计通过。仅关闭有界持久定向子门，RFuzz搜索/来源认证/四反馈及P6整体仍开放。P7 v2复制及第二轮验收已完成，见顶部I5独立终态。
 
 2026-10-18 [P6 native两轮启动前失败](evidence/p6-native-online-attempts-20261018/README.md)：先工具扫描子树不匹配，后gate PID3893459 exit1缺scripts/record_scenario.py；cases/processes为空、无原生通过。前后layout/tool与4个Git metadata通过；46份remote原始记录及本地inputs/control已归档。
