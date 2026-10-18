@@ -295,3 +295,12 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
             'data_rsp_source_sequence':pending[1] if consumed else 0,
             'driver_samples':copy.deepcopy(self.last_samples),
             'physical_observations':copy.deepcopy(physical)}
+
+
+def _native_instruction_accept_anchor():
+    method = GeneratedNativeMemorySession.accept_instructions
+    pin = (method, method.__code__)
+    return lambda: pin
+
+
+_NATIVE_INSTRUCTION_ACCEPT_PRODUCER = _native_instruction_accept_anchor()

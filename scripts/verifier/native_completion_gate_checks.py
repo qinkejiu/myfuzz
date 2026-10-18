@@ -1,6 +1,77 @@
 """Independent saved-raw directed-gate checks; no live observer or authority."""
 from collections import Counter
+import hashlib
 import json
+
+
+def check_host_source_bindings(events, plan, *, execution):
+    """Saved host-input facts only; no live issuance or bus/source grant."""
+    report = dict(schema_version='native_host_binding_gate_checks.v1', status='failed',
+        errors=[], bindings=[], source_authority=False, retirement=False, feedback_authority=False)
+
+    def require(value, reason):
+        if not value:
+            raise ValueError(reason)
+
+    def canonical(value):
+        return json.dumps(value, sort_keys=True, separators=(',', ':'),
+                          ensure_ascii=False, allow_nan=False).encode('utf-8')
+
+    try:
+        require(plan['schema_version'] == 20 and plan['native_packet_configuration']['enabled'] is True,
+                'native-binding-plan-required')
+        by_id = {event['event_id']: event for event in events}
+        selected = {case['source']['action_id']: (index, case) for index, case in enumerate(plan['cases'])
+            if case['source']['kind'] == 'instruction' and case['source_role'] == 'fuzz_source'}
+        rows = [event for event in events if event.get('schema_version') == 'native_instruction_source_binding.v1']
+        require(len(rows) == len(selected), 'native-binding-selected-source-count')
+        seen = set()
+        for row in rows:
+            source = row['source']; action = source['action_id']
+            require(action in selected and action not in seen, 'native-binding-foreign-or-duplicate-action')
+            seen.add(action)
+            index, case = selected[action]
+            require(row['kind'] == 'native_instruction_source_bound' and row['component'] == 'cpu'
+                    and row['execution'] == execution and row['reset_epoch'] == 0
+                    and row['case_index'] == index and source == case['source']
+                    and row['proof_scope'] == 'host_instruction_input_bound'
+                    and all(row[key] is False for key in ('grants_source_authority',
+                        'native_bus_completion_observed', 'retirement', 'grants_feedback')), 'native-binding-scope')
+            admission = row['admission']
+            admission_material = {key: value for key, value in admission.items() if key != 'admission_id'}
+            require(admission['role'] == 'fuzz_source' and admission['input_kind'] == 'instruction'
+                    and admission['schema_version'] == 'source_admission.v1'
+                    and admission['admission_id'] == hashlib.sha256(canonical(admission_material)).hexdigest()
+                    and admission['case_id'] == case['case_id'] and admission['case_index'] == index
+                    and admission['action_id'] == action and admission['component'] == source['component'] == 'cpu'
+                    and admission['path_id'] == case['path_id'] and admission['direction'] == case['direction']
+                    and admission['input_sha256'] == hashlib.sha256(canonical(source)).hexdigest(),
+                    'native-binding-admission-input')
+            acceptance = row['acceptance']; raw = bytes.fromhex(source['data_hex'])
+            require(len(raw) == 4 and acceptance['address'] == source['address']
+                    and acceptance['data_hex'] == source['data_hex'] and acceptance['source_event_id'] == action
+                    and list(acceptance['writer_event_ids']) == [action] * 4
+                    and list(acceptance['writer_kinds']) == ['INSTRUCTION_SOURCE'] * 4
+                    and len(acceptance['versions']) == 4
+                    and all(len(version) == 2 and version[0] == acceptance['generation']
+                        and all(type(part) is int and part >= 0 for part in version)
+                        for version in acceptance['versions']), 'native-binding-actual-acceptance')
+            service = by_id[row['producer_event_id']]
+            registered = by_id[row['admission_event_id']]
+            require(registered['kind'] == 'source_admission' and registered['admission'] == admission
+                    and service['kind'] == 'instruction_source' and service['component'] == 'cpu'
+                    and service['producer_event_id'] == registered['event_id']
+                    and service['source_event_id'] == action and service['address'] == source['address']
+                    and service['data_hex'] == source['data_hex']
+                    and service['generation'] == acceptance['generation']
+                    and registered['event_id'] < service['event_id'] < row['event_id'],
+                    'native-binding-actual-service-reference')
+            report['bindings'].append(row)
+        require(seen == set(selected), 'native-binding-missing-selected-source')
+        report['status'] = 'host_input_binding_checks_passed'
+    except (KeyError, ValueError, TypeError, IndexError) as error:
+        report['errors'].append(dict(type=type(error).__name__, message=str(error)))
+    return report
 
 
 def check_native_completion(events, runtime_document, *, controlled_response_records=()):

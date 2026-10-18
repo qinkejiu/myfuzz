@@ -476,3 +476,12 @@ class PersistentMemory:
 
 
 _BIND_INSTRUCTION_ACCEPTANCE_PRODUCER(PersistentMemory.accept_instructions)
+
+
+def _native_instruction_memory_anchor():
+    pins = tuple((getattr(PersistentMemory, name), getattr(PersistentMemory, name).__code__)
+                 for name in ('validate_instruction_acceptance', 'resolve_span'))
+    return lambda: pins
+
+
+_NATIVE_INSTRUCTION_MEMORY_PRODUCERS = _native_instruction_memory_anchor()

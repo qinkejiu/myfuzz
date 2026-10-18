@@ -2,10 +2,12 @@
 
 The session owns packet position and actual pre/post boundary checks. It never
 commits a decoder. The executor notifies this guarded session when a post-submit decoder commit
-fails. Guarded fresh reconstruction still requires separate integration; this
-class alone grants neither safe RFuzz assembly nor a new native result.
+fails. Explicit source binding records successful selected host input only;
+guarded fresh reconstruction retains its saved policy. This class grants no
+instruction-bus source consumption, retirement or feedback capability.
 """
 from __future__ import annotations
+import json
 
 from .batch import BatchSourceEvent
 from .picorv32_native_online import (
@@ -14,6 +16,17 @@ from .picorv32_native_online import (
     make_picorv32_native_online_bootstrap,
 )
 from .session_runtime import OnlineCase, OnlineInstruction, ScenarioSession
+
+
+def native_packet_source_binding_configuration(max_cases):
+    if type(max_cases) is not int or not 1 <= max_cases <= PACKET_COUNT:
+        raise ValueError('native source binding max_cases must be within1..96')
+    return dict(schema_version='native_packet_source_binding.v1', enabled=True,
+        max_cases=max_cases, packet_policy='native_online_packet.v1',
+        instruction_start=INSTRUCTION_START, instruction_end=INSTRUCTION_END,
+        stride_bytes=PACKET_BYTES, source_binding_schema='native_instruction_source_binding.v1',
+        native_completion_observation_required=True, proof_scope='host_instruction_input_bound',
+        grants_source_consumption=False, grants_retirement=False)
 
 
 def packet_boundary_snapshot(runner, expected_address, *, phase):
@@ -39,13 +52,20 @@ class NativePacketSession(ScenarioSession):
     another packet or clock. A failed packet can never revive via that cache.
     """
 
-    def __init__(self, template, runner, *, max_cases=PACKET_COUNT, **kwargs):
+    def __init__(self, template, runner, *, max_cases=PACKET_COUNT,
+                 native_source_binding=False, **kwargs):
+        if type(native_source_binding) is not bool:
+            raise ValueError('native_source_binding must be boolean')
         if type(max_cases) is not int or not 1 <= max_cases <= PACKET_COUNT:
             raise ValueError('native packet max_cases must be within1..96')
         if template != make_picorv32_native_online_bootstrap().template:
             raise ValueError('native packet session requires the fixed packet template')
         super().__init__(template, runner, **kwargs)
         self._packet_max_cases = max_cases
+        if native_source_binding:
+            self._native_source_binding_configuration_json = json.dumps(
+                native_packet_source_binding_configuration(max_cases), sort_keys=True,
+                separators=(',', ':'), ensure_ascii=False, allow_nan=False).encode('utf-8')
         self._packet_cursor = INSTRUCTION_START
         self._packet_accepted_count = 0
         self._packet_terminal = False
@@ -70,6 +90,12 @@ class NativePacketSession(ScenarioSession):
     def reset(self, policy):
         raise ValueError('native packet session does not permit inter-case reset')
 
+    def begin(self):
+        if self._native_source_binding_configuration() is not None:
+            from .native_instruction_source_binding import preflight_source_binding
+            preflight_source_binding(self)
+        return super().begin()
+
     def require_packet_boundary(self, expected_address, *, phase):
         observed = packet_boundary_snapshot(self.runner, expected_address, phase=phase)
         if (observed['actual_offered_instruction_address'] != expected_address
@@ -87,6 +113,7 @@ class NativePacketSession(ScenarioSession):
     def abort_packet_submission(self, primary):
         """Failure-only notification; never acknowledges decoder success."""
         self._packet_terminal = True
+        self._revoke_native_source_bindings(primary)
         self._halted = True
         self._halt_reason = self._halt_reason or 'uncertain_effect'
         if self.packet_failure is None:

@@ -33,6 +33,7 @@ def native_observation_comparison_events(events, *, component, reset_epoch,
     raw = {}
     scopes = {}
     seen_native = False
+    prior_events = {}
 
     def checked_scope(value):
         if (type(value) is not dict or set(value) != _SCOPE_KEYS
@@ -52,6 +53,25 @@ def native_observation_comparison_events(events, *, component, reset_epoch,
         row = deepcopy(source)
         has_scope = 'native_driver_scope' in row
         native = row.get('schema_version') == 'native_bus_observation.v1'
+        host_binding = row.get('schema_version') == 'native_instruction_source_binding.v1'
+        if host_binding:
+            if (row.get('kind') != 'native_instruction_source_bound'
+                    or row.get('component') != component or row.get('execution') != execution
+                    or type(row.get('reset_epoch')) is not int or row['reset_epoch'] != reset_epoch
+                    or row.get('proof_scope') != 'host_instruction_input_bound'
+                    or any(row.get(key) is not False for key in ('grants_source_authority',
+                        'native_bus_completion_observed', 'retirement', 'grants_feedback'))):
+                raise ValueError('native-comparison-host-binding-scope')
+            service = prior_events.get(row.get('producer_event_id'))
+            admission = prior_events.get(row.get('admission_event_id'))
+            if (service is None or service.get('kind') != 'instruction_source'
+                    or service.get('component') != component
+                    or service.get('source_event_id') != row['source']['action_id']
+                    or admission is None or admission.get('kind') != 'source_admission'
+                    or admission.get('admission') != row['admission']
+                    or service.get('producer_event_id') != admission['event_id']):
+                raise ValueError('native-comparison-host-binding-journal-reference')
+            row['execution'] = token
         if has_scope:
             if (row.get('kind') != 'local_tick_sample'
                     or row.get('component') != component
@@ -103,6 +123,8 @@ def native_observation_comparison_events(events, *, component, reset_epoch,
                 raise ValueError('native-comparison-unexpected-prior-scope')
             seen_native = True
         rows.append(row)
+        if type(source.get('event_id')) is int:
+            prior_events[source['event_id']] = source
     if not seen_native:
         raise ValueError('native-comparison-native-observation-required')
     return rows

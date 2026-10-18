@@ -264,7 +264,8 @@ def _online_manifest(runner: ScenarioRunner, checker: Callable | None = None, *,
                      ordinary_apb_access_evidence_configuration=None, ordinary_apb_access_source_files=None,
                      register_program_verifier_configuration=None, register_program_verifier_source_files=None,
                      register_reset_default_configuration=None,
-                     register_reset_default_source_files=None) -> dict:
+                     register_reset_default_source_files=None,
+                     native_packet_configuration=None) -> dict:
     """Versioned online extension without changing legacy host-source v1."""
     files = []
     for name in _ONLINE_SOURCE_PATHS:
@@ -278,6 +279,8 @@ def _online_manifest(runner: ScenarioRunner, checker: Callable | None = None, *,
                 "checker": _checker_identity(checker, configuration_only=checker_configuration_only)}
     if runtime_paths is not None:
         document["runtime_paths"] = runtime_paths
+    if native_packet_configuration is not None:
+        document['native_packet_configuration'] = json.loads(_canonical(native_packet_configuration))
     if runner.provenance_enabled:
         document["provenance_configuration"] = runner.provenance_configuration
     if register_program_configuration is not None:
@@ -613,9 +616,40 @@ class ScenarioSession:
         self._halted = False
         self._halt_reason: str | None = None
         self._terminal_failure: dict | None = None
+        self._native_source_binding_configuration_json = None
+        self._native_source_binding_installed = False
         self._runtime_prepared = None
         self._runtime_compiled = None
         self._runtime_path_document_bytes = None
+
+    def _native_source_binding_configuration(self):
+        raw = self._native_source_binding_configuration_json
+        recorded = (self._manifest_document or {}).get('native_packet_configuration')
+        if raw is None:
+            if recorded is not None:
+                raise ValueError('native source binding configuration was removed')
+            return None
+        from .native_packet_session import NativePacketSession, native_packet_source_binding_configuration
+        if type(self) is not NativePacketSession:
+            raise ValueError('native source binding requires the code-owned packet session')
+        configuration = native_packet_source_binding_configuration(self._packet_max_cases)
+        if raw != _canonical(configuration) or (self._manifest_document is not None
+                and _canonical(recorded) != raw):
+            raise ValueError('native source binding configuration drift')
+        return configuration
+
+    def _revoke_native_source_bindings(self, primary=None):
+        if self._native_source_binding_configuration_json is not None or self._native_source_binding_installed:
+            try:
+                from .native_instruction_source_binding import revoke_bindings
+                revoke_bindings(self)
+            except BaseException as cleanup:
+                if primary is None:
+                    raise
+                try:
+                    primary.add_note('native source binding revocation: ' + repr(cleanup))
+                except BaseException:
+                    pass
 
     def configure_runtime_paths(self, graph, contract, paths: tuple, *,
                                 source_ownership=None, replay_only: bool = False,
@@ -1372,7 +1406,8 @@ class ScenarioSession:
             register_program_verifier_configuration=self._register_program_verifier_configuration(),
             register_program_verifier_source_files=json.loads(self._register_verifier_sources_json) if self._register_verifier_sources_json is not None else None,
             register_reset_default_configuration=self._register_reset_default_configuration(),
-            register_reset_default_source_files=json.loads(self._register_reset_default_sources_json) if self._register_reset_default_sources_json is not None else None)
+            register_reset_default_source_files=json.loads(self._register_reset_default_sources_json) if self._register_reset_default_sources_json is not None else None,
+            native_packet_configuration=self._native_source_binding_configuration())
         self._manifest_sha256 = hashlib.sha256(
             _canonical(self._manifest_document)).hexdigest()
         if self._register_program_runtime is not None:
@@ -1627,6 +1662,7 @@ class ScenarioSession:
         phase = "provenance_admission"
         command_index = None
         try:
+            native_configuration = self._native_source_binding_configuration()
             for command_index, admission in enumerate(admissions):
                 self.runner.register_source_admission(admission)
             phase = "support_admission"
@@ -1645,9 +1681,23 @@ class ScenarioSession:
                 if scheduled_tick is not None:
                     self._source_schedule_ticks[case.source.action_id] = scheduled_tick
             else:
-                self.runner.sessions[case.source.component].accept_instructions(
+                native_service_event_start = (len(self.runner.sessions[case.source.component].service.events)
+                    if native_configuration is not None else None)
+                actual_instruction_acceptance = self.runner.sessions[case.source.component].accept_instructions(
                     case.source.address, case.source.data,
                     source_event_id=case.source.action_id)
+                if (native_configuration is not None
+                        and self._case_source_roles[case.case_id] == 'fuzz_source'):
+                    from .native_instruction_source_binding import (
+                        _install_actual_execution_producer, bind_actual_selected_instruction,
+                        publish_bound_source)
+                    if not self._native_source_binding_installed:
+                        _install_actual_execution_producer(self)
+                        self._native_source_binding_installed = True
+                    admission = next(item for item in admissions if item.action_id == case.source.action_id)
+                    binding = bind_actual_selected_instruction(self, case, len(self._cases) - 1,
+                        admission, actual_instruction_acceptance)
+                    publish_bound_source(self, binding)
             phase = "step"
             for command_index, advance in enumerate(case.advances):
                 self.runner.step_batch(advance.schedule)
@@ -1705,7 +1755,10 @@ class ScenarioSession:
     def finish(self, *, defer_semantic_hash: bool = False) -> ScenarioTrace:
         if not self._begun or self._finished:
             raise RuntimeError("session finish requires an active session")
-        self.runner.finalize()
+        try:
+            self.runner.finalize()
+        finally:
+            self._revoke_native_source_bindings(sys.exc_info()[1])
         self._finished = True
         return self.trace(defer_semantic_hash=defer_semantic_hash)
 
@@ -1736,7 +1789,10 @@ class ScenarioSession:
         _RESET_DEFAULT_GUARD(self, allow_incomplete=True)
         if any(self._reset_resume_advances.values()):
             _RESET_RESUME_GUARD(self, allow_incomplete=True)
-        self.runner.finalize()
+        try:
+            self.runner.finalize()
+        finally:
+            self._revoke_native_source_bindings(sys.exc_info()[1])
         self._finished = True
         check_methods()
         check_runtime()
@@ -1825,6 +1881,14 @@ class ScenarioSession:
             _validate_register_program_state(state,document['register_programs'])
         if self._ordinary_apb_observer is not None and self._register_program_runtime is None:
             raise ValueError('ordinary-apb-session-saving-requires-register-runtime')
+        native_configuration = self._native_source_binding_configuration()
+        if native_configuration is not None:
+            if (self._register_program_runtime is not None or self._reset_operations
+                    or self.runner.persistent_memory_prerequisite_gate is not None
+                    or not self.runner.provenance_enabled or self._runtime_prepared is None):
+                raise ValueError('unsupported native source binding plan configuration')
+            document['schema_version'] = 21 if self._terminal_failure is not None else 20
+            document['native_packet_configuration'] = native_configuration
         return _canonical(document)
 
     def record(self, genome: ScenarioGenome) -> ScenarioTrace:
@@ -2482,17 +2546,20 @@ def replay_online_session(plan: bytes,
                           checker: Callable[[OnlineCaseReceipt], tuple[str, ...]] | None = None,
                           register_runtime_factory=None,
                           native_max_cases: int | None = None,
-                          native_reference_execution: str | None = None
+                          native_reference_execution: str | None = None,
+                          native_source_binding: bool | None = None
                           ) -> ReplayComparison:
     """Rebuild from initial state and compare the complete committed prefix."""
     if not isinstance(plan, bytes) or not isinstance(reference, ScenarioTrace):
         raise ValueError("encoded plan and reference trace are required")
+    if native_source_binding is not None and type(native_source_binding) is not bool:
+        raise ValueError('native_source_binding comparison policy must be boolean')
     if native_max_cases is not None and (
             type(native_max_cases) is not int or not 1 <= native_max_cases <= 96):
         raise ValueError('native replay max_cases must be within1..96')
     if native_reference_execution is not None:
         import re
-        if (native_max_cases is None or type(native_reference_execution) is not str
+        if (type(native_reference_execution) is not str
                 or re.fullmatch(r'[0-9a-f]{32}', native_reference_execution) is None):
             raise ValueError('native comparison requires an explicit owned execution')
     document = json.loads(plan)
@@ -2501,6 +2568,24 @@ def replay_online_session(plan: bytes,
     if not isinstance(document, dict):
         raise ValueError("invalid online session plan")
     schema = document.get("schema_version")
+    native_plan = type(schema) is int and schema in (20, 21)
+    if native_plan:
+        from .native_packet_session import native_packet_source_binding_configuration
+        native_policy = document.get('native_packet_configuration')
+        if type(native_policy) is not dict:
+            raise ValueError('native packet configuration required')
+        saved_max_cases = native_policy.get('max_cases')
+        expected_policy = native_packet_source_binding_configuration(saved_max_cases)
+        if (_canonical(native_policy) != _canonical(expected_policy)
+                or native_source_binding is False or native_reference_execution is None
+                or native_max_cases is not None and native_max_cases != saved_max_cases):
+            raise ValueError('native saved configuration or owned comparison policy mismatch')
+        native_max_cases = saved_max_cases
+        native_source_binding = True
+    elif native_source_binding:
+        raise ValueError('native source binding requires a versioned native packet plan')
+    if native_reference_execution is not None and native_max_cases is None:
+        raise ValueError('native comparison requires native packet reconstruction')
     register_plan = type(schema) is int and schema in (16,17,18,19)
     if native_max_cases is not None and (register_plan or register_runtime_factory is not None):
         raise ValueError('native packet replay cannot select a register runtime')
@@ -2513,11 +2598,13 @@ def replay_online_session(plan: bytes,
     reset_plan = schema in (14, 15,16,17,18,19)
     trusted_plan = schema in (12, 13,16,17,18,19) or reset_plan and 'prerequisite_admissions' in document
     flexible_plan = trusted_plan or reset_plan
-    has_provenance = schema in (10, 11) or flexible_plan and 'provenance_configuration' in document
-    has_runtime = schema in (8, 9, 10, 11) or flexible_plan and 'runtime_paths' in document
+    has_provenance = native_plan or schema in (10, 11) or flexible_plan and 'provenance_configuration' in document
+    has_runtime = native_plan or schema in (8, 9, 10, 11) or flexible_plan and 'runtime_paths' in document
     if has_provenance and not has_runtime:
         raise ValueError('online provenance requires runtime paths')
-    required = base_keys | ({"terminal_failure"} if schema in (5, 7, 9, 11, 13, 15,17,19) else set()) | ({"runtime_paths"} if has_runtime else set())
+    required = base_keys | ({"terminal_failure"} if schema in (5, 7, 9, 11, 13, 15,17,19,21) else set()) | ({"runtime_paths"} if has_runtime else set())
+    if native_plan:
+        required.add('native_packet_configuration')
     if register_plan:
         required.add('register_programs')
     if reset_plan:
@@ -2526,7 +2613,7 @@ def replay_online_session(plan: bytes,
         required |= {"provenance_configuration", "source_admissions"}
     if trusted_plan:
         required.add('prerequisite_admissions')
-    if (type(schema) is not int or schema not in (4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,16,17,18,19)
+    if (type(schema) is not int or schema not in (4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,16,17,18,19,20,21)
             or set(document) != required
             or not isinstance(document["instruction_slots"], list)
             or not isinstance(document["warmup_advances"], list)
@@ -2559,7 +2646,7 @@ def replay_online_session(plan: bytes,
                 or hashlib.sha256(_canonical(expected_runtime.get("topology"))).hexdigest() != expected_runtime.get("topology_sha256")):
             raise ValueError("saved runtime path compilation identity mismatch")
     expected_failure = document.get("terminal_failure")
-    if (document["schema_version"] in (5, 7, 9, 11, 13, 15) or schema in (17,19) and expected_failure is not None) and (
+    if (document["schema_version"] in (5, 7, 9, 11, 13, 15,21) or schema in (17,19) and expected_failure is not None) and (
             not isinstance(expected_failure, dict)
             or set(expected_failure) != {"phase", "case_index", "case_id",
                                          "command_index", "error_type", "error_message"}
@@ -2625,7 +2712,7 @@ def replay_online_session(plan: bytes,
         elif kind == "source_event":
             scheduled_tick = source.pop("scheduled_local_tick", None)
             if scheduled_tick is not None:
-                if (document["schema_version"] not in (6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+                if (document["schema_version"] not in (6, 7, 8, 9, 10, 11, 12, 13, 14, 15,20,21)
                         or type(scheduled_tick) is not int or scheduled_tick < 0):
                     raise ValueError("invalid online source schedule tick")
                 if source["action_id"] in expected_schedule_ticks:
@@ -2668,10 +2755,10 @@ def replay_online_session(plan: bytes,
                 or _canonical(document['instruction_slots']) != _canonical(native_slots)
                 or len(decoded_cases) > native_max_cases
                 or reset_plan or reset_operations
-                or expected_failure is not None):
+                or expected_failure is not None and not native_plan):
             raise ValueError('unsupported native packet replay setup or terminal failure')
         session = NativePacketSession(template, factory(), checker=checker,
-                                      max_cases=native_max_cases)
+                                      max_cases=native_max_cases, native_source_binding=native_plan)
     trusted_gate = session.runner.persistent_memory_prerequisite_gate
     if trusted_plan != (trusted_gate is not None):
         raise ValueError('trusted replay requires matching saved admission declarations and configured gate')
@@ -2690,7 +2777,8 @@ def replay_online_session(plan: bytes,
     elif _canonical(document['instruction_slots']) != _canonical(session._instruction_slots):
         raise ValueError('native replay constructor reservation mismatch')
     actual_manifest = hashlib.sha256(
-        _canonical(_online_manifest(session.runner, checker, runtime_paths=session.runtime_path_document))).hexdigest()
+        _canonical(_online_manifest(session.runner, checker, runtime_paths=session.runtime_path_document,
+            native_packet_configuration=session._native_source_binding_configuration()))).hexdigest()
     if actual_manifest != reference.manifest_sha256:
         raise ValueError("online replay manifest identity mismatch")
     if native_max_cases is not None:
@@ -2698,12 +2786,25 @@ def replay_online_session(plan: bytes,
             session.begin()
             for order in document["warmup_advances"]:
                 session.advance_initial(tuple(order))
+            observed_failure = False
             for case_index, (case, source_role) in enumerate(zip(decoded_cases, decoded_roles)):
                 if trusted_plan:
                     trusted_gate.register_replay_case(
                         case, document['prerequisite_admissions'][case_index])
-                session.submit_case(case, source_role=source_role)
-            actual = session.finish()
+                try:
+                    session.submit_case(case, source_role=source_role)
+                except BaseException:
+                    if (expected_failure is None or case_index != len(decoded_cases) - 1
+                            or session._terminal_failure != expected_failure):
+                        raise
+                    observed_failure = True
+                    break
+            if expected_failure is not None:
+                if not observed_failure:
+                    raise ValueError('native replay expected terminal failure did not occur')
+                actual = session.trace()
+            else:
+                actual = session.finish()
         except BaseException as primary:
             # Includes malformed packets refused before the guarded submit's
             # own physical-operation try block, after fresh processes started.
@@ -2813,3 +2914,13 @@ _RESET_DEFAULT_METHOD = ScenarioSession.configure_register_reset_default
 _RESET_DEFAULT_GUARD = ScenarioSession._guard_register_reset_default_configuration
 
 _RESET_DEFAULT_NATIVE_GUARD = (guard_native_reset_evidence, guard_native_reset_evidence.__code__)
+
+
+def _native_instruction_execution_anchor():
+    pins = tuple((getattr(ScenarioSession, name), getattr(ScenarioSession, name).__code__)
+                 for name in ('_execute_case', '_native_source_binding_configuration'))
+    resolver = (_resolve_case_source, _resolve_case_source.__code__)
+    return lambda: (pins, resolver)
+
+
+_NATIVE_INSTRUCTION_EXECUTION_PRODUCERS = _native_instruction_execution_anchor()

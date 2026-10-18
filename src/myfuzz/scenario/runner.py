@@ -3269,3 +3269,13 @@ def _bind_native_reset_install_entry():
 
 (_NATIVE_RESET_RUNNER_METHODS,_NATIVE_RESET_RUNNER_DISPATCH,
  _native_reset_runner_method_table,_NATIVE_RESET_RUNNER_TABLE_ACCESSOR)=_bind_native_reset_install_entry()
+
+
+def _native_instruction_runner_anchor():
+    pins = tuple((getattr(ScenarioRunner, name), getattr(ScenarioRunner, name).__code__)
+                 for name in ('register_source_admission', '_append_external_events',
+                              '_append_ordinary_observed_event'))
+    return lambda: pins
+
+
+_NATIVE_INSTRUCTION_RUNNER_PRODUCERS = _native_instruction_runner_anchor()

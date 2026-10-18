@@ -226,12 +226,14 @@ def check_case(events, case):
         ram_event_id=writes[0]['event_id'], response_consumers=consumed, findings=failures)
 
 
-def run_gate(output, cache_dir, *, corrupt, native_completion_observation=False):
+def run_gate(output, cache_dir, *, corrupt, native_completion_observation=False,
+             native_source_binding=False):
     from myfuzz.local_harness.session import observe_local_command_timings
     from myfuzz.integration.picorv32_native_online import make_picorv32_native_online_runtime
     output.mkdir()
     runtime = make_picorv32_native_online_runtime(cache_dir=cache_dir, max_cases=3,
-        native_completion_observation=native_completion_observation)
+        native_completion_observation=native_completion_observation,
+        native_source_binding=native_source_binding)
     capture = ProcessCapture()
     capture.register(runtime.session.runner)
     fault_records = []
@@ -247,7 +249,8 @@ def run_gate(output, cache_dir, *, corrupt, native_completion_observation=False)
     runtime.factory = fresh_factory
     records = []
     result = {'status': 'failed', 'controlled_fault': corrupt, 'cases': records,
-              'native_completion_observation': native_completion_observation}
+              'native_completion_observation': native_completion_observation,
+              'native_source_binding': native_source_binding}
     primary = None
     try:
         with observe_local_command_timings(capture):
@@ -285,6 +288,19 @@ def run_gate(output, cache_dir, *, corrupt, native_completion_observation=False)
             comparison_document = asdict(comparison)
             comparison_document['actual_trace'] = trace_document(comparison.actual_trace)
             result['fresh_bundle'] = save(output / 'fresh-comparison.json.gz', comparison_document)
+            if native_source_binding:
+                from verifier.native_completion_gate_checks import check_host_source_bindings
+                binding_checks = {}
+                saved_plan = json.loads(plan)
+                for label, actual_trace, runner in (
+                        ('original', trace, capture.runners[0]),
+                        ('fresh', comparison.actual_trace, capture.runners[1])):
+                    binding_checks[label] = check_host_source_bindings(actual_trace.events,
+                        saved_plan, execution=runner.sessions['cpu']._execution)
+                result['native_source_binding_checks'] = save(
+                    output / 'native-source-binding-checks.json.gz', binding_checks)
+                if any(check['status'] != 'host_input_binding_checks_passed' for check in binding_checks.values()):
+                    raise ValueError('native-host-input-binding-check-failed')
             if native_completion_observation:
                 from verifier.native_completion_gate_checks import check_native_completion
                 native_checks = {}
@@ -353,7 +369,11 @@ def main():
     parser.add_argument('--heavy-lock', type=Path, required=True)
     parser.add_argument('--native-completion-observation', action='store_true',
                         help='select passive native CPU PRE/POST observation')
+    parser.add_argument('--native-source-binding', action='store_true',
+                        help='bind selected CPU host input to actual acceptance; no CPU consumption grant')
     args = parser.parse_args()
+    if args.native_source_binding and not args.native_completion_observation:
+        parser.error('native-source-binding requires native-completion-observation')
     for name in ('output', 'cache_dir', 'heavy_lock'):
         if getattr(args, name).resolve().is_relative_to(ROOT):
             parser.error(name + ' must be outside frozen source')
@@ -362,14 +382,17 @@ def main():
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         sys.path.insert(0, str(ROOT / 'src'))
         positive = run_gate(args.output / 'positive', args.cache_dir, corrupt=False,
-            native_completion_observation=args.native_completion_observation)
+            native_completion_observation=args.native_completion_observation,
+            native_source_binding=args.native_source_binding)
         if positive['status'] != 'bounded_directed_gate_passed':
             return 1
         negative = run_gate(args.output / 'controlled-response', args.cache_dir, corrupt=True,
-            native_completion_observation=args.native_completion_observation)
+            native_completion_observation=args.native_completion_observation,
+            native_source_binding=args.native_source_binding)
         summary = dict(schema_version='native_online_directed_gate.v1',
             positive_status=positive['status'], controlled_status=negative['status'],
             native_completion_observation=args.native_completion_observation,
+            native_source_binding=args.native_source_binding,
             script_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             formal_p6_complete=False, source_authority=False, retirement_authority=False,
             coverage_guided_search=False)

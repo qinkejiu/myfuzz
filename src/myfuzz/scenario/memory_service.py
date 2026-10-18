@@ -251,3 +251,12 @@ class MemoryService:
         finally:
             if reserved:
                 self._commit_reserved -= 1
+
+
+def _native_instruction_service_anchor():
+    method = MemoryService.accept_instructions
+    pin = (method, method.__code__)
+    return lambda: pin
+
+
+_NATIVE_INSTRUCTION_SERVICE_PRODUCER = _native_instruction_service_anchor()
