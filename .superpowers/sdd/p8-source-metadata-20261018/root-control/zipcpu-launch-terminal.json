@@ -1,0 +1,19 @@
+{
+  "component": "zipcpu",
+  "controller_sha256": "f8c4f32f58629864133db59eceadf1b66452931b8896c3657e00e637ff45a1fe",
+  "ended_at": "2026-10-18T08:56:31.491578+00:00",
+  "models": false,
+  "network_fallback": false,
+  "returncode": 1,
+  "schema_version": "p8_zipcpu_offline_root_launch.v1",
+  "ssh_pid": 35256,
+  "started_at": "2026-10-18T08:56:28.150142+00:00",
+  "zipcpu-launch.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "zipcpu-launch.stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

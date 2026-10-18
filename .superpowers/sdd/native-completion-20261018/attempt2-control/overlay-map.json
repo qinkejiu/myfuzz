@@ -1,0 +1,20 @@
+{
+  "directories": {
+    "src": {
+      "mode": 493
+    },
+    "src/myfuzz": {
+      "mode": 493
+    },
+    "src/myfuzz/local_harness": {
+      "mode": 493
+    }
+  },
+  "files": {
+    "src/myfuzz/local_harness/plan.py": {
+      "bytes": 11789,
+      "mode": 420,
+      "sha256": "86d49b4ab5cbd8c085b26d2de6d248969fb3e61c9944917ae97b90a7f1e81293"
+    }
+  }
+}

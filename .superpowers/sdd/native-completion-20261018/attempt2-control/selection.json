@@ -1,0 +1,359 @@
+{
+  "baseline_file_map_sha256": "94de100ab2ab50f3674f179378c9138d73cec873c68ae401bc43f9cb63e76cd1",
+  "file_count": 1111,
+  "host_files": {
+    "scripts/record_scenario.py": {
+      "bytes": 4454,
+      "mode": 420,
+      "sha256": "eab028cc9bf5023bf8c21d80168fb354f9fcc790195418dac655c63b85dd0895"
+    },
+    "scripts/replay_scenario.py": {
+      "bytes": 2418,
+      "mode": 420,
+      "sha256": "1760e047aad20aaadd3edc2b5ec370566108270c30b3b7a54b9af62c2cf99360"
+    },
+    "scripts/run_ibex_uart_online.py": {
+      "bytes": 4328,
+      "mode": 420,
+      "sha256": "cbf4d1fc22462637eecd72d52a0c12a4e066334b721b3314f79421d3ac6fe054"
+    },
+    "src/myfuzz/integration/ibex_uart_online.py": {
+      "bytes": 15495,
+      "mode": 420,
+      "sha256": "cb99a709ebbd150aa8ba4f25714c36ba715439bb4081a1e35a1cf4e4e217213b"
+    },
+    "src/myfuzz/integration/picorv32_native_online.py": {
+      "bytes": 7021,
+      "mode": 420,
+      "sha256": "8767b3e1a27ac745f4000a516bc5f5128f397e3dea3deb8eea0855255e8254c7"
+    },
+    "src/myfuzz/local_harness/cpu_session.py": {
+      "bytes": 36057,
+      "mode": 420,
+      "sha256": "ee84d23dc5ee50367a5299404bbdbce223da2ea932573e060c5cf9c1ac2797d7"
+    },
+    "src/myfuzz/local_harness/ibex_irq_receipt_contract.py": {
+      "bytes": 8367,
+      "mode": 420,
+      "sha256": "5280fa97bcb4522879bbd702fcc3d202af8e99039db2910fd245e68d54813a86"
+    },
+    "src/myfuzz/local_harness/opentitan_uart_fifo_contract.py": {
+      "bytes": 25418,
+      "mode": 420,
+      "sha256": "869fc886de17ebed71fcb90de0b442b40c794e715a7d0ee840578f8286624ef4"
+    },
+    "src/myfuzz/local_harness/opentitan_uart_session.py": {
+      "bytes": 42949,
+      "mode": 420,
+      "sha256": "ddd0318805775fd47218e70395dc17d5519003865fa21d05675f1c57a4eb2c64"
+    },
+    "src/myfuzz/local_harness/pulp_gpio_probe_contract.py": {
+      "bytes": 7647,
+      "mode": 420,
+      "sha256": "52c5a3eb0aa3cd14d4e4f2543e4e483d0d23ae02c0812b93622931730f4063dd"
+    },
+    "src/myfuzz/local_harness/uart_controlled_irq_contract.py": {
+      "bytes": 930,
+      "mode": 420,
+      "sha256": "03163ec8deab3858d021d4ed553505d0537238ebce465a0c115380a81090fe85"
+    },
+    "src/myfuzz/scenario/campaign.py": {
+      "bytes": 4913,
+      "mode": 420,
+      "sha256": "4f9151533b2801a2ec7cdd21b242e7d8d3e3acb407f314fe1f28ded42b1d3db5"
+    },
+    "src/myfuzz/scenario/checker.py": {
+      "bytes": 54634,
+      "mode": 420,
+      "sha256": "5b057a0ca702a062fb8bb1c7d8648e0f481f208728e09a79d036ab72f75517ad"
+    },
+    "src/myfuzz/scenario/contracts.py": {
+      "bytes": 61109,
+      "mode": 420,
+      "sha256": "9b4338123df915cedfc065d433e0d7beacc44512c927cfff356dae24e2d8b915"
+    },
+    "src/myfuzz/scenario/cpu_retirement.py": {
+      "bytes": 30439,
+      "mode": 420,
+      "sha256": "eaf795a55f66be4bf4e70de246bdb1681ba62ba33504ea8656ff153e08abe1ed"
+    },
+    "src/myfuzz/scenario/cva6_gpio_example.py": {
+      "bytes": 2593,
+      "mode": 420,
+      "sha256": "58d4f1c45829fd9089bc89dc4a114633bbd58af6bf7ef78f99feb6e8ed35acdb"
+    },
+    "src/myfuzz/scenario/cva6_session.py": {
+      "bytes": 12246,
+      "mode": 420,
+      "sha256": "4227b0a146b4b11c734c460b680c0a198cb0caa8b7051f846de9472d36793023"
+    },
+    "src/myfuzz/scenario/dependency.py": {
+      "bytes": 23582,
+      "mode": 420,
+      "sha256": "5afc842e6c17cb63204e0c6bcc3ceed97dcf5b1c0ca3f245c7b5bb04ca0defde"
+    },
+    "src/myfuzz/scenario/edge_experiments.py": {
+      "bytes": 1886,
+      "mode": 420,
+      "sha256": "0ae813515115cb217c04ae3fafdd356d8b2e0c0a056df61f1fd81762099c0cda"
+    },
+    "src/myfuzz/scenario/event_provenance.py": {
+      "bytes": 5403,
+      "mode": 420,
+      "sha256": "9950edb61c2baa4ea853d6c383878e24281b344989e4a60aefdd204627f0a129"
+    },
+    "src/myfuzz/scenario/evidence.py": {
+      "bytes": 59215,
+      "mode": 420,
+      "sha256": "69f8b9317464f41c2a5b6c1f5ae34a83c1f92373e80d0031a1fb3aee6ca6f815"
+    },
+    "src/myfuzz/scenario/evidence_identity.py": {
+      "bytes": 3910,
+      "mode": 420,
+      "sha256": "f459b60aef6c4ec929e08634f3d5a48b3571e733c1823ea6553fe7649d96453e"
+    },
+    "src/myfuzz/scenario/examples.py": {
+      "bytes": 2072,
+      "mode": 420,
+      "sha256": "be2f5c1795b032fe417c0c84843953004643e84a9e20f53ff31547075d51181e"
+    },
+    "src/myfuzz/scenario/feedback.py": {
+      "bytes": 1463,
+      "mode": 420,
+      "sha256": "35e7cafb1721f4dfe0a84199b557cc9e26196a50d6ec1d6d74fc3da99f02249f"
+    },
+    "src/myfuzz/scenario/genome.py": {
+      "bytes": 13797,
+      "mode": 420,
+      "sha256": "cfee4607f5bfbd0f37ea0d84a2aff4a078193d3c8c6af28708e26d82682fe3ed"
+    },
+    "src/myfuzz/scenario/gpio_consumption.py": {
+      "bytes": 35920,
+      "mode": 420,
+      "sha256": "f8ddf45e12f3a8f7820ef1b17332efb005f30451499fc676faba41121fcc1616"
+    },
+    "src/myfuzz/scenario/gpio_session.py": {
+      "bytes": 10022,
+      "mode": 420,
+      "sha256": "6042f102b5b377c113f1d0a36079ce6c08929c049cf4f517758e53a98c26963c"
+    },
+    "src/myfuzz/scenario/host_identity.py": {
+      "bytes": 7263,
+      "mode": 420,
+      "sha256": "b9a697b5592d76b08ddb10fd42abcf7474cc769d0f03982d9923239a626b24e2"
+    },
+    "src/myfuzz/scenario/ibex_session.py": {
+      "bytes": 14160,
+      "mode": 420,
+      "sha256": "50a581c99ee95b0ca8c32754b8a331a7bc8a2c6fca55c24b4b72965ab865ada5"
+    },
+    "src/myfuzz/scenario/ibex_uart_online.py": {
+      "bytes": 23898,
+      "mode": 420,
+      "sha256": "05d60cd9eb0238e863b646a01ff9149ad8cb8a08221781ce4864747d546c0e3a"
+    },
+    "src/myfuzz/scenario/ibex_uart_online_checker.py": {
+      "bytes": 3949,
+      "mode": 420,
+      "sha256": "3a5b044d5a66802950cce87ba8ad112c6aeb91c8f993960c82a1aab8ce73ffe3"
+    },
+    "src/myfuzz/scenario/identity.py": {
+      "bytes": 1626,
+      "mode": 420,
+      "sha256": "27baf65d5f1484b598870e39164b112b70995a418b6cb735c3122aad116e726b"
+    },
+    "src/myfuzz/scenario/ip_cpu_ip_example.py": {
+      "bytes": 1518,
+      "mode": 420,
+      "sha256": "2681823072ea0df5c3dcb143db2851994bc54678a4dea0784d9cf325e15ae6e3"
+    },
+    "src/myfuzz/scenario/irq.py": {
+      "bytes": 8389,
+      "mode": 420,
+      "sha256": "14c3cde398f0ae6cd33da16114878b3c3c1fe3a26ab9baf4c56d06c97775cb4e"
+    },
+    "src/myfuzz/scenario/ledger.py": {
+      "bytes": 8786,
+      "mode": 420,
+      "sha256": "415d25466a7655bdf179ccf2fe276d639ba585627161201b2b1baf711b364137"
+    },
+    "src/myfuzz/scenario/memory.py": {
+      "bytes": 17254,
+      "mode": 420,
+      "sha256": "05ab46d80877a50cb3281329ef224451860af6a10d2709a09d8f4eb9b45914d4"
+    },
+    "src/myfuzz/scenario/memory_commit_authority.py": {
+      "bytes": 6821,
+      "mode": 420,
+      "sha256": "d39989dda1c3392355678be8e0a8b70201661211c6d976e3cbbd0281559122fc"
+    },
+    "src/myfuzz/scenario/memory_read_authority.py": {
+      "bytes": 7473,
+      "mode": 420,
+      "sha256": "4b0d13a601971c7242e5527a28c1060142043a6d2771c1e7288be3bd7ece2f35"
+    },
+    "src/myfuzz/scenario/memory_service.py": {
+      "bytes": 14333,
+      "mode": 420,
+      "sha256": "f8ed028c0db293856fba1745623be0d26f26209190adb7152437b6a4dbf5ec9c"
+    },
+    "src/myfuzz/scenario/mutation.py": {
+      "bytes": 9468,
+      "mode": 420,
+      "sha256": "c2d430c061e718a8dc977d714e62e87a001951dc1418780414cd0c56f0be9e83"
+    },
+    "src/myfuzz/scenario/native_cpu_events.py": {
+      "bytes": 9735,
+      "mode": 420,
+      "sha256": "805767f20b07f5c624f3f1c35525029bf2ae00f3746c4e85cd792b16f5cca57e"
+    },
+    "src/myfuzz/scenario/native_packet_session.py": {
+      "bytes": 8963,
+      "mode": 420,
+      "sha256": "c4ad371cd931bf5e862895a568f148ba6fbc3a33e8621ad53ad8f4aeac9d2acc"
+    },
+    "src/myfuzz/scenario/native_replay_identity.py": {
+      "bytes": 5635,
+      "mode": 420,
+      "sha256": "c763cc78d46b2e97f4030bb1adb56bd070171fc132db57d34442b5ad6c742c8a"
+    },
+    "src/myfuzz/scenario/ownership.py": {
+      "bytes": 5976,
+      "mode": 420,
+      "sha256": "4e39d1495102d15ee5caa1c787dc3198d860853c734adff2955b8771f94aaaa7"
+    },
+    "src/myfuzz/scenario/picorv32_native_cpu_example.py": {
+      "bytes": 30132,
+      "mode": 384,
+      "sha256": "86a8ed486749a7c8d4bf50aef9927e8aa40a8d4cbb027a53be4d2b2f637c5701"
+    },
+    "src/myfuzz/scenario/picorv32_native_online.py": {
+      "bytes": 10569,
+      "mode": 420,
+      "sha256": "ae7e6ae278881a92ad788aa7f19178a31525e4db8e803b15423ea0405562a8f0"
+    },
+    "src/myfuzz/scenario/protocol_io.py": {
+      "bytes": 6324,
+      "mode": 420,
+      "sha256": "f6e446ef4f93e2cf5b30a1e1eb65b2b2bb3b57f6aec88541fe00d9c4c6491f79"
+    },
+    "src/myfuzz/scenario/replay.py": {
+      "bytes": 13394,
+      "mode": 420,
+      "sha256": "dbe72d874a5f8c899b67cf9ff9291eddc7e8e85173eff94e2ab5b7e8b98f2cb8"
+    },
+    "src/myfuzz/scenario/retirement_delivery.py": {
+      "bytes": 20013,
+      "mode": 420,
+      "sha256": "30795daf37f7ffddfa7339ba03b8e548d4a8ca390ae79ac643b050eed3fa859f"
+    },
+    "src/myfuzz/scenario/rfuzz_decoder.py": {
+      "bytes": 17617,
+      "mode": 420,
+      "sha256": "3e6c6ec21dc7250df2e0353590afb6f541a20098cf4667e12b84cbb9883f5888"
+    },
+    "src/myfuzz/scenario/router.py": {
+      "bytes": 17358,
+      "mode": 420,
+      "sha256": "d32f54b41608da1b14eb33b548512d66efca9a4727744cd27c87a39cbe3fedef"
+    },
+    "src/myfuzz/scenario/runner.py": {
+      "bytes": 188737,
+      "mode": 420,
+      "sha256": "a8763be06c4a92960b5a8ee4b4c1e5e2ed72123a6cefd2b892deb78fa39ef21d"
+    },
+    "src/myfuzz/scenario/runtime_edge_index.py": {
+      "bytes": 21602,
+      "mode": 420,
+      "sha256": "3644bf647ea3949c7820b34ddcace721f35eb998379c28e8817396ad8b557690"
+    },
+    "src/myfuzz/scenario/runtime_path_contract.py": {
+      "bytes": 24301,
+      "mode": 420,
+      "sha256": "543f83ae2d6e234d41aa17aa6c2ba1b23c13559e289bc75d32b278e9c0b35d73"
+    },
+    "src/myfuzz/scenario/scheduler.py": {
+      "bytes": 14286,
+      "mode": 420,
+      "sha256": "5f76cd050a138d3b6559046486ce16dfe7b5dde983a3cb5bc30e6ff6f0f6ca8d"
+    },
+    "src/myfuzz/scenario/source_provenance.py": {
+      "bytes": 7068,
+      "mode": 420,
+      "sha256": "a3944c0f17c921baae0eb1da5fe7b128a914b8590fab72224633081afb818fb4"
+    },
+    "src/myfuzz/scenario/state_dependency.py": {
+      "bytes": 4353,
+      "mode": 420,
+      "sha256": "b38f456a7705f4550a99c437bd6fe51400cbcd8905038340dc1cb55e400400f7"
+    },
+    "src/myfuzz/scenario/uart_consumption.py": {
+      "bytes": 39607,
+      "mode": 420,
+      "sha256": "3832ce3a1e8446753f66a3451930a4c61a67bb10582b0a42ae22e245c9efdb82"
+    },
+    "src/myfuzz/scenario/uart_example.py": {
+      "bytes": 1247,
+      "mode": 420,
+      "sha256": "89abcc1284ce9a01e02ca863fd6293fe98333d8e8726e2f4bbe97969e607856f"
+    },
+    "src/myfuzz/scenario/uart_gpio_example.py": {
+      "bytes": 1611,
+      "mode": 420,
+      "sha256": "8940d55ec579a31f0a33089fd0370a9e4489b78e555d1d6ad4df7f570f885402"
+    },
+    "src/myfuzz/scenario/uart_irq_consumption.py": {
+      "bytes": 38701,
+      "mode": 420,
+      "sha256": "699473320ef8a792f6e84e976ea02d9c226fc45451cf2f7bd89bbacc033575bd"
+    },
+    "src/myfuzz/scenario/uart_irq_entry.py": {
+      "bytes": 30003,
+      "mode": 420,
+      "sha256": "e8ef8b011689690b86f8f44889ff63c19b4bf1609cdb0819e15713fa3e7adf22"
+    },
+    "src/myfuzz/scenario/uart_memory_readback.py": {
+      "bytes": 14114,
+      "mode": 420,
+      "sha256": "06738693e9c0e3c5bdfb0cbd525ff8261965cbccc48eb5abf8dde1ea0ebb3f34"
+    },
+    "src/myfuzz/scenario/uart_operand_seed.py": {
+      "bytes": 10545,
+      "mode": 420,
+      "sha256": "894eef6e9817976691ece96f4762a9bebeba05ac8dbac172a0ea52a6be278213"
+    },
+    "src/myfuzz/scenario/uart_operand_use.py": {
+      "bytes": 9362,
+      "mode": 420,
+      "sha256": "bab6308b0813324093de089429146a7491ca83b2f787ae2c299aad4d0d57f954"
+    },
+    "src/myfuzz/scenario/uart_ram_commit_join.py": {
+      "bytes": 8646,
+      "mode": 420,
+      "sha256": "2cf991084650a50e843f215dfa8c68e6551e1ba80e511dfacd1c43922a4b5599"
+    },
+    "src/myfuzz/scenario/uart_retired_read.py": {
+      "bytes": 21710,
+      "mode": 420,
+      "sha256": "6cae8ac72aa92f9caac3b6c8fafab3bf807cc4007d686928a0b6f1cc8803a3a4"
+    },
+    "src/myfuzz/scenario/uart_session.py": {
+      "bytes": 9811,
+      "mode": 420,
+      "sha256": "eaf34bd3af8f4c00685ca94930eb30945f4621c09b7b23fb269bbd15f4e0ad20"
+    },
+    "src/myfuzz/scenario/uart_store_memory.py": {
+      "bytes": 14551,
+      "mode": 420,
+      "sha256": "abde3a9874c67de4a27d2b3f673801922575680ec54f3d869b50128e56c8f072"
+    }
+  },
+  "host_path_count": 69,
+  "overlay_count": 1,
+  "overlay_paths": [
+    "src/myfuzz/local_harness/plan.py"
+  ],
+  "schema_version": "native_completion_local_copy_selection.v1",
+  "scope": "complete current src/scripts bytes over independently frozen P6 baseline; no baseline extras",
+  "source_revision": "68f81b6adfb72d201a47804b26ca57a78a3d1fba"
+}

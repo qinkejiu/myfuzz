@@ -1,0 +1,13 @@
+{
+  "controller_sha256": "22afcbc094ae361ea7142a233044b20d262c38b82a2f8f09587ec8cca1ffca2f",
+  "copy-launch.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "copy-launch.stdout": {
+    "bytes": 1635,
+    "sha256": "9172c2794051c0802ca8cf4aa5e08360386284f36c740ff30c798c5587ebf48e"
+  },
+  "pid": 29877,
+  "returncode": 0
+}

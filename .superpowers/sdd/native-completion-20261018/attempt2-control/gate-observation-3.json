@@ -1,0 +1,197 @@
+{
+  "actual_gate_descendants": [
+    "3469032 3454454 R          04:13 /usr/bin/python3 /root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/project/scripts/verify_picorv32_native_online.py --output /root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/run-directed --cache-dir /root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/cache-native --heavy-lock /root/fanzehui/system-20261016/project/.superpowers/heavy-worker.lock --native-completion-observation",
+    "3615572 3469032 Sl         00:08 /root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/cache-native/75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c/harness",
+    "3615717 3469032 Sl         00:08 /root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/cache-native/10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8/harness"
+  ],
+  "cache_entries": [
+    "75ddcc77917affa62e1ef9a0ee47e29d418e3f0138cf23b78cd96ef8e8da8d3c",
+    "10ed04055ebcd9a9e0e0cce1b003c0e15067e3f75822834d5df9054afcf73de8"
+  ],
+  "controlled-response_files": [],
+  "controlled-response_saved_cases": [],
+  "native-directed-gate.stderr": {
+    "bytes": 0,
+    "tail": ""
+  },
+  "native-directed-gate.stdout": {
+    "bytes": 0,
+    "tail": ""
+  },
+  "observed_at": "2026-10-18T08:47:24.886726+00:00",
+  "positive_files": [
+    "case-1.json.gz",
+    "case-2.json.gz",
+    "case-3.json.gz",
+    "first.json.gz",
+    "fresh-comparison.json.gz",
+    "native-observation-checks.json.gz",
+    "plan.json",
+    "result.json.gz"
+  ],
+  "positive_saved_cases": [
+    {
+      "file": "case-1.json.gz",
+      "native_counts": {
+        "native_backend_request_accepted": 13,
+        "native_backend_response_consumed": 13,
+        "native_bus_completed": 13
+      },
+      "relation": {
+        "actual_a": 62,
+        "actual_b": 0,
+        "actual_final_gpio": 62,
+        "actual_ram": 62,
+        "case_id": "online-0-6e1ec30dca4987858e3e64c0",
+        "delivery_event_ids": [
+          620,
+          711,
+          802,
+          1023
+        ],
+        "expected_joint": 62,
+        "findings": [],
+        "ram_event_id": 934,
+        "response_consumers": [
+          {
+            "cpu_event_id": 720,
+            "cpu_value": 62,
+            "target_event_id": 711,
+            "target_value": 62
+          },
+          {
+            "cpu_event_id": 811,
+            "cpu_value": 0,
+            "target_event_id": 802,
+            "target_value": 0
+          }
+        ]
+      },
+      "source": "cpu.instructions"
+    },
+    {
+      "file": "case-2.json.gz",
+      "native_counts": {
+        "native_backend_request_accepted": 13,
+        "native_backend_response_consumed": 13,
+        "native_bus_completed": 13
+      },
+      "relation": {
+        "actual_a": 62,
+        "actual_b": 167,
+        "actual_final_gpio": 153,
+        "actual_ram": 153,
+        "case_id": "online-1-0da8a34fc632f1456d950733",
+        "delivery_event_ids": [
+          1544,
+          1635,
+          1726,
+          1951
+        ],
+        "expected_joint": 153,
+        "findings": [],
+        "ram_event_id": 1858,
+        "response_consumers": [
+          {
+            "cpu_event_id": 1644,
+            "cpu_value": 62,
+            "target_event_id": 1635,
+            "target_value": 62
+          },
+          {
+            "cpu_event_id": 1735,
+            "cpu_value": 167,
+            "target_event_id": 1726,
+            "target_value": 167
+          }
+        ]
+      },
+      "source": "gpio0.pin_byte"
+    },
+    {
+      "file": "case-3.json.gz",
+      "native_counts": {
+        "native_backend_request_accepted": 13,
+        "native_backend_response_consumed": 13,
+        "native_bus_completed": 13
+      },
+      "relation": {
+        "actual_a": 62,
+        "actual_b": 167,
+        "actual_final_gpio": 153,
+        "actual_ram": 153,
+        "case_id": "online-2-6e1ec30dca4987858e3e64c0",
+        "delivery_event_ids": [
+          2470,
+          2561,
+          2652,
+          2877
+        ],
+        "expected_joint": 153,
+        "findings": [],
+        "ram_event_id": 2784,
+        "response_consumers": [
+          {
+            "cpu_event_id": 2570,
+            "cpu_value": 62,
+            "target_event_id": 2561,
+            "target_value": 62
+          },
+          {
+            "cpu_event_id": 2661,
+            "cpu_value": 167,
+            "target_event_id": 2652,
+            "target_value": 167
+          }
+        ]
+      },
+      "source": "cpu.instructions"
+    }
+  ],
+  "processes": {
+    "native-directed-gate.launch.json": {
+      "returncode": 0,
+      "stdout": "    PID    PPID STAT     ELAPSED COMMAND\n3469032 3454454 R          04:13 /usr/bin/python3 /root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/project/scripts/verify_picorv32_native_online.py --output /root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/run-directed --cache-dir /root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/cache-native --heavy-lock /root/fanzehui/system-20261016/project/.superpowers/heavy-worker.lock --native-completion-observation\n"
+    },
+    "parent-start.json": {
+      "returncode": 0,
+      "stdout": "    PID    PPID STAT     ELAPSED COMMAND\n3454454 3454048 Ss         04:37 python3 /root/fanzehui/myfuzz/operations/p6-native-completion-inputs-20261018-attempt2/run_native_gate.py --freeze-sha256 3c287137bfa7e98c6b28444b20b26fa2e6ab25d6a01c2262594408fa380e44be --receipt-sha256 35704ba49d94e5a6e2ed59d60e365a618445a8687f18dd47530845ddfae11080 --directories-file-sha256 861e192518e1d809231b676b91b17c149466000f83138969eac6cbfaff68fb36\n"
+    }
+  },
+  "records": {
+    "native-directed-gate.launch.json": {
+      "argv": [
+        "/usr/bin/python3",
+        "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/project/scripts/verify_picorv32_native_online.py",
+        "--output",
+        "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/run-directed",
+        "--cache-dir",
+        "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/cache-native",
+        "--heavy-lock",
+        "/root/fanzehui/system-20261016/project/.superpowers/heavy-worker.lock",
+        "--native-completion-observation"
+      ],
+      "cwd": "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/project",
+      "pid": 3469032,
+      "returncode": null,
+      "started_unix": 1792312991.8308847
+    },
+    "parent-start.json": {
+      "argv": [
+        "/root/fanzehui/myfuzz/operations/p6-native-completion-inputs-20261018-attempt2/run_native_gate.py",
+        "--freeze-sha256",
+        "3c287137bfa7e98c6b28444b20b26fa2e6ab25d6a01c2262594408fa380e44be",
+        "--receipt-sha256",
+        "35704ba49d94e5a6e2ed59d60e365a618445a8687f18dd47530845ddfae11080",
+        "--directories-file-sha256",
+        "861e192518e1d809231b676b91b17c149466000f83138969eac6cbfaff68fb36"
+      ],
+      "controller_sha256": "4e08528bbc01f587f888ba3de1fd3dfbb1af04b6824bcf776a105f2df259a8a5",
+      "cwd": "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/project",
+      "formal_p6_complete": false,
+      "pid": 3454454,
+      "schema_version": "native_completion_gate_parent.v1",
+      "started_unix": 1792312967.7809913
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "baseline-directories.json": {
+    "bytes": 35081,
+    "sha256": "861e192518e1d809231b676b91b17c149466000f83138969eac6cbfaff68fb36"
+  },
+  "baseline-files.json": {
+    "bytes": 1632255,
+    "sha256": "94de100ab2ab50f3674f179378c9138d73cec873c68ae401bc43f9cb63e76cd1"
+  },
+  "copy-inputs.tar.gz": {
+    "bytes": 646155,
+    "sha256": "3760aad022d262732c0b7782d25cce59d3b1a59a3b5c3aae2f49729d6c6b87a8"
+  },
+  "local-current-src-scripts.json": {
+    "bytes": 201187,
+    "sha256": "22a4061396579f015ccf607ca1540f6a3e88fa0a4d15c9da844e7219508aca7b"
+  },
+  "overlay-map.json": {
+    "bytes": 358,
+    "sha256": "e2a604e5614213d5a4be40fd170ff952d7db6f78304e2f64370493f204318a22"
+  },
+  "overlay-paths.json": {
+    "bytes": 41,
+    "sha256": "4334de1c667b6ceadecff1d95d73b155c23e0a7c3020e4e0a6828845e9b4699a"
+  },
+  "overlay/src/myfuzz/local_harness/plan.py": {
+    "bytes": 11789,
+    "sha256": "86d49b4ab5cbd8c085b26d2de6d248969fb3e61c9944917ae97b90a7f1e81293"
+  },
+  "prepare_copy.py": {
+    "bytes": 11111,
+    "sha256": "6bf6b335fe27e628d43ee806047cadd503080a7ff6abbe0973488b1c18018db1"
+  },
+  "selection.json": {
+    "bytes": 12814,
+    "sha256": "cb2797084a476ad07e603475ed9339f8495c9412421862674a059ff4dd91a2d6"
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "native-directed-gate.stderr": {
+    "bytes": 0,
+    "tail": ""
+  },
+  "native-directed-gate.stdout": {
+    "bytes": 0,
+    "tail": ""
+  },
+  "observed_at": "2026-10-18T08:43:45.615854+00:00",
+  "positive_files": [],
+  "processes": {
+    "native-directed-gate.launch.json": {
+      "returncode": 0,
+      "stdout": "    PID    PPID STAT     ELAPSED COMMAND\n3469032 3454454 R          00:33 /usr/bin/python3 /root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/project/scripts/verify_picorv32_native_online.py --output /root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/run-directed --cache-dir /root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/cache-native --heavy-lock /root/fanzehui/system-20261016/project/.superpowers/heavy-worker.lock --native-completion-observation\n"
+    },
+    "parent-start.json": {
+      "returncode": 0,
+      "stdout": "    PID    PPID STAT     ELAPSED COMMAND\n3454454 3454048 Ss         00:57 python3 /root/fanzehui/myfuzz/operations/p6-native-completion-inputs-20261018-attempt2/run_native_gate.py --freeze-sha256 3c287137bfa7e98c6b28444b20b26fa2e6ab25d6a01c2262594408fa380e44be --receipt-sha256 35704ba49d94e5a6e2ed59d60e365a618445a8687f18dd47530845ddfae11080 --directories-file-sha256 861e192518e1d809231b676b91b17c149466000f83138969eac6cbfaff68fb36\n"
+    }
+  },
+  "records": {
+    "native-directed-gate.launch.json": {
+      "argv": [
+        "/usr/bin/python3",
+        "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/project/scripts/verify_picorv32_native_online.py",
+        "--output",
+        "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/run-directed",
+        "--cache-dir",
+        "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/cache-native",
+        "--heavy-lock",
+        "/root/fanzehui/system-20261016/project/.superpowers/heavy-worker.lock",
+        "--native-completion-observation"
+      ],
+      "cwd": "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/project",
+      "pid": 3469032,
+      "returncode": null,
+      "started_unix": 1792312991.8308847
+    },
+    "parent-start.json": {
+      "argv": [
+        "/root/fanzehui/myfuzz/operations/p6-native-completion-inputs-20261018-attempt2/run_native_gate.py",
+        "--freeze-sha256",
+        "3c287137bfa7e98c6b28444b20b26fa2e6ab25d6a01c2262594408fa380e44be",
+        "--receipt-sha256",
+        "35704ba49d94e5a6e2ed59d60e365a618445a8687f18dd47530845ddfae11080",
+        "--directories-file-sha256",
+        "861e192518e1d809231b676b91b17c149466000f83138969eac6cbfaff68fb36"
+      ],
+      "controller_sha256": "4e08528bbc01f587f888ba3de1fd3dfbb1af04b6824bcf776a105f2df259a8a5",
+      "cwd": "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt2/project",
+      "formal_p6_complete": false,
+      "pid": 3454454,
+      "schema_version": "native_completion_gate_parent.v1",
+      "started_unix": 1792312967.7809913
+    }
+  }
+}
