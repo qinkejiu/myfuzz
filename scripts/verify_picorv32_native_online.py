@@ -285,6 +285,21 @@ def run_gate(output, cache_dir, *, corrupt, native_completion_observation=False)
             comparison_document = asdict(comparison)
             comparison_document['actual_trace'] = trace_document(comparison.actual_trace)
             result['fresh_bundle'] = save(output / 'fresh-comparison.json.gz', comparison_document)
+            if native_completion_observation:
+                from verifier.native_completion_gate_checks import check_native_completion
+                native_checks = {}
+                for label, actual_trace, runner, faults in (
+                        ('original', trace, capture.runners[0], fault_records[:1] if corrupt else ()),
+                        ('fresh', comparison.actual_trace, capture.runners[1],
+                         fault_records[1:] if corrupt else ())):
+                    artifact_document = runner.sessions['cpu'].artifact.runtime_document
+                    native_checks[label] = check_native_completion(actual_trace.events,
+                        artifact_document, controlled_response_records=faults)
+                    native_checks[label]['artifact_document'] = artifact_document
+                result['native_observation_checks'] = save(
+                    output / 'native-observation-checks.json.gz', native_checks)
+                if any(check['status'] != 'raw_checks_passed' for check in native_checks.values()):
+                    raise ValueError('independent-native-raw-check-failed')
             if (comparison.matches is not True or comparison.first_difference is not None
                     or comparison.verification_scope != 'full'):
                 raise ValueError('complete-full-prefix-fresh-mismatch')
