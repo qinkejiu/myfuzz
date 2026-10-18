@@ -1,0 +1,62 @@
+{
+  "scripts/verifier/native_completion_gate_checks.py": {
+    "bytes": 24515,
+    "mode": 420,
+    "sha256": "a17e8beda9dd83a1e8b93b0de70695a3ec6256e048f2af13e8bdaf18efd7e24c"
+  },
+  "scripts/verify_picorv32_native_online.py": {
+    "bytes": 21686,
+    "mode": 420,
+    "sha256": "00401f20c9ec4ea098086557969b9e610a9b7268b67118978da06bfe803c3bb7"
+  },
+  "src/myfuzz/integration/picorv32_native_online.py": {
+    "bytes": 7545,
+    "mode": 420,
+    "sha256": "90816c55a40f3c91f6365ecf60a9d489471515b5a84b7e7f02ed88dd76ab34b4"
+  },
+  "src/myfuzz/local_harness/native_session.py": {
+    "bytes": 15371,
+    "mode": 420,
+    "sha256": "8060b8b3fbd5607717f9329b821a08f5291b88f9802a780ac8bb6d59356fa1d1"
+  },
+  "src/myfuzz/scenario/host_identity.py": {
+    "bytes": 7327,
+    "mode": 420,
+    "sha256": "868c330934ef5b71e98b5dec01c148490509faa9d73144d94a775a28e76771e0"
+  },
+  "src/myfuzz/scenario/memory.py": {
+    "bytes": 23137,
+    "mode": 420,
+    "sha256": "71d51a1395026bd1e2247bea3257e0b08291ae6510add2dec45789509cc5729a"
+  },
+  "src/myfuzz/scenario/memory_service.py": {
+    "bytes": 14818,
+    "mode": 420,
+    "sha256": "68b5d7946c41499efd6e4f95962fca3af59bb010a11506b3fa1ead7b140ea350"
+  },
+  "src/myfuzz/scenario/native_instruction_source_binding.py": {
+    "bytes": 15368,
+    "mode": 420,
+    "sha256": "046671419b3bcd6498075c9a560ae8b565fc34c1560b1f6cb52c4736fa570286"
+  },
+  "src/myfuzz/scenario/native_packet_session.py": {
+    "bytes": 10505,
+    "mode": 420,
+    "sha256": "5c4399ca34c54c8279b546a18b10752a78c637dbd2cc0b6a4ecc8aea28e33e38"
+  },
+  "src/myfuzz/scenario/native_replay_identity.py": {
+    "bytes": 7205,
+    "mode": 420,
+    "sha256": "113db7d955b0f7cca2d81225b480a9dce4724f8dd7b3d5190d3480dbf50f221c"
+  },
+  "src/myfuzz/scenario/runner.py": {
+    "bytes": 189122,
+    "mode": 420,
+    "sha256": "e07f36a19891a5b40b20bf36985b5c3b2da1285a8a6bcf6172d448520ba17578"
+  },
+  "src/myfuzz/scenario/session_runtime.py": {
+    "bytes": 177407,
+    "mode": 420,
+    "sha256": "514aa6b0520901fc8ee2e00885a4826b4d768165e0862b1db47a6d2d051ca5fe"
+  }
+}

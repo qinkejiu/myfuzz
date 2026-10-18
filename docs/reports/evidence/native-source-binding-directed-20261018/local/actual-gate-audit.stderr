@@ -1,0 +1,15 @@
+Traceback (most recent call last):
+  File "/home/qinkejiu/myfuzz/.superpowers/sdd/native-source-binding-20261018/attempt2-control/independent_gate_audit.py", line 546, in <module>
+    print(json.dumps(audit(args.operation_dir), sort_keys=True, indent=2))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/qinkejiu/myfuzz/.superpowers/sdd/native-source-binding-20261018/attempt2-control/independent_gate_audit.py", line 521, in audit
+    positive, controlled = audit_run(run / 'positive', False), audit_run(run / 'controlled-response', True)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/qinkejiu/myfuzz/.superpowers/sdd/native-source-binding-20261018/attempt2-control/independent_gate_audit.py", line 434, in audit_run
+    independently_bound = host_audit(trace['events'], plan, owner, hostchecks[label])
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/qinkejiu/myfuzz/.superpowers/sdd/native-source-binding-20261018/attempt2-control/independent_gate_audit.py", line 346, in host_audit
+    check(type(row['service_event_index'])is int and row['service_event_index']>=0
+  File "/home/qinkejiu/myfuzz/.superpowers/sdd/native-source-binding-20261018/attempt2-control/independent_gate_audit.py", line 33, in check
+    raise ValueError(reason)
+ValueError: actual-service-journal-position

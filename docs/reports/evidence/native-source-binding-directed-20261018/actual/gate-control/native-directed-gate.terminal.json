@@ -1,0 +1,22 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "/root/fanzehui/myfuzz/operations/p6-native-source-binding-20261018-attempt1/project/scripts/verify_picorv32_native_online.py",
+    "--output",
+    "/root/fanzehui/myfuzz/operations/p6-native-source-binding-20261018-attempt1/run-directed",
+    "--cache-dir",
+    "/root/fanzehui/myfuzz/operations/p6-native-source-binding-20261018-attempt1/cache-native",
+    "--heavy-lock",
+    "/root/fanzehui/system-20261016/project/.superpowers/heavy-worker.lock",
+    "--native-completion-observation",
+    "--native-source-binding"
+  ],
+  "cwd": "/root/fanzehui/myfuzz/operations/p6-native-source-binding-20261018-attempt1/project",
+  "ended_unix": 1792319388.6512604,
+  "error": null,
+  "pid": 2801008,
+  "returncode": 0,
+  "started_unix": 1792319024.1464903,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

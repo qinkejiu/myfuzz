@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/home/qinkejiu/myfuzz/.superpowers/sdd/native-source-binding-20261018/attempt2-control/extract_gate_saved.py", line 118, in <module>
+    args=parser.parse_args();extract(args.archive,args.archive_sha256,args.archive_bytes,args.target,args.receipt,args.member_index)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/qinkejiu/myfuzz/.superpowers/sdd/native-source-binding-20261018/attempt2-control/extract_gate_saved.py", line 54, in extract
+    need(set(member.pax_headers)<=_TIME_PAX,'pax-path-size-link-or-unknown-metadata')
+  File "/home/qinkejiu/myfuzz/.superpowers/sdd/native-source-binding-20261018/attempt2-control/extract_gate_saved.py", line 25, in need
+    if not value: raise ValueError(reason)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: pax-path-size-link-or-unknown-metadata

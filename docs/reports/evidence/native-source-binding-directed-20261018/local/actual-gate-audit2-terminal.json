@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-B",
+    "/home/qinkejiu/myfuzz/.superpowers/sdd/native-source-binding-20261018/attempt2-control/independent_gate_audit_attempt2.py",
+    "--operation-dir",
+    "/home/qinkejiu/myfuzz/.superpowers/sdd/native-source-binding-20261018/offline-gate-attempt2"
+  ],
+  "started_unix": 1792319751.9368682,
+  "source_sha256": "98cf34b36fb8984d9a944d2c12ecd1ab4c4ce7a57f58d0ac9b9bf8004de39090",
+  "pid": 62467,
+  "returncode": 0,
+  "ended_unix": 1792319752.6101506,
+  "error": null,
+  "stdout_sha256": "4f4490206caa3f24d1b95efaf06ecfe1e6307545bcd9946e9cb01f54edf85288",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

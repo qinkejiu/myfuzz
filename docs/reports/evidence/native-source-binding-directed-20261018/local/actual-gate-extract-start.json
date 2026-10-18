@@ -1,0 +1,21 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-B",
+    "/home/qinkejiu/myfuzz/.superpowers/sdd/native-source-binding-20261018/attempt2-control/extract_gate_saved.py",
+    "--archive",
+    "/home/qinkejiu/myfuzz/.superpowers/sdd/native-source-binding-20261018/attempt2-control/gate-capture.stdout",
+    "--archive-sha256",
+    "b46ef81637e12c7db6ec84690da717ef26406ac0de0fe0a8cab7ca9e790b08e3",
+    "--archive-bytes",
+    "3957534",
+    "--target",
+    "/home/qinkejiu/myfuzz/.superpowers/sdd/native-source-binding-20261018/offline-gate-attempt1",
+    "--receipt",
+    "/home/qinkejiu/myfuzz/.superpowers/sdd/native-source-binding-20261018/attempt2-control/gate-extract-receipt.json",
+    "--member-index",
+    "/home/qinkejiu/myfuzz/.superpowers/sdd/native-source-binding-20261018/attempt2-control/gate-members.json"
+  ],
+  "started_unix": 1792319538.9386508,
+  "pid": 61644
+}

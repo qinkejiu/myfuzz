@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "/root/fanzehui/myfuzz/operations/p6-native-source-binding-inputs-20261018-attempt2/run_native_gate.py",
+    "--freeze-sha256",
+    "d5ce57a590fc3f1668f9e1606c187818fffc66a78c7367f268e54884267c3024",
+    "--receipt-sha256",
+    "4263255b32575423fd682a8a2abfe04e687c153e9614a21a3de90bb2c54834ba",
+    "--directories-file-sha256",
+    "861e192518e1d809231b676b91b17c149466000f83138969eac6cbfaff68fb36"
+  ],
+  "controller_sha256": "04d32a34b9795a32d19f1628acfdb1bf595467dada4bc0fc7a07b4957cea5717",
+  "cwd": "/root/fanzehui/myfuzz/operations/p6-native-source-binding-20261018-attempt1/project",
+  "formal_p6_complete": false,
+  "pid": 2795948,
+  "schema_version": "native_completion_gate_parent.v1",
+  "started_unix": 1792319014.5180793
+}

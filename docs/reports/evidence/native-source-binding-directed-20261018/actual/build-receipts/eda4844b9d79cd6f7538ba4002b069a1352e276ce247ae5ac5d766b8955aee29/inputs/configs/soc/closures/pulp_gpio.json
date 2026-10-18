@@ -1,0 +1,175 @@
+{
+  "schema_version": "soc_elaboration_closure.v1",
+  "component": "pulp_gpio",
+  "root": "third_party/soc-pulp-apb-gpio",
+  "top_module": "apb_gpio",
+  "tool": {
+    "name": "verilator",
+    "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+    "frontend": "verilator-lint"
+  },
+  "command": [
+    "verilator",
+    "--lint-only",
+    "-Wno-fatal",
+    "--top-module",
+    "apb_gpio",
+    "-GAPB_ADDR_WIDTH=12",
+    "-GPAD_NUM=32",
+    "-GNBIT_PADCFG=4",
+    "third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv"
+  ],
+  "include_roots": [],
+  "defines": [],
+  "parameters": [
+    {
+      "name": "APB_ADDR_WIDTH",
+      "value": "12"
+    },
+    {
+      "name": "PAD_NUM",
+      "value": "32"
+    },
+    {
+      "name": "NBIT_PADCFG",
+      "value": "4"
+    }
+  ],
+  "closure_files": [
+    {
+      "root": "third_party/soc-pulp-apb-gpio",
+      "path": "rtl/apb_gpio.sv",
+      "sha256": "1e271914da4d25c87acd12121dde60a6ed955033870fd7a6730b2c9bafcbcaef"
+    }
+  ],
+  "status": "elaboration_verified",
+  "lint": {
+    "errors": 0,
+    "warnings": 2,
+    "exit_code": 0,
+    "log": "runs/soc-source-elaboration/pulp/pulp_gpio.elaborate.log"
+  },
+  "capability_findings": [
+    {
+      "topic": "apb_version",
+      "port_or_field": "PADDR/PWDATA/PWRITE/PSEL/PENABLE/PRDATA/PREADY/PSLVERR",
+      "observed": "APB3-class signal set only: the port declaration contains exactly the APB3 subset and no PSTRB, PPROT, PWAKEUP, PUSER/PWUSER/PRUSER or PZERO. Elaboration accepts the module with only these ports.",
+      "evidence_path": "third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv:41-66",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "byte_strobes",
+      "port_or_field": "PSTRB (absent)",
+      "observed": "No write-strobe input exists. The write case arms whole 32-bit registers and the write-enable masks are literal 32'hFFFFFFFF (e.g. REG_PADDIR_00_31, REG_PADOUT_32_63), so a write always updates all bits of the selected register; a partial/byte write can only be emulated as a full-word write.",
+      "evidence_path": "third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv:277-281",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "pready_handling",
+      "port_or_field": "PREADY",
+      "observed": "Hardwired constant: `assign PREADY = 1'b1;` - the slave completes every access in the APB access phase and can never insert a wait state.",
+      "evidence_path": "third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv:783",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "pslverr_handling",
+      "port_or_field": "PSLVERR",
+      "observed": "Hardwired constant: `assign PSLVERR = 1'b0;` - the IP never signals an APB error, and no RTL path can set it.",
+      "evidence_path": "third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv:784",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "unmapped_register_access",
+      "port_or_field": "PRDATA/s_write",
+      "observed": "Reads of register indices that have no case item fall into `default: PRDATA = 'h0;`. Writes to such indices set s_write=1 but select no write-enable mask, so no state changes. Neither case raises PSLVERR; accesses are silently ignored / read as zero.",
+      "evidence_path": "third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv:770-772",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "address_decode",
+      "port_or_field": "PADDR[6:2]",
+      "observed": "Only PADDR[6:2] is decoded into the 5-bit index s_apb_addr; APB_ADDR_WIDTH only widens the port and every upper address bit is ignored, so the 4 KB APB window aliases every 128 bytes. There is no out-of-range detection or alias rejection.",
+      "evidence_path": "third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv:121",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "input_synchronizer_enable_gating",
+      "port_or_field": "gpio_in/gpio_in_sync/r_gpio_en",
+      "observed": "gpio_in goes through a 3-stage chain (r_gpio_sync0 -> r_gpio_sync1 -> r_gpio_in), but each stage only advances when the pad's GPIOEN group clock-enable s_clk_en[j/4] is high (s_clk_en ORs the r_gpio_en bits of four consecutive pads). If all four pads of a group have GPIOEN=0, their sampled value, PADIN read and edge detectors never change even while the pad inputs toggle.",
+      "evidence_path": "third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv:199",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "interrupt_output_shape",
+      "port_or_field": "interrupt/r_status",
+      "observed": "`interrupt` is a one-cycle combinational pulse, not a held level: it equals |(r_gpio_inten & r_gpio_en & edge) computed from r_gpio_sync1 vs r_gpio_in. Latching is separate, in r_status, and is cleared only by reading REG_INTSTATUS_00_31 (0x24) or REG_INTSTATUS_32_63 (0x28).",
+      "evidence_path": "third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv:138-143",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "interrupt_type_encoding",
+      "port_or_field": "r_gpio_inttype[1:0]",
+      "observed": "2'b00 = falling edge, 2'b01 = rising edge, 2'b10 = rising-or-falling (the inline comment says 'rise' but the RTL ORs rise|fall), 2'b11 = no event because all three s_is_int_* terms are 0.",
+      "evidence_path": "third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv:131-133",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "dft_clock_gating_enable",
+      "port_or_field": "dft_cg_enable_i",
+      "observed": "Declared as an input but the identifier occurs exactly once in the file (the port declaration) - it is never referenced by logic, so it has no effect on behaviour and no clock gating is implemented in this RTL.",
+      "evidence_path": "third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv:49",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "clock_and_reset",
+      "port_or_field": "HCLK/HRESETn",
+      "observed": "All state is on posedge HCLK with asynchronous active-low reset (negedge HRESETn); single clock domain, no CDC.",
+      "evidence_path": "third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv:145-147",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "elaboration_closure",
+      "port_or_field": "n/a",
+      "observed": "The pinned filelist (Bender.yml/src_files.yml) is a single source; Verilator elaborates apb_gpio from that one file with parameters APB_ADDR_WIDTH=12/PAD_NUM=32/NBIT_PADCFG=4, exit 0 with 2 warnings (CASEINCOMPLETE at 276, SYMRSVDWORD at 65). Removing the file fails; running in a tree containing only this file reproduces exit 0.",
+      "evidence_path": "runs/soc-source-elaboration/pulp/pulp_gpio.elaborate.log",
+      "provenance": "elaboration"
+    }
+  ],
+  "unsupported": [
+    {
+      "topic": "apb4_byte_strobes",
+      "reason": "No PSTRB input and no per-byte write enables; all register writes are full 32-bit words, so byte/partial writes cannot be expressed or verified.",
+      "evidence_path": "third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv:51-58"
+    },
+    {
+      "topic": "apb4_protection_user_signals",
+      "reason": "No PPROT/PWAKEUP/PUSER/PWUSER/PRUSER/PZERO ports exist; security/privilege and user-sideband semantics are unavailable.",
+      "evidence_path": "third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv:41-66"
+    },
+    {
+      "topic": "apb_error_response",
+      "reason": "PSLVERR is tied to 1'b0 while unmapped reads return 0 and unmapped writes are dropped, so error signalling cannot be driven or observed.",
+      "evidence_path": "third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv:783"
+    },
+    {
+      "topic": "apb_wait_states",
+      "reason": "PREADY is tied to 1'b1; the slave cannot stall an access, so PREADY-dependent adapter behaviour cannot be exercised against this IP.",
+      "evidence_path": "third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv:783"
+    },
+    {
+      "topic": "clock_gating_control",
+      "reason": "dft_cg_enable_i is unused, so there is no controllable clock-gating behaviour to model or drive.",
+      "evidence_path": "third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv:49"
+    },
+    {
+      "topic": "address_alias_detection",
+      "reason": "Only PADDR[6:2] is decoded; a full 4 KB APB window aliases every 128 bytes with no error or alias indication.",
+      "evidence_path": "third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv:121"
+    },
+    {
+      "topic": "level_sensitive_interrupt_pin",
+      "reason": "The interrupt output is a one-cycle pulse, not a level held until acknowledge; a level-sensitive aggregator must instead poll the latched INTSTATUS registers.",
+      "evidence_path": "third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv:143"
+    }
+  ]
+}

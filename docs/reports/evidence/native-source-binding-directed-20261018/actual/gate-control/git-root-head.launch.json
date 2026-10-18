@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "git",
+    "rev-parse",
+    "HEAD"
+  ],
+  "cwd": "/root/fanzehui/myfuzz/operations/p6-native-source-binding-20261018-attempt1/project",
+  "pid": 2800877,
+  "returncode": null,
+  "started_unix": 1792319023.8883011
+}

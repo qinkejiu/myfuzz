@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-B",
+    "/home/qinkejiu/myfuzz/.superpowers/sdd/native-source-binding-20261018/attempt2-control/independent_gate_audit.py",
+    "--operation-dir",
+    "/home/qinkejiu/myfuzz/.superpowers/sdd/native-source-binding-20261018/offline-gate-attempt2"
+  ],
+  "started_unix": 1792319622.9305134,
+  "pid": 61972
+}

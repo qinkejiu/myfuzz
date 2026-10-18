@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "git",
+    "ls-files",
+    "--error-unmatch",
+    "configs/soc/closures/picorv32.json",
+    "configs/soc/closures/pulp_gpio.json"
+  ],
+  "cwd": "/root/fanzehui/myfuzz/operations/p6-native-source-binding-20261018-attempt1/project",
+  "ended_unix": 1792319023.976235,
+  "error": null,
+  "pid": 2800900,
+  "returncode": 0,
+  "started_unix": 1792319023.9454248,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "0d7854eb5edb1e1daf2af09a7c8488a7d9eb889b7fadd74176373a7d56297b71"
+}

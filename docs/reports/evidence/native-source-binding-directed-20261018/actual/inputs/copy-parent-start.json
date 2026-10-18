@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-B",
+    "/root/fanzehui/myfuzz/operations/p6-native-source-binding-inputs-20261018-attempt2/prepare_copy.py",
+    "--baseline-files",
+    "/root/fanzehui/myfuzz/operations/p6-native-source-binding-inputs-20261018-attempt2/baseline-files.json",
+    "--baseline-directories",
+    "/root/fanzehui/myfuzz/operations/p6-native-source-binding-inputs-20261018-attempt2/baseline-directories.json",
+    "--overlay-tree",
+    "/root/fanzehui/myfuzz/operations/p6-native-source-binding-inputs-20261018-attempt2/overlay",
+    "--overlay-map",
+    "/root/fanzehui/myfuzz/operations/p6-native-source-binding-inputs-20261018-attempt2/overlay-map.json",
+    "--overlay-paths",
+    "/root/fanzehui/myfuzz/operations/p6-native-source-binding-inputs-20261018-attempt2/overlay-paths.json",
+    "--overlay-map-sha256",
+    "3f0404498e11a4d1e9e5dadca72df9973e9778c4e4bcb4f097c6be4042429f24",
+    "--overlay-paths-sha256",
+    "551491be43df4fbdb540cb204bdb67428b7e4456dba25649ebf7934ca1700860"
+  ],
+  "child_pid": 2687977,
+  "native_execution": false,
+  "pid": 2687677,
+  "started_unix": 1792318772.471285
+}

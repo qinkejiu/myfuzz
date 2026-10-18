@@ -1,0 +1,46 @@
+{
+  "ar": {
+    "path": "/root/fanzehui/myfuzz/operations/environment-20261018-attempt3/bin/ar",
+    "sha256": "479dc8fed6065387661147a83b3bc04a18acc5118de907afe4aeb757f5164687"
+  },
+  "c++": {
+    "path": "/root/fanzehui/myfuzz/operations/environment-20261018-attempt3/bin/c++",
+    "sha256": "54a7435fa6d9ff33752bb86e16a945cef5388d29de428efd7afeaec0a1cbf0b6"
+  },
+  "cc": {
+    "path": "/root/fanzehui/myfuzz/operations/environment-20261018-attempt3/bin/cc",
+    "sha256": "1e2553ad8a08d5f4b1c68bb21ff753eb0314dca11c9e8334f93e70b7a6987a93"
+  },
+  "g++": {
+    "path": "/root/fanzehui/myfuzz/operations/environment-20261018-attempt3/bin/g++",
+    "sha256": "e0530c3ea87cd49ec4e130cc21dd33dc2d130bdb432020d32c96043b42d360b1"
+  },
+  "gcc": {
+    "path": "/root/fanzehui/myfuzz/operations/environment-20261018-attempt3/bin/gcc",
+    "sha256": "100750d08ed7bfa1c78b943992cbbbad2c148cefbb6f04cdd5242d708043724b"
+  },
+  "git": {
+    "path": "/usr/bin/git",
+    "sha256": "2a8c18fbf43da9f692d75474c72bea9dfd796c260b0f3dfe456376abc3bbd668"
+  },
+  "make": {
+    "path": "/root/fanzehui/myfuzz/operations/environment-20261018-attempt3/bin/make",
+    "sha256": "c269d6a637f8fe148f3a187c74a667bccce7a7a9a020de871cdb3622bbaa1f13"
+  },
+  "perl": {
+    "path": "/usr/bin/perl",
+    "sha256": "47bdc8a342556c1d140084417ef6cacd79a3362e4b6cc1e4754df55bdf1e3683"
+  },
+  "python3": {
+    "path": "/usr/bin/python3.12",
+    "sha256": "e50d468e8b0adfb05733f5b87b3cff34829c4a8c1aea50c865aa8bdfe4bb150f"
+  },
+  "verilator": {
+    "path": "/root/fanzehui/myfuzz/tools/verilator-5.051/bin/verilator",
+    "sha256": "fb2cc573b1055cf096c90e1efc9966fe56bdb4b265c83590cf2a49f7a0defcdf"
+  },
+  "verilator_bin": {
+    "path": "/root/fanzehui/myfuzz/tools/verilator-5.051/bin/verilator_bin",
+    "sha256": "ad3ad4d5653e9431eb907c31e5a7bfad3cd4ae59469b0f8e7c63403521225579"
+  }
+}

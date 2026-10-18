@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "git",
+    "-C",
+    "/root/fanzehui/myfuzz/operations/p6-native-source-binding-20261018-attempt1/project/third_party/picorv32_upstream_reference",
+    "fsck",
+    "--connectivity-only",
+    "--no-dangling"
+  ],
+  "cwd": "/root/fanzehui/myfuzz/operations/p6-native-source-binding-20261018-attempt1/project",
+  "pid": 2800931,
+  "returncode": null,
+  "started_unix": 1792319024.0074177
+}
