@@ -102,7 +102,8 @@ class PicoNativeOnlineRuntime:
     def replay(self, plan, reference):
         if not self._terminal:
             raise RuntimeError('finish the original session before fresh replay')
-        return replay_online_session(plan, self.factory, reference)
+        return replay_online_session(plan, self.factory, reference,
+                                     native_max_cases=self.max_cases)
 
 
 def make_picorv32_native_online_runtime(*, cache_dir: Path, base_dir: Path = ROOT,

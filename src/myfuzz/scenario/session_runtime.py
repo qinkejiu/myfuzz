@@ -2480,11 +2480,15 @@ def replay_online_session(plan: bytes,
                           factory: Callable[[], ScenarioRunner],
                           reference: ScenarioTrace, *,
                           checker: Callable[[OnlineCaseReceipt], tuple[str, ...]] | None = None,
-                          register_runtime_factory=None
+                          register_runtime_factory=None,
+                          native_max_cases: int | None = None
                           ) -> ReplayComparison:
     """Rebuild from initial state and compare the complete committed prefix."""
     if not isinstance(plan, bytes) or not isinstance(reference, ScenarioTrace):
         raise ValueError("encoded plan and reference trace are required")
+    if native_max_cases is not None and (
+            type(native_max_cases) is not int or not 1 <= native_max_cases <= 96):
+        raise ValueError('native replay max_cases must be within1..96')
     document = json.loads(plan)
     base_keys = {"schema_version", "template", "instruction_slots",
                  "warmup_advances", "cases"}
@@ -2492,6 +2496,8 @@ def replay_online_session(plan: bytes,
         raise ValueError("invalid online session plan")
     schema = document.get("schema_version")
     register_plan = type(schema) is int and schema in (16,17,18,19)
+    if native_max_cases is not None and (register_plan or register_runtime_factory is not None):
+        raise ValueError('native packet replay cannot select a register runtime')
     if register_plan:
         validate_register_program_plan(document)
         if not callable(register_runtime_factory):
@@ -2642,7 +2648,24 @@ def replay_online_session(plan: bytes,
     if register_plan:
         return _replay_register_program_session(document,template,decoded_cases,factory,
             reference,checker,register_runtime_factory)
-    session = ScenarioSession(template, factory(), checker=checker)
+    if native_max_cases is None:
+        session = ScenarioSession(template, factory(), checker=checker)
+    else:
+        from .native_packet_session import NativePacketSession
+        from .picorv32_native_online import (
+            INSTRUCTION_START, INSTRUCTION_END, PACKET_BYTES,
+            make_picorv32_native_online_bootstrap,
+        )
+        native_slots = [['cpu', address, 1] for address in
+                        range(INSTRUCTION_START, INSTRUCTION_END + 1, PACKET_BYTES)]
+        if (template != make_picorv32_native_online_bootstrap().template
+                or _canonical(document['instruction_slots']) != _canonical(native_slots)
+                or len(decoded_cases) > native_max_cases
+                or reset_plan or reset_operations
+                or expected_failure is not None):
+            raise ValueError('unsupported native packet replay setup or terminal failure')
+        session = NativePacketSession(template, factory(), checker=checker,
+                                      max_cases=native_max_cases)
     trusted_gate = session.runner.persistent_memory_prerequisite_gate
     if trusted_plan != (trusted_gate is not None):
         raise ValueError('trusted replay requires matching saved admission declarations and configured gate')
@@ -2655,8 +2678,11 @@ def replay_online_session(plan: bytes,
                                         provenance=has_provenance)
         if _canonical(session.runtime_path_document) != _canonical(expected_runtime):
             raise ValueError("online replay runtime path topology mismatch")
-    for component, address, count in document["instruction_slots"]:
-        session.declare_instruction_slots(component, address, count)
+    if native_max_cases is None:
+        for component, address, count in document["instruction_slots"]:
+            session.declare_instruction_slots(component, address, count)
+    elif _canonical(document['instruction_slots']) != _canonical(session._instruction_slots):
+        raise ValueError('native replay constructor reservation mismatch')
     actual_manifest = hashlib.sha256(
         _canonical(_online_manifest(session.runner, checker, runtime_paths=session.runtime_path_document))).hexdigest()
     if actual_manifest != reference.manifest_sha256:
