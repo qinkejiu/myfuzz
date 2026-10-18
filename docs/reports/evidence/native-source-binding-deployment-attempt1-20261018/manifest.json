@@ -1,0 +1,62 @@
+{
+  "copy-inputs.tar.gz": {
+    "bytes": 1319795,
+    "reference_only": true,
+    "sha256": "272a3b0cd8713aa7cc3b0b27fbf7ae05aa9be0e8f0e588509ba50601c37e56c7",
+    "source": ".superpowers/sdd/native-source-binding-20261018/attempt1-control/copy-inputs.tar.gz"
+  },
+  "deploy_copy_draft.py": {
+    "bytes": 9611,
+    "sha256": "62dcafe36ce9930cc3d580062f38151dcfc656893b66df0b224d499809764bf2",
+    "source": ".superpowers/sdd/native-source-binding-20261018/attempt1-control/deploy_copy_draft.py"
+  },
+  "deployment-start.json": {
+    "bytes": 12134,
+    "sha256": "1b9b4af749d6cb30055cfcc92562241e72281726dea0a6bc67733bd1769f40ef",
+    "source": ".superpowers/sdd/native-source-binding-20261018/attempt1-control/deployment-start.json"
+  },
+  "deployment-terminal.json": {
+    "bytes": 13152,
+    "sha256": "554d32efeded0159f3c668305bcb7642eb635b7ca6954d4f9867907bd90a5b48",
+    "source": ".superpowers/sdd/native-source-binding-20261018/attempt1-control/deployment-terminal.json"
+  },
+  "deployment.stderr": {
+    "bytes": 275,
+    "sha256": "548bd6aaf684aca6945b672794b994eb1de45d766cde6068e8963f009afa7ded",
+    "source": ".superpowers/sdd/native-source-binding-20261018/attempt1-control/deployment.stderr"
+  },
+  "deployment.stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "source": ".superpowers/sdd/native-source-binding-20261018/attempt1-control/deployment.stdout"
+  },
+  "input-pins.json": {
+    "bytes": 1621,
+    "sha256": "9454db97a9b3d7a230b031bac10246e3adf39067dd917d20cbbeb782585aa96d",
+    "source": ".superpowers/sdd/native-source-binding-20261018/attempt1-control/input-pins.json"
+  },
+  "launch-native-gate.sh": {
+    "bytes": 811,
+    "reference_only": true,
+    "sha256": "dbc7b7fe1ff78461fe79ca4b1925401e9ab28cde05bcbeb3d9c91faca89027ac",
+    "source": ".superpowers/sdd/native-source-binding-20261018/attempt1-control/launch-native-gate.sh"
+  },
+  "overlay-map.json": {
+    "bytes": 2573,
+    "reference_only": true,
+    "sha256": "3f0404498e11a4d1e9e5dadca72df9973e9778c4e4bcb4f097c6be4042429f24",
+    "source": ".superpowers/sdd/native-source-binding-20261018/attempt1-control/overlay-map.json"
+  },
+  "overlay-paths.json": {
+    "bytes": 568,
+    "reference_only": true,
+    "sha256": "551491be43df4fbdb540cb204bdb67428b7e4456dba25649ebf7934ca1700860",
+    "source": ".superpowers/sdd/native-source-binding-20261018/attempt1-control/overlay-paths.json"
+  },
+  "run_native_gate.py": {
+    "bytes": 13292,
+    "reference_only": true,
+    "sha256": "04d32a34b9795a32d19f1628acfdb1bf595467dada4bc0fc7a07b4957cea5717",
+    "source": ".superpowers/sdd/native-source-binding-20261018/attempt1-control/run_native_gate.py"
+  }
+}

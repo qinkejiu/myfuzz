@@ -1,0 +1,50 @@
+{
+  "baseline-directories.json": {
+    "bytes": 35081,
+    "sha256": "861e192518e1d809231b676b91b17c149466000f83138969eac6cbfaff68fb36"
+  },
+  "baseline-files.json": {
+    "bytes": 1632255,
+    "sha256": "3c287137bfa7e98c6b28444b20b26fa2e6ab25d6a01c2262594408fa380e44be"
+  },
+  "copy-inputs.tar.gz": {
+    "bytes": 1319795,
+    "sha256": "272a3b0cd8713aa7cc3b0b27fbf7ae05aa9be0e8f0e588509ba50601c37e56c7"
+  },
+  "expected-final-directories.json": {
+    "bytes": 35081,
+    "sha256": "861e192518e1d809231b676b91b17c149466000f83138969eac6cbfaff68fb36"
+  },
+  "expected-final-files.json": {
+    "bytes": 1632443,
+    "sha256": "d5ce57a590fc3f1668f9e1606c187818fffc66a78c7367f268e54884267c3024"
+  },
+  "launch-native-gate.sh": {
+    "bytes": 811,
+    "sha256": "dbc7b7fe1ff78461fe79ca4b1925401e9ab28cde05bcbeb3d9c91faca89027ac"
+  },
+  "local-current-src-scripts.json": {
+    "bytes": 201375,
+    "sha256": "3ca53e65a9efe939f0c4eb46249eb745587081b4d6fc2660cad0ebddaaa1a9a8"
+  },
+  "overlay-map.json": {
+    "bytes": 2573,
+    "sha256": "3f0404498e11a4d1e9e5dadca72df9973e9778c4e4bcb4f097c6be4042429f24"
+  },
+  "overlay-paths.json": {
+    "bytes": 568,
+    "sha256": "551491be43df4fbdb540cb204bdb67428b7e4456dba25649ebf7934ca1700860"
+  },
+  "prepare_copy.py": {
+    "bytes": 11115,
+    "sha256": "9a2f9efd8ce6331eb396625a9cfc83e3ca0d8be82838330be425efc4b22d13b3"
+  },
+  "run_native_gate.py": {
+    "bytes": 13292,
+    "sha256": "04d32a34b9795a32d19f1628acfdb1bf595467dada4bc0fc7a07b4957cea5717"
+  },
+  "selection.json": {
+    "bytes": 656,
+    "sha256": "1df0ac1db3ce4c0d081a4f810fe96fbfc46fd0ed9aada658f0e546fff77c5ac8"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "archive_sha256": "272a3b0cd8713aa7cc3b0b27fbf7ae05aa9be0e8f0e588509ba50601c37e56c7",
+  "member_count": 28,
+  "method": "independent local stdlib tarfile member names/parents read; no extraction or controller execution",
+  "missing_directory_members": [
+    "overlay"
+  ],
+  "remote_absence_checked": false
+}

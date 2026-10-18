@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "<string>", line 46, in <module>
+  File "<string>", line 27, in parse
+ValueError: tar-parent
+{"child_pid": 3424091, "ended_unix": 1792318571.910133, "error": null, "pid": 3424090, "returncode": 1, "started_unix": 1792318570.2386844}
