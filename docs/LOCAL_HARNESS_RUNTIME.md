@@ -1,3 +1,5 @@
+2026-10-18 当前源码准备：[native 来源绑定 opt-in](reports/native-source-binding-optin-source-20261018.md)（`9b5e190`）已通过源码复核，70路径新门准备包为8892文件/601目录；尚未部署或运行。新增事件仅记录 host 指令输入绑定，来源到实际 native 完成的消费认证尚未实现，旧68f81b6实测不验证新源码。[远端 root 输入](reports/p8-root-remote-input-independent-20261018.md)已实际审计通过；P8完整项目组装仍待四输入转换中的ZipCPU补采链修复，DMA标量测量尚未执行，5×仍OPEN。
+
 2026-10-18 P8准备：ZipCPU、[OpenTitan](reports/p8-opentitan-metadata-attempt2-independent-20261018.md)、[Ibex](reports/p8-ibex-metadata-attempt1-independent-20261018.md)组件独立保存数据审计均实际exit0。后两者在新副本重建原缺65/59项，完整Git对象/路径与实际stage字节核对；原工作树未改。仅授三组件源码准备，完整项目复制/tool冻结、DMA标量测量和5×仍开放。
 
 2026-10-18 最新native观察：[真实完成握手与独立审计](reports/native-completion-directed-independent-20261018.md)冻结`68f81b6`实际exit0。正向CPU/IP/CPU持续三例，原/fresh各3247事件、47次native PRE valid&&ready完成（30取指标记/17数据）；受控各1393事件、21完成，真实62→交付63传播被检出。8个DUT实际reaped0，完整warm fresh和source/tool/file+dir前后核验通过。仅授真实native bus transfer观察；不授来源认证/退休/IRQ/APB相位/四反馈/RFuzz搜索/冷缓存或P6整行。下方未导出mem_ready的描述限定于旧冻结版本。
