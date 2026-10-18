@@ -9,7 +9,8 @@ import json
 from typing import ClassVar
 
 from .ledger import TransactionKey, TransactionLedger
-from .memory import PersistentMemory, ReadSnapshot
+from .memory import (InstructionAcceptance, PersistentMemory, ReadSnapshot,
+                     _ACCEPT_ISSUED_INSTRUCTIONS)
 
 
 @dataclass(frozen=True)
@@ -102,11 +103,14 @@ class MemoryService:
             receipt, _, _ = self._pending_commits.pop(key)
             del self._issued_receipt_ids[id(receipt)]
 
-    def accept_instructions(self, address: int, data: bytes, *, source_event_id: str) -> None:
-        self.memory.accept_instructions(address, data, source_event_id=source_event_id)
+    def accept_instructions(self, address: int, data: bytes, *, source_event_id: str) -> InstructionAcceptance:
+        receipt = _ACCEPT_ISSUED_INSTRUCTIONS(self.memory, address, data,
+                                            source_event_id=source_event_id)
+        PersistentMemory.validate_instruction_acceptance(self.memory, receipt)
         self.events.append({"kind": "instruction_source", "address": address,
                             "data_hex": data.hex(), "source_event_id": source_event_id,
                             "generation": self.memory.generation})
+        return receipt
 
     def read(self, key: TransactionKey, address: int, *,
              width_bytes: int) -> ReadSnapshot:

@@ -9,6 +9,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 import hashlib
 import json
+import sys
+from weakref import ref
 
 
 _MAX_ADDRESS = (1 << 64) - 1
@@ -69,6 +71,113 @@ class ReadSnapshot:
     @property
     def value(self) -> int:
         return int.from_bytes(self.data, "little")
+
+
+@dataclass(frozen=True, slots=True)
+class InstructionAcceptance:
+    """Actual host instruction-byte write; no CPU transfer/source grant."""
+
+    memory_id: str
+    address: int
+    byte_offset: int
+    generation: int
+    data: bytes
+    source_event_id: str
+    versions: tuple[tuple[int, int], ...]
+    writer_event_ids: tuple[str, ...]
+    writer_kinds: tuple[str, ...]
+
+
+def _acceptance_material(receipt):
+    if (type(receipt) is not InstructionAcceptance
+            or type(receipt.memory_id) is not str or not receipt.memory_id
+            or type(receipt.source_event_id) is not str or not receipt.source_event_id
+            or any(type(v) is not int or v < 0 for v in
+                   (receipt.address, receipt.byte_offset, receipt.generation))
+            or type(receipt.data) is not bytes or not receipt.data or len(receipt.data) % 4
+            or any(type(v) is not tuple or len(v) != len(receipt.data)
+                   for v in (receipt.versions, receipt.writer_event_ids, receipt.writer_kinds))
+            or any(type(v) is not tuple or len(v) != 2
+                   or any(type(part) is not int or part < 0 for part in v)
+                   for v in receipt.versions)
+            or any(type(v) is not str for v in (*receipt.writer_event_ids, *receipt.writer_kinds))):
+        raise ValueError('invalid instruction acceptance material')
+    return (receipt.memory_id, receipt.address, receipt.byte_offset,
+            receipt.generation, receipt.data, receipt.source_event_id,
+            receipt.versions, receipt.writer_event_ids, receipt.writer_kinds)
+
+
+def _instruction_acceptance_registry():
+    issued = {}
+    producer = None
+
+    def bind(method):
+        nonlocal producer
+        if producer is not None or method is not PersistentMemory.accept_instructions:
+            raise ValueError('instruction acceptance producer is already bound or foreign')
+        producer = (method, method.__code__)
+
+    def original_producer(owner):
+        method, code = producer
+        bound = getattr(owner, 'accept_instructions', None)
+        if (PersistentMemory.accept_instructions is not method or method.__code__ is not code
+                or 'accept_instructions' in vars(owner)
+                or getattr(bound, '__self__', None) is not owner
+                or getattr(bound, '__func__', None) is not method):
+            raise ValueError('instruction acceptance producer was replaced')
+        return method, code
+
+    def owner_records(owner):
+        row = issued.get(id(owner))
+        return row[1] if row is not None and row[0]() is owner else None
+
+    def register(owner, receipt):
+        frame = sys._getframe(1)
+        method, code = original_producer(owner)
+        if (frame.f_code is not code or frame.f_globals is not globals()
+                or frame.f_locals.get('self') is not owner
+                or PersistentMemory.accept_instructions is not method
+                or method.__code__ is not code):
+            raise ValueError('instruction acceptance must originate in actual memory write')
+        records = owner_records(owner)
+        if records is None:
+            owner_id = id(owner)
+
+            def expired(reference):
+                row = issued.get(owner_id)
+                if row is not None and row[0] is reference:
+                    issued.pop(owner_id)
+
+            records = {}
+            issued[owner_id] = (ref(owner, expired), records)
+        records[id(receipt)] = (receipt, _acceptance_material(receipt))
+
+    def validate(owner, receipt):
+        original_producer(owner)
+        records = owner_records(owner)
+        row = records.get(id(receipt)) if records is not None else None
+        if (row is None or row[0] is not receipt
+                or _acceptance_material(receipt) != row[1]
+                or receipt.generation != owner.generation):
+            raise ValueError('instruction acceptance is not an unchanged actual issued result')
+        return receipt
+
+    def revoke(owner):
+        if owner_records(owner) is not None:
+            issued.pop(id(owner))
+
+    def accept(owner, address, data, *, source_event_id):
+        method, _ = original_producer(owner)
+        # Invoke the captured actual write for this call, never an override
+        # that can replay an earlier genuine result.
+        return method(owner, address, data, source_event_id=source_event_id)
+
+    return register, validate, revoke, bind, accept
+
+
+(_REGISTER_INSTRUCTION_ACCEPTANCE, _VALIDATE_INSTRUCTION_ACCEPTANCE,
+ _REVOKE_INSTRUCTION_ACCEPTANCES, _BIND_INSTRUCTION_ACCEPTANCE_PRODUCER,
+ _ACCEPT_ISSUED_INSTRUCTIONS) = _instruction_acceptance_registry()
 
 
 class InstructionNotReady(ValueError):
@@ -268,7 +377,7 @@ class PersistentMemory:
             raise ValueError("instruction slots contain determined bytes")
         self._instruction_slots.update(keys)
 
-    def accept_instructions(self, address: int, data: bytes, *, source_event_id: str) -> None:
+    def accept_instructions(self, address: int, data: bytes, *, source_event_id: str) -> InstructionAcceptance:
         """Fill reserved words once and record the input source for every byte."""
         from .rv32i_sources import validate_instruction_bytes
         validate_instruction_bytes(data)
@@ -286,6 +395,18 @@ class PersistentMemory:
         version = self._next_version(region.memory_id)
         for key, value in zip(keys, data):
             self._bytes[key] = ByteCell(value, version, "INSTRUCTION_SOURCE", source_event_id)
+        cells = tuple(self._bytes[key] for key in keys)
+        receipt = InstructionAcceptance(str(region.memory_id), int(address), offset,
+            self.generation, bytes(data), str(source_event_id),
+            tuple(cell.version for cell in cells),
+            tuple(str(cell.writer_event_id) for cell in cells),
+            tuple(str(cell.writer_kind) for cell in cells))
+        _REGISTER_INSTRUCTION_ACCEPTANCE(self, receipt)
+        return receipt
+
+    def validate_instruction_acceptance(self, receipt: InstructionAcceptance) -> InstructionAcceptance:
+        """Validate original issued identity/material, without reading memory."""
+        return _VALIDATE_INSTRUCTION_ACCEPTANCE(self, receipt)
 
     def _check_instruction_ready(self, memory_id: str, offset: int, width_bytes: int) -> None:
         if any((memory_id, offset + lane) in self._instruction_slots
@@ -341,12 +462,17 @@ class PersistentMemory:
 
     def warm_reset(self) -> None:
         """Keep committed memory and generation during a whole-scene warm reset."""
+        _REVOKE_INSTRUCTION_ACCEPTANCES(self)
 
     def cold_reset(self) -> None:
         """Start a new generation and reapply only the declared initial image."""
+        _REVOKE_INSTRUCTION_ACCEPTANCES(self)
         self.generation += 1
         self._bytes = {
             key: ByteCell(value, (self.generation, 0), "INITIAL_IMAGE", "initial-image")
             for key, value in self._initial_images.items()
         }
         self._commit_sequences = {region.memory_id: 0 for region in self._regions}
+
+
+_BIND_INSTRUCTION_ACCEPTANCE_PRODUCER(PersistentMemory.accept_instructions)
