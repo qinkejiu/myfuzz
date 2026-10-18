@@ -1,0 +1,1805 @@
+{
+  ".git": {
+    "mode": 493
+  },
+  ".git/hooks": {
+    "mode": 493
+  },
+  ".git/info": {
+    "mode": 493
+  },
+  ".git/logs": {
+    "mode": 493
+  },
+  ".git/logs/refs": {
+    "mode": 493
+  },
+  ".git/logs/refs/heads": {
+    "mode": 493
+  },
+  ".git/logs/refs/heads/codex": {
+    "mode": 493
+  },
+  ".git/logs/refs/remotes": {
+    "mode": 493
+  },
+  ".git/logs/refs/remotes/origin": {
+    "mode": 493
+  },
+  ".git/modules": {
+    "mode": 493
+  },
+  ".git/modules/external_designs": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/cv32e40p": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/cv32e40p/hooks": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/cv32e40p/info": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/cv32e40p/logs": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/cv32e40p/logs/refs": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/cv32e40p/logs/refs/heads": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/cv32e40p/logs/refs/remotes": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/cv32e40p/logs/refs/remotes/origin": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/cv32e40p/objects": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/cv32e40p/objects/pack": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/cv32e40p/refs": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/cv32e40p/refs/heads": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/cv32e40p/refs/remotes": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/cv32e40p/refs/remotes/origin": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/rvx": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/rvx/hooks": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/rvx/info": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/rvx/logs": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/rvx/logs/refs": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/rvx/logs/refs/heads": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/rvx/logs/refs/remotes": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/rvx/logs/refs/remotes/origin": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/rvx/objects": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/rvx/objects/pack": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/rvx/refs": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/rvx/refs/heads": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/rvx/refs/remotes": {
+    "mode": 493
+  },
+  ".git/modules/external_designs/rvx/refs/remotes/origin": {
+    "mode": 493
+  },
+  ".git/modules/third_party": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-i2c": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-i2c/hooks": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-i2c/info": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-i2c/logs": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-i2c/logs/refs": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-i2c/logs/refs/heads": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-i2c/logs/refs/remotes": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-i2c/logs/refs/remotes/origin": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-i2c/objects": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-i2c/objects/pack": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-i2c/refs": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-i2c/refs/heads": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-i2c/refs/remotes": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-i2c/refs/remotes/origin": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-i2c/refs/tags": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-timer": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-timer/hooks": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-timer/info": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-timer/logs": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-timer/logs/refs": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-timer/logs/refs/heads": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-timer/logs/refs/remotes": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-timer/logs/refs/remotes/origin": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-timer/objects": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-timer/objects/pack": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-timer/refs": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-timer/refs/heads": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-timer/refs/remotes": {
+    "mode": 493
+  },
+  ".git/modules/third_party/soc-pulp-apb-timer/refs/remotes/origin": {
+    "mode": 493
+  },
+  ".git/objects": {
+    "mode": 493
+  },
+  ".git/objects/00": {
+    "mode": 493
+  },
+  ".git/objects/01": {
+    "mode": 493
+  },
+  ".git/objects/02": {
+    "mode": 493
+  },
+  ".git/objects/03": {
+    "mode": 493
+  },
+  ".git/objects/04": {
+    "mode": 493
+  },
+  ".git/objects/05": {
+    "mode": 493
+  },
+  ".git/objects/06": {
+    "mode": 493
+  },
+  ".git/objects/07": {
+    "mode": 493
+  },
+  ".git/objects/08": {
+    "mode": 493
+  },
+  ".git/objects/09": {
+    "mode": 493
+  },
+  ".git/objects/0a": {
+    "mode": 493
+  },
+  ".git/objects/0b": {
+    "mode": 493
+  },
+  ".git/objects/0c": {
+    "mode": 493
+  },
+  ".git/objects/0d": {
+    "mode": 493
+  },
+  ".git/objects/0e": {
+    "mode": 493
+  },
+  ".git/objects/0f": {
+    "mode": 493
+  },
+  ".git/objects/10": {
+    "mode": 493
+  },
+  ".git/objects/11": {
+    "mode": 493
+  },
+  ".git/objects/12": {
+    "mode": 493
+  },
+  ".git/objects/13": {
+    "mode": 493
+  },
+  ".git/objects/14": {
+    "mode": 493
+  },
+  ".git/objects/15": {
+    "mode": 493
+  },
+  ".git/objects/16": {
+    "mode": 493
+  },
+  ".git/objects/17": {
+    "mode": 493
+  },
+  ".git/objects/18": {
+    "mode": 493
+  },
+  ".git/objects/19": {
+    "mode": 493
+  },
+  ".git/objects/1a": {
+    "mode": 493
+  },
+  ".git/objects/1b": {
+    "mode": 493
+  },
+  ".git/objects/1c": {
+    "mode": 493
+  },
+  ".git/objects/1d": {
+    "mode": 493
+  },
+  ".git/objects/1e": {
+    "mode": 493
+  },
+  ".git/objects/1f": {
+    "mode": 493
+  },
+  ".git/objects/20": {
+    "mode": 493
+  },
+  ".git/objects/21": {
+    "mode": 493
+  },
+  ".git/objects/22": {
+    "mode": 493
+  },
+  ".git/objects/23": {
+    "mode": 493
+  },
+  ".git/objects/24": {
+    "mode": 493
+  },
+  ".git/objects/25": {
+    "mode": 493
+  },
+  ".git/objects/26": {
+    "mode": 493
+  },
+  ".git/objects/27": {
+    "mode": 493
+  },
+  ".git/objects/28": {
+    "mode": 493
+  },
+  ".git/objects/29": {
+    "mode": 493
+  },
+  ".git/objects/2a": {
+    "mode": 493
+  },
+  ".git/objects/2b": {
+    "mode": 493
+  },
+  ".git/objects/2c": {
+    "mode": 493
+  },
+  ".git/objects/2d": {
+    "mode": 493
+  },
+  ".git/objects/2e": {
+    "mode": 493
+  },
+  ".git/objects/2f": {
+    "mode": 493
+  },
+  ".git/objects/30": {
+    "mode": 493
+  },
+  ".git/objects/31": {
+    "mode": 493
+  },
+  ".git/objects/32": {
+    "mode": 493
+  },
+  ".git/objects/33": {
+    "mode": 493
+  },
+  ".git/objects/34": {
+    "mode": 493
+  },
+  ".git/objects/35": {
+    "mode": 493
+  },
+  ".git/objects/36": {
+    "mode": 493
+  },
+  ".git/objects/37": {
+    "mode": 493
+  },
+  ".git/objects/38": {
+    "mode": 493
+  },
+  ".git/objects/39": {
+    "mode": 493
+  },
+  ".git/objects/3a": {
+    "mode": 493
+  },
+  ".git/objects/3b": {
+    "mode": 493
+  },
+  ".git/objects/3c": {
+    "mode": 493
+  },
+  ".git/objects/3d": {
+    "mode": 493
+  },
+  ".git/objects/3e": {
+    "mode": 493
+  },
+  ".git/objects/3f": {
+    "mode": 493
+  },
+  ".git/objects/40": {
+    "mode": 493
+  },
+  ".git/objects/41": {
+    "mode": 493
+  },
+  ".git/objects/42": {
+    "mode": 493
+  },
+  ".git/objects/43": {
+    "mode": 493
+  },
+  ".git/objects/44": {
+    "mode": 493
+  },
+  ".git/objects/45": {
+    "mode": 493
+  },
+  ".git/objects/46": {
+    "mode": 493
+  },
+  ".git/objects/47": {
+    "mode": 493
+  },
+  ".git/objects/48": {
+    "mode": 493
+  },
+  ".git/objects/49": {
+    "mode": 493
+  },
+  ".git/objects/4a": {
+    "mode": 493
+  },
+  ".git/objects/4b": {
+    "mode": 493
+  },
+  ".git/objects/4c": {
+    "mode": 493
+  },
+  ".git/objects/4d": {
+    "mode": 493
+  },
+  ".git/objects/4e": {
+    "mode": 493
+  },
+  ".git/objects/4f": {
+    "mode": 493
+  },
+  ".git/objects/50": {
+    "mode": 493
+  },
+  ".git/objects/51": {
+    "mode": 493
+  },
+  ".git/objects/52": {
+    "mode": 493
+  },
+  ".git/objects/53": {
+    "mode": 493
+  },
+  ".git/objects/54": {
+    "mode": 493
+  },
+  ".git/objects/55": {
+    "mode": 493
+  },
+  ".git/objects/56": {
+    "mode": 493
+  },
+  ".git/objects/57": {
+    "mode": 493
+  },
+  ".git/objects/58": {
+    "mode": 493
+  },
+  ".git/objects/59": {
+    "mode": 493
+  },
+  ".git/objects/5a": {
+    "mode": 493
+  },
+  ".git/objects/5b": {
+    "mode": 493
+  },
+  ".git/objects/5c": {
+    "mode": 493
+  },
+  ".git/objects/5d": {
+    "mode": 493
+  },
+  ".git/objects/5e": {
+    "mode": 493
+  },
+  ".git/objects/5f": {
+    "mode": 493
+  },
+  ".git/objects/60": {
+    "mode": 493
+  },
+  ".git/objects/61": {
+    "mode": 493
+  },
+  ".git/objects/62": {
+    "mode": 493
+  },
+  ".git/objects/63": {
+    "mode": 493
+  },
+  ".git/objects/64": {
+    "mode": 493
+  },
+  ".git/objects/65": {
+    "mode": 493
+  },
+  ".git/objects/66": {
+    "mode": 493
+  },
+  ".git/objects/67": {
+    "mode": 493
+  },
+  ".git/objects/68": {
+    "mode": 493
+  },
+  ".git/objects/69": {
+    "mode": 493
+  },
+  ".git/objects/6a": {
+    "mode": 493
+  },
+  ".git/objects/6b": {
+    "mode": 493
+  },
+  ".git/objects/6c": {
+    "mode": 493
+  },
+  ".git/objects/6d": {
+    "mode": 493
+  },
+  ".git/objects/6e": {
+    "mode": 493
+  },
+  ".git/objects/6f": {
+    "mode": 493
+  },
+  ".git/objects/70": {
+    "mode": 493
+  },
+  ".git/objects/71": {
+    "mode": 493
+  },
+  ".git/objects/72": {
+    "mode": 493
+  },
+  ".git/objects/73": {
+    "mode": 493
+  },
+  ".git/objects/74": {
+    "mode": 493
+  },
+  ".git/objects/75": {
+    "mode": 493
+  },
+  ".git/objects/76": {
+    "mode": 493
+  },
+  ".git/objects/77": {
+    "mode": 493
+  },
+  ".git/objects/78": {
+    "mode": 493
+  },
+  ".git/objects/79": {
+    "mode": 493
+  },
+  ".git/objects/7a": {
+    "mode": 493
+  },
+  ".git/objects/7b": {
+    "mode": 493
+  },
+  ".git/objects/7c": {
+    "mode": 493
+  },
+  ".git/objects/7d": {
+    "mode": 493
+  },
+  ".git/objects/7e": {
+    "mode": 493
+  },
+  ".git/objects/7f": {
+    "mode": 493
+  },
+  ".git/objects/80": {
+    "mode": 493
+  },
+  ".git/objects/81": {
+    "mode": 493
+  },
+  ".git/objects/82": {
+    "mode": 493
+  },
+  ".git/objects/83": {
+    "mode": 493
+  },
+  ".git/objects/84": {
+    "mode": 493
+  },
+  ".git/objects/85": {
+    "mode": 493
+  },
+  ".git/objects/86": {
+    "mode": 493
+  },
+  ".git/objects/87": {
+    "mode": 493
+  },
+  ".git/objects/88": {
+    "mode": 493
+  },
+  ".git/objects/89": {
+    "mode": 493
+  },
+  ".git/objects/8a": {
+    "mode": 493
+  },
+  ".git/objects/8b": {
+    "mode": 493
+  },
+  ".git/objects/8c": {
+    "mode": 493
+  },
+  ".git/objects/8d": {
+    "mode": 493
+  },
+  ".git/objects/8e": {
+    "mode": 493
+  },
+  ".git/objects/8f": {
+    "mode": 493
+  },
+  ".git/objects/90": {
+    "mode": 493
+  },
+  ".git/objects/91": {
+    "mode": 493
+  },
+  ".git/objects/92": {
+    "mode": 493
+  },
+  ".git/objects/93": {
+    "mode": 493
+  },
+  ".git/objects/94": {
+    "mode": 493
+  },
+  ".git/objects/95": {
+    "mode": 493
+  },
+  ".git/objects/96": {
+    "mode": 493
+  },
+  ".git/objects/97": {
+    "mode": 493
+  },
+  ".git/objects/98": {
+    "mode": 493
+  },
+  ".git/objects/99": {
+    "mode": 493
+  },
+  ".git/objects/9a": {
+    "mode": 493
+  },
+  ".git/objects/9b": {
+    "mode": 493
+  },
+  ".git/objects/9c": {
+    "mode": 493
+  },
+  ".git/objects/9d": {
+    "mode": 493
+  },
+  ".git/objects/9e": {
+    "mode": 493
+  },
+  ".git/objects/9f": {
+    "mode": 493
+  },
+  ".git/objects/a0": {
+    "mode": 493
+  },
+  ".git/objects/a1": {
+    "mode": 493
+  },
+  ".git/objects/a2": {
+    "mode": 493
+  },
+  ".git/objects/a3": {
+    "mode": 493
+  },
+  ".git/objects/a4": {
+    "mode": 493
+  },
+  ".git/objects/a5": {
+    "mode": 493
+  },
+  ".git/objects/a6": {
+    "mode": 493
+  },
+  ".git/objects/a7": {
+    "mode": 493
+  },
+  ".git/objects/a8": {
+    "mode": 493
+  },
+  ".git/objects/a9": {
+    "mode": 493
+  },
+  ".git/objects/aa": {
+    "mode": 493
+  },
+  ".git/objects/ab": {
+    "mode": 493
+  },
+  ".git/objects/ac": {
+    "mode": 493
+  },
+  ".git/objects/ad": {
+    "mode": 493
+  },
+  ".git/objects/ae": {
+    "mode": 493
+  },
+  ".git/objects/af": {
+    "mode": 493
+  },
+  ".git/objects/b0": {
+    "mode": 493
+  },
+  ".git/objects/b1": {
+    "mode": 493
+  },
+  ".git/objects/b2": {
+    "mode": 493
+  },
+  ".git/objects/b3": {
+    "mode": 493
+  },
+  ".git/objects/b4": {
+    "mode": 493
+  },
+  ".git/objects/b5": {
+    "mode": 493
+  },
+  ".git/objects/b6": {
+    "mode": 493
+  },
+  ".git/objects/b7": {
+    "mode": 493
+  },
+  ".git/objects/b8": {
+    "mode": 493
+  },
+  ".git/objects/b9": {
+    "mode": 493
+  },
+  ".git/objects/ba": {
+    "mode": 493
+  },
+  ".git/objects/bb": {
+    "mode": 493
+  },
+  ".git/objects/bc": {
+    "mode": 493
+  },
+  ".git/objects/bd": {
+    "mode": 493
+  },
+  ".git/objects/be": {
+    "mode": 493
+  },
+  ".git/objects/bf": {
+    "mode": 493
+  },
+  ".git/objects/c0": {
+    "mode": 493
+  },
+  ".git/objects/c1": {
+    "mode": 493
+  },
+  ".git/objects/c2": {
+    "mode": 493
+  },
+  ".git/objects/c3": {
+    "mode": 493
+  },
+  ".git/objects/c4": {
+    "mode": 493
+  },
+  ".git/objects/c5": {
+    "mode": 493
+  },
+  ".git/objects/c6": {
+    "mode": 493
+  },
+  ".git/objects/c7": {
+    "mode": 493
+  },
+  ".git/objects/c8": {
+    "mode": 493
+  },
+  ".git/objects/c9": {
+    "mode": 493
+  },
+  ".git/objects/ca": {
+    "mode": 493
+  },
+  ".git/objects/cb": {
+    "mode": 493
+  },
+  ".git/objects/cc": {
+    "mode": 493
+  },
+  ".git/objects/cd": {
+    "mode": 493
+  },
+  ".git/objects/ce": {
+    "mode": 493
+  },
+  ".git/objects/cf": {
+    "mode": 493
+  },
+  ".git/objects/d0": {
+    "mode": 493
+  },
+  ".git/objects/d1": {
+    "mode": 493
+  },
+  ".git/objects/d2": {
+    "mode": 493
+  },
+  ".git/objects/d3": {
+    "mode": 493
+  },
+  ".git/objects/d4": {
+    "mode": 493
+  },
+  ".git/objects/d5": {
+    "mode": 493
+  },
+  ".git/objects/d6": {
+    "mode": 493
+  },
+  ".git/objects/d7": {
+    "mode": 493
+  },
+  ".git/objects/d8": {
+    "mode": 493
+  },
+  ".git/objects/d9": {
+    "mode": 493
+  },
+  ".git/objects/da": {
+    "mode": 493
+  },
+  ".git/objects/db": {
+    "mode": 493
+  },
+  ".git/objects/dc": {
+    "mode": 493
+  },
+  ".git/objects/dd": {
+    "mode": 493
+  },
+  ".git/objects/de": {
+    "mode": 493
+  },
+  ".git/objects/df": {
+    "mode": 493
+  },
+  ".git/objects/e0": {
+    "mode": 493
+  },
+  ".git/objects/e1": {
+    "mode": 493
+  },
+  ".git/objects/e2": {
+    "mode": 493
+  },
+  ".git/objects/e3": {
+    "mode": 493
+  },
+  ".git/objects/e4": {
+    "mode": 493
+  },
+  ".git/objects/e5": {
+    "mode": 493
+  },
+  ".git/objects/e6": {
+    "mode": 493
+  },
+  ".git/objects/e7": {
+    "mode": 493
+  },
+  ".git/objects/e8": {
+    "mode": 493
+  },
+  ".git/objects/e9": {
+    "mode": 493
+  },
+  ".git/objects/ea": {
+    "mode": 493
+  },
+  ".git/objects/eb": {
+    "mode": 493
+  },
+  ".git/objects/ec": {
+    "mode": 493
+  },
+  ".git/objects/ed": {
+    "mode": 493
+  },
+  ".git/objects/ee": {
+    "mode": 493
+  },
+  ".git/objects/ef": {
+    "mode": 493
+  },
+  ".git/objects/f0": {
+    "mode": 493
+  },
+  ".git/objects/f1": {
+    "mode": 493
+  },
+  ".git/objects/f2": {
+    "mode": 493
+  },
+  ".git/objects/f3": {
+    "mode": 493
+  },
+  ".git/objects/f4": {
+    "mode": 493
+  },
+  ".git/objects/f5": {
+    "mode": 493
+  },
+  ".git/objects/f6": {
+    "mode": 493
+  },
+  ".git/objects/f7": {
+    "mode": 493
+  },
+  ".git/objects/f8": {
+    "mode": 493
+  },
+  ".git/objects/f9": {
+    "mode": 493
+  },
+  ".git/objects/fa": {
+    "mode": 493
+  },
+  ".git/objects/fb": {
+    "mode": 493
+  },
+  ".git/objects/fc": {
+    "mode": 493
+  },
+  ".git/objects/fd": {
+    "mode": 493
+  },
+  ".git/objects/fe": {
+    "mode": 493
+  },
+  ".git/objects/ff": {
+    "mode": 493
+  },
+  ".git/objects/info": {
+    "mode": 493
+  },
+  ".git/objects/pack": {
+    "mode": 493
+  },
+  ".git/refs": {
+    "mode": 493
+  },
+  ".git/refs/heads": {
+    "mode": 493
+  },
+  ".git/refs/heads/codex": {
+    "mode": 493
+  },
+  ".git/refs/remotes": {
+    "mode": 493
+  },
+  ".git/refs/remotes/origin": {
+    "mode": 493
+  },
+  "configs": {
+    "mode": 493
+  },
+  "configs/.alias-test-4k3nt5cc": {
+    "mode": 493
+  },
+  "configs/.alias-test-_a1fry7i": {
+    "mode": 493
+  },
+  "configs/campaigns": {
+    "mode": 493
+  },
+  "configs/cpus": {
+    "mode": 493
+  },
+  "configs/cpus/boom": {
+    "mode": 493
+  },
+  "configs/cpus/boom/evidence": {
+    "mode": 493
+  },
+  "configs/cpus/boom/evidence/derived-20261017": {
+    "mode": 493
+  },
+  "configs/cpus/boom/evidence/generated-runtime-20261017": {
+    "mode": 493
+  },
+  "configs/cpus/boom/evidence/persistent-coherent-20261017": {
+    "mode": 493
+  },
+  "configs/cpus/boom/evidence/persistent-runtime-20261017": {
+    "mode": 493
+  },
+  "configs/cpus/boom/evidence/runtime-20261017": {
+    "mode": 493
+  },
+  "configs/cpus/boom/generated": {
+    "mode": 493
+  },
+  "configs/cpus/boom/patches": {
+    "mode": 493
+  },
+  "configs/cpus/boom/runtime": {
+    "mode": 493
+  },
+  "configs/cpus/boom_irq": {
+    "mode": 493
+  },
+  "configs/cpus/cv32e20": {
+    "mode": 493
+  },
+  "configs/cpus/cv32e20_rv32e": {
+    "mode": 493
+  },
+  "configs/cpus/cv32e40p": {
+    "mode": 493
+  },
+  "configs/cpus/cv32e40p_mtimer": {
+    "mode": 493
+  },
+  "configs/cpus/cva6": {
+    "mode": 493
+  },
+  "configs/cpus/cvw": {
+    "mode": 493
+  },
+  "configs/cpus/cvw/config_extmem": {
+    "mode": 493
+  },
+  "configs/cpus/cvw/evidence": {
+    "mode": 493
+  },
+  "configs/cpus/cvw/evidence/config-20261017": {
+    "mode": 493
+  },
+  "configs/cpus/cvw/evidence/llen32-20261017": {
+    "mode": 493
+  },
+  "configs/cpus/ibex": {
+    "mode": 493
+  },
+  "configs/cpus/ibex_obi_local": {
+    "mode": 493
+  },
+  "configs/cpus/ibex_rvfi_local": {
+    "mode": 493
+  },
+  "configs/cpus/picorv32": {
+    "mode": 493
+  },
+  "configs/cpus/picorv32_axi": {
+    "mode": 493
+  },
+  "configs/cpus/picorv32_wb": {
+    "mode": 493
+  },
+  "configs/cpus/picorv32_wb_irq": {
+    "mode": 493
+  },
+  "configs/cpus/rvx_core": {
+    "mode": 493
+  },
+  "configs/cpus/vexiiriscv": {
+    "mode": 493
+  },
+  "configs/cpus/vexiiriscv/evidence": {
+    "mode": 493
+  },
+  "configs/cpus/vexiiriscv/generated": {
+    "mode": 493
+  },
+  "configs/cpus/vexiiriscv_irq": {
+    "mode": 493
+  },
+  "configs/cpus/zipaxi": {
+    "mode": 493
+  },
+  "configs/designs": {
+    "mode": 493
+  },
+  "configs/designs/boom": {
+    "mode": 493
+  },
+  "configs/designs/crash_smoke": {
+    "mode": 493
+  },
+  "configs/designs/cva6": {
+    "mode": 493
+  },
+  "configs/designs/cva6_lightweight_plus": {
+    "mode": 493
+  },
+  "configs/designs/cva6_lightweight_plus/harness": {
+    "mode": 493
+  },
+  "configs/designs/cva6_lightweight_plus2": {
+    "mode": 493
+  },
+  "configs/designs/cva6_lightweight_plus2/harness": {
+    "mode": 493
+  },
+  "configs/designs/cva6_lightweight_plus3": {
+    "mode": 493
+  },
+  "configs/designs/cva6_lightweight_plus3/harness": {
+    "mode": 493
+  },
+  "configs/designs/cva6_lightweight_plus4": {
+    "mode": 493
+  },
+  "configs/designs/cva6_lightweight_plus4/harness": {
+    "mode": 493
+  },
+  "configs/designs/cva6_lightweight_plus5": {
+    "mode": 493
+  },
+  "configs/designs/cva6_lightweight_plus5/harness": {
+    "mode": 493
+  },
+  "configs/designs/ibex": {
+    "mode": 493
+  },
+  "configs/designs/ibex_constrained": {
+    "mode": 493
+  },
+  "configs/designs/ibex_lightweight": {
+    "mode": 493
+  },
+  "configs/designs/ibex_lightweight_plus": {
+    "mode": 493
+  },
+  "configs/designs/ibex_lightweight_plus/harness": {
+    "mode": 493
+  },
+  "configs/designs/ibex_lightweight_plus2": {
+    "mode": 493
+  },
+  "configs/designs/ibex_lightweight_plus2/harness": {
+    "mode": 493
+  },
+  "configs/designs/ibex_lightweight_plus3": {
+    "mode": 493
+  },
+  "configs/designs/ibex_lightweight_plus3/harness": {
+    "mode": 493
+  },
+  "configs/designs/ibex_multicomponent_ip": {
+    "mode": 493
+  },
+  "configs/designs/ibex_multicomponent_ip/baseline_direct_slice": {
+    "mode": 493
+  },
+  "configs/designs/ibex_multicomponent_ip/depaware_projection": {
+    "mode": 493
+  },
+  "configs/designs/ibex_multicomponent_ip/harness": {
+    "mode": 493
+  },
+  "configs/designs/ibex_multicomponent_ip/manifests": {
+    "mode": 493
+  },
+  "configs/designs/ibex_multicomponent_ip/rtl": {
+    "mode": 493
+  },
+  "configs/designs/ibex_multicomponent_ip/rtl/real_targets": {
+    "mode": 493
+  },
+  "configs/designs/ibex_multicomponent_ip/scripts": {
+    "mode": 493
+  },
+  "configs/designs/ibex_naive": {
+    "mode": 493
+  },
+  "configs/designs/ibex_opentitan_real_ip": {
+    "mode": 493
+  },
+  "configs/designs/ibex_opentitan_real_ip/baseline_direct_slice": {
+    "mode": 493
+  },
+  "configs/designs/ibex_opentitan_real_ip/depaware_projection": {
+    "mode": 493
+  },
+  "configs/designs/ibex_opentitan_real_ip/harness": {
+    "mode": 493
+  },
+  "configs/designs/ibex_opentitan_real_ip/programs": {
+    "mode": 493
+  },
+  "configs/designs/ibex_opentitan_real_ip/rtl": {
+    "mode": 493
+  },
+  "configs/designs/ibex_opentitan_real_ip/scripts": {
+    "mode": 493
+  },
+  "configs/designs/ibex_opentitan_real_ip/static_projection": {
+    "mode": 493
+  },
+  "configs/designs/ibex_post_correction_direct": {
+    "mode": 493
+  },
+  "configs/designs/ibex_protocol_composition": {
+    "mode": 493
+  },
+  "configs/designs/ibex_protocol_composition/harness": {
+    "mode": 493
+  },
+  "configs/designs/ibex_protocol_composition/scripts": {
+    "mode": 493
+  },
+  "configs/designs/ibex_scheme5_bit_constraints": {
+    "mode": 493
+  },
+  "configs/designs/ibex_scheme5_bit_constraints/harness": {
+    "mode": 493
+  },
+  "configs/designs/ibex_scheme6_ablation_bit_constraints": {
+    "mode": 493
+  },
+  "configs/designs/ibex_scheme6_ablation_bit_constraints/harness": {
+    "mode": 493
+  },
+  "configs/designs/ibex_scheme6_fetch_handshake_bit_constraints": {
+    "mode": 493
+  },
+  "configs/designs/ibex_scheme6_fetch_only_bit_constraints": {
+    "mode": 493
+  },
+  "configs/designs/ibex_scheme6_handshake_only_bit_constraints": {
+    "mode": 493
+  },
+  "configs/designs/ibex_scheme6_low2_mixed25_bit_constraints": {
+    "mode": 493
+  },
+  "configs/designs/ibex_scheme6_low2_mixed50_bit_constraints": {
+    "mode": 493
+  },
+  "configs/designs/ibex_scheme6_low2_opcode_mixed25_bit_constraints": {
+    "mode": 493
+  },
+  "configs/designs/ibex_scheme6_ls_misalign_mixed50_bit_constraints": {
+    "mode": 493
+  },
+  "configs/designs/ibex_scheme6_ls_misalign_mixed75_bit_constraints": {
+    "mode": 493
+  },
+  "configs/designs/ibex_scheme6_ls_opcode_mixed50_bit_constraints": {
+    "mode": 493
+  },
+  "configs/designs/ibex_scheme6_ls_opcode_mixed75_bit_constraints": {
+    "mode": 493
+  },
+  "configs/designs/ibex_scheme6_ls_word_mixed50_bit_constraints": {
+    "mode": 493
+  },
+  "configs/designs/ibex_scheme6_minlegal_bit_constraints": {
+    "mode": 493
+  },
+  "configs/designs/ibex_scheme6_opcode_minlegal_bit_constraints": {
+    "mode": 493
+  },
+  "configs/designs/ibex_scheme6_opcode_mixed12_bit_constraints": {
+    "mode": 493
+  },
+  "configs/designs/ibex_scheme6_opcode_mixed25_bit_constraints": {
+    "mode": 493
+  },
+  "configs/designs/ibex_scheme6_opcode_mixed75_bit_constraints": {
+    "mode": 493
+  },
+  "configs/designs/ibex_scheme6_opcode_mixed_bit_constraints": {
+    "mode": 493
+  },
+  "configs/designs/ibex_scheme6_opcode_only_bit_constraints": {
+    "mode": 493
+  },
+  "configs/designs/ibex_scheme6_relaxed_bit_constraints": {
+    "mode": 493
+  },
+  "configs/designs/ibex_scheme6_relaxed_bit_constraints/harness": {
+    "mode": 493
+  },
+  "configs/designs/ip_verilog": {
+    "mode": 493
+  },
+  "configs/designs/ip_verilog/FFTSmall": {
+    "mode": 493
+  },
+  "configs/designs/ip_verilog/TLI2C": {
+    "mode": 493
+  },
+  "configs/designs/ip_verilog/TLSPI": {
+    "mode": 493
+  },
+  "configs/designs/multicomponent_cpu_ip": {
+    "mode": 493
+  },
+  "configs/designs/multicomponent_cpu_ip/baseline_direct_slice": {
+    "mode": 493
+  },
+  "configs/designs/multicomponent_cpu_ip/depaware_projection": {
+    "mode": 493
+  },
+  "configs/designs/multicomponent_cpu_ip/harness": {
+    "mode": 493
+  },
+  "configs/designs/multicomponent_cpu_ip/manifests": {
+    "mode": 493
+  },
+  "configs/designs/multicomponent_cpu_ip/rtl": {
+    "mode": 493
+  },
+  "configs/designs/multicomponent_cpu_ip/scripts": {
+    "mode": 493
+  },
+  "configs/designs/rvx_multicomponent": {
+    "mode": 493
+  },
+  "configs/designs/rvx_multicomponent/baseline_direct_slice": {
+    "mode": 493
+  },
+  "configs/designs/rvx_multicomponent/depaware_projection": {
+    "mode": 493
+  },
+  "configs/designs/rvx_multicomponent/harness": {
+    "mode": 493
+  },
+  "configs/designs/rvx_multicomponent/programs": {
+    "mode": 493
+  },
+  "configs/designs/rvx_multicomponent/rtl": {
+    "mode": 493
+  },
+  "configs/designs/rvx_multicomponent/static_projection": {
+    "mode": 493
+  },
+  "configs/designs/smoke": {
+    "mode": 493
+  },
+  "configs/designs/xiangshan": {
+    "mode": 493
+  },
+  "configs/experiments": {
+    "mode": 493
+  },
+  "configs/experiments/ibex_opentitan": {
+    "mode": 493
+  },
+  "configs/experiments/rvx_generated": {
+    "mode": 493
+  },
+  "configs/peripherals": {
+    "mode": 493
+  },
+  "configs/peripherals/caliptra_sha256": {
+    "mode": 493
+  },
+  "configs/peripherals/caliptra_sha256/evidence": {
+    "mode": 493
+  },
+  "configs/peripherals/opentitan_gpio": {
+    "mode": 493
+  },
+  "configs/peripherals/opentitan_gpio_local": {
+    "mode": 493
+  },
+  "configs/peripherals/opentitan_i2c": {
+    "mode": 493
+  },
+  "configs/peripherals/opentitan_i2c_local": {
+    "mode": 493
+  },
+  "configs/peripherals/opentitan_pattgen_local": {
+    "mode": 493
+  },
+  "configs/peripherals/opentitan_rv_timer": {
+    "mode": 493
+  },
+  "configs/peripherals/opentitan_rv_timer_local": {
+    "mode": 493
+  },
+  "configs/peripherals/opentitan_spi_device": {
+    "mode": 493
+  },
+  "configs/peripherals/opentitan_spi_device_local": {
+    "mode": 493
+  },
+  "configs/peripherals/opentitan_spi_host": {
+    "mode": 493
+  },
+  "configs/peripherals/opentitan_spi_host_local": {
+    "mode": 493
+  },
+  "configs/peripherals/opentitan_sysrst_ctrl": {
+    "mode": 493
+  },
+  "configs/peripherals/opentitan_sysrst_ctrl_local": {
+    "mode": 493
+  },
+  "configs/peripherals/opentitan_uart": {
+    "mode": 493
+  },
+  "configs/peripherals/opentitan_uart_fifo_local": {
+    "mode": 493
+  },
+  "configs/peripherals/opentitan_uart_local": {
+    "mode": 493
+  },
+  "configs/peripherals/pulp_gpio": {
+    "mode": 493
+  },
+  "configs/peripherals/pulp_gpio_causal_local": {
+    "mode": 493
+  },
+  "configs/peripherals/pulp_i2c": {
+    "mode": 493
+  },
+  "configs/peripherals/pulp_spi": {
+    "mode": 493
+  },
+  "configs/peripherals/pulp_timer": {
+    "mode": 493
+  },
+  "configs/peripherals/zipcpu_axiluart": {
+    "mode": 493
+  },
+  "configs/peripherals/zipcpu_timer": {
+    "mode": 493
+  },
+  "configs/peripherals/zipcpu_uart": {
+    "mode": 493
+  },
+  "configs/peripherals/zipcpu_wbdmac": {
+    "mode": 493
+  },
+  "configs/peripherals/zipcpu_wbdmac/evidence": {
+    "mode": 493
+  },
+  "configs/scenario": {
+    "mode": 493
+  },
+  "configs/scenarios": {
+    "mode": 493
+  },
+  "configs/scenarios/compiled-f4-obi-apb": {
+    "mode": 493
+  },
+  "configs/scenarios/compiled-f4-obi-apb-ibex": {
+    "mode": 493
+  },
+  "configs/scenarios/compiled-f4-obi-apb-ibex/requests": {
+    "mode": 493
+  },
+  "configs/scenarios/compiled-f4-obi-apb-timer": {
+    "mode": 493
+  },
+  "configs/scenarios/compiled-f4-obi-apb-timer-cve2": {
+    "mode": 493
+  },
+  "configs/scenarios/compiled-f4-obi-apb-timer-cve2/requests": {
+    "mode": 493
+  },
+  "configs/scenarios/compiled-f4-obi-apb-timer/requests": {
+    "mode": 493
+  },
+  "configs/scenarios/compiled-f4-obi-apb/requests": {
+    "mode": 493
+  },
+  "configs/scenarios/cv32e40p-pulp-dual-gpio": {
+    "mode": 493
+  },
+  "configs/scenarios/cv32e40p-pulp-dual-gpio/evidence": {
+    "mode": 493
+  },
+  "configs/scenarios/cv32e40p-pulp-dual-gpio/evidence/p7-d3-execution-20261017": {
+    "mode": 493
+  },
+  "configs/scenarios/cv32e40p-pulp-dual-gpio/evidence/p7-d4-20261017": {
+    "mode": 493
+  },
+  "configs/scenarios/cv32e40p-pulp-dual-gpio/evidence/p7-register-access-20261017": {
+    "mode": 493
+  },
+  "configs/scenarios/cv32e40p-pulp-dual-gpio/requests": {
+    "mode": 493
+  },
+  "configs/scenarios/cvw-pulp-gpio": {
+    "mode": 493
+  },
+  "configs/scenarios/cvw-pulp-gpio/requests": {
+    "mode": 493
+  },
+  "configs/scenarios/ibex-pulp-dual-gpio": {
+    "mode": 493
+  },
+  "configs/scenarios/ibex-pulp-dual-gpio/requests": {
+    "mode": 493
+  },
+  "configs/scenarios/ibex-pulp-gpio": {
+    "mode": 493
+  },
+  "configs/scenarios/ibex-pulp-gpio/requests": {
+    "mode": 493
+  },
+  "configs/soc": {
+    "mode": 493
+  },
+  "configs/soc/checkers": {
+    "mode": 493
+  },
+  "configs/soc/closures": {
+    "mode": 493
+  },
+  "configs/soc/families": {
+    "mode": 493
+  },
+  "scripts": {
+    "mode": 493
+  },
+  "scripts/runs": {
+    "mode": 493
+  },
+  "scripts/verifier": {
+    "mode": 493
+  },
+  "src": {
+    "mode": 493
+  },
+  "src/myfuzz": {
+    "mode": 493
+  },
+  "src/myfuzz/components": {
+    "mode": 493
+  },
+  "src/myfuzz/components/profiles": {
+    "mode": 493
+  },
+  "src/myfuzz/composition": {
+    "mode": 493
+  },
+  "src/myfuzz/composition/rtl": {
+    "mode": 493
+  },
+  "src/myfuzz/contracts": {
+    "mode": 493
+  },
+  "src/myfuzz/dependency": {
+    "mode": 493
+  },
+  "src/myfuzz/experiments": {
+    "mode": 493
+  },
+  "src/myfuzz/frontend": {
+    "mode": 493
+  },
+  "src/myfuzz/frontend/build": {
+    "mode": 493
+  },
+  "src/myfuzz/frontend/build/CMakeFiles": {
+    "mode": 493
+  },
+  "src/myfuzz/frontend/build/CMakeFiles/3.28.3": {
+    "mode": 493
+  },
+  "src/myfuzz/frontend/build/CMakeFiles/3.28.3/CompilerIdCXX": {
+    "mode": 493
+  },
+  "src/myfuzz/frontend/build/CMakeFiles/myfuzz_frontend.dir": {
+    "mode": 493
+  },
+  "src/myfuzz/frontend/build/CMakeFiles/myfuzz_frontend.dir/src": {
+    "mode": 493
+  },
+  "src/myfuzz/frontend/build/CMakeFiles/myfuzz_frontend.dir/vendor": {
+    "mode": 493
+  },
+  "src/myfuzz/frontend/build/CMakeFiles/myfuzz_frontend.dir/vendor/verilator": {
+    "mode": 493
+  },
+  "src/myfuzz/frontend/build/CMakeFiles/myfuzz_frontend.dir/vendor/verilator/generated": {
+    "mode": 493
+  },
+  "src/myfuzz/frontend/build/CMakeFiles/myfuzz_frontend.dir/vendor/verilator/src": {
+    "mode": 493
+  },
+  "src/myfuzz/frontend/scripts": {
+    "mode": 493
+  },
+  "src/myfuzz/frontend/src": {
+    "mode": 493
+  },
+  "src/myfuzz/frontend/vendor": {
+    "mode": 493
+  },
+  "src/myfuzz/frontend/vendor/verilator": {
+    "mode": 493
+  },
+  "src/myfuzz/frontend/vendor/verilator/generated": {
+    "mode": 493
+  },
+  "src/myfuzz/frontend/vendor/verilator/include": {
+    "mode": 493
+  },
+  "src/myfuzz/frontend/vendor/verilator/src": {
+    "mode": 493
+  },
+  "src/myfuzz/harness": {
+    "mode": 493
+  },
+  "src/myfuzz/integration": {
+    "mode": 493
+  },
+  "src/myfuzz/integration/rtl": {
+    "mode": 493
+  },
+  "src/myfuzz/isa": {
+    "mode": 493
+  },
+  "src/myfuzz/isa/profiles": {
+    "mode": 493
+  },
+  "src/myfuzz/local_harness": {
+    "mode": 493
+  },
+  "src/myfuzz/local_harness/rtl": {
+    "mode": 493
+  },
+  "src/myfuzz/protocols": {
+    "mode": 493
+  },
+  "src/myfuzz/protocols/plugins": {
+    "mode": 493
+  },
+  "src/myfuzz/protocols/rtl": {
+    "mode": 493
+  },
+  "src/myfuzz/scenario": {
+    "mode": 493
+  },
+  "src/myfuzz/scenario/rtl": {
+    "mode": 493
+  },
+  "src/myfuzz/scripts": {
+    "mode": 493
+  },
+  "third_party": {
+    "mode": 493
+  },
+  "third_party/picorv32_upstream_reference": {
+    "mode": 493
+  },
+  "third_party/picorv32_upstream_reference/.git": {
+    "mode": 493
+  },
+  "third_party/picorv32_upstream_reference/.git/branches": {
+    "mode": 493
+  },
+  "third_party/picorv32_upstream_reference/.git/hooks": {
+    "mode": 493
+  },
+  "third_party/picorv32_upstream_reference/.git/info": {
+    "mode": 493
+  },
+  "third_party/picorv32_upstream_reference/.git/logs": {
+    "mode": 493
+  },
+  "third_party/picorv32_upstream_reference/.git/logs/refs": {
+    "mode": 493
+  },
+  "third_party/picorv32_upstream_reference/.git/logs/refs/heads": {
+    "mode": 493
+  },
+  "third_party/picorv32_upstream_reference/.git/logs/refs/remotes": {
+    "mode": 493
+  },
+  "third_party/picorv32_upstream_reference/.git/logs/refs/remotes/origin": {
+    "mode": 493
+  },
+  "third_party/picorv32_upstream_reference/.git/objects": {
+    "mode": 493
+  },
+  "third_party/picorv32_upstream_reference/.git/objects/info": {
+    "mode": 493
+  },
+  "third_party/picorv32_upstream_reference/.git/objects/pack": {
+    "mode": 493
+  },
+  "third_party/picorv32_upstream_reference/.git/refs": {
+    "mode": 493
+  },
+  "third_party/picorv32_upstream_reference/.git/refs/heads": {
+    "mode": 493
+  },
+  "third_party/picorv32_upstream_reference/.git/refs/remotes": {
+    "mode": 493
+  },
+  "third_party/picorv32_upstream_reference/.git/refs/remotes/origin": {
+    "mode": 493
+  },
+  "third_party/picorv32_upstream_reference/.git/refs/tags": {
+    "mode": 493
+  },
+  "third_party/soc-pulp-apb-gpio": {
+    "mode": 493
+  },
+  "third_party/soc-pulp-apb-gpio/.git": {
+    "mode": 493
+  },
+  "third_party/soc-pulp-apb-gpio/.git/hooks": {
+    "mode": 493
+  },
+  "third_party/soc-pulp-apb-gpio/.git/info": {
+    "mode": 493
+  },
+  "third_party/soc-pulp-apb-gpio/.git/logs": {
+    "mode": 493
+  },
+  "third_party/soc-pulp-apb-gpio/.git/logs/refs": {
+    "mode": 493
+  },
+  "third_party/soc-pulp-apb-gpio/.git/logs/refs/heads": {
+    "mode": 493
+  },
+  "third_party/soc-pulp-apb-gpio/.git/logs/refs/remotes": {
+    "mode": 493
+  },
+  "third_party/soc-pulp-apb-gpio/.git/logs/refs/remotes/origin": {
+    "mode": 493
+  },
+  "third_party/soc-pulp-apb-gpio/.git/objects": {
+    "mode": 493
+  },
+  "third_party/soc-pulp-apb-gpio/.git/objects/pack": {
+    "mode": 493
+  },
+  "third_party/soc-pulp-apb-gpio/.git/refs": {
+    "mode": 493
+  },
+  "third_party/soc-pulp-apb-gpio/.git/refs/heads": {
+    "mode": 493
+  },
+  "third_party/soc-pulp-apb-gpio/.git/refs/remotes": {
+    "mode": 493
+  },
+  "third_party/soc-pulp-apb-gpio/.git/refs/remotes/origin": {
+    "mode": 493
+  },
+  "third_party/soc-pulp-apb-gpio/.myfuzz-elaboration-5i27nqft": {
+    "mode": 493
+  },
+  "third_party/soc-pulp-apb-gpio/.myfuzz-elaboration-5i27nqft/evidence": {
+    "mode": 493
+  },
+  "third_party/soc-pulp-apb-gpio/.myfuzz-elaboration-xl2vftqn": {
+    "mode": 493
+  },
+  "third_party/soc-pulp-apb-gpio/.myfuzz-elaboration-xl2vftqn/evidence": {
+    "mode": 493
+  },
+  "third_party/soc-pulp-apb-gpio/docs": {
+    "mode": 493
+  },
+  "third_party/soc-pulp-apb-gpio/rtl": {
+    "mode": 493
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-B",
+    "/home/qinkejiu/myfuzz/.superpowers/sdd/native-source-binding-20261018/attempt2-control/audit_copy_saved.py",
+    "/home/qinkejiu/myfuzz/.superpowers/sdd/native-source-binding-20261018/attempt2-control/capture.stdout"
+  ],
+  "started_unix": 1792318956.1679828,
+  "source_sha256": "20073dffb8158e1bb34a076f116d404a01dd2cb87736aa2f43477aef7b417525",
+  "pid": 57995,
+  "returncode": 0,
+  "ended_unix": 1792318956.3343284,
+  "error": null,
+  "stdout_sha256": "f484be778710c1ccd0c4f4ee3721104c478425ebe1a18d5048559db91f319ca2",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

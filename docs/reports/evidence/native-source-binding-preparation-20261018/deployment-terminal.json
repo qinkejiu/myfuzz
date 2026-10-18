@@ -1,0 +1,66 @@
+{
+  "argv": [
+    "ssh",
+    "jumpserver",
+    "/usr/bin/python3 -B -c 'import subprocess,sys,json,os,time\nr={};p=None;primary=None\ntry:\n r.update(pid=os.getpid(),started_unix=time.time())\n p=subprocess.Popen(['\"'\"'ssh'\"'\"', '\"'\"'root@192.168.5.70'\"'\"', '\"'\"'/usr/bin/python3 -B -c \\'\"'\"'\\nimport hashlib,io,json,os,stat,subprocess,sys,tarfile,time\\nfrom pathlib import Path,PurePosixPath\\nsys.dont_write_bytecode=True\\nROOT=Path(\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'/root/fanzehui/myfuzz/operations/p6-native-source-binding-inputs-20261018-attempt2\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"')\\nSTAGE=ROOT.with_name(ROOT.name+\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'.unpublished\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"')\\ndef digest(b):return hashlib.sha256(b).hexdigest()\\ndef write(p,v):\\n with p.open(\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'x\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"') as f:json.dump(v,f,sort_keys=True,indent=2);f.write(\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'\\\\n\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"');f.flush();os.fsync(f.fileno())\\ndef safe(p):\\n if not p.is_absolute() or not p.is_relative_to(\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'/root/fanzehui\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'):raise ValueError(\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'outside-fan\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"')\\n for q in (p,*p.parents):\\n  if q.is_symlink():raise ValueError(\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'symlink-ancestor\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"')\\ndef parse(data):\\n t=tarfile.open(fileobj=io.BytesIO(data),mode=\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'r:*\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"');files={};dirs={}\\n for m in t.getmembers():\\n  p=PurePosixPath(m.name)\\n  if not p.parts or p.is_absolute() or \\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'..\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"' in p.parts or str(p)!=m.name or str(p)==\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'.\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"' or m.name in files or m.name in dirs:raise ValueError(\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'tar-path\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"')\\n  if m.mode&~0o777 or not(m.isfile() or m.isdir()):raise ValueError(\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'tar-type-mode\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"')\\n  if m.isdir():dirs[m.name]={\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'mode\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"':m.mode}\\n  else:\\n   b=t.extractfile(m).read()\\n   if len(b)!=m.size:raise ValueError(\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'tar-size\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"')\\n   files[m.name]=(b,{\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'bytes\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"':len(b),\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'mode\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"':m.mode,\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'sha256\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"':digest(b)})\\n for n in [*files,*dirs]:\\n  for parent in PurePosixPath(n).parents:\\n   if str(parent)!=\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'.\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"' and str(parent) not in dirs:raise ValueError(\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'tar-parent\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"')\\n return files,dirs\\ndef census(root):\\n f={};d={}\\n for folder,ds,ns in os.walk(root,followlinks=False):\\n  for n in ds:\\n   p=Path(folder)/n;s=p.lstat()\\n   if not stat.S_ISDIR(s.st_mode):raise ValueError(\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'directory-type\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"')\\n   d[p.relative_to(root).as_posix()]={\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'mode\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"':stat.S_IMODE(s.st_mode)}\\n  for n in ns:\\n   p=Path(folder)/n;s=p.lstat()\\n   if not stat.S_ISREG(s.st_mode) or s.st_nlink!=1:raise ValueError(\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'file-type\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"')\\n   b=p.read_bytes();f[p.relative_to(root).as_posix()]={\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'bytes\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"':len(b),\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'mode\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"':stat.S_IMODE(s.st_mode),\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'sha256\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"':digest(b)}\\n return f,d\\nsafe(ROOT);safe(STAGE)\\nif ROOT.exists() or STAGE.exists():raise ValueError(\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'exclusive-inputs-exist\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"')\\nenvelope=json.loads(sys.stdin.buffer.read());import base64\\narchive=base64.b64decode(envelope[\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'archive\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'],validate=True)\\nif digest(archive)!=\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'2ae9df9e13c51b6e985809093e4071192404080e36b9fc74a32574a953398539\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"':raise ValueError(\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'archive-pin\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"')\\nfiles,dirs=parse(archive)\\npins=json.loads(files[\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'selection.json\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'][0]);overlay=json.loads(files[\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'overlay-map.json\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'][0]);paths=json.loads(files[\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'overlay-paths.json\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'][0])\\nexpected=envelope[\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'archive_manifest\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"']\\nif {k:v[1] for k,v in files.items()}!=expected[\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'files\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'] or dirs!=expected[\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'directories\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"']:raise ValueError(\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'exact-reviewed-archive-manifest\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"')\\nfor name,pin in {\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'run_native_gate.py\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"':\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'04d32a34b9795a32d19f1628acfdb1bf595467dada4bc0fc7a07b4957cea5717\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"',\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'launch-native-gate.sh\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"':\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'ba69f47e08e2563f1e1f2d07334d544dd657fa176164e013521544fda21b3e92\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'}.items():\\n b=base64.b64decode(envelope[name],validate=True)\\n if digest(b)!=pin or name in files:raise ValueError(\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'deployment-control-pin\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"')\\n files[name]=(b,{\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'bytes\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"':len(b),\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'mode\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"':420,\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'sha256\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"':pin})\\nSTAGE.mkdir(mode=0o755)\\nfor name in sorted(dirs,key=lambda n:(len(PurePosixPath(n).parts),n)):(STAGE/name).mkdir()\\nfor name,(b,row) in files.items():\\n with (STAGE/name).open(\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'xb\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"') as stream:stream.write(b)\\n (STAGE/name).chmod(row[\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'mode\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'])\\nfor name in sorted(dirs,key=lambda n:len(PurePosixPath(n).parts),reverse=True):(STAGE/name).chmod(dirs[name][\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'mode\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'])\\nif census(STAGE)!=({k:v[1] for k,v in files.items()},dirs):raise ValueError(\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'whole-inputs-census\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"')\\nSTAGE.rename(ROOT)\\nwrite(ROOT/\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'deployment-receipt.json\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"',dict(pid=os.getpid(),status=\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'inputs_published_no_gate\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"',archive_sha256=digest(archive),files={k:v[1] for k,v in files.items()},directories=dirs,native_execution=False))\\nargv=[\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'/usr/bin/python3\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"',\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'-B\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"',str(ROOT/\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'prepare_copy.py\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'),\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'--baseline-files\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"',str(ROOT/\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'baseline-files.json\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'),\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'--baseline-directories\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"',str(ROOT/\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'baseline-directories.json\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'),\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'--overlay-tree\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"',str(ROOT/\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'overlay\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'),\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'--overlay-map\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"',str(ROOT/\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'overlay-map.json\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'),\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'--overlay-paths\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"',str(ROOT/\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'overlay-paths.json\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'),\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'--overlay-map-sha256\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"',\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'3f0404498e11a4d1e9e5dadca72df9973e9778c4e4bcb4f097c6be4042429f24\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"',\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'--overlay-paths-sha256\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"',\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'551491be43df4fbdb540cb204bdb67428b7e4456dba25649ebf7934ca1700860\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"']\\nrecord=dict(pid=os.getpid(),argv=argv,started_unix=time.time(),native_execution=False);proc=None;primary=None\\ntry:\\n with (ROOT/\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'copy.stdout\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"').open(\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'xb\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"') as out,(ROOT/\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'copy.stderr\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"').open(\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'xb\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"') as err:\\n  try:\\n   proc=subprocess.Popen(argv,cwd=ROOT,env={**os.environ,\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'PYTHONDONTWRITEBYTECODE\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"':\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'1\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'},stdin=subprocess.DEVNULL,stdout=out,stderr=err);record[\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'child_pid\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"']=proc.pid;write(ROOT/\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'copy-parent-start.json\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"',record)\\n  except BaseException as e:primary=e\\n  finally:\\n   if proc is not None:\\n    while True:\\n     try:record[\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'returncode\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"']=proc.wait(timeout=30);break\\n     except subprocess.TimeoutExpired:continue\\n     except BaseException as e:\\n      if primary is None:primary=e\\nfinally:\\n record[\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'ended_unix\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"']=time.time();record[\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'error\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"']=repr(primary) if primary else None\\n for n in (\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'copy.stdout\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"',\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'copy.stderr\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'):\\n  if (ROOT/n).exists():b=(ROOT/n).read_bytes();record[n]={\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'bytes\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"':len(b),\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'sha256\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"':digest(b)}\\n write(ROOT/\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'copy-parent-terminal.json\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"',record)\\nprint(json.dumps(record,sort_keys=True))\\nif primary is not None:raise primary\\nsys.exit(record.get(\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"'returncode\\'\"'\"'\"\\'\"'\"'\"\\'\"'\"',1))\\n\\'\"'\"''\"'\"'],stdin=sys.stdin.buffer)\n r['\"'\"'child_pid'\"'\"']=p.pid\nexcept BaseException as error:\n primary=error\nfinally:\n if p is not None:\n  while True:\n   try:r['\"'\"'returncode'\"'\"']=p.wait(timeout=30);break\n   except subprocess.TimeoutExpired:continue\n   except BaseException as error:\n    if primary is None:primary=error\n r['\"'\"'ended_unix'\"'\"']=time.time();r['\"'\"'error'\"'\"']=repr(primary) if primary else None\n r.setdefault('\"'\"'returncode'\"'\"',1)\n print(json.dumps(r,sort_keys=True),file=sys.stderr)\nif primary is not None:raise primary\nsys.exit(r['\"'\"'returncode'\"'\"'])\n'"
+  ],
+  "child_pid": 56855,
+  "deployment.stderr": {
+    "bytes": 141,
+    "sha256": "8296335fade1d24cd59dc11be3ebff1368fe1b631afe8e14893a4341043aabf2"
+  },
+  "deployment.stdout": {
+    "bytes": 1326,
+    "sha256": "2013fe24d350850f86db0a69efd42f231b09087dc31a01e81cdbd40113a9f717"
+  },
+  "ended_unix": 1792318837.179346,
+  "error": null,
+  "local_after": {
+    "copy-inputs.tar.gz": {
+      "bytes": 1319801,
+      "mode": 420,
+      "sha256": "2ae9df9e13c51b6e985809093e4071192404080e36b9fc74a32574a953398539"
+    },
+    "deploy_copy_draft.py": {
+      "bytes": 9611,
+      "mode": 420,
+      "sha256": "c3b0836a19cd1beb0e841e56d78c7f74af9fc9ac92fd5588c5f29bab9d7df007"
+    },
+    "launch-native-gate.sh": {
+      "bytes": 811,
+      "mode": 420,
+      "sha256": "ba69f47e08e2563f1e1f2d07334d544dd657fa176164e013521544fda21b3e92"
+    },
+    "run_native_gate.py": {
+      "bytes": 13292,
+      "mode": 420,
+      "sha256": "04d32a34b9795a32d19f1628acfdb1bf595467dada4bc0fc7a07b4957cea5717"
+    }
+  },
+  "local_before": {
+    "copy-inputs.tar.gz": {
+      "bytes": 1319801,
+      "mode": 420,
+      "sha256": "2ae9df9e13c51b6e985809093e4071192404080e36b9fc74a32574a953398539"
+    },
+    "deploy_copy_draft.py": {
+      "bytes": 9611,
+      "mode": 420,
+      "sha256": "c3b0836a19cd1beb0e841e56d78c7f74af9fc9ac92fd5588c5f29bab9d7df007"
+    },
+    "launch-native-gate.sh": {
+      "bytes": 811,
+      "mode": 420,
+      "sha256": "ba69f47e08e2563f1e1f2d07334d544dd657fa176164e013521544fda21b3e92"
+    },
+    "run_native_gate.py": {
+      "bytes": 13292,
+      "mode": 420,
+      "sha256": "04d32a34b9795a32d19f1628acfdb1bf595467dada4bc0fc7a07b4957cea5717"
+    }
+  },
+  "local_unchanged": true,
+  "native_execution": false,
+  "returncode": 0,
+  "started_unix": 1792318770.5549064
+}

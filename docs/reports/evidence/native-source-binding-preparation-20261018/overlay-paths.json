@@ -1,0 +1,14 @@
+[
+  "scripts/verifier/native_completion_gate_checks.py",
+  "scripts/verify_picorv32_native_online.py",
+  "src/myfuzz/integration/picorv32_native_online.py",
+  "src/myfuzz/local_harness/native_session.py",
+  "src/myfuzz/scenario/host_identity.py",
+  "src/myfuzz/scenario/memory.py",
+  "src/myfuzz/scenario/memory_service.py",
+  "src/myfuzz/scenario/native_instruction_source_binding.py",
+  "src/myfuzz/scenario/native_packet_session.py",
+  "src/myfuzz/scenario/native_replay_identity.py",
+  "src/myfuzz/scenario/runner.py",
+  "src/myfuzz/scenario/session_runtime.py"
+]

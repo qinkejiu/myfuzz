@@ -1,0 +1,13 @@
+{
+  "actual_execution": false,
+  "baseline_directories_sha256": "861e192518e1d809231b676b91b17c149466000f83138969eac6cbfaff68fb36",
+  "baseline_files_sha256": "3c287137bfa7e98c6b28444b20b26fa2e6ab25d6a01c2262594408fa380e44be",
+  "directory_policy": "baseline directories plus necessary overlay parent directories only; no current temporary or unused empty directories",
+  "file_count": 1112,
+  "frontend_elf_rows": {},
+  "host_paths": 70,
+  "integration_commit": "9b5e190",
+  "overlay_count": 12,
+  "schema_version": "native_source_binding_copy_selection.v1",
+  "source_scope": "complete noncache current src/scripts; baseline all other paths unchanged"
+}

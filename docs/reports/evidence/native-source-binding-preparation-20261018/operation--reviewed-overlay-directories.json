@@ -1,0 +1,23 @@
+{
+  "scripts": {
+    "mode": 493
+  },
+  "scripts/verifier": {
+    "mode": 493
+  },
+  "src": {
+    "mode": 493
+  },
+  "src/myfuzz": {
+    "mode": 493
+  },
+  "src/myfuzz/integration": {
+    "mode": 493
+  },
+  "src/myfuzz/local_harness": {
+    "mode": 493
+  },
+  "src/myfuzz/scenario": {
+    "mode": 493
+  }
+}
