@@ -1,8 +1,10 @@
 # P7 I5 candidate acceptance record (2026-10-18)
 
-Status: **sub-set evidence, not a full P7 declaration**. The new-CPU/IP
-execution gate is real; the negative group is mapped to existing tests and one
-case (N3) now has a dedicated source fixture but no recorded execution.
+Status: **bounded I5 execution and negative-group evidence independently audited; P6/P7/P8 remain OPEN**.
+
+Latest [attempt2 independent terminal audit](P7_I5_ATTEMPT2_INDEPENDENT_AUDIT_20261018.md), commit `c3d65db`: all 20 N1–N8 cases executed successfully (2/1/1/5/2/1/2/6), zero failure/error/skip; actual CVE2 + PULP timer RFuzz produced 2 certified receipts, full fresh replay matched 536 events / 2 records, and receipt SHA join was independently checked. Controller exit0; source/tools/client and file/directory freezes unchanged. Fresh DUTs have explicit reaped/exit0 receipts; original DUTs were absent at observation, but their independent exit rc receipts remain unavailable.
+
+## Historical candidate evidence
 
 ## Real execution evidence
 
@@ -28,8 +30,7 @@ the one F4 target `path_id=F4:ram.image`, source
 `peripheral.TIMER0_CTRL.value.mmio`.
 
 This satisfies the "new CPU + new IP auto-run" execution part of I5. It does
-**not** by itself satisfy the formal P7 gate: the negative group and an
-independent snapshot re-run are still required.
+**not** by itself satisfy the formal P7 gate: the later frozen-snapshot negative run and audit are recorded above; original DUT exit receipts remain a limitation.
 
 ## Negative-fixture mapping (N1–N8 from the P7 design)
 
@@ -37,7 +38,7 @@ independent snapshot re-run are still required.
 |---|---|---|---|
 | N1 | similarly named CPU profile cannot borrow loaded artifact | `tests/integration/test_compiled_artifact_admission.py::test_similarly_named_cpu_profile_cannot_borrow_loaded_cpu` | pass |
 | N2 | sidecar matched by `component_id`, not filename | `tests/integration/test_auto_harness_test.py::test_an_explicit_capability_sidecar_is_matched_by_component_id` | pass |
-| N3 | forced `target.apb3` template on GPIO → `apb3-register-unowned-input` | `tests/onboarding/test_p7_n3_forced_apb3.py`; implemented at `1194b32`, not executed | **open** |
+| N3 | forced `target.apb3` template on GPIO → `apb3-register-unowned-input` | `tests/onboarding/test_p7_n3_forced_apb3.py`; implemented at `1194b32`, executed in attempt2 | pass (1 case) |
 | N4 | wrong register/offset/width/mask/address | `tests/integration/test_compiled_f4_storage_producer.py::test_wrong_register_offset_width_mask_or_address_refused` | pass |
 | N5 | wrong artifact kind (AHB/APB) refused before consumption | `tests/integration/test_generated_factory_consumption.py::test_supplied_artifact_kind_and_instance_are_checked_before_consumption` | pass |
 | N6 | undeclared endpoint/window refused by name | `tests/local_harness/test_harness_set.py::test_an_undeclared_endpoint_is_refused_by_name` | pass |
@@ -55,14 +56,8 @@ pytest -q tests/integration/test_compiled_artifact_admission.py \
 
 N5/N6 direct check: 3 passed in 20.34s.
 
-## What remains for a full P7 formal gate
+## Remaining scope and evidence limits
 
-1. Execute the N3 dedicated generic-path test added at `1194b32` (GPIO forced APB3 register template → named refusal, no harness emitted) and include it in the retained negative group. Source implementation alone is not a passing result.
-2. Independently re-run the CV32E20+timer gate from a frozen snapshot and
-   verify every certificate/prefix field; this repository-session run is not an
-   independent audit.
-3. State the remaining unsupported paths: F1 retirement certification, F2/F3
-   execution mapping, F5 IRQ, F6 DMA; the compiled executor supports only the
-   declared F4 target.
-4. Do not call P7 complete: the negative group is mostly mapped, not fully
-   rebuilt, and the independent audit is outstanding.
+The dedicated N3 case and all N1–N8 groups have now executed in the independently frozen attempt2, together with the CV32E20+timer RFuzz/full-fresh gate. The original DUTs lack independent exit rc receipts; process absence does not supply those return codes. Fresh DUT reaping and controller termination are explicitly recorded.
+
+The compiled executor evidence supports the declared F4 target. F1 retirement certification, F2/F3 execution mapping, F5 IRQ and F6 DMA require their own acceptance evidence; this audit does not grant them or full P7 completion. P6/P7/P8 remain OPEN.

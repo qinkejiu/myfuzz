@@ -1,12 +1,14 @@
-2026-10-18 [P6 native 固定实例持久定向门通过](p6-native-persistent-directed-20261018.md)：同一CPU/GPIO三例双侧源；正向2,246、受控982事件的完整fresh分别精确相同，8个DUT均terminal0，进程/fresh和原始数据流双独立审计通过。仅关闭有界持久定向子门，RFuzz搜索/来源认证/四反馈及P6整体仍开放。P7 v2 staging已实测并审核，最终复制进行中。
+2026-10-18 最新：[P7 I5 attempt2 独立终态审计](P7_I5_ATTEMPT2_INDEPENDENT_AUDIT_20261018.md)（`c3d65db`）。N1–N8 共20项负例实际执行全部通过（2/1/1/5/2/1/2/6，零失败/错误/跳过）；CVE2＋PULP timer 真实 RFuzz 2 certified，536 events/2 records 的完整 fresh 匹配，receipt SHA join通过。父控制器exit0，source/tool/client及文件/目录冻结前后一致。fresh DUT明确reaped/exit0；原始DUT已无进程，但独立exit rc回执仍缺。P6/P7/P8整体保持OPEN。
+
+2026-10-18 [P6 native 固定实例持久定向门通过](p6-native-persistent-directed-20261018.md)：同一CPU/GPIO三例双侧源；正向2,246、受控982事件的完整fresh分别精确相同，8个DUT均terminal0，进程/fresh和原始数据流双独立审计通过。仅关闭有界持久定向子门，RFuzz搜索/来源认证/四反馈及P6整体仍开放。P7 v2复制及第二轮验收已完成，见顶部I5独立终态。
 
 2026-10-18 [P6 native两轮启动前失败](evidence/p6-native-online-attempts-20261018/README.md)：先工具扫描子树不匹配，后gate PID3893459 exit1缺scripts/record_scenario.py；cases/processes为空、无原生通过。前后layout/tool与4个Git metadata通过；46份remote原始记录及本地inputs/control已归档。
 
-2026-10-18最新终态：[P7 I5远程独立准备/首轮失败](p7-i5-remote-independent-preparation-20261018.md)：工具9项元数据查询exit0；I5 attempt1在N1前因Ibex空refs目录缺失导致Git status128，负例结果为空，原始44文件+本地control已归档。601964f目录修正仅源码审查通过，未授P7或native通过。
+2026-10-18历史准备/首轮终态：[P7 I5远程独立准备/首轮失败](p7-i5-remote-independent-preparation-20261018.md)：工具9项元数据查询exit0；I5 attempt1在N1前因Ibex空refs目录缺失导致Git status128，负例结果为空，原始44文件+本地control已归档。601964f目录修正仅源码审查通过，未授P7或native通过。
 
 2026-10-18 VexiiRiscv 固定实例 IRQ：[真实 CPU→PULP GPIO APB3→外部 IRQ→ISR→RAM 报告](vexiiriscv-cpu-ip-irq-20261018.md)。派生 `vexiiriscv_irq` profile 以精确声明差分暴露真实 `int_m_external`（同一生成 RTL 字节）；8 个重复 case 的每例真实 IRQ 上升/下降、`mtvec` 取指、`PADOUT`/`INTSTATUS`/`PADOUTCLR` APB 事务与 RAM 校验全部通过，两进程 fresh replay 原始样本与证据一致（[summary](evidence/vexi-irq-fixed-20261018/summary.json) + `first/fresh.json.gz`）。边界：脉冲转电平/GPIO 环回为声明的宿主导线，程序镜像每行固定、case 数据来自预置 RAM 表；不是 P6 campaign，中断控制器 RTL、多目标、在线搜索与认证前缀 replay 未验收。
 
-2026-10-18 P7 I3/I4 与 P8 S2/S3/S4 真实门汇总：[P7/P8 real-gate record](p7-p8-real-gates-20261018.md)。P7 I3 timer F4 3 值连续+probe 层级证明+fresh full；P7 I4 CV32E20+timer RFuzz 4 tests/4 certified、Coverage-guided=3；P8 S2 三方向多字单 boot 1 passed/465.88s；P8 S3 2 valid+2 invalid、实测 status `0x40000000`；P8 S4 accepted FIFO authority+typed prefix replay 1 passed/529.76s。边界：P6 仍为固定实例 `fresh_genomes`，P7 I5 负例/独立复核、P8 S1c 5×、CVW/Vexii/BOOM 未完成。
+2026-10-18 P7 I3/I4 与 P8 S2/S3/S4 真实门汇总：[P7/P8 real-gate record](p7-p8-real-gates-20261018.md)。P7 I3 timer F4 3 值连续+probe 层级证明+fresh full；P7 I4 CV32E20+timer RFuzz 4 tests/4 certified、Coverage-guided=3；P8 S2 三方向多字单 boot 1 passed/465.88s；P8 S3 2 valid+2 invalid、实测 status `0x40000000`；P8 S4 accepted FIFO authority+typed prefix replay 1 passed/529.76s。边界：P6 仍为固定实例 `fresh_genomes`，P7原始DUT独立exit rc回执缺口、P8 S1c 5×、CVW/Vexii/BOOM 未完成。
 
 2026-10-17 P6 固定实例五行 campaign 已当前源码复跑并独立审计：[P6 验收记录](p6-fixed-instance-campaign-acceptance-20261017.md)；行2 CVA6 18/18（1323.83s）、行3 AXIL 18/18（2123.20s）、行4 Wishbone 18/18（3767.47s）、行5 native 18/18（2862.57s）、行1 CV32E40P online 200 例，受控错误五进程门 1 passed/127.97s。边界：行2–5 为 `fresh_genomes`，持久单一 harness/RuntimePathContract/四类命中未满足。P7 I0–I2（`a1850a0`、`7e08913`，真实门 2 passed/94.56s）与 P8 S1a/S1b（`349106f`、`743acc7`，连续 1 passed/173.26s、guided 1 passed/237.00s、uniform 1 passed/105.07s）已提交；P7 I3–I5、P8 S1c/S2–S4 仍开放。
 

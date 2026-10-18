@@ -1,6 +1,8 @@
 # P7 I5 独立远程工作集准备终态（2026-10-18）
 
-状态：**首轮独立验收Git前置失败已保留；第二轮独立副本已完成文件/目录核验并启动验收控制器，实际负例/client/native子进程结果待采集，不授P7完成。工具元数据查询已实际通过，详情见文末最新实际结果。**
+状态：**第二轮真实验收及独立审计已完成；首轮失败、准备及运行中记录按历史保留。P6/P7/P8整体OPEN。**
+
+最新：[独立终态审计](P7_I5_ATTEMPT2_INDEPENDENT_AUDIT_20261018.md)（`c3d65db`）。N1–N8 共20项负例实际执行全部通过（2/1/1/5/2/1/2/6，零失败/错误/跳过）；CVE2＋PULP timer 真实 RFuzz 2 certified，536 events/2 records 的完整 fresh 匹配，receipt SHA join通过。父控制器exit0，source/tool/client及文件/目录冻结前后一致。fresh DUT明确reaped/exit0；原始DUT已无进程，但独立exit rc回执仍缺。P6/P7/P8整体保持OPEN。
 
 ## 实际远程副本
 
@@ -57,7 +59,7 @@ Ibex提交`34b0705760ef3dfa00e99637432473d2be8f22f3`；GPIO提交`f82caeb7f7d894
 
 归档齐全范围是上述两个remote目录及当前本地control目录；不是整个远程operation/source/tools包，外层I5退出记录仍需root控制器另行补齐。采集仅经jumpserver只读tar流下载，没有修改远程run、测试、构建或重跑。P7 I5、P6/P8与整个系统继续开放。
 
-## 第二份工作集：实际 staging/规划进行中
+## 历史：第二份工作集 staging/规划进行中
 
 601964f 的 v2 准备器及两份外围控制脚本经独立源码审查后，root 已启动新 operation `p7-i5-independent-601964f-20261018-attempt2` 的纯文件 staging/规划。源是保留的首轮 project；先核旧15,333文件 freeze，仅在新 staging 恢复原材料化中实际存在的 Ibex `refs`、`refs/heads`、`refs/tags` 三个0755目录，并覆盖精确601964f准备器。原 source 的文件/目录清单前后均需一致。
 
@@ -65,7 +67,7 @@ Ibex提交`34b0705760ef3dfa00e99637432473d2be8f22f3`；GPIO提交`f82caeb7f7d894
 
 [第二轮控制输入与活动操作记录](evidence/p7-i5-attempt2-preparation-20261018/operation.json)保存已审查控制脚本、精确目录 recipe 和上传结果。复制耗时不触发重启；继续观察同一进程。此记录不是复制完成或 P7 通过。
 
-## 第二轮准备已实际完成，验收控制器已启动（子进程结果待采集）
+## 历史：第二轮准备完成并启动验收（当时子进程结果待采集）
 
 新的 `/root/fanzehui/myfuzz/operations/p7-i5-independent-601964f-20261018-attempt2/project`已由显式prepare完成（root会话71779 terminal0），独立layout会话40761及copy-ready会话72755均terminal0。归档final-copy-receipt与实际ready-layout输出一致：15,333文件、1,330目录、798,107,295字节；file freeze `e3d2eaa2937fd665ad816250e976e7745cefe220a71e51a5815a892bd35a13fa`、directory SHA `9e055be358785fdd196c3be6e35dd0e61fb4d986643430cc77c9d766577c750c`，selection为`1227ac39a03200b6646bbc1ca91a24ae748c6c8600cd2cf6675530f82b333e55`。独立离线重算完整映射摘要、总数/字节及原source前后文件/目录相同均通过，不再把file-only检查冒充空目录证明。
 

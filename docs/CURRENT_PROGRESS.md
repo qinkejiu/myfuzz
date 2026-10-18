@@ -1,10 +1,14 @@
 # 当前工作进度与证据入口
 
+## 2026-10-18 P7 I5 第二轮独立终态（最新）
+
+[P7 I5 attempt2 独立终态审计](reports/P7_I5_ATTEMPT2_INDEPENDENT_AUDIT_20261018.md)（审计提交`c3d65db`）：N1–N8 共20项负例实际执行全部通过（2/1/1/5/2/1/2/6，零失败/错误/跳过）；CVE2＋PULP timer 真实 RFuzz 2 certified，536 events/2 records 的完整 fresh 匹配，receipt SHA join通过。父控制器exit0，source/tool/client及文件/目录冻结前后一致。fresh DUT明确reaped/exit0；原始DUT已无进程，但独立exit rc回执仍缺。P6/P7/P8整体保持OPEN。
+
 ## 2026-10-18 P6 native 有界持久门通过（最新）
 
 - [真实门汇总](reports/p6-native-persistent-directed-20261018.md)：第三次gate PID4046776实际exit0，同CPU/GPIO进程连续3例、双侧源、真实后端响应、RAM/GPIO结果与受控响应扰动检出；正向2,246事件、受控982事件的完整fresh分别精确相同，8个DUT均terminal0。两份独立原始数据审计通过。
 - 只关闭行5固定实例的有界持久定向门；来源仍有unknown/transport_candidates_only、RAM observation_only；native未采样mem_ready，response consumed仅adapter/backend握手，无独立APB相位证据，不授退休/IRQ/闭环证书/四类反馈或RFuzz campaign。P6/P7/P8整体保持开放。
-- P7第二份工作集staging/规划已exit0并审核真实v2清单；最终prepare进程71779继续运行，尚未开始第二次N1–N8。
+- P7第二份工作集已完成准备、真实验收及独立审计，详见顶部I5第二轮终态；原始DUT独立exit rc回执缺口保留。
 
 ## 2026-10-18 P6 native 两轮历史启动前失败
 
@@ -12,22 +16,22 @@
 - 第二轮4个Git元数据检查、前后完整file+directory layout和工具检查通过；8,777文件/599目录freeze不变。旧source/失败记录保留；后续完整scripts副本与第三次真实门已完成，见顶部最新结果，不授P6/P7/P8整阶段完成。
 
 
-## 2026-10-18 I5 首轮前置失败与工具查询实际结果
+## 2026-10-18 I5 首轮前置失败与工具查询历史记录
 
-- **第二份工作集已启动 staging/规划，尚未 ready：** 601964f v2 保留空目录，root 实际新建独立 operation；复制同一进程继续中，未启动第二次负例/RTL门。见[活动记录](reports/evidence/p7-i5-attempt2-preparation-20261018/operation.json)。
+- **历史准备阶段（已由顶部第二轮终态更新）：** 601964f v2 保留空目录，root 实际新建独立 operation；复制同一进程继续中，未启动第二次负例/RTL门。见[活动记录](reports/evidence/p7-i5-attempt2-preparation-20261018/operation.json)。
 
 - **工具元数据查询实际通过：**9个版本/身份查询子进程均exit0，source/tools unchanged；不属于frontend/build/test/native。
 - **I5 attempt1在N1前失败：** before/after Git status均exit128，Ibex `.git/refs`空目录在file-only复制/传输中遗漏；negative_results为空。独立归档两份15,333文件map相同，不能据此证明目录结构完整。
-- [完整终态与原始证据](reports/p7-i5-remote-independent-preparation-20261018.md)：44个remote记录文件及本地control已归档；外层I5 exit1为root报告，归档无独立父进程exit回执。旧attempt保留；601964f目录修复仅源码审查通过，新副本/重跑待门禁。P7 I5和整体P6/P7/P8仍开放。
+- [完整终态与原始证据](reports/p7-i5-remote-independent-preparation-20261018.md)：44个remote记录文件及本地control已归档；外层I5 exit1为root报告，归档无独立父进程exit回执。旧attempt保留；此为首轮归档时状态；601964f目录修复后的第二轮已完成真实门及独立审计，见顶部。P7 I5和整体P6/P7/P8仍开放。
 
 
 ## 2026-10-18 后续执行状态与证据口径
 
-- **独立远程源码副本已实际校验：** [准备终态](reports/p7-i5-remote-independent-preparation-20261018.md)，15,333文件/798,103,129字节，完整文件内容/模式映射一致；新operation不覆盖旧工作集。后续工具元数据查询已通过，但独立重跑在Git前置检查失败；N1–N8/新CPU+IP门尚未开始，见顶部最新终态。
+- **独立远程源码副本已实际校验：** [准备终态](reports/p7-i5-remote-independent-preparation-20261018.md)，15,333文件/798,103,129字节，完整文件内容/模式映射一致；新operation不覆盖旧工作集。后续工具元数据查询已通过，但独立重跑在Git前置检查失败；当时N1–N8/新CPU+IP门尚未开始；第二轮已完成，见顶部最新终态。
 - **P6 native持久在线源码增量：** f30c524接通实际PADOUT读回+PADIN联合计算，52de02c补齐实际packet边界和排空守卫；独立98d137f关闭源码问题。没有新的真实运行、P6整行或四类反馈授予。
 
 
-- P7 I5 N3 专项真实生成路径拒绝用例已提交 `1194b32`，未执行，故仍为 open；独立冻结快照重跑待完成。验收采集脚本已至8af55a3，独立源码复审75bcf56关闭fresh结构检查中项；脚本未执行，不授I5完成。
+- 历史源码阶段：P7 I5 N3 专项真实生成路径拒绝用例已提交 `1194b32`；随后已在第二轮冻结快照执行通过，见顶部终态。验收采集脚本已至8af55a3，独立源码复审75bcf56关闭fresh结构检查中项；该脚本后来已在第二轮执行并审计；仍不授整体P7完成。
 - [CVW directed D4 会话](reports/cvw-directed-session-20261018.md)与[Vexii 固定 CPU/IP/IRQ](reports/vexiiriscv-cpu-ip-irq-20261018.md)已有真实门；二者均不等于在线 campaign。下文旧“会话未装配／IRQ未做”属于历史状态。
 - 独立审计对 P8 S3 的结论是“产物内容通过，进程退出不可验证”，不能据此声称已记录完整 pytest 通过。
 - P8 S1c 的 1.3699×是 UART tick 减少比，搜索墙钟72.352s→58.919s约1.228×，有效搜索时间52.233s→41.105s约1.271×；5×性能目标仍未达到。
@@ -41,7 +45,7 @@
 - **P8 S2（单 boot 三方向多字）通过：** 3 个多字用例，RX→RAM/RAM→RAM/RAM→TX，accepted UART FIFO authority，`1 passed in 465.88s`；fresh cases/plan/ticks/identities 全等、execution ids 新。证据：`docs/reports/evidence/dma-s2-real-ade3fe6/`。
 - **P8 S3（真实 error ISR）产物内容通过、进程退出未验证：** 2 valid + 2 invalid；实测 status `0x40000000`（bit30=1）、真实 environment_error_receipt、无目标交付/目的 commit、真实 CPU take/ISR；fresh 全等。证据：`docs/reports/evidence/dma-s3-real-ade3fe6/`。
 - **P8 S4（来源认证 + typed prefix replay）通过：** `1 passed in 529.76s`；每例 accepted `uart_fifo_retention/read_consumption`，DMA pop 带 `dma_master`；typed prefix 比较 plan/events/ticks/cases。证据：`docs/reports/evidence/dma-prefix-s4-real-9cbc323/`。
-- **汇总与本轮边界：** 见 [P7/P8 real-gate record](reports/p7-p8-real-gates-20261018.md)。P6 仍为固定实例 `fresh_genomes`；P7 I5 负例组/独立复核未完成；P8 S1c 实测 1.37×（5× 未达）；CVW/Vexii/BOOM 未完全适配。**P6/P7/P8 整体仍未宣布通过。**
+- **汇总与本轮边界：** 见 [P7/P8 real-gate record](reports/p7-p8-real-gates-20261018.md)。P6 仍为固定实例 `fresh_genomes`；P7 I5负例组与独立复核已完成有界审计，原始DUT独立exit rc回执缺口保留；P8 S1c 实测 1.37×（5× 未达）；CVW/Vexii/BOOM 未完全适配。**P6/P7/P8 整体仍未宣布通过。**
 
 ## 2026-10-17 P6 固定实例 campaign 完成（附边界）/ P7 I2 / P8 S1
 

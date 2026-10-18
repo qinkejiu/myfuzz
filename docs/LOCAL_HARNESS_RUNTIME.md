@@ -1,3 +1,5 @@
+2026-10-18 最新P7 I5终态：[P7 I5 attempt2 独立终态审计](reports/P7_I5_ATTEMPT2_INDEPENDENT_AUDIT_20261018.md)（`c3d65db`）。N1–N8 共20项负例实际执行全部通过（2/1/1/5/2/1/2/6，零失败/错误/跳过）；CVE2＋PULP timer 真实 RFuzz 2 certified，536 events/2 records 的完整 fresh 匹配，receipt SHA join通过。父控制器exit0，source/tool/client及文件/目录冻结前后一致。fresh DUT明确reaped/exit0；原始DUT已无进程，但独立exit rc回执仍缺。P6/P7/P8整体保持OPEN。
+
 2026-10-18 最新增量：[Pico native＋PULP GPIO 有界持久门实际通过](reports/p6-native-persistent-directed-20261018.md)。同PID/nonce/epoch三例CPU/IP/CPU，真实后端响应、RAM/GPIO结果与受控响应扰动检出，完整fresh及8个DUT terminal0经两份独立审计；source/tool/file+directory前后不变。边界：钉定目标backend与GPIO物理采样，未导出native mem_ready，response_consumed仅adapter/backend握手；无独立APB相位抽头；来源仍unknown/transport_candidates_only、RAM observation_only，无退休/IRQ/闭环证书、四反馈、持续搜索或P6整行授予。
 
 # 生成式独立 Harness 的实际运行边界
@@ -5,7 +7,7 @@
 2026-10-18 P6 native在线门：[两次启动前失败归档](reports/evidence/p6-native-online-attempts-20261018/README.md)。第二轮真实gate PID3893459 exit1，缺少scripts/record_scenario.py，未形成DUT用例/进程记录，不能计作RTL结果；可能已有工厂前端查询。4个Git metadata和前后layout/tool检查通过仅授该前置范围，新source闭包仍待冻结运行。
 
 
-2026-10-18补记：[I5独立工作集attempt1](reports/p7-i5-remote-independent-preparation-20261018.md)在Git status前置检查exit128（Ibex空refs目录遗漏），N1–N8及新CPU/IP门未开始；9个工具版本/身份查询实际exit0仅授元数据范围。文件map一致不授Git目录完整性、native运行或P7完成；新目录修复/传输/重跑仍待验收。
+2026-10-18历史补记：[I5独立工作集attempt1](reports/p7-i5-remote-independent-preparation-20261018.md)在Git status前置检查exit128（Ibex空refs目录遗漏），N1–N8及新CPU/IP门未开始；9个工具版本/身份查询实际exit0仅授元数据范围。文件map一致不授Git目录完整性、native运行或P7完成；第二轮目录修复/传输/真实门已完成，见顶部独立终态；首轮失败保留。
 
 
 ## 2026-10-17 最新连续 DMA 冻结证据
@@ -315,4 +317,4 @@ BOOM 已有[生成式独立 CPU/RAM 入口](../configs/cpus/boom/README.md)：�
 
 GeneratedNativeMemorySession新增显式declare_instruction_slots/accept_instructions/waiting_instruction_address，只在admitted物理instruction marker下从上一POST观察未填请求并抑制ready；未启用时保留默认路径。新Pico native/PULP装配为同一CPU/GPIO/Router/RAM，32字节packet、真实PADOUT写/读回与PADIN读值共同计算RAM/GPIO，前后要求实际等待槽和pending排空。新online请求max_wait1024、每例128次CPU调度是显式新策略，旧fixture16不变；adapter实际timeout保留。
 
-源码52de02c及独立审查98d137f没有执行测试或原生模型，不授真实消费、认证前缀、四类反馈或P6完成。见[native源码审查](reports/p6-native-online-independent-review-20261018.md)；新远程[独立副本准备](reports/p7-i5-remote-independent-preparation-20261018.md)也只证明复制，不是运行门。
+源码52de02c及独立审查98d137f没有执行测试或原生模型，不授真实消费、认证前缀、四类反馈或P6完成。见[native源码审查](reports/p6-native-online-independent-review-20261018.md)；新远程[独立副本准备](reports/p7-i5-remote-independent-preparation-20261018.md)的准备阶段仅证明复制；后续I5真实门与审计见顶部，不能继承为该native源码的运行证明。
