@@ -121,9 +121,15 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
 
     @property
     def pending_responses(self):
-        return int(self._pending is not None)
+        observer = self._native_bus_observer
+        # Backend consumption precedes the real CPU handshake by one tick.
+        # Keep that same outstanding transfer visible to normal quiesce.
+        return int(self._pending is not None
+                   or (observer is not None and observer.pending is not None))
 
     def begin_case(self,testcase_id):
+        if self._native_bus_observer is not None and self._native_bus_observer.failed:
+            raise RuntimeError('native bus observation is terminal')
         super().begin_case(testcase_id)
         self._pending=None;self._sequence_memory=0;self._quiescing=False;self.last_samples=()
 
@@ -171,9 +177,37 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
 
     def reset_local(self):
         cancelled=self.pending_responses
+        if self._native_bus_observer is not None:
+            self._native_bus_observer.cancel_reset()
         self._pending=None
         super().reset_local()
         return {'cancelled_responses':cancelled}
+
+    def _abort(self):
+        observer = getattr(self, '_native_bus_observer', None)
+        if observer is not None:
+            observer.failed = True
+        super()._abort()
+
+    def end_case(self):
+        observer = self._native_bus_observer
+        incomplete = (observer is not None and observer.pending is not None
+                      and self.process is not None)
+        primary = None
+        if incomplete:
+            observer.failed = True
+            primary = ProtocolEnvironmentError('native bus transfer incomplete at close')
+        try:
+            super().end_case()
+        except BaseException as cleanup:
+            if primary is None:
+                raise
+            try:
+                primary.add_note('native bus close cleanup: ' + repr(cleanup))
+            except BaseException:
+                pass
+        if primary is not None:
+            raise primary
 
     def _observe_verified_memory_edge(self, receipt):
         """Optional passive measurement, after receipt checks and before service."""

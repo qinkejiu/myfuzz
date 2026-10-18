@@ -335,7 +335,7 @@ class DeferredNativeMemorySession(GeneratedNativeMemorySession):
     def pending_responses(self):
         # A queued request is an outstanding response even though no value is
         # available yet, and the runner's quiesce/reset accounting must see it.
-        return int(self._pending is not None or self._queued_mmio)
+        return int(super().pending_responses or self._queued_mmio)
 
     def _service_accepted_request(self, key, address, write, be, value):
         router = self.router
@@ -366,6 +366,8 @@ class DeferredNativeMemorySession(GeneratedNativeMemorySession):
         from myfuzz.local_harness.session import GeneratedLocalSession
 
         cancelled = self.pending_responses
+        if self._native_bus_observer is not None:
+            self._native_bus_observer.cancel_reset()
         targets = ()
         if self._queued_mmio:
             targets = self.router.cancel_for_ledger(self.service.ledger)

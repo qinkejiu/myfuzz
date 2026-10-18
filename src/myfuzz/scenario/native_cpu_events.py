@@ -168,6 +168,13 @@ class NativeBusObserver:
         row['data_hex'] = row.pop('data').hex()
         self.pending['memory_read_snapshot'] = row
 
+    def cancel_reset(self):
+        """Explicit reset cancels a transfer; it never completes or revives it."""
+        if self.failed:
+            raise ValueError('native-bus-observer-terminal')
+        self.pending = None
+        self.offered = None
+
     def drain(self):
         result, self.samples = self.samples, []
         return result
