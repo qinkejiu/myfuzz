@@ -1,0 +1,26 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-B",
+    "/home/qinkejiu/myfuzz/scripts/prepare_p7_i5_snapshot.py",
+    "--source",
+    "/home/qinkejiu/myfuzz",
+    "--destination",
+    "/home/qinkejiu/myfuzz-p8-root-input-20261018-attempt2",
+    "--manifest",
+    "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/selection.json",
+    "--manifest-sha256",
+    "11e1e298379b54973836de4ec57d4383ab84f9302081e688db0edf1cb7a908f8",
+    "--freeze-map",
+    "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/freeze.json",
+    "--receipt",
+    "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/prepare-receipt.json",
+    "--prepare"
+  ],
+  "manifest_sha256": "11e1e298379b54973836de4ec57d4383ab84f9302081e688db0edf1cb7a908f8",
+  "pid": 43547,
+  "preparer_sha256": "89a7c42963aac5c7761d76c9e0f80776209645cc2876e56743f96a0df0e83e02",
+  "returncode": null,
+  "scope": "regular_root_input_only_no_P7_or_P8_grant",
+  "started_at": "2026-10-18T09:38:08.801736+00:00"
+}

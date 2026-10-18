@@ -1,0 +1,85 @@
+{
+  "scope": "local_regular_root_input_only",
+  "immutable_control": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2",
+  "immutable_stage": "/home/qinkejiu/myfuzz-p8-root-input-20261018-attempt2",
+  "files": {
+    "selection.json": {
+      "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/selection.json",
+      "bytes": 2038550,
+      "sha256": "11e1e298379b54973836de4ec57d4383ab84f9302081e688db0edf1cb7a908f8",
+      "copied_small_evidence": false
+    },
+    "freeze.json": {
+      "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/freeze.json",
+      "bytes": 1902102,
+      "sha256": "27ec3b8a97d22b3272acf3dd90bf44f05a20f7ffd8c984be9b6b49054a2a6ba5",
+      "copied_small_evidence": false
+    },
+    "independent-stage-files.json": {
+      "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/independent-stage-files.json",
+      "bytes": 1902102,
+      "sha256": "27ec3b8a97d22b3272acf3dd90bf44f05a20f7ffd8c984be9b6b49054a2a6ba5",
+      "copied_small_evidence": false
+    },
+    "independent-stage-directories.json": {
+      "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/independent-stage-directories.json",
+      "bytes": 28594,
+      "sha256": "2b29d5f45c4c084199b98ed24e824c5d89b82d178770691ae124660cf6596417",
+      "copied_small_evidence": false
+    },
+    "independent-source-final-files.json": {
+      "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/independent-source-final-files.json",
+      "bytes": 1901934,
+      "sha256": "6a2a22a8b7ec531ed7f63193cb690e63895ee1aba13fe5aaaf153b7a9d68ed39",
+      "copied_small_evidence": false
+    },
+    "independent-source-final-directories.json": {
+      "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/independent-source-final-directories.json",
+      "bytes": 28508,
+      "sha256": "5300e5b3284c95cfc86c36ccf521424b3b9bea39a22e55723eb70c1cf59afc5e",
+      "copied_small_evidence": false
+    },
+    "independent-selection-review.py": {
+      "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/independent-selection-review.py",
+      "bytes": 7473,
+      "sha256": "25ed90c4874e9e7a71d1a8890d1822e4a3272f14ec904857745515a23dd7576e",
+      "copied_small_evidence": true
+    },
+    "independent-selection-review.json": {
+      "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/independent-selection-review.json",
+      "bytes": 2413,
+      "sha256": "a08b917082f0c6f1dd4ac53e9d28fbb0e367cbced9206f41bfd14cfe2d0980b1",
+      "copied_small_evidence": true
+    },
+    "independent-stage-audit.py": {
+      "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/independent-stage-audit.py",
+      "bytes": 6645,
+      "sha256": "330410d8544cfdb52a66327f78b609b8ea2ea403c23500e59074c6e3966bda5f",
+      "copied_small_evidence": true
+    },
+    "independent-stage-audit.json": {
+      "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/independent-stage-audit.json",
+      "bytes": 1656,
+      "sha256": "87b3cb12b14858a90ff1c7ed51343cbdb4f85e4cc99bf5f0c1d9e453770d2191",
+      "copied_small_evidence": true
+    },
+    "prepare-launch-start.json": {
+      "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/prepare-launch-start.json",
+      "bytes": 973,
+      "sha256": "69bb54748a8bf4663919e98a6a1e000e363ee4b3ba0b25925c05485d2ff9afe8",
+      "copied_small_evidence": true
+    },
+    "prepare-launch-terminal.json": {
+      "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/prepare-launch-terminal.json",
+      "bytes": 1272,
+      "sha256": "3f54a5a5a074b725286858a7211ab44ba29807ad72edd70f8c8a8da7a1a6f48d",
+      "copied_small_evidence": true
+    },
+    "prepare-receipt.json": {
+      "original_path": "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/prepare-receipt.json",
+      "bytes": 32295,
+      "sha256": "07fbab00a65dd862afd794fd2d5254707a55ad90b8170cea099eebf63c6ce920",
+      "copied_small_evidence": true
+    }
+  }
+}

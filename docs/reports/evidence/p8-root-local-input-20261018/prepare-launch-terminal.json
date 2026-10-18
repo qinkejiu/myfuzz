@@ -1,0 +1,35 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-B",
+    "/home/qinkejiu/myfuzz/scripts/prepare_p7_i5_snapshot.py",
+    "--source",
+    "/home/qinkejiu/myfuzz",
+    "--destination",
+    "/home/qinkejiu/myfuzz-p8-root-input-20261018-attempt2",
+    "--manifest",
+    "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/selection.json",
+    "--manifest-sha256",
+    "11e1e298379b54973836de4ec57d4383ab84f9302081e688db0edf1cb7a908f8",
+    "--freeze-map",
+    "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/freeze.json",
+    "--receipt",
+    "/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/prepare-receipt.json",
+    "--prepare"
+  ],
+  "ended_at": "2026-10-18T09:38:24.732119+00:00",
+  "manifest_sha256": "11e1e298379b54973836de4ec57d4383ab84f9302081e688db0edf1cb7a908f8",
+  "pid": 43547,
+  "prepare.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "prepare.stdout": {
+    "bytes": 23883,
+    "sha256": "0ec0fc285b4614911ca7d319766f74b140558d8a9cc3afc82bf579550463e216"
+  },
+  "preparer_sha256": "89a7c42963aac5c7761d76c9e0f80776209645cc2876e56743f96a0df0e83e02",
+  "returncode": 0,
+  "scope": "regular_root_input_only_no_P7_or_P8_grant",
+  "started_at": "2026-10-18T09:38:08.801736+00:00"
+}
