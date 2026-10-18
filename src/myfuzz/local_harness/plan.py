@@ -208,7 +208,15 @@ def plan_local_harness(request: LocalHarnessRequest | LocalHarnessRequestV2, *, 
                      if endpoint.protocol is not None}
         from .native_physical_observation import native_physical_observation_requested
         if native_physical_observation_requested(request):
-            if protocols not in ({('obi', '1')}, {('apb', '3')}):
+            if protocols == {('ready-valid-memory', '1')}:
+                from .native_contract import native_completion_contract
+                endpoints = [endpoint for endpoint in binding.endpoints
+                             if endpoint.protocol is not None]
+                if (len(endpoints) != 1 or endpoints[0].function not in
+                        ('memory_master', 'processor_memory_master')):
+                    raise ValueError('native-completion-observation-endpoint')
+                native_completion_contract(endpoints[0], profile.capabilities)
+            elif protocols not in ({('obi', '1')}, {('apb', '3')}):
                 raise ValueError('native-physical-observation-protocol-unsupported')
             # Physical/source ownership is already fully planned above.
             # The native renderer must still admit its exact executor shape.
