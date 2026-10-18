@@ -1,0 +1,15 @@
+{
+  "batch_objects": 128,
+  "component": "ibex",
+  "controller_sha256": "fc5faa4abc0bccd561a6ebfea2e779b32b8cdde09ef534bed75c0013ce4ff276",
+  "git_sha256": "2a8c18fbf43da9f692d75474c72bea9dfd796c260b0f3dfe456376abc3bbd668",
+  "network_allowed": false,
+  "pid": 650898,
+  "recover_missing_pinned_files": true,
+  "revision": "34b0705760ef3dfa00e99637432473d2be8f22f3",
+  "runtime_grant": false,
+  "schema_version": "p8_offline_snapshot_materialization_reconstructed.v1",
+  "source": "/root/fanzehui/myfuzz/project/third_party/rfuzz/upstream/ibex",
+  "started_unix": 1792315488.510732,
+  "status": "failed"
+}

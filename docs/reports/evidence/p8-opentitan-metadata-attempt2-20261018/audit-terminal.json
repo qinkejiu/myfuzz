@@ -1,0 +1,32 @@
+{
+  "started_at": "2026-10-18T09:31:47.877531+00:00",
+  "argv": [
+    "/usr/bin/python3",
+    "/home/qinkejiu/myfuzz/.superpowers/sdd/p8-source-metadata-20261018/audit_reconstructed_saved.py",
+    "--evidence-dir",
+    "/home/qinkejiu/myfuzz/.superpowers/sdd/p8-source-metadata-20261018/offline-opentitan-attempt2",
+    "--component",
+    "opentitan",
+    "--remote-operation",
+    "/root/fanzehui/myfuzz/operations/p8-source-opentitan-metadata-20261018-attempt2",
+    "--remote-inputs",
+    "/root/fanzehui/myfuzz/operations/p8-source-metadata-inputs-20261018-attempt4"
+  ],
+  "source_sha256": "89a1d3225a808d4e93775beb493bedb433ebf3cd9f1156ec293102b506aa72cc",
+  "environment": {
+    "PYTHONOPTIMIZE": "0",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "pure_saved_bytes": true,
+  "Git_or_models_or_project_imports_or_remote_executed": false,
+  "returncode": 0,
+  "ended_at": "2026-10-18T09:31:50.641226+00:00",
+  "stdout": {
+    "bytes": 808,
+    "sha256": "371bf1357a4fed8ec879010dcb6480b0b888de9c214ebd9573b59a8963e1e568"
+  },
+  "stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

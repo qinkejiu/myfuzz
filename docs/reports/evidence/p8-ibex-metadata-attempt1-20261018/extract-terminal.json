@@ -1,0 +1,36 @@
+{
+  "started_at": "2026-10-18T09:31:50.641913+00:00",
+  "argv": [
+    "/usr/bin/python3",
+    "/home/qinkejiu/myfuzz/.superpowers/sdd/p8-source-metadata-20261018/extract_reconstructed_saved.py",
+    "--archive",
+    "/home/qinkejiu/myfuzz/docs/reports/evidence/p8-ibex-metadata-attempt1-20261018/actual-remote.tar.gz",
+    "--archive-sha256",
+    "40880900b524be210345d405bac6bd29ce33c6f2b22acfe08d44e04502e49dc8",
+    "--archive-bytes",
+    "58396196",
+    "--target",
+    "/home/qinkejiu/myfuzz/.superpowers/sdd/p8-source-metadata-20261018/offline-ibex-attempt1",
+    "--receipt",
+    "/home/qinkejiu/myfuzz/docs/reports/evidence/p8-ibex-metadata-attempt1-20261018/extract-receipt.json",
+    "--member-index",
+    "/home/qinkejiu/myfuzz/docs/reports/evidence/p8-ibex-metadata-attempt1-20261018/extracted-members.json"
+  ],
+  "source_sha256": "d88b3ceb511c24ef23dc8213449ad196ebe3c74f8b414ea28faea1d0a5fe1a4c",
+  "environment": {
+    "PYTHONOPTIMIZE": "0",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "pure_saved_bytes": true,
+  "Git_or_models_or_project_imports_or_remote_executed": false,
+  "returncode": 0,
+  "ended_at": "2026-10-18T09:31:51.854803+00:00",
+  "stdout": {
+    "bytes": 1047,
+    "sha256": "23b65fd6b6352044998ebe42c996281ab106b798395b06ebb6ff59807a202f58"
+  },
+  "stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

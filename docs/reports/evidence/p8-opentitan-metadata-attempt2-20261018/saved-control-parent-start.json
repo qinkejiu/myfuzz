@@ -1,0 +1,15 @@
+{
+  "batch_objects": 128,
+  "component": "opentitan",
+  "controller_sha256": "fc5faa4abc0bccd561a6ebfea2e779b32b8cdde09ef534bed75c0013ce4ff276",
+  "git_sha256": "2a8c18fbf43da9f692d75474c72bea9dfd796c260b0f3dfe456376abc3bbd668",
+  "network_allowed": false,
+  "pid": 463069,
+  "recover_missing_pinned_files": true,
+  "revision": "fca045df919a26c47e71616b9dac917b1ea4fd07",
+  "runtime_grant": false,
+  "schema_version": "p8_offline_snapshot_materialization_reconstructed.v1",
+  "source": "/root/fanzehui/myfuzz/project/third_party/soc-opentitan",
+  "started_unix": 1792315115.4704046,
+  "status": "failed"
+}

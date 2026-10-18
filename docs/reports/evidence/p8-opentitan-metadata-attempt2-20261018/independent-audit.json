@@ -1,0 +1,18 @@
+{
+  "actual_children": 485,
+  "collection_evidence": "separate_later_readonly_inventory_not_terminal_time_capture",
+  "component": "opentitan",
+  "environment_evidence": "pinned_reviewed_source_enforcement_not_independent_OS_capture",
+  "full_source_unchanged": true,
+  "git_models_or_repository_network_executed_by_audit": false,
+  "objects": 14732,
+  "original_missing_paths": 65,
+  "pack_evidence": "checksum_index_reverse_framing_exact_transcript_pack_and_rehashed_actual_Git_reads_no_pack_decompression",
+  "parent_pid": 463069,
+  "recovered_bytes_joined_to_actual_stage": true,
+  "revision": "fca045df919a26c47e71616b9dac917b1ea4fd07",
+  "runtime_grant": false,
+  "schema_version": "p8_independent_reconstructed_metadata_audit.v1",
+  "status": "saved_metadata_audit_passed",
+  "tracked_paths": 13870
+}

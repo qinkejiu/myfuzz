@@ -1,0 +1,16 @@
+{
+  "schema_version": "p8_readonly_download.v1",
+  "started_at": "2026-10-18T09:26:21.556773+00:00",
+  "collector_sha256": "286a5c34d3a10d85cb28e761b744e5874228f4fc1e43cec38cb9a404d0798539",
+  "remote_operation": "/root/fanzehui/myfuzz/operations/p8-source-opentitan-metadata-20261018-attempt2",
+  "remote_inputs": "/root/fanzehui/myfuzz/operations/p8-source-metadata-inputs-20261018-attempt4",
+  "component": "opentitan",
+  "remote_environment": {
+    "PYTHONOPTIMIZE": "0",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "read_only": true,
+  "auditor_executed": false,
+  "model_or_Git_or_project_import_executed": false,
+  "local_parent_pid": 41573
+}

@@ -1,0 +1,16 @@
+{
+  "actual_children": 155,
+  "actual_source_matches_beforeafter": true,
+  "actual_stage_matches_saved": true,
+  "collected_at": "2026-10-18T09:30:14.031756+00:00",
+  "component": "ibex",
+  "current_clean_store_inventoried": true,
+  "git_models_or_network_fallback_reexecuted": false,
+  "link_targets_followed": false,
+  "missing_stage_payloads_captured": 59,
+  "parent_pid": 650898,
+  "parent_proc_present": false,
+  "remote_inputs": "/root/fanzehui/myfuzz/operations/p8-source-metadata-inputs-20261018-attempt5",
+  "remote_operation": "/root/fanzehui/myfuzz/operations/p8-source-ibex-metadata-20261018-attempt1",
+  "remote_read_only": true
+}

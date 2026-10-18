@@ -1,0 +1,52 @@
+{
+  "source-before-files.json": {
+    "bytes": 789436,
+    "sha256": "23ed587a312521f76530a0822bd960b582eb3317ba09b39b93ca25f274caaa87",
+    "records": 3679
+  },
+  "source-after-files.json": {
+    "bytes": 789436,
+    "sha256": "23ed587a312521f76530a0822bd960b582eb3317ba09b39b93ca25f274caaa87",
+    "records": 3679
+  },
+  "source-before-directories.json": {
+    "bytes": 24559,
+    "sha256": "499b846023a4a182562b956b56bf2e47360095783389b6643a7314a0016206a4",
+    "records": 391
+  },
+  "source-after-directories.json": {
+    "bytes": 24559,
+    "sha256": "499b846023a4a182562b956b56bf2e47360095783389b6643a7314a0016206a4",
+    "records": 391
+  },
+  "stage-files.json": {
+    "bytes": 794770,
+    "sha256": "33046a8cbca4e4f607c268fea6e1dc5d534794f509c952241fa2817cba76674a",
+    "records": 3701
+  },
+  "stage-directories.json": {
+    "bytes": 26588,
+    "sha256": "c141c1240e8234274616a81369845bad6e3e210528908a0b7091a860d541fe1e",
+    "records": 414
+  },
+  "snapshot-objects.json": {
+    "bytes": 366979,
+    "sha256": "361bce577855069128a681cb79b7ca46971d6e34877fc1867355d26a72e97260",
+    "records": 4040
+  },
+  "snapshot-paths.json": {
+    "bytes": 2001096,
+    "sha256": "acb9c2085fe7a43a8f0c00637e7876c8a29d32465250d2db5c3638eb2e3ada2c",
+    "records": 3693
+  },
+  "missing-pinned-files-plan.json": {
+    "bytes": 36265,
+    "sha256": "3a3f7b93d8d51c789ee928496bcaa816dd569395caba7b4ccb97603bc3376d88",
+    "records": 59
+  },
+  "missing-pinned-files-reconstruction.json": {
+    "bytes": 37150,
+    "sha256": "4991da0bbe4254e2959573eea99f21a12e4668f299f764836a5e2626b1244955",
+    "records": 59
+  }
+}

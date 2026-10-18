@@ -1,0 +1,9 @@
+{
+  "local_archive": "/home/qinkejiu/myfuzz/docs/reports/evidence/p8-ibex-metadata-attempt1-20261018/actual-remote.tar.gz",
+  "remote_original_operation": "/root/fanzehui/myfuzz/operations/p8-source-ibex-metadata-20261018-attempt1",
+  "remote_inputs": "/root/fanzehui/myfuzz/operations/p8-source-metadata-inputs-20261018-attempt5",
+  "archive_bytes": 58396196,
+  "archive_sha256": "40880900b524be210345d405bac6bd29ce33c6f2b22acfe08d44e04502e49dc8",
+  "archive_excluded_from_Git": true,
+  "raw_Git_object_and_reconstruction_payload_evidence_remains_in_archive": true
+}

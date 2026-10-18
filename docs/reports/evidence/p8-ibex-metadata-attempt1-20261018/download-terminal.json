@@ -1,0 +1,28 @@
+{
+  "schema_version": "p8_readonly_download.v1",
+  "started_at": "2026-10-18T09:29:48.062963+00:00",
+  "collector_sha256": "286a5c34d3a10d85cb28e761b744e5874228f4fc1e43cec38cb9a404d0798539",
+  "remote_operation": "/root/fanzehui/myfuzz/operations/p8-source-ibex-metadata-20261018-attempt1",
+  "remote_inputs": "/root/fanzehui/myfuzz/operations/p8-source-metadata-inputs-20261018-attempt5",
+  "component": "ibex",
+  "remote_environment": {
+    "PYTHONOPTIMIZE": "0",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "read_only": true,
+  "auditor_executed": false,
+  "model_or_Git_or_project_import_executed": false,
+  "local_parent_pid": 42190,
+  "previous_opentitan_download_completed": true,
+  "ssh_pid": 42191,
+  "returncode": 0,
+  "ended_at": "2026-10-18T09:30:39.224735+00:00",
+  "actual-remote.tar.gz": {
+    "bytes": 58396196,
+    "sha256": "40880900b524be210345d405bac6bd29ce33c6f2b22acfe08d44e04502e49dc8"
+  },
+  "download.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

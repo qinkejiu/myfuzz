@@ -1,0 +1,20 @@
+{
+  "component": "opentitan",
+  "controller_sha256": "fc5faa4abc0bccd561a6ebfea2e779b32b8cdde09ef534bed75c0013ce4ff276",
+  "ended_at": "2026-10-18T09:23:25.928582+00:00",
+  "models": false,
+  "network_fallback": false,
+  "opentitan2-launch.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "opentitan2-launch.stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "recover_missing_pinned_files": true,
+  "returncode": 0,
+  "schema_version": "p8_opentitan_offline_root_launch.v1",
+  "ssh_pid": 39831,
+  "started_at": "2026-10-18T09:18:34.189723+00:00"
+}
