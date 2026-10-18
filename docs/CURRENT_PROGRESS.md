@@ -1,5 +1,12 @@
 # 当前工作进度与证据入口
 
+## 2026-10-18 native 新观测首轮实际拒绝与修复
+
+- [独立准备审计](reports/native-completion-preparation-independent-20261018.md)：新副本8891文件/601目录、1111完整src/scripts及69显式host路径精确相符，旧基线未变。
+- [首轮实际失败及独立归档](reports/native-completion-attempt1-failure-independent-20261018.md)：parent3107064/gate3130216均exit1，四Git子命令exit0，source/tools前后不变；规划器以protocol unsupported拒绝，cache/positive均空，无DUT模型/case/fresh通过，frontend elaboration可能发生。
+- `68f81b6` [准入源码修复](reports/native-observation-planner-admission-fix-20261018.md)：仅在显式raw V2路径接入单native endpoint及严格typed contract；独立源码复核通过。第二轮独立输入仅覆盖plan.py一项，新目录准备推进中，未重用首轮失败目录。
+- 新观测尚无实际通过；来源精确连接、四类反馈和P6/P7/P8均保持OPEN。
+
 ## 2026-10-18 native 完成观测接入（源码增量，未实测）
 
 - `34f01e3` 修复 CPU 完成握手前的 pending/排空、reset 取消、abort 终止及 close 清理；[独立源码复核](reports/native-bus-observer-independent-source-review-20261018.md)关闭原 Important。

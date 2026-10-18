@@ -1,0 +1,9 @@
+{
+  "pins": {
+    "launch-native-gate.sh": "353dcca1d2776e96f489a3f76a9df794caf0c2bb557beac9da6e70b1bacf3df9",
+    "run_native_gate.py": "ca10ae105d03b4b5a031677d4f254070827a66c046acb1a339346c091840b1be"
+  },
+  "returncode": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "e79b1f612dd79ea9e6a5d063cf9e57d05dccf99a842f05f4bb83369aecf01fc5"
+}

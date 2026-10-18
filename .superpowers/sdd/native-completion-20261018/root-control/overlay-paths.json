@@ -1,0 +1,19 @@
+[
+  "scripts/prepare_p7_i5_snapshot.py",
+  "scripts/verifier/native_completion_gate_checks.py",
+  "scripts/verify_picorv32_native_online.py",
+  "src/myfuzz/integration/picorv32_native_online.py",
+  "src/myfuzz/integration/scenario_rfuzz.py",
+  "src/myfuzz/local_harness/native_contract.py",
+  "src/myfuzz/local_harness/native_physical_observation.py",
+  "src/myfuzz/local_harness/native_session.py",
+  "src/myfuzz/local_harness/runtime_renderer.py",
+  "src/myfuzz/scenario/host_identity.py",
+  "src/myfuzz/scenario/native_cpu_events.py",
+  "src/myfuzz/scenario/native_packet_session.py",
+  "src/myfuzz/scenario/native_replay_identity.py",
+  "src/myfuzz/scenario/picorv32_native_cpu_example.py",
+  "src/myfuzz/scenario/picorv32_native_online.py",
+  "src/myfuzz/scenario/runner.py",
+  "src/myfuzz/scenario/session_runtime.py"
+]

@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "bash",
+    "/root/fanzehui/myfuzz/operations/p6-native-completion-inputs-20261018-attempt1/launch-native-gate.sh",
+    "94de100ab2ab50f3674f179378c9138d73cec873c68ae401bc43f9cb63e76cd1",
+    "3efbfeb6c6e84169e9230d360478ca6a7d9613c39f76a38652013cc8b6293003",
+    "861e192518e1d809231b676b91b17c149466000f83138969eac6cbfaff68fb36"
+  ],
+  "restart_policy": "never_restart_on_observation_timeout",
+  "schema_version": "native_completion_actual_gate_root_launch.v1",
+  "source_freeze": "94de100ab2ab50f3674f179378c9138d73cec873c68ae401bc43f9cb63e76cd1",
+  "source_revision": "acc47fe9a2b169e56e873821e27968a47e80ed08",
+  "ssh_pid": 25390,
+  "started_at": "2026-10-18T08:32:19.375286+00:00"
+}

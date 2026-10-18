@@ -1,0 +1,129 @@
+{
+  "native-directed-gate.stderr": {
+    "bytes": 2177,
+    "tail": "Traceback (most recent call last):\n  File \"/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt1/project/scripts/verify_picorv32_native_online.py\", line 381, in <module>\n    raise SystemExit(main())\n                     ^^^^^^\n  File \"/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt1/project/scripts/verify_picorv32_native_online.py\", line 364, in main\n    positive = run_gate(args.output / 'positive', args.cache_dir, corrupt=False,\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt1/project/scripts/verify_picorv32_native_online.py\", line 233, in run_gate\n    runtime = make_picorv32_native_online_runtime(cache_dir=cache_dir, max_cases=3,\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt1/project/src/myfuzz/integration/picorv32_native_online.py\", line 138, in make_picorv32_native_online_runtime\n    factory = make_picorv32_native_online_factory(cache_dir=cache_dir, base_dir=base_dir,\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt1/project/src/myfuzz/scenario/picorv32_native_online.py\", line 180, in make_picorv32_native_online_factory\n    cpu_artifact = _online_artifact(CPU_PROFILE, 'cpu', base_dir, max_wait_cycles=1024,\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt1/project/src/myfuzz/scenario/picorv32_native_online.py\", line 164, in _online_artifact\n    plan = plan_local_harness(request, base_dir=base_dir)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt1/project/src/myfuzz/local_harness/plan.py\", line 212, in plan_local_harness\n    raise ValueError('native-physical-observation-protocol-unsupported')\nValueError: native-physical-observation-protocol-unsupported\n"
+  },
+  "native-directed-gate.stdout": {
+    "bytes": 0,
+    "tail": ""
+  },
+  "observed_at": "2026-10-18T08:33:55.503507+00:00",
+  "positive_files": [],
+  "processes": {
+    "native-directed-gate.launch.json": {
+      "returncode": 1,
+      "stdout": "    PID    PPID STAT     ELAPSED COMMAND\n"
+    },
+    "native-directed-gate.terminal.json": {
+      "returncode": 1,
+      "stdout": "    PID    PPID STAT     ELAPSED COMMAND\n"
+    },
+    "parent-start.json": {
+      "returncode": 1,
+      "stdout": "    PID    PPID STAT     ELAPSED COMMAND\n"
+    },
+    "parent-terminal.json": {
+      "returncode": 1,
+      "stdout": "    PID    PPID STAT     ELAPSED COMMAND\n"
+    }
+  },
+  "records": {
+    "native-directed-gate.launch.json": {
+      "argv": [
+        "/usr/bin/python3",
+        "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt1/project/scripts/verify_picorv32_native_online.py",
+        "--output",
+        "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt1/run-directed",
+        "--cache-dir",
+        "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt1/cache-native",
+        "--heavy-lock",
+        "/root/fanzehui/system-20261016/project/.superpowers/heavy-worker.lock",
+        "--native-completion-observation"
+      ],
+      "cwd": "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt1/project",
+      "pid": 3130216,
+      "returncode": null,
+      "started_unix": 1792312382.8133209
+    },
+    "native-directed-gate.terminal.json": {
+      "argv": [
+        "/usr/bin/python3",
+        "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt1/project/scripts/verify_picorv32_native_online.py",
+        "--output",
+        "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt1/run-directed",
+        "--cache-dir",
+        "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt1/cache-native",
+        "--heavy-lock",
+        "/root/fanzehui/system-20261016/project/.superpowers/heavy-worker.lock",
+        "--native-completion-observation"
+      ],
+      "cwd": "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt1/project",
+      "ended_unix": 1792312392.3648624,
+      "error": null,
+      "pid": 3130216,
+      "returncode": 1,
+      "started_unix": 1792312382.8133209,
+      "stderr_sha256": "84ca18f45ccea8992b335b93d0e74fe0965d61e38948f38b78967ea05df7bc92",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "parent-start.json": {
+      "argv": [
+        "/root/fanzehui/myfuzz/operations/p6-native-completion-inputs-20261018-attempt1/run_native_gate.py",
+        "--freeze-sha256",
+        "94de100ab2ab50f3674f179378c9138d73cec873c68ae401bc43f9cb63e76cd1",
+        "--receipt-sha256",
+        "3efbfeb6c6e84169e9230d360478ca6a7d9613c39f76a38652013cc8b6293003",
+        "--directories-file-sha256",
+        "861e192518e1d809231b676b91b17c149466000f83138969eac6cbfaff68fb36"
+      ],
+      "controller_sha256": "ca10ae105d03b4b5a031677d4f254070827a66c046acb1a339346c091840b1be",
+      "cwd": "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt1/project",
+      "formal_p6_complete": false,
+      "pid": 3107064,
+      "schema_version": "native_completion_gate_parent.v1",
+      "started_unix": 1792312340.4345324
+    },
+    "parent-terminal.json": {
+      "argv": [
+        "/root/fanzehui/myfuzz/operations/p6-native-completion-inputs-20261018-attempt1/run_native_gate.py",
+        "--freeze-sha256",
+        "94de100ab2ab50f3674f179378c9138d73cec873c68ae401bc43f9cb63e76cd1",
+        "--receipt-sha256",
+        "3efbfeb6c6e84169e9230d360478ca6a7d9613c39f76a38652013cc8b6293003",
+        "--directories-file-sha256",
+        "861e192518e1d809231b676b91b17c149466000f83138969eac6cbfaff68fb36"
+      ],
+      "controller_sha256": "ca10ae105d03b4b5a031677d4f254070827a66c046acb1a339346c091840b1be",
+      "cwd": "/root/fanzehui/myfuzz/operations/p6-native-completion-20261018-attempt1/project",
+      "ended_unix": 1792312399.0698934,
+      "errors": [],
+      "formal_p6_complete": false,
+      "gate_returncode": 1,
+      "git_metadata": [
+        {
+          "name": "git-root-head",
+          "returncode": 0
+        },
+        {
+          "name": "git-closures-tracked",
+          "returncode": 0
+        },
+        {
+          "name": "git-picorv32_upstream_reference-connectivity",
+          "returncode": 0
+        },
+        {
+          "name": "git-soc-pulp-apb-gpio-connectivity",
+          "returncode": 0
+        }
+      ],
+      "pid": 3107064,
+      "returncode": 1,
+      "schema_version": "native_completion_gate_parent.v1",
+      "started_unix": 1792312340.4345324,
+      "status": "failed",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

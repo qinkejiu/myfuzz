@@ -2,6 +2,8 @@
 
 ## Native 完成观测：最新源码状态
 
+- [新副本独立准备](native-completion-preparation-independent-20261018.md)、[首轮真实规划拒绝](native-completion-attempt1-failure-independent-20261018.md)及[最小准入修复](native-observation-planner-admission-fix-20261018.md)：新观测门未通过，第二轮使用新目录。
+
 - [guarded fresh 异常清理](native-guarded-fresh-cleanup-20261018.md)、[真实 nonce 完整比较接线](native-replay-identity-source-20261018.md)与[门禁 CLI 观测开关](native-completion-gate-cli-source-20261018.md)：均仅源码，未新实测。
 
 - [显式 V2 观测开关](native-online-completion-optin-20261018.md)：源码接通，未实测。

@@ -1,0 +1,112 @@
+{
+  "directories": {
+    "scripts": {
+      "mode": 493
+    },
+    "scripts/verifier": {
+      "mode": 493
+    },
+    "src": {
+      "mode": 493
+    },
+    "src/myfuzz": {
+      "mode": 493
+    },
+    "src/myfuzz/integration": {
+      "mode": 493
+    },
+    "src/myfuzz/local_harness": {
+      "mode": 493
+    },
+    "src/myfuzz/scenario": {
+      "mode": 493
+    }
+  },
+  "files": {
+    "scripts/prepare_p7_i5_snapshot.py": {
+      "bytes": 18670,
+      "mode": 420,
+      "sha256": "89a7c42963aac5c7761d76c9e0f80776209645cc2876e56743f96a0df0e83e02"
+    },
+    "scripts/verifier/native_completion_gate_checks.py": {
+      "bytes": 19606,
+      "mode": 420,
+      "sha256": "8297f570c7a9b72a2e23fcde034ba8999576821ea219c75d0577ecf8702b2f20"
+    },
+    "scripts/verify_picorv32_native_online.py": {
+      "bytes": 20071,
+      "mode": 420,
+      "sha256": "b5dc8f8e19a2f38b77e9eed1f5ccd4a30f82350fde1afb5e6e1849b8afa16242"
+    },
+    "src/myfuzz/integration/picorv32_native_online.py": {
+      "bytes": 7021,
+      "mode": 420,
+      "sha256": "8767b3e1a27ac745f4000a516bc5f5128f397e3dea3deb8eea0855255e8254c7"
+    },
+    "src/myfuzz/integration/scenario_rfuzz.py": {
+      "bytes": 147512,
+      "mode": 420,
+      "sha256": "bf92a9924991e33d473ecd65c8cc98a2376076fdaa5e8b96f853b4370b6f8ce6"
+    },
+    "src/myfuzz/local_harness/native_contract.py": {
+      "bytes": 8892,
+      "mode": 420,
+      "sha256": "ce526eb59042db3b993d06f08a68928f071c2321b93b315dca50f063d4caa4c2"
+    },
+    "src/myfuzz/local_harness/native_physical_observation.py": {
+      "bytes": 16306,
+      "mode": 420,
+      "sha256": "edead883652a4dbdcb2cefceff589838a7868a0fcc951b404e8613f0810d9478"
+    },
+    "src/myfuzz/local_harness/native_session.py": {
+      "bytes": 15124,
+      "mode": 420,
+      "sha256": "b7660b319779ca7810c418c2a6ad1e4e26e761a6c444bc460a41f095a73e72c7"
+    },
+    "src/myfuzz/local_harness/runtime_renderer.py": {
+      "bytes": 91481,
+      "mode": 420,
+      "sha256": "c429f55995d254352e382c07d996f3184e10ca1e4723084a7aa19f0e9d225d99"
+    },
+    "src/myfuzz/scenario/host_identity.py": {
+      "bytes": 7263,
+      "mode": 420,
+      "sha256": "b9a697b5592d76b08ddb10fd42abcf7474cc769d0f03982d9923239a626b24e2"
+    },
+    "src/myfuzz/scenario/native_cpu_events.py": {
+      "bytes": 9735,
+      "mode": 420,
+      "sha256": "805767f20b07f5c624f3f1c35525029bf2ae00f3746c4e85cd792b16f5cca57e"
+    },
+    "src/myfuzz/scenario/native_packet_session.py": {
+      "bytes": 8963,
+      "mode": 420,
+      "sha256": "c4ad371cd931bf5e862895a568f148ba6fbc3a33e8621ad53ad8f4aeac9d2acc"
+    },
+    "src/myfuzz/scenario/native_replay_identity.py": {
+      "bytes": 5635,
+      "mode": 420,
+      "sha256": "c763cc78d46b2e97f4030bb1adb56bd070171fc132db57d34442b5ad6c742c8a"
+    },
+    "src/myfuzz/scenario/picorv32_native_cpu_example.py": {
+      "bytes": 30132,
+      "mode": 384,
+      "sha256": "86a8ed486749a7c8d4bf50aef9927e8aa40a8d4cbb027a53be4d2b2f637c5701"
+    },
+    "src/myfuzz/scenario/picorv32_native_online.py": {
+      "bytes": 10569,
+      "mode": 420,
+      "sha256": "ae7e6ae278881a92ad788aa7f19178a31525e4db8e803b15423ea0405562a8f0"
+    },
+    "src/myfuzz/scenario/runner.py": {
+      "bytes": 188737,
+      "mode": 420,
+      "sha256": "a8763be06c4a92960b5a8ee4b4c1e5e2ed72123a6cefd2b892deb78fa39ef21d"
+    },
+    "src/myfuzz/scenario/session_runtime.py": {
+      "bytes": 170771,
+      "mode": 420,
+      "sha256": "c45fdf5946019f2b3e033c5b6938e923390d75ef04e0c868b57e7260e081b6ad"
+    }
+  }
+}
