@@ -40,3 +40,22 @@ trace-set observer. Completion events remain transfer-only, explicitly denying
 source authority and retirement; data transfers are not labeled instruction
 transfers. This does not establish the archived 47-transaction runtime result,
 source-byte consumption, or successful reset/finish behavior.
+
+## Lifecycle correction source follow-up
+
+The subsequent production correction closes the Important finding at source
+scope: base pending accounting includes the observer's outstanding native
+transfer, Deferred combines that count with its queued response, and normal
+quiesce therefore waits for the real completion within its existing budget.
+Direct end closes the actual process before reporting an incomplete transfer.
+Both reset paths explicitly cancel pending/offered observation before parent
+reset closes and restarts; failed observers cannot restart. Abort poisons the
+observer, including snapshot/service failure paths. Parent producer frames
+remain the origin of private lifecycle guards; AXI-Lite/AHB observer-disabled
+inheritance retains its existing behavior.
+
+No new Important finding identified in this correction's source review. The
+original finding above is retained as the review history. No tests, imports,
+builds, models, or remote execution were performed for this follow-up; runtime
+acceptance, full fresh equality and the complete 47-transaction observation
+remain unverified by this review.
