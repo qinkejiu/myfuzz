@@ -1,0 +1,71 @@
+{
+  "actual_parent_process": {
+    "returncode": 0,
+    "stdout": "    PID    PPID STAT     ELAPSED COMMAND\n4100959 4100513 Ds         01:12 /usr/bin/python3 /root/fanzehui/myfuzz/operations/p8-source-metadata-inputs-20261018-attempt2/materialize_snapshot.py --component zipcpu --output /root/fanzehui/myfuzz/operations/p8-source-zipcpu-metadata-20261018-attempt2 --git /usr/bin/git --git-sha256 2a8c18fbf43da9f692d75474c72bea9dfd796c260b0f3dfe456376abc3bbd668\n"
+  },
+  "completed_git_children": 492,
+  "observed_at": "2026-10-18T09:03:06.737897+00:00",
+  "parent.stderr": "",
+  "parent.stdout": "",
+  "records": {
+    "child-00491.terminal.json": {
+      "argv": [
+        "/usr/bin/git",
+        "-c",
+        "protocol.allow=never",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "-c",
+        "core.fsmonitor=false",
+        "--git-dir=/root/fanzehui/myfuzz/operations/p8-source-zipcpu-metadata-20261018-attempt2/clean.git",
+        "cat-file",
+        "--batch"
+      ],
+      "cwd": "/root/fanzehui/myfuzz/operations/p8-source-zipcpu-metadata-20261018-attempt2",
+      "ended_unix": 1792314186.4491522,
+      "error": null,
+      "pid": 4130886,
+      "returncode": 0,
+      "started_unix": 1792314186.35755,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdin_sha256": "81eecf8be46c418f8ab871442f233b4225def243994efe71520289814aa93d4f",
+      "stdout_sha256": "719db59eea051b71e6e29f2915b4a3012aaed0542e5d2249914ed8d9149eaf4c"
+    },
+    "child-00492.terminal.json": {
+      "argv": [
+        "/usr/bin/git",
+        "-c",
+        "protocol.allow=never",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "-c",
+        "core.fsmonitor=false",
+        "--git-dir=/root/fanzehui/myfuzz/operations/p8-source-zipcpu-metadata-20261018-attempt2/clean.git",
+        "cat-file",
+        "--batch"
+      ],
+      "cwd": "/root/fanzehui/myfuzz/operations/p8-source-zipcpu-metadata-20261018-attempt2",
+      "ended_unix": 1792314186.6010137,
+      "error": null,
+      "pid": 4131007,
+      "returncode": 0,
+      "started_unix": 1792314186.545777,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdin_sha256": "f25e7a1249fda2427e1bd730c3608aafe122eefb3820c9133d616e2b065f7cd5",
+      "stdout_sha256": "e9395ba784ab9a3380da2798d800768e46050c407371e67d565eea0294c2f9e2"
+    },
+    "parent-start.json": {
+      "component": "zipcpu",
+      "controller_sha256": "23e3aa49cd2f498250c939cf10b751e8a669c20b3c190870784b16ec80cf6e14",
+      "git_sha256": "2a8c18fbf43da9f692d75474c72bea9dfd796c260b0f3dfe456376abc3bbd668",
+      "network_allowed": false,
+      "pid": 4100959,
+      "revision": "42606d2d6ef55df313772232977621b2d72f0159",
+      "runtime_grant": false,
+      "schema_version": "p8_offline_snapshot_materialization.v1",
+      "source": "/root/fanzehui/myfuzz/project/third_party/soc-zipcpu",
+      "started_unix": 1792314114.9083376,
+      "status": "failed"
+    }
+  }
+}

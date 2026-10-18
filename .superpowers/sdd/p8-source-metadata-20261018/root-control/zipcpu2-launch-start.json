@@ -1,0 +1,9 @@
+{
+  "component": "zipcpu",
+  "controller_sha256": "23e3aa49cd2f498250c939cf10b751e8a669c20b3c190870784b16ec80cf6e14",
+  "models": false,
+  "network_fallback": false,
+  "schema_version": "p8_zipcpu_offline_root_launch.v1",
+  "ssh_pid": 36427,
+  "started_at": "2026-10-18T09:01:53.576686+00:00"
+}
