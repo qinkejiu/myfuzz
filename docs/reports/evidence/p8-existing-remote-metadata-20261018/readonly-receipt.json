@@ -1,0 +1,1089 @@
+{
+  "local_sources_lock_sha256": "4caf0ae616e99e3c7cac76a1b04daca41af9bcef0eee3b6b0923fb6bd7e2a29e",
+  "object_integrity_or_closure_proven": false,
+  "observed_unix": 1792312810.4789133,
+  "operations": "stdlib file reads only; no Git subprocess, fetch, modification or model",
+  "reader_sha256": "1bbf122d5c1740560558c48a9ccb10245aae5534ef5b66bec86abc9f0b2701f1",
+  "rows": [
+    {
+      "alternates": null,
+      "component": "soc-opentitan",
+      "config_sha256": "fc5244535fc212252ecda858414dccad380e3ae6d320d71d224fd2f9a96ef179",
+      "config_unchanged_during_read": true,
+      "expected_loose_object_present": false,
+      "expected_object_index_presence": [
+        "pack-9d63c7f2fb63b5fc0cd003903c8af0d1405681f1.idx"
+      ],
+      "expected_revision": "fca045df919a26c47e71616b9dac917b1ea4fd07",
+      "git_directory": "/root/fanzehui/myfuzz/project/third_party/soc-opentitan/.git",
+      "git_entry": "/root/fanzehui/myfuzz/project/third_party/soc-opentitan/.git",
+      "head": "fca045df919a26c47e71616b9dac917b1ea4fd07",
+      "head_ref_value": null,
+      "loose_refs": {
+        "refs/heads/master": "231b399517763c32caa7b3878b6c4feaa1dc79af",
+        "refs/remotes/origin/HEAD": "ref: refs/remotes/origin/master"
+      },
+      "packed_refs": "# pack-refs with: peeled fully-peeled sorted \na7bd7e32ed6ad1f642ab68cc1cc14ee1ca02bc15 refs/remotes/origin/acvp_test_suite\n45f9110b2b3a0a416909714c89007cc9e6c634bd refs/remotes/origin/backport-22659-to-master\n1f66d1fbf57d9bd58f97128cbc9cb6131d1dc02b refs/remotes/origin/backport-23249-to-master\n401e27d3e1232086dd7eafc75df66225986bd927 refs/remotes/origin/backport-24200-to-earlgrey_1.0.0\n9f2bb34380e09d9f293d20beced6e672e8d1532f refs/remotes/origin/backport-25266-to-earlgrey_1.0.0\n3d5978306c1b130cbce917c54e37f34c90819660 refs/remotes/origin/backport-25278-to-master\na0f496fb32ef6030700c5550eb12cf767f97f601 refs/remotes/origin/backport-25362-to-earlgrey_1.0.0\n314283690a8f3472c1c9ad192e33f63e7aaf1680 refs/remotes/origin/backport-25369-to-earlgrey_1.0.0\nb785e1391112549dfde8a0bfede031b681222dcc refs/remotes/origin/backport-25443-to-earlgrey_1.0.0\nf29439135e88aae44274ea71aa9c8131041889a6 refs/remotes/origin/backport-25531-to-earlgrey_1.0.0\ncd3be6a2fac02136cf8874639ecb0ce6cba4888d refs/remotes/origin/backport-25651-to-master\nb3066f10732539110fc1aca0662d242957e00215 refs/remotes/origin/backport-25674-to-earlgrey_1.0.0\n9fcadcdef2fda9ce988f7d9aa71492066fce751d refs/remotes/origin/backport-25820-to-earlgrey_1.0.0\ne06216bdd805a318885840080d9ed9877b4fa75f refs/remotes/origin/backport-25934-to-earlgrey_1.0.0\n117e6fa0ebde42c68ea2a5113abec162acea76ac refs/remotes/origin/backport-26065-to-master\n3632cb9c2a95f9c9c00c754b8da6bec473c76b3b refs/remotes/origin/backport-26291-to-master\nb980c2d5edb97b231f2f378c6ee060c9b8a61de6 refs/remotes/origin/backport-26722-to-master\nc05b830a001abf97497cf1230856fb17038a11a5 refs/remotes/origin/backport-26760-to-master\nd92d9ae7b08e234f63e9055197cdbf7fc8f6f09b refs/remotes/origin/backport-27010-to-master\n854b059fbb81e0f00f54622c40008caefd22817f refs/remotes/origin/backport-27091-to-earlgrey_1.0.0\n93f42624ff71e7d4fae995ada61ab65262894697 refs/remotes/origin/backport-27464-to-earlgrey_1.0.0\n402db0905de6bc8fea42815c6fb690921350ea4c refs/remotes/origin/backport-27539-to-earlgrey_1.0.0\n37db40ac6d7975049c00b1dbcf91482c88122210 refs/remotes/origin/backport-27562-to-earlgrey_1.0.0\n26c0dff0fa0ad53fbfb278aec827c071f706cbf8 refs/remotes/origin/backport-27569-to-earlgrey_1.0.0\nd64559d58105c1a0d1a78832c6d25742de52c1fe refs/remotes/origin/backport-27582-to-earlgrey_1.0.0\ndbc899d8c96db5784686085924665d20095ec542 refs/remotes/origin/backport-27602-to-earlgrey_1.0.0\n0d121d1d1289dc6fe3036292c18b6dbf9da8de89 refs/remotes/origin/backport-27684-to-earlgrey_1.0.0\nd193b40db4514f0f3b96449b5e6955bc187823b3 refs/remotes/origin/backport-27740-to-earlgrey_1.0.0\n5b3478eed7e0afca5fe7f42a06fbbd16b56ea4e5 refs/remotes/origin/backport-27771-to-earlgrey_1.0.0\n8fa1578f7e06203e3af650a34a046aeca0a8a180 refs/remotes/origin/backport-27808-to-earlgrey_1.0.0\n855cf78449ac5cbdd0c2a27b2e375713a87b4598 refs/remotes/origin/backport-27937-to-earlgrey_1.0.0\nf7b0b04754a7cae33dad2c59e665df3c33552a03 refs/remotes/origin/backport-28038-to-earlgrey_1.0.0\n8dce06f433d02f3ce22a012ef17d1bf5f3657197 refs/remotes/origin/backport-28145-to-master\nea9148ed387c3e1ea2688703bf00b5b9a785a92e refs/remotes/origin/backport-28194-to-master\ne95ed356f16ba0a93de0b5a18e3e823e7ab587c1 refs/remotes/origin/backport-28211-to-earlgrey_1.0.0\nbcd487f49196e4f4bf595e23fcc19e1154c5fcfd refs/remotes/origin/backport-28230-to-master\nb8f676a15adf0bee61093903a76f0e07bcaa4aed refs/remotes/origin/backport-28464-to-master\nbd1d97caed63941b521927c46acaf3c110ded50b refs/remotes/origin/backport-28501-to-earlgrey_1.0.0\nf5ae1a993f35f8b1316d223da316764b7f2216e2 refs/remotes/origin/backport-28511-to-master\n2a783fca5ceb016c618e78642d8e9d89d9ad8dbf refs/remotes/origin/backport-28592-to-earlgrey_1.0.0\nb359cc6ef693387544d8b534a4db51c831ae25b3 refs/remotes/origin/backport-28602-to-earlgrey_1.0.0\n30c5c1bbb7b4af5cca86ff5dcf91789d969837a8 refs/remotes/origin/backport-28612-to-earlgrey_1.0.0\neee24007bc7900de616d342da8428e09ee6e88e2 refs/remotes/origin/backport-28616-to-master\n12a0fb4de7b343dd569dc58c5a25c5dbf7079529 refs/remotes/origin/backport-28636-to-earlgrey_1.0.0\n7ad2fe22439db4d1f7cff41776544f82e0172763 refs/remotes/origin/backport-28716-to-master\nbea04505c7e60606120aaff0e1f65735cfdcd22b refs/remotes/origin/backport-28850-to-earlgrey_1.0.0\ne27b58eac6beef90b506ee5aa38bf2e500540d31 refs/remotes/origin/backport-28909-to-master\ne3e6198b48e636753a573addcd1e27d5088f834f refs/remotes/origin/backport-28945-to-earlgrey_1.0.0\n64d79955b64f62a263d234b6bc02b4e978252bbf refs/remotes/origin/backport-28987-to-earlgrey_1.0.0\nce9c8c0d3e24f38b563e84d2e6a65bf120adb219 refs/remotes/origin/backport-29009-to-earlgrey_1.0.0\n6360ccf7302fe6996a913eb1ca51feeb5bc4f6c5 refs/remotes/origin/backport-29060-to-master\n30ec6f623cd785a6c2b96ddfee69d4987983e9a9 refs/remotes/origin/backport-29061-to-master\n544050cccf351315f91d05b7f226c0875a491df2 refs/remotes/origin/backport-29072-to-master\nff1cc01a3dd76c6f84cf7bae9c7f6e2567b62736 refs/remotes/origin/backport-29203-to-earlgrey_1.0.0\n8e2efee19df89c432b776786ecaa05b29fa63e60 refs/remotes/origin/backport-29227-to-earlgrey_1.0.0\nf77462f085e723f5b488c27dcf8cd7040f920aa0 refs/remotes/origin/backport-29414-to-master\nfa15f6ee94fa89f690a50ccabd8b3d0ffba9212b refs/remotes/origin/backport-29430-to-earlgrey_1.0.0\n24bcd95f50879d46a814ac4a31a5414412654d4d refs/remotes/origin/backport-29493-to-master\n2c1139ddfba550e42646d3fec58b458058447208 refs/remotes/origin/backport-29512-to-earlgrey_1.0.0\n8e85fce1a158e9a62c3beaa346b1b5dafb023e3f refs/remotes/origin/backport-29514-to-master\ne93b722ac0c87cc2587222761019b657f70ac007 refs/remotes/origin/backport-29515-to-earlgrey_1.0.0\n2a4ca5fd00d096804bd9dcced82ba8407d39351c refs/remotes/origin/backport-29529-to-master\n23f2edd9b89040552b54c403ce8ee952757fc449 refs/remotes/origin/backport-29532-to-earlgrey_1.0.0\n5cca39d4f961e97da708e4cab95c44923e33694b refs/remotes/origin/backport-29557-to-earlgrey_1.0.0\ncebdcc09bc94447905be904a10b5acade5f51b7f refs/remotes/origin/backport-29566-to-earlgrey_1.0.0\nb97545ff58a7c2b7593de281f17fc8e5bcc5aa11 refs/remotes/origin/backport-29619-to-master\nda1d75358d14590f212ce4661084d8371400deb5 refs/remotes/origin/backport-29646-to-master\n9d3710f5f90d792da0e29ef1527af1a35c7ce46f refs/remotes/origin/backport-29667-to-master\n63c022eda58dca9407b28cae89b7e63a46f9393e refs/remotes/origin/backport-29677-to-master\n7ee428ed1fd26035b134eb9d598cc78bcc6941f6 refs/remotes/origin/backport-29683-to-master\n5265cacc368d218d7f960f61f6b5e755035f8b53 refs/remotes/origin/backport-29694-to-master\n6825caec5be12954d45b6002aad57c028415cc80 refs/remotes/origin/backport-29699-to-master\n09eff984aad4fd98bd3d135cb5736f725169da80 refs/remotes/origin/backport-29749-to-master\nd7b86f05fb7435cbd3c2802fdd9c4dfe7cc5b032 refs/remotes/origin/backport-29751-to-master\nbca16fdf20b1fe6e33805e441f7e97476cc8062d refs/remotes/origin/backport-29764-to-master\n1473f94916944aee9981b44776811593e194bddf refs/remotes/origin/backport-29767-to-master\n9d812b7b15cc7036521c15726f1d18128a995ad2 refs/remotes/origin/backport-29771-to-master\n20ad8cd378c75b8d7832f5f6012008ae9098b44f refs/remotes/origin/backport-29799-to-master\n40d3dbf5a53e7f8a172e94175567515c81b5e4a5 refs/remotes/origin/backport-29801-to-master\nc0e56e79058c6dddda17b5cbd1696ba311acc911 refs/remotes/origin/backport-29822-to-master\nbbd736f304a2522615cd46968d3544de6b390ba6 refs/remotes/origin/backport-29832-to-master\nea95e8b15149f06230929ea63690842ab010da79 refs/remotes/origin/backport-29849-to-master\na2bf5a417e1dcbde023dbfad76cc1c76dd66d45c refs/remotes/origin/backport-29863-to-earlgrey_1.0.0\nea400078c0477afea42826c8706eb90b1dc02f39 refs/remotes/origin/backport-30018-to-master\n31e185042e633641193d017ae669eec9423bef28 refs/remotes/origin/backport-30052-to-master\n11e7d4639e190e028cd07151e93325faec53a4a4 refs/remotes/origin/backport-30098-to-master\nbd7e27a3fb67ecdd9599731a1b78fa5a527eaa3f refs/remotes/origin/backport-30169-to-master\n45e0a43bca68d9f77184f3cd29e202a0267ee791 refs/remotes/origin/backport-30243-to-master\n12f4ebf2ef63e0ea4c8734e293e96dbcb58b01f1 refs/remotes/origin/backport-30253-to-master\nfef4dd567e4cfe12390c4513b70fb7cee87472e9 refs/remotes/origin/backport-30328-to-master\n463be37fb25d00b4f52ea12183eb3e1bdb53ec83 refs/remotes/origin/backport-30348-to-master\na3c76ebbb57b46227edf1a0833bfe80f65e8a7a9 refs/remotes/origin/backport-30367-to-master\n0bc1f8c44f24d76788614b0c419196f709d32cf9 refs/remotes/origin/backport-30371-to-earlgrey_1.0.0\n6c0eeb6bfe4077190c7b2da89f18da63f4d687a5 refs/remotes/origin/backport-30372-to-master\n59e07c3b325e003bf431b93a2266155f3a626c2d refs/remotes/origin/backport-30401-to-master\na91700e114dcfda779e91362721a9315130c5dc2 refs/remotes/origin/backport-30408-to-master\na6d5b44878eab20dfcf938250347f813164360fc refs/remotes/origin/backport-30414-to-master\n4df5682455657cbad422a80ea0524353d58d1a35 refs/remotes/origin/backport-30433-to-master\n4ac1d5764342d76f24aab2697c506a0b6f518758 refs/remotes/origin/backport-30446-to-master\n9624963abce93573709f91cf15e900e736a517bb refs/remotes/origin/backport-30448-to-earlgrey_1.0.0\n98daecbe322001f4a95bbc92cb59cc82244bc887 refs/remotes/origin/backport-30450-to-master\nb5c1d72dc62e7445ee618d5c8b15c84cdb9f0d23 refs/remotes/origin/backport-30451-to-master\nec66731a0a90d8008bd5143aa8e02e7066d7ad20 refs/remotes/origin/backport-30453-to-master\naac77fad077185c15b413b1b5132bd8dfe521054 refs/remotes/origin/backport-30455-to-master\na26f005592bbef78e1b2bc62c690626b1628e1a1 refs/remotes/origin/backport-30456-to-master\nc0a54e319fb25696c8369efe8740342641f99049 refs/remotes/origin/backport-30458-to-master\n66cbaec5c5bff3adf8b0054ff3adce8dca12fb52 refs/remotes/origin/backport-30488-to-master\na73074ee3ec098c0d68feda12316ecf9be38d637 refs/remotes/origin/backport-30546-to-master\ned62090eaaea4bf9925c354a55ba214e052fc859 refs/remotes/origin/backport-30686-to-master\n4a2263b8d575e01acc966161632a945c44a9f7b3 refs/remotes/origin/backport-30698-to-master\n30364ffc4f452b00f02f796618e1e31e04ecbe34 refs/remotes/origin/backport-30699-to-master\n5ff19b484539f85fe1f5cf4bc7d09b7b4875d782 refs/remotes/origin/backport-30724-to-earlgrey_1.0.0\n59fda78304554594720d3c0b1f65bf072e9322c9 refs/remotes/origin/backport-30744-to-master\n57048f4de02795d91ead93938ec5a26e8260e4c2 refs/remotes/origin/backport-30812-to-master\n91cca10b066c931f368234f9f7cab208a32bbb0d refs/remotes/origin/backport-30864-to-master\n3df9bc9472c6acf757f4ac5f5a98ceb172df65da refs/remotes/origin/backport-30966-to-earlgrey_1.0.0\n0b18cb6bd2332958551ce49bfdf91ad136f908bb refs/remotes/origin/backport-31003-to-master\n9d66b4d832ec417db61838fc0e459db2c11451de refs/remotes/origin/backport-31031-to-master\n081e84ca3dee9ec2d866e0847504325ad3a4656b refs/remotes/origin/backport-31053-to-master\nf2338e63bc4db5eeaac40537f8d2eb4a172328d6 refs/remotes/origin/backport-31077-to-master\n54e2a9fe00a64b01b3bad6f4e0cc0aaf12dccacc refs/remotes/origin/backport-31083-to-master\n69c40db1e58b217cf6203bd175f1ae97c754c699 refs/remotes/origin/backport-31091-to-earlgrey_1.0.0\n7225540b401452ab9ab94bf254039464fde36f34 refs/remotes/origin/backport-31109-to-master\n4bf6eaa830943ebd6965767b69da596134ad838b refs/remotes/origin/backport-31179-to-master\nf427b9db314aecd1409f7b13ea7c5bfb7943a50a refs/remotes/origin/backport-31263-to-earlgrey_1.0.0\nc8117737641ad3c7023c8420f0b8524f70a50f27 refs/remotes/origin/backport-31272-to-master\na325dc80c9f8f4d24c07a10607842f054438d03c refs/remotes/origin/backport-31301-to-master\nb038b1254c7bb7e56dd2772c7c789755e1a07ddd refs/remotes/origin/backport-31311-to-master\n5c28912e596bf5feb704a3a15993df3efd601885 refs/remotes/origin/backport-31373-to-master\n2a7c2fe8cdc6794f0ef7413cc71b80224b4d6b94 refs/remotes/origin/blockfile-many-files\nc8ff78280f57bc278c07055d8f031376d5b20772 refs/remotes/origin/ci-lint-darjeeling\ne3793f0d0fe7bed693cc6ecac91b7beba4e8ccea refs/remotes/origin/ci-release-incr-timeout\n68d53c17484d5eb5d78741a24aef787448f6ca01 refs/remotes/origin/darjeeling_1.0.0\nba40664f5db2da533b3bde3351019122a66f2670 refs/remotes/origin/dvsim_dvplan_integ\n7b4319e15da3b1c46ea56ef3dd0a85c50da0d95e refs/remotes/origin/earlgrey-1.0.0-devbundle-licenses\na816ab46d5a410b58e11cab46450bee682d9e1da refs/remotes/origin/earlgrey-spi_device-1r1w\n7d0af709c093b13dc875a32716a935dc1ea2f393 refs/remotes/origin/earlgrey_1.0.0\n9f20940d494a223cc950a5b98f748fb28109d458 refs/remotes/origin/earlgrey_1.0.0_A2_presilicon\nbf170d3225d7d1b271290d12c426376854af8fbf refs/remotes/origin/earlgrey_1.0.0_presilicon\nedf5e35f5d50a5377641c90a315109a351de7635 refs/remotes/origin/earlgrey_es\ndbfb6b92b33f675f34c6c0c90c62c086db03961b refs/remotes/origin/earlgrey_es_sival\nde2345a616b4288c12b73347f35f477bda899da4 refs/remotes/origin/ed25519-legacy\n9a3723391feca3fe93576b8a39ae0258320a4b02 refs/remotes/origin/integrated_dev\n231b399517763c32caa7b3878b6c4feaa1dc79af refs/remotes/origin/master\n553226eae21190b4082396ff6dc3635e90047cb7 refs/remotes/origin/merge-queue\n4126517b85043306d60de77b16c5570d15400995 refs/remotes/origin/multitop_dev\n87b38950a26c209ce1a11008160f4c1ee7275bbf refs/remotes/origin/new_ci_fpga_dispatch\nf83d25345dc79dada0a13a2de45f9291901b561a refs/remotes/origin/nightly_test\n183e2e1d9d3ab3b4110526c1075b7366b3c8b3c5 refs/remotes/origin/nt11-provisioning-rig\n867c06ac88df09dd9fca6eca6fe1e9966da61e11 refs/remotes/origin/ot-sca_cw310\n51a8f50110a12f8c242763882201b116a0e5e21e refs/remotes/origin/ot-sca_cw310_aes\n5b823702439f5b50dd940628884b6cb97046cdcf refs/remotes/origin/ot-sca_cw310_kmac\n2898576bf825a1f577360d8fb5db742f2043e368 refs/remotes/origin/ot-sca_cw310_otbn\nc7d707f564a84bfb02f83c4b0efdf859be9fb4dc refs/remotes/origin/ot-sku-ci\nd9f2cc0e3da72a67dddbdecf7c099d93ac988fac refs/remotes/origin/otbn-kmac-sim\nccd10e56abae7ebee57a80cbdf644721790afefe refs/remotes/origin/publish_bazel_reports\na6a72a24fa6ec4dc4057b982bf1e5a951800a1d0 refs/remotes/origin/release\nd128f5602209cace59177f24791b295f17de40f1 refs/remotes/origin/revert-17124-mode3\n167c38ba87c3faccd29ae563fe11f268b72520dc refs/remotes/origin/revert-26535-pentest_icache_dummy\neb326a86724fd8909348cf9ead2ea0cd971fa928 refs/remotes/origin/revert-26758-no-clock-div\n2b2720754c55f9726d4e690962cc3bd21255fca1 refs/remotes/origin/revert-30472-cherry_pick_compression\na9665d8d6a40e7079072df31b6a06fa6897faa18 refs/remotes/origin/sival_slow_crypto\n95011a30559497e2fdc8055bedf0e1f777e9060e refs/remotes/origin/sw-multi-top\nd2a4c12c2267d026abe5438e006afe5cedd748c2 refs/remotes/origin/test-toolchain\n488414217ab784ccc144ff8e2b0bb48438ca3e47 refs/remotes/origin/to-xcelium\n1dcc8cddddd2f20bc6c47f732188aad50a2ac85b refs/remotes/origin/v1-bronze\n3ea2a2e95e20ed7bc4ad33f3876f3901ab21c58b refs/remotes/origin/vcs_z01x\n81739c5bf28a58e8951ccd8d4fa3c5d453085aa0 refs/tags/2026-05-21-test\n325777cfe783a2c487a0e7155826d47cb867614f refs/tags/2026-06-01-test\n38ea01a366aaa48bcda4ab271a6d5d4a021f6346 refs/tags/Earlgrey-A2-Orchestrator-RC0\n6e8e395e98fb403b1d656d50cf9dccd2794b3d8f refs/tags/Earlgrey-A2-Orchestrator-RC1\n85b8eb248a3f27d7aaa036ead8ba59ffb8d773a3 refs/tags/Earlgrey-A2-Orchestrator-RC2\ncc10b843210d228e48a563e64e72edf09e66e3b7 refs/tags/Earlgrey-A2-Orchestrator-RC3\n19ca9acf702a32f1c1fb789e4696c794739d9531 refs/tags/Earlgrey-A2-Orchestrator-RC4\nbca4b342739aa7d43255ecfceafcdb96c682216f refs/tags/Earlgrey-A2-Orchestrator-RC5\nf346c1de0fbaa48fd6d395cc7158e53a7e9e105f refs/tags/Earlgrey-A2-Orchestrator-RC6\na0001bc25dbd76ad7573f7c51d59d593c12202b2 refs/tags/Earlgrey-A2-Orchestrator-RC7\n203fb2d564d9e4d85eabc2811c812e54fdb66545 refs/tags/Earlgrey-A2-Provisioning-RC0\n2816f7669f2a7f8b845d32d9459459f99fba5411 refs/tags/Earlgrey-A2-Provisioning-RC1\n5537996adffdbc1dd3ddb89a1d579e775a39bb9d refs/tags/Earlgrey-A2-Provisioning-RC10\nb2b48791b1786962de17a3f56a026ff4d7846836 refs/tags/Earlgrey-A2-Provisioning-RC11\n14ddd8d91814f06dc80fa564856df3e61764e485 refs/tags/Earlgrey-A2-Provisioning-RC12\n536735b1762ef7df7fd88d446547142e159d35b7 refs/tags/Earlgrey-A2-Provisioning-RC13\naa6b6e45b194c5613e9a768fb3c6a9470b8b4545 refs/tags/Earlgrey-A2-Provisioning-RC14\n58322aae19107fe4ef10181f6566526f155cac72 refs/tags/Earlgrey-A2-Provisioning-RC15\n3e5a19b53548b086eb89c9cac0cea0f0ffd855bd refs/tags/Earlgrey-A2-Provisioning-RC16\nbd9ada3c529983926f33ae065a95344a9832c301 refs/tags/Earlgrey-A2-Provisioning-RC17\nff5853e2c0cfb26c1a455943b29aeed6e357a8a5 refs/tags/Earlgrey-A2-Provisioning-RC2\n6ae909eed1efd43e0abd36f580504b56aaf19850 refs/tags/Earlgrey-A2-Provisioning-RC3\nc5c7345078c165307d70480d11da200173909871 refs/tags/Earlgrey-A2-Provisioning-RC4\nabb0310e5c71d8b1fadd2c02ac36c2ccc7c70fd8 refs/tags/Earlgrey-A2-Provisioning-RC5\n9ca5d547d270373cc86a12583ed3f5148f3cf682 refs/tags/Earlgrey-A2-Provisioning-RC6\nff7da13469e3d9ad28a83d87d503b6c0a1736d09 refs/tags/Earlgrey-A2-Provisioning-RC7\nc6db44154a9e1162827245a7229dca80d31d7679 refs/tags/Earlgrey-A2-Provisioning-RC8\nc8ba1aba4a7840581c65bae53a86d52cd7e1b440 refs/tags/Earlgrey-A2-Provisioning-RC9\nf38b01f4d453f6a618482b2897009938ba392680 refs/tags/Earlgrey-ES-SV2\nee1fddc31a319f287af989413e11fca3df4e2a05 refs/tags/Earlgrey-M2.5.1-RC0\n^44c75fcc9cc4c4c4daa551d0614ae49b85e54cc4\nf0e07030010aca19bfa3d5fca918ecb6f77488e2 refs/tags/Earlgrey-M2.5.1-RC1\n^02fd38a036eb88f0e1068c83667b928d11e1f648\n21ce4e9761abdf5c919b46e5ae64a5a8e24992f7 refs/tags/Earlgrey-M2.5.2-RC0\nb6c2886f84a9e61b3f8036908b74c2d0fd540426 refs/tags/Earlgrey-M2.5.2-ROM-RC0\n8522e05bc4e5e5e6fec08e8066957fd39559838f refs/tags/Earlgrey-M2.5.2-ROM-RC1\n895673387aa3ef894d0036e6f8f4a8248d42f7d7 refs/tags/Earlgrey-PROD-A2-M6-RC0\n^676fe222252f7a9fc4e0f4b2a4c14c53dfff1b96\n05e45b21357639520421b52fec177c97e37588b2 refs/tags/Earlgrey-PROD-A2-M6-ROM-RC0\n9f20940d494a223cc950a5b98f748fb28109d458 refs/tags/Earlgrey-PROD-A2-M6-ROM-RC1\n892e170679284fc79084022061ae0f79ee357a97 refs/tags/Earlgrey-PROD-M2\n^30d7e787c753caaa03fe68a4a70da1bbcbc1d96f\n36c168c253a68a4e7b11567beea12374f9407aad refs/tags/Earlgrey-PROD-M2-RC0\nc187a82ee842f2b082397b49366fd6155b55dc66 refs/tags/Earlgrey-PROD-M2-RC1\nb3869fb5a8bdbec7f22702edd4152f9af0b5a981 refs/tags/Earlgrey-PROD-M2-RC2\na29dba0686093ce4bbb288768ae0f6381deafc61 refs/tags/Earlgrey-PROD-M2-RC3\nf24455d0a8b65afe75d8b3a84bdf6ba01c940b1a refs/tags/Earlgrey-PROD-M2-RC4\n^919341eb22b8115d333d116db7187f0a13d61b85\n2230571b0014b0679ece90b9f990030a9987ac55 refs/tags/Earlgrey-PROD-M2-RC5\n^30d7e787c753caaa03fe68a4a70da1bbcbc1d96f\ned6c0b1bb52aff8b687c343d717e4728a99ad9d9 refs/tags/Earlgrey-PROD-M3\n^49d4e53c1beb1124beab2b35138a2bfda98af827\nec711524c05e92a306b3e28c0343522909a1b9a7 refs/tags/Earlgrey-PROD-M3-RC0\nc1e0fb7bfe05ff00fa870acd1c6228ccae9f6fa5 refs/tags/Earlgrey-PROD-M3-RC1\n^49d4e53c1beb1124beab2b35138a2bfda98af827\n694ef78d1eb505041b00fca7d8003b4b7c7e742d refs/tags/Earlgrey-PROD-M4\n^34bde60fbf53bf87aadbca540c36bc0506ecb3ef\n52ac422e4e0826badd005e260ce6c516ac0ad480 refs/tags/Earlgrey-PROD-M4-RC0\n^856e402f740d40dbdb06013320f1697670154fc0\n54ed923e9e956737aee0d5a107221447fec33afb refs/tags/Earlgrey-PROD-M4-RC1\n^1a41f176ce409c95e0aecb4f3c270021442a571e\nc9d7d13d2ed61c12edbd49871b09f20980ece2c6 refs/tags/Earlgrey-PROD-M4-RC2\n^73c42574957fad3c99aee16cce2bfcbb720e0d04\n47513032502c40992777a4075c07b3cf62dbf34c refs/tags/Earlgrey-PROD-M4-RC3\n^b4ea446e71ea8e54265b08b744686a430a931bfe\n5d0a99f7f0f059299d8a9757a6f8ae03c3586c37 refs/tags/Earlgrey-PROD-M4-RC4\n^acd065ca7dab30b94a59ec33bdc6c167801fcfbd\nd64e15985089fa700d0684c69e0effbd85cc36ed refs/tags/Earlgrey-PROD-M4-RC5\n^77065bf50cc6641553b01a008461a5a52908bb60\n57afb0bab509661469dcd16e482e756fa8e531a5 refs/tags/Earlgrey-PROD-M4-RC6\n^9152251fd7eea49befcb8d440c835ee923dd7d86\n003713bf56b624bd387b8aab42b968fd27de5629 refs/tags/Earlgrey-PROD-M4-RC7\n^34bde60fbf53bf87aadbca540c36bc0506ecb3ef\n43011e76e61a92821f41633d600518dc5b93c336 refs/tags/Earlgrey-PROD-M5\n^cb7dbb5bbe8a5105d98a6e1d7bdbef84126a5424\n666d4f76993d8b1fca8859ff41acfe95094c5e0c refs/tags/Earlgrey-PROD-M5-RC0\n^4fec3e528e5e5bb6021e14c5d5af4f89b03133f2\n5daa745df09ed3f8717d4642e62246cff3f0da34 refs/tags/Earlgrey-PROD-M5-RC1\n^c04cc5d074d9acefd052feb8a4fd6de6bfa0faab\n2271e2dd95ea3eb11b69ae8f25995ad958a6e4f6 refs/tags/Earlgrey-PROD-M5-RC2\n^a365ced52c2af6ee20a891d6e8f5ddbfbd2b25ce\n9e7ca1de9f635ca3a46bd5e28da075cb112ce67b refs/tags/Earlgrey-PROD-M5-RC3\n^cb7dbb5bbe8a5105d98a6e1d7bdbef84126a5424\n49de03cd42e5878ad983df040544283552302b68 refs/tags/Earlgrey-PROD-M5-ROM-RC0\n6a84251492142c26314bd9ec7e9f16fba348a059 refs/tags/Earlgrey-PROD-M5-ROM-RC1\ne907b95292586a40bcb1c40ce299a158a37ca235 refs/tags/Earlgrey-PROD-M5-ROM-RC2\nb01f81ae203c3e74bb77bf6e123ebdb7ebbdcd63 refs/tags/Earlgrey-PROD-M6\n^a78922f14a8cc20c7ee569f322a04626f2ac6127\n563352df18db4dfa5d4326d80ea1de2d2e7fcbda refs/tags/Earlgrey-PROD-M6-RC0\n^07b417ef03dbfc78446dd724f140d250a27cbac1\n0150f4779b96bca8ea42f5f0bfcf23321f04a78f refs/tags/Earlgrey-PROD-M6-RC1\n^a24387a5be823e204957be7f03ffc61761834500\n51609fc4d7d056e21737c9383d678618e1cf1cc5 refs/tags/Earlgrey-PROD-M6-RC2\n^2f7d9461b8d8f63c39dd9287979d2f7c673c3724\n0c944c8652fa7904f7623ba8f30c78fe18a47f09 refs/tags/Earlgrey-PROD-M6-RC3\n^31ff0de3e29e06c14ac3e5bef2afa68fae6243c0\n2431cb89253ff7120fa3fe31ee996d17a1b27cea refs/tags/Earlgrey-PROD-M6-RC4\n^765a41c3ac3e40a6fad3752a98df14b0e15bf3e7\n0b7215dc2d9571899d20d0a3bea39fe69217d4ab refs/tags/Earlgrey-PROD-M6-RC5\n^a7532758da13cafa7d2d764d6ff0abdf856e9625\n976b1905aec3308bf5f873c0dc27dd5bed74e756 refs/tags/Earlgrey-PROD-M6-RC6\n^40292c033aaa1f4b68dd1f4503dd90a3231b6cb5\ncdcfaf10172cb4695e493c5951dd813c7c037d20 refs/tags/Earlgrey-PROD-M6-RC7\n^a78922f14a8cc20c7ee569f322a04626f2ac6127\n777fc18762dfbf1098a38d888853c960a66ef2e6 refs/tags/Earlgrey-PROD-M6-ROM-RC0\n549f26968d380a64dd6522a8d7ddbf9563ae81db refs/tags/ROM_EXT_BUILD_0.1\nfa29558e3d605600db08350d1dffb681f65b7472 refs/tags/ROM_EXT_BUILD_0.102\n1a07e5f0860b735d2b3b94d961310a3431be4f30 refs/tags/ROM_EXT_BUILD_0.103\nc8ba1aba4a7840581c65bae53a86d52cd7e1b440 refs/tags/ROM_EXT_BUILD_0.111\n5537996adffdbc1dd3ddb89a1d579e775a39bb9d refs/tags/ROM_EXT_BUILD_0.112\nb2b48791b1786962de17a3f56a026ff4d7846836 refs/tags/ROM_EXT_BUILD_0.113\n14ddd8d91814f06dc80fa564856df3e61764e485 refs/tags/ROM_EXT_BUILD_0.114\n536735b1762ef7df7fd88d446547142e159d35b7 refs/tags/ROM_EXT_BUILD_0.115\n3e5a19b53548b086eb89c9cac0cea0f0ffd855bd refs/tags/ROM_EXT_BUILD_0.116\nac6afa5e0d8846f24d092d69087a2937fe3a93df refs/tags/ROM_EXT_BUILD_0.2\n0997649325871c52ccc156201871b1d3abb7aeec refs/tags/ROM_EXT_BUILD_0.3\n73e506d8fdad0b4010a4f45243fe7f794cf54bc2 refs/tags/ROM_EXT_BUILD_0.4\nf67fc1722a98421311592d1f2e4062cd0753c0a9 refs/tags/ROM_EXT_RELEASE_0.1\n0135da5e167491a7709d972789278acd2f4cec4e refs/tags/devbundle-2026-06-02-1\n44a5255d95007f2fb524a28af69b7d75192cd4ce refs/tags/devbundle-2026-08-21-1\n7439265b265acc8b1b25299c10c032b9873ccfe4 refs/tags/earlgrey_bronze_rc1\n^dc8ba9743a146648f060088c1115581327fbe4c7\n39ef627acc3810b0e8217359223b7547c65d5844 refs/tags/earlgrey_bronze_rc2\n^6dc01dc4f76b721aa8e09cea2069cf0f1f9066ea\n5308602059c38b93ddbe79f333c4ceec1f9a47fb refs/tags/earlgrey_bronze_release\n^9d6264ef98ac4737c90941c505adb4c299f212f6\n19ee5d60b43f47689a7a48578adc099de18009ba refs/tags/earlgrey_bronze_release_v10\n^e280bdea5f2639f9304bd4c4a96b993ccd6dc281\na9700ae7623e361305ddb46d3ef773e1cfb5ff9d refs/tags/earlgrey_bronze_release_v11\n^1dcc8cddddd2f20bc6c47f732188aad50a2ac85b\ne96bb24f1a360196715fe7d2ca951318e7a9cb58 refs/tags/earlgrey_bronze_release_v2\n^b97c2166adae98da00c5c6591e14d273305a6a27\n0799a32cf8f398d1686e6fc9f899509dec3127a5 refs/tags/earlgrey_bronze_release_v3\n^4e483d8bbe4ed97aff87cebdd7cfe03dde273599\nc1daac48aa6cb1997355a7dc3d175ccd4dfdc8ea refs/tags/earlgrey_bronze_release_v4\n^800323b31a443edf9ec214c2141815d5da6e6c78\n2355d9569121ddc7bf91e071f011e134e822b5f6 refs/tags/earlgrey_bronze_release_v5\n^89ca71f60d4b1776258e30c272f02b6313a39b9c\nf16e29bb0364137b447395142ed090918a8b8649 refs/tags/earlgrey_bronze_release_v6\n^a1f8f31134198bee55153b74a245f20b0c7f2fe4\n76ba89f6ac875f8313df11bfc48e7394d588da3a refs/tags/earlgrey_bronze_release_v7\n^45d0a638582be5c8b8d4161aa0325577e6738951\n21e1869668dc63a74d6c3af21e319c63f997c258 refs/tags/earlgrey_bronze_release_v8\n^acb97c6adb821a8769af3f16f5953b2c65121603\na66d5e32c26cc93ff68466e5af2e19c2d5aed0fd refs/tags/earlgrey_bronze_release_v9\n^a6be322c34a60175519cdd087ecabfdfa0a2a1c1\n98bfbf0ef37350e517f0e197016a034e888ebfc7 refs/tags/earlgrey_silver_release_v1\n^2254ac84e11794389859f9c1249cf5e2a0f7321f\n208528c6f24c84ee47d3a251701933889aa40d9c refs/tags/earlgrey_silver_release_v2\n^9d9d86fb65b5e5cb16df6cdba89cffe1327ec056\n63bd1f94bdc6633130e567179e32f6a98b7f00d7 refs/tags/earlgrey_silver_release_v3\n^d5c17ccdf0ce03438350cf6792c1bc1f07060e99\nbc7d5809eec8b29c155d58c6d6f8d2390a2a6a55 refs/tags/earlgrey_silver_release_v4\n^21e6a4f15ec7355041b524648beca27b68293ba0\n5492f7f80dc087ca1adcd6e189db04f8bf5abdcc refs/tags/earlgrey_silver_release_v4_rc1\n1e4ac9ad37e8ab936768ca1b2a810d61d3f1c0f1 refs/tags/earlgrey_silver_release_v4_rc2\n^c3091ba158ce055d302787e2dacb44d0674ad8c1\n20a5166b4c69110d1f557bbbd4229b9b4d84a9e6 refs/tags/earlgrey_silver_release_v5\n^ed044fc9760bdf9fc075d0015ba1db07fa075355\n00d5d8e70b4f7e1869d38833a6d85d42b9e14957 refs/tags/kororo_job_633\n277c76d7fb1e50997251488c66c9b6d45d2e82e5 refs/tags/riscv-summit\n3733c3e2d00507f7a39748cfdd9512ea628f655e refs/tags/riscv-summitv2\n0cc313f3b01bc97649dd7a7241cd1c0f6ac10812 refs/tags/snapshot-20191030-1\n^542e220bdfd5fb34a86827fdba6844693994a679\n6409712a2e45118c356ff2371ac32eb555dff526 refs/tags/snapshot-20191101-1\n^1d0d927693c2ef60d7880ab306beb25115a53dcb\n42bef8cb10b2c46d80cd4fc6b48e002dfe0b7065 refs/tags/snapshot-20191101-2\n^8bbd8b881a836f9fc4e99dceb072774e877428bc\naa5233edd4813ac783fa88d0962d50ad687335bc refs/tags/test-1",
+      "packs": [
+        {
+          "bytes": 9424024,
+          "indexed_objects": 336534,
+          "name": "pack-9d63c7f2fb63b5fc0cd003903c8af0d1405681f1.idx",
+          "sha256": "3e3126e51b9b0391fdb8bba81f81ef54a22fe162451d8900e6790769631397f0"
+        },
+        {
+          "bytes": 42525930,
+          "name": "pack-9d63c7f2fb63b5fc0cd003903c8af0d1405681f1.pack"
+        },
+        {
+          "bytes": 21639,
+          "name": "pack-9d63c7f2fb63b5fc0cd003903c8af0d1405681f1.promisor"
+        },
+        {
+          "bytes": 1346188,
+          "name": "pack-9d63c7f2fb63b5fc0cd003903c8af0d1405681f1.rev"
+        },
+        {
+          "bytes": 352388,
+          "indexed_objects": 12547,
+          "name": "pack-b74e450d97abd9d5f59389565f628712961c540c.idx",
+          "sha256": "9a0c7ef19d947e531ba00d04129922e1081af5c9c5e35251c57a1d8f7c36a2f7"
+        },
+        {
+          "bytes": 40000021,
+          "name": "pack-b74e450d97abd9d5f59389565f628712961c540c.pack"
+        },
+        {
+          "bytes": 1028854,
+          "name": "pack-b74e450d97abd9d5f59389565f628712961c540c.promisor"
+        },
+        {
+          "bytes": 50240,
+          "name": "pack-b74e450d97abd9d5f59389565f628712961c540c.rev"
+        }
+      ],
+      "partialclone": null,
+      "promisor_true": true,
+      "remotes": {
+        "remote \"origin\"": {
+          "partialclonefilter": "blob:none",
+          "promisor": "true"
+        }
+      },
+      "revision_ref_visible": true,
+      "root": "/root/fanzehui/myfuzz/project",
+      "shallow": null,
+      "status": "read_only_metadata_observed"
+    },
+    {
+      "alternates": null,
+      "component": "soc-zipcpu",
+      "config_sha256": "a67bf3dd82eb2e824e1ca501c1b95e01cec07f9efbd84b359e7400cc1f32ff80",
+      "config_unchanged_during_read": true,
+      "expected_loose_object_present": false,
+      "expected_object_index_presence": [
+        "pack-2847051dd14e16b9fcc553f2475357d87f7f8612.idx"
+      ],
+      "expected_revision": "42606d2d6ef55df313772232977621b2d72f0159",
+      "git_directory": "/root/fanzehui/myfuzz/project/third_party/soc-zipcpu/.git",
+      "git_entry": "/root/fanzehui/myfuzz/project/third_party/soc-zipcpu/.git",
+      "head": "42606d2d6ef55df313772232977621b2d72f0159",
+      "head_ref_value": null,
+      "loose_refs": {
+        "refs/heads/master": "42606d2d6ef55df313772232977621b2d72f0159",
+        "refs/remotes/origin/HEAD": "ref: refs/remotes/origin/master"
+      },
+      "packed_refs": "# pack-refs with: peeled fully-peeled sorted \naf9cf9edc3d0e7222b0a10a26eada7cf0a997cbb refs/remotes/origin/dev\n42606d2d6ef55df313772232977621b2d72f0159 refs/remotes/origin/master\n315eb63b50c476780126d826a71e094eee19731b refs/remotes/origin/zaxdma",
+      "packs": [
+        {
+          "bytes": 111252,
+          "indexed_objects": 3935,
+          "name": "pack-2847051dd14e16b9fcc553f2475357d87f7f8612.idx",
+          "sha256": "a9c216f288e5853b8374f4c4adf79b33c3277e1321b2e87a36ac3051a85e692e"
+        },
+        {
+          "bytes": 492486,
+          "name": "pack-2847051dd14e16b9fcc553f2475357d87f7f8612.pack"
+        },
+        {
+          "bytes": 220,
+          "name": "pack-2847051dd14e16b9fcc553f2475357d87f7f8612.promisor"
+        },
+        {
+          "bytes": 15792,
+          "name": "pack-2847051dd14e16b9fcc553f2475357d87f7f8612.rev"
+        },
+        {
+          "bytes": 11376,
+          "indexed_objects": 368,
+          "name": "pack-43ce0bc8e2534555fa411418434fd914bcbc6272.idx",
+          "sha256": "ef1782cecdfe0be03e695cf7e58265a1bdfca520a560857721edd3caaa62c761"
+        },
+        {
+          "bytes": 31003412,
+          "name": "pack-43ce0bc8e2534555fa411418434fd914bcbc6272.pack"
+        },
+        {
+          "bytes": 30176,
+          "name": "pack-43ce0bc8e2534555fa411418434fd914bcbc6272.promisor"
+        },
+        {
+          "bytes": 1524,
+          "name": "pack-43ce0bc8e2534555fa411418434fd914bcbc6272.rev"
+        }
+      ],
+      "partialclone": null,
+      "promisor_true": true,
+      "remotes": {
+        "remote \"origin\"": {
+          "partialclonefilter": "blob:none",
+          "promisor": "true"
+        }
+      },
+      "revision_ref_visible": true,
+      "root": "/root/fanzehui/myfuzz/project",
+      "shallow": null,
+      "status": "read_only_metadata_observed"
+    },
+    {
+      "alternates": null,
+      "component": "ibex",
+      "config_sha256": "e7b559e1146a5947ba37df13f4f0a89baeac5118fa28fe81300c5c2155f5eb00",
+      "config_unchanged_during_read": true,
+      "expected_loose_object_present": false,
+      "expected_object_index_presence": [
+        "pack-7139ff2ea71f183fa044f230f2ed61812a3890b6.idx"
+      ],
+      "expected_revision": "34b0705760ef3dfa00e99637432473d2be8f22f3",
+      "git_directory": "/root/fanzehui/myfuzz/project/third_party/rfuzz/upstream/ibex/.git",
+      "git_entry": "/root/fanzehui/myfuzz/project/third_party/rfuzz/upstream/ibex/.git",
+      "head": "34b0705760ef3dfa00e99637432473d2be8f22f3",
+      "head_ref_value": null,
+      "loose_refs": {
+        "refs/heads/main": "531ca2ec439fe3fa89bd6f60ae8f256bc0b9b241",
+        "refs/remotes/origin/HEAD": "ref: refs/remotes/origin/main"
+      },
+      "packed_refs": "# pack-refs with: peeled fully-peeled sorted \nf910e3be528ba9af7b4e185bfff0e0e9eb75396b refs/remotes/origin/cheriot-dma\n69358e0dc2db3db94fb8c358b85d9dc71b4cd1da refs/remotes/origin/dependabot/github_actions/github-actions-10f8c2daf3\na3f2cc8d27dff6b4b766cd66eeb9fcd60fc85a3a refs/remotes/origin/dependabot/pip/dv/formal/jinja2-3.1.6\n531ca2ec439fe3fa89bd6f60ae8f256bc0b9b241 refs/remotes/origin/main\n228ee08b047c7badb493087d3eb66f903bb6d889 refs/tags/cheriot_ibex_v1.0",
+      "packs": [
+        {
+          "bytes": 1100,
+          "indexed_objects": 1,
+          "name": "pack-1163065f24157cc2f4576f363464a2e70031eabc.idx",
+          "sha256": "ff4bf7d79a74c85f4c33aa10fdaeb4059bd9439376e29fca1c56b35d35f6d472"
+        },
+        {
+          "bytes": 41,
+          "name": "pack-1163065f24157cc2f4576f363464a2e70031eabc.pack"
+        },
+        {
+          "bytes": 0,
+          "name": "pack-1163065f24157cc2f4576f363464a2e70031eabc.promisor"
+        },
+        {
+          "bytes": 56,
+          "name": "pack-1163065f24157cc2f4576f363464a2e70031eabc.rev"
+        },
+        {
+          "bytes": 13448,
+          "indexed_objects": 442,
+          "name": "pack-3bca1c552447fc932c5e5e4186410554e2544cf5.idx",
+          "sha256": "4d56c670cce0dbb717015d45ce720d9188264b40a75bdbfa9339d5776445ba2c"
+        },
+        {
+          "bytes": 903484,
+          "name": "pack-3bca1c552447fc932c5e5e4186410554e2544cf5.pack"
+        },
+        {
+          "bytes": 36244,
+          "name": "pack-3bca1c552447fc932c5e5e4186410554e2544cf5.promisor"
+        },
+        {
+          "bytes": 1820,
+          "name": "pack-3bca1c552447fc932c5e5e4186410554e2544cf5.rev"
+        },
+        {
+          "bytes": 292720,
+          "indexed_objects": 10416,
+          "name": "pack-624b2da93a784e53b603ecfb7f13d8b5788d5fa5.idx",
+          "sha256": "75705c723f36c7b12387144e03b97015e04f27aaff7ce9bdb0f569f237de5059"
+        },
+        {
+          "bytes": 1602676,
+          "name": "pack-624b2da93a784e53b603ecfb7f13d8b5788d5fa5.pack"
+        },
+        {
+          "bytes": 430,
+          "name": "pack-624b2da93a784e53b603ecfb7f13d8b5788d5fa5.promisor"
+        },
+        {
+          "bytes": 41716,
+          "name": "pack-624b2da93a784e53b603ecfb7f13d8b5788d5fa5.rev"
+        },
+        {
+          "bytes": 433532,
+          "indexed_objects": 15445,
+          "name": "pack-7139ff2ea71f183fa044f230f2ed61812a3890b6.idx",
+          "sha256": "4ae9f9bf34d857698a541be5574fbc4724ae0c1dc090e549d1a6245cafbbc19b"
+        },
+        {
+          "bytes": 33549458,
+          "name": "pack-7139ff2ea71f183fa044f230f2ed61812a3890b6.pack"
+        },
+        {
+          "bytes": 61832,
+          "name": "pack-7139ff2ea71f183fa044f230f2ed61812a3890b6.rev"
+        },
+        {
+          "bytes": 23528,
+          "indexed_objects": 802,
+          "name": "pack-b233a0be957de907591a8d7b8cde8334328272f6.idx",
+          "sha256": "8264a34231fa0e5600d7e59e62a4b16c7117480f1f0444ceff7ad6ad0f0ad379"
+        },
+        {
+          "bytes": 1325772,
+          "name": "pack-b233a0be957de907591a8d7b8cde8334328272f6.pack"
+        },
+        {
+          "bytes": 65764,
+          "name": "pack-b233a0be957de907591a8d7b8cde8334328272f6.promisor"
+        },
+        {
+          "bytes": 3260,
+          "name": "pack-b233a0be957de907591a8d7b8cde8334328272f6.rev"
+        }
+      ],
+      "partialclone": null,
+      "promisor_true": true,
+      "remotes": {
+        "remote \"origin\"": {
+          "partialclonefilter": "blob:none",
+          "promisor": "true"
+        }
+      },
+      "revision_ref_visible": true,
+      "root": "/root/fanzehui/myfuzz/project",
+      "shallow": null,
+      "status": "read_only_metadata_observed"
+    },
+    {
+      "alternates": null,
+      "component": "soc-opentitan",
+      "config_sha256": "fc5244535fc212252ecda858414dccad380e3ae6d320d71d224fd2f9a96ef179",
+      "config_unchanged_during_read": true,
+      "expected_loose_object_present": false,
+      "expected_object_index_presence": [
+        "pack-9d63c7f2fb63b5fc0cd003903c8af0d1405681f1.idx"
+      ],
+      "expected_revision": "fca045df919a26c47e71616b9dac917b1ea4fd07",
+      "git_directory": "/root/fanzehui/myfuzz/dma-uart-project/third_party/soc-opentitan/.git",
+      "git_entry": "/root/fanzehui/myfuzz/dma-uart-project/third_party/soc-opentitan/.git",
+      "head": "fca045df919a26c47e71616b9dac917b1ea4fd07",
+      "head_ref_value": null,
+      "loose_refs": {
+        "refs/heads/master": "231b399517763c32caa7b3878b6c4feaa1dc79af",
+        "refs/remotes/origin/HEAD": "ref: refs/remotes/origin/master"
+      },
+      "packed_refs": "# pack-refs with: peeled fully-peeled sorted \na7bd7e32ed6ad1f642ab68cc1cc14ee1ca02bc15 refs/remotes/origin/acvp_test_suite\n45f9110b2b3a0a416909714c89007cc9e6c634bd refs/remotes/origin/backport-22659-to-master\n1f66d1fbf57d9bd58f97128cbc9cb6131d1dc02b refs/remotes/origin/backport-23249-to-master\n401e27d3e1232086dd7eafc75df66225986bd927 refs/remotes/origin/backport-24200-to-earlgrey_1.0.0\n9f2bb34380e09d9f293d20beced6e672e8d1532f refs/remotes/origin/backport-25266-to-earlgrey_1.0.0\n3d5978306c1b130cbce917c54e37f34c90819660 refs/remotes/origin/backport-25278-to-master\na0f496fb32ef6030700c5550eb12cf767f97f601 refs/remotes/origin/backport-25362-to-earlgrey_1.0.0\n314283690a8f3472c1c9ad192e33f63e7aaf1680 refs/remotes/origin/backport-25369-to-earlgrey_1.0.0\nb785e1391112549dfde8a0bfede031b681222dcc refs/remotes/origin/backport-25443-to-earlgrey_1.0.0\nf29439135e88aae44274ea71aa9c8131041889a6 refs/remotes/origin/backport-25531-to-earlgrey_1.0.0\ncd3be6a2fac02136cf8874639ecb0ce6cba4888d refs/remotes/origin/backport-25651-to-master\nb3066f10732539110fc1aca0662d242957e00215 refs/remotes/origin/backport-25674-to-earlgrey_1.0.0\n9fcadcdef2fda9ce988f7d9aa71492066fce751d refs/remotes/origin/backport-25820-to-earlgrey_1.0.0\ne06216bdd805a318885840080d9ed9877b4fa75f refs/remotes/origin/backport-25934-to-earlgrey_1.0.0\n117e6fa0ebde42c68ea2a5113abec162acea76ac refs/remotes/origin/backport-26065-to-master\n3632cb9c2a95f9c9c00c754b8da6bec473c76b3b refs/remotes/origin/backport-26291-to-master\nb980c2d5edb97b231f2f378c6ee060c9b8a61de6 refs/remotes/origin/backport-26722-to-master\nc05b830a001abf97497cf1230856fb17038a11a5 refs/remotes/origin/backport-26760-to-master\nd92d9ae7b08e234f63e9055197cdbf7fc8f6f09b refs/remotes/origin/backport-27010-to-master\n854b059fbb81e0f00f54622c40008caefd22817f refs/remotes/origin/backport-27091-to-earlgrey_1.0.0\n93f42624ff71e7d4fae995ada61ab65262894697 refs/remotes/origin/backport-27464-to-earlgrey_1.0.0\n402db0905de6bc8fea42815c6fb690921350ea4c refs/remotes/origin/backport-27539-to-earlgrey_1.0.0\n37db40ac6d7975049c00b1dbcf91482c88122210 refs/remotes/origin/backport-27562-to-earlgrey_1.0.0\n26c0dff0fa0ad53fbfb278aec827c071f706cbf8 refs/remotes/origin/backport-27569-to-earlgrey_1.0.0\nd64559d58105c1a0d1a78832c6d25742de52c1fe refs/remotes/origin/backport-27582-to-earlgrey_1.0.0\ndbc899d8c96db5784686085924665d20095ec542 refs/remotes/origin/backport-27602-to-earlgrey_1.0.0\n0d121d1d1289dc6fe3036292c18b6dbf9da8de89 refs/remotes/origin/backport-27684-to-earlgrey_1.0.0\nd193b40db4514f0f3b96449b5e6955bc187823b3 refs/remotes/origin/backport-27740-to-earlgrey_1.0.0\n5b3478eed7e0afca5fe7f42a06fbbd16b56ea4e5 refs/remotes/origin/backport-27771-to-earlgrey_1.0.0\n8fa1578f7e06203e3af650a34a046aeca0a8a180 refs/remotes/origin/backport-27808-to-earlgrey_1.0.0\n855cf78449ac5cbdd0c2a27b2e375713a87b4598 refs/remotes/origin/backport-27937-to-earlgrey_1.0.0\nf7b0b04754a7cae33dad2c59e665df3c33552a03 refs/remotes/origin/backport-28038-to-earlgrey_1.0.0\n8dce06f433d02f3ce22a012ef17d1bf5f3657197 refs/remotes/origin/backport-28145-to-master\nea9148ed387c3e1ea2688703bf00b5b9a785a92e refs/remotes/origin/backport-28194-to-master\ne95ed356f16ba0a93de0b5a18e3e823e7ab587c1 refs/remotes/origin/backport-28211-to-earlgrey_1.0.0\nbcd487f49196e4f4bf595e23fcc19e1154c5fcfd refs/remotes/origin/backport-28230-to-master\nb8f676a15adf0bee61093903a76f0e07bcaa4aed refs/remotes/origin/backport-28464-to-master\nbd1d97caed63941b521927c46acaf3c110ded50b refs/remotes/origin/backport-28501-to-earlgrey_1.0.0\nf5ae1a993f35f8b1316d223da316764b7f2216e2 refs/remotes/origin/backport-28511-to-master\n2a783fca5ceb016c618e78642d8e9d89d9ad8dbf refs/remotes/origin/backport-28592-to-earlgrey_1.0.0\nb359cc6ef693387544d8b534a4db51c831ae25b3 refs/remotes/origin/backport-28602-to-earlgrey_1.0.0\n30c5c1bbb7b4af5cca86ff5dcf91789d969837a8 refs/remotes/origin/backport-28612-to-earlgrey_1.0.0\neee24007bc7900de616d342da8428e09ee6e88e2 refs/remotes/origin/backport-28616-to-master\n12a0fb4de7b343dd569dc58c5a25c5dbf7079529 refs/remotes/origin/backport-28636-to-earlgrey_1.0.0\n7ad2fe22439db4d1f7cff41776544f82e0172763 refs/remotes/origin/backport-28716-to-master\nbea04505c7e60606120aaff0e1f65735cfdcd22b refs/remotes/origin/backport-28850-to-earlgrey_1.0.0\ne27b58eac6beef90b506ee5aa38bf2e500540d31 refs/remotes/origin/backport-28909-to-master\ne3e6198b48e636753a573addcd1e27d5088f834f refs/remotes/origin/backport-28945-to-earlgrey_1.0.0\n64d79955b64f62a263d234b6bc02b4e978252bbf refs/remotes/origin/backport-28987-to-earlgrey_1.0.0\nce9c8c0d3e24f38b563e84d2e6a65bf120adb219 refs/remotes/origin/backport-29009-to-earlgrey_1.0.0\n6360ccf7302fe6996a913eb1ca51feeb5bc4f6c5 refs/remotes/origin/backport-29060-to-master\n30ec6f623cd785a6c2b96ddfee69d4987983e9a9 refs/remotes/origin/backport-29061-to-master\n544050cccf351315f91d05b7f226c0875a491df2 refs/remotes/origin/backport-29072-to-master\nff1cc01a3dd76c6f84cf7bae9c7f6e2567b62736 refs/remotes/origin/backport-29203-to-earlgrey_1.0.0\n8e2efee19df89c432b776786ecaa05b29fa63e60 refs/remotes/origin/backport-29227-to-earlgrey_1.0.0\nf77462f085e723f5b488c27dcf8cd7040f920aa0 refs/remotes/origin/backport-29414-to-master\nfa15f6ee94fa89f690a50ccabd8b3d0ffba9212b refs/remotes/origin/backport-29430-to-earlgrey_1.0.0\n24bcd95f50879d46a814ac4a31a5414412654d4d refs/remotes/origin/backport-29493-to-master\n2c1139ddfba550e42646d3fec58b458058447208 refs/remotes/origin/backport-29512-to-earlgrey_1.0.0\n8e85fce1a158e9a62c3beaa346b1b5dafb023e3f refs/remotes/origin/backport-29514-to-master\ne93b722ac0c87cc2587222761019b657f70ac007 refs/remotes/origin/backport-29515-to-earlgrey_1.0.0\n2a4ca5fd00d096804bd9dcced82ba8407d39351c refs/remotes/origin/backport-29529-to-master\n23f2edd9b89040552b54c403ce8ee952757fc449 refs/remotes/origin/backport-29532-to-earlgrey_1.0.0\n5cca39d4f961e97da708e4cab95c44923e33694b refs/remotes/origin/backport-29557-to-earlgrey_1.0.0\ncebdcc09bc94447905be904a10b5acade5f51b7f refs/remotes/origin/backport-29566-to-earlgrey_1.0.0\nb97545ff58a7c2b7593de281f17fc8e5bcc5aa11 refs/remotes/origin/backport-29619-to-master\nda1d75358d14590f212ce4661084d8371400deb5 refs/remotes/origin/backport-29646-to-master\n9d3710f5f90d792da0e29ef1527af1a35c7ce46f refs/remotes/origin/backport-29667-to-master\n63c022eda58dca9407b28cae89b7e63a46f9393e refs/remotes/origin/backport-29677-to-master\n7ee428ed1fd26035b134eb9d598cc78bcc6941f6 refs/remotes/origin/backport-29683-to-master\n5265cacc368d218d7f960f61f6b5e755035f8b53 refs/remotes/origin/backport-29694-to-master\n6825caec5be12954d45b6002aad57c028415cc80 refs/remotes/origin/backport-29699-to-master\n09eff984aad4fd98bd3d135cb5736f725169da80 refs/remotes/origin/backport-29749-to-master\nd7b86f05fb7435cbd3c2802fdd9c4dfe7cc5b032 refs/remotes/origin/backport-29751-to-master\nbca16fdf20b1fe6e33805e441f7e97476cc8062d refs/remotes/origin/backport-29764-to-master\n1473f94916944aee9981b44776811593e194bddf refs/remotes/origin/backport-29767-to-master\n9d812b7b15cc7036521c15726f1d18128a995ad2 refs/remotes/origin/backport-29771-to-master\n20ad8cd378c75b8d7832f5f6012008ae9098b44f refs/remotes/origin/backport-29799-to-master\n40d3dbf5a53e7f8a172e94175567515c81b5e4a5 refs/remotes/origin/backport-29801-to-master\nc0e56e79058c6dddda17b5cbd1696ba311acc911 refs/remotes/origin/backport-29822-to-master\nbbd736f304a2522615cd46968d3544de6b390ba6 refs/remotes/origin/backport-29832-to-master\nea95e8b15149f06230929ea63690842ab010da79 refs/remotes/origin/backport-29849-to-master\na2bf5a417e1dcbde023dbfad76cc1c76dd66d45c refs/remotes/origin/backport-29863-to-earlgrey_1.0.0\nea400078c0477afea42826c8706eb90b1dc02f39 refs/remotes/origin/backport-30018-to-master\n31e185042e633641193d017ae669eec9423bef28 refs/remotes/origin/backport-30052-to-master\n11e7d4639e190e028cd07151e93325faec53a4a4 refs/remotes/origin/backport-30098-to-master\nbd7e27a3fb67ecdd9599731a1b78fa5a527eaa3f refs/remotes/origin/backport-30169-to-master\n45e0a43bca68d9f77184f3cd29e202a0267ee791 refs/remotes/origin/backport-30243-to-master\n12f4ebf2ef63e0ea4c8734e293e96dbcb58b01f1 refs/remotes/origin/backport-30253-to-master\nfef4dd567e4cfe12390c4513b70fb7cee87472e9 refs/remotes/origin/backport-30328-to-master\n463be37fb25d00b4f52ea12183eb3e1bdb53ec83 refs/remotes/origin/backport-30348-to-master\na3c76ebbb57b46227edf1a0833bfe80f65e8a7a9 refs/remotes/origin/backport-30367-to-master\n0bc1f8c44f24d76788614b0c419196f709d32cf9 refs/remotes/origin/backport-30371-to-earlgrey_1.0.0\n6c0eeb6bfe4077190c7b2da89f18da63f4d687a5 refs/remotes/origin/backport-30372-to-master\n59e07c3b325e003bf431b93a2266155f3a626c2d refs/remotes/origin/backport-30401-to-master\na91700e114dcfda779e91362721a9315130c5dc2 refs/remotes/origin/backport-30408-to-master\na6d5b44878eab20dfcf938250347f813164360fc refs/remotes/origin/backport-30414-to-master\n4df5682455657cbad422a80ea0524353d58d1a35 refs/remotes/origin/backport-30433-to-master\n4ac1d5764342d76f24aab2697c506a0b6f518758 refs/remotes/origin/backport-30446-to-master\n9624963abce93573709f91cf15e900e736a517bb refs/remotes/origin/backport-30448-to-earlgrey_1.0.0\n98daecbe322001f4a95bbc92cb59cc82244bc887 refs/remotes/origin/backport-30450-to-master\nb5c1d72dc62e7445ee618d5c8b15c84cdb9f0d23 refs/remotes/origin/backport-30451-to-master\nec66731a0a90d8008bd5143aa8e02e7066d7ad20 refs/remotes/origin/backport-30453-to-master\naac77fad077185c15b413b1b5132bd8dfe521054 refs/remotes/origin/backport-30455-to-master\na26f005592bbef78e1b2bc62c690626b1628e1a1 refs/remotes/origin/backport-30456-to-master\nc0a54e319fb25696c8369efe8740342641f99049 refs/remotes/origin/backport-30458-to-master\n66cbaec5c5bff3adf8b0054ff3adce8dca12fb52 refs/remotes/origin/backport-30488-to-master\na73074ee3ec098c0d68feda12316ecf9be38d637 refs/remotes/origin/backport-30546-to-master\ned62090eaaea4bf9925c354a55ba214e052fc859 refs/remotes/origin/backport-30686-to-master\n4a2263b8d575e01acc966161632a945c44a9f7b3 refs/remotes/origin/backport-30698-to-master\n30364ffc4f452b00f02f796618e1e31e04ecbe34 refs/remotes/origin/backport-30699-to-master\n5ff19b484539f85fe1f5cf4bc7d09b7b4875d782 refs/remotes/origin/backport-30724-to-earlgrey_1.0.0\n59fda78304554594720d3c0b1f65bf072e9322c9 refs/remotes/origin/backport-30744-to-master\n57048f4de02795d91ead93938ec5a26e8260e4c2 refs/remotes/origin/backport-30812-to-master\n91cca10b066c931f368234f9f7cab208a32bbb0d refs/remotes/origin/backport-30864-to-master\n3df9bc9472c6acf757f4ac5f5a98ceb172df65da refs/remotes/origin/backport-30966-to-earlgrey_1.0.0\n0b18cb6bd2332958551ce49bfdf91ad136f908bb refs/remotes/origin/backport-31003-to-master\n9d66b4d832ec417db61838fc0e459db2c11451de refs/remotes/origin/backport-31031-to-master\n081e84ca3dee9ec2d866e0847504325ad3a4656b refs/remotes/origin/backport-31053-to-master\nf2338e63bc4db5eeaac40537f8d2eb4a172328d6 refs/remotes/origin/backport-31077-to-master\n54e2a9fe00a64b01b3bad6f4e0cc0aaf12dccacc refs/remotes/origin/backport-31083-to-master\n69c40db1e58b217cf6203bd175f1ae97c754c699 refs/remotes/origin/backport-31091-to-earlgrey_1.0.0\n7225540b401452ab9ab94bf254039464fde36f34 refs/remotes/origin/backport-31109-to-master\n4bf6eaa830943ebd6965767b69da596134ad838b refs/remotes/origin/backport-31179-to-master\nf427b9db314aecd1409f7b13ea7c5bfb7943a50a refs/remotes/origin/backport-31263-to-earlgrey_1.0.0\nc8117737641ad3c7023c8420f0b8524f70a50f27 refs/remotes/origin/backport-31272-to-master\na325dc80c9f8f4d24c07a10607842f054438d03c refs/remotes/origin/backport-31301-to-master\nb038b1254c7bb7e56dd2772c7c789755e1a07ddd refs/remotes/origin/backport-31311-to-master\n5c28912e596bf5feb704a3a15993df3efd601885 refs/remotes/origin/backport-31373-to-master\n2a7c2fe8cdc6794f0ef7413cc71b80224b4d6b94 refs/remotes/origin/blockfile-many-files\nc8ff78280f57bc278c07055d8f031376d5b20772 refs/remotes/origin/ci-lint-darjeeling\ne3793f0d0fe7bed693cc6ecac91b7beba4e8ccea refs/remotes/origin/ci-release-incr-timeout\n68d53c17484d5eb5d78741a24aef787448f6ca01 refs/remotes/origin/darjeeling_1.0.0\nba40664f5db2da533b3bde3351019122a66f2670 refs/remotes/origin/dvsim_dvplan_integ\n7b4319e15da3b1c46ea56ef3dd0a85c50da0d95e refs/remotes/origin/earlgrey-1.0.0-devbundle-licenses\na816ab46d5a410b58e11cab46450bee682d9e1da refs/remotes/origin/earlgrey-spi_device-1r1w\n7d0af709c093b13dc875a32716a935dc1ea2f393 refs/remotes/origin/earlgrey_1.0.0\n9f20940d494a223cc950a5b98f748fb28109d458 refs/remotes/origin/earlgrey_1.0.0_A2_presilicon\nbf170d3225d7d1b271290d12c426376854af8fbf refs/remotes/origin/earlgrey_1.0.0_presilicon\nedf5e35f5d50a5377641c90a315109a351de7635 refs/remotes/origin/earlgrey_es\ndbfb6b92b33f675f34c6c0c90c62c086db03961b refs/remotes/origin/earlgrey_es_sival\nde2345a616b4288c12b73347f35f477bda899da4 refs/remotes/origin/ed25519-legacy\n9a3723391feca3fe93576b8a39ae0258320a4b02 refs/remotes/origin/integrated_dev\n231b399517763c32caa7b3878b6c4feaa1dc79af refs/remotes/origin/master\n553226eae21190b4082396ff6dc3635e90047cb7 refs/remotes/origin/merge-queue\n4126517b85043306d60de77b16c5570d15400995 refs/remotes/origin/multitop_dev\n87b38950a26c209ce1a11008160f4c1ee7275bbf refs/remotes/origin/new_ci_fpga_dispatch\nf83d25345dc79dada0a13a2de45f9291901b561a refs/remotes/origin/nightly_test\n183e2e1d9d3ab3b4110526c1075b7366b3c8b3c5 refs/remotes/origin/nt11-provisioning-rig\n867c06ac88df09dd9fca6eca6fe1e9966da61e11 refs/remotes/origin/ot-sca_cw310\n51a8f50110a12f8c242763882201b116a0e5e21e refs/remotes/origin/ot-sca_cw310_aes\n5b823702439f5b50dd940628884b6cb97046cdcf refs/remotes/origin/ot-sca_cw310_kmac\n2898576bf825a1f577360d8fb5db742f2043e368 refs/remotes/origin/ot-sca_cw310_otbn\nc7d707f564a84bfb02f83c4b0efdf859be9fb4dc refs/remotes/origin/ot-sku-ci\nd9f2cc0e3da72a67dddbdecf7c099d93ac988fac refs/remotes/origin/otbn-kmac-sim\nccd10e56abae7ebee57a80cbdf644721790afefe refs/remotes/origin/publish_bazel_reports\na6a72a24fa6ec4dc4057b982bf1e5a951800a1d0 refs/remotes/origin/release\nd128f5602209cace59177f24791b295f17de40f1 refs/remotes/origin/revert-17124-mode3\n167c38ba87c3faccd29ae563fe11f268b72520dc refs/remotes/origin/revert-26535-pentest_icache_dummy\neb326a86724fd8909348cf9ead2ea0cd971fa928 refs/remotes/origin/revert-26758-no-clock-div\n2b2720754c55f9726d4e690962cc3bd21255fca1 refs/remotes/origin/revert-30472-cherry_pick_compression\na9665d8d6a40e7079072df31b6a06fa6897faa18 refs/remotes/origin/sival_slow_crypto\n95011a30559497e2fdc8055bedf0e1f777e9060e refs/remotes/origin/sw-multi-top\nd2a4c12c2267d026abe5438e006afe5cedd748c2 refs/remotes/origin/test-toolchain\n488414217ab784ccc144ff8e2b0bb48438ca3e47 refs/remotes/origin/to-xcelium\n1dcc8cddddd2f20bc6c47f732188aad50a2ac85b refs/remotes/origin/v1-bronze\n3ea2a2e95e20ed7bc4ad33f3876f3901ab21c58b refs/remotes/origin/vcs_z01x\n81739c5bf28a58e8951ccd8d4fa3c5d453085aa0 refs/tags/2026-05-21-test\n325777cfe783a2c487a0e7155826d47cb867614f refs/tags/2026-06-01-test\n38ea01a366aaa48bcda4ab271a6d5d4a021f6346 refs/tags/Earlgrey-A2-Orchestrator-RC0\n6e8e395e98fb403b1d656d50cf9dccd2794b3d8f refs/tags/Earlgrey-A2-Orchestrator-RC1\n85b8eb248a3f27d7aaa036ead8ba59ffb8d773a3 refs/tags/Earlgrey-A2-Orchestrator-RC2\ncc10b843210d228e48a563e64e72edf09e66e3b7 refs/tags/Earlgrey-A2-Orchestrator-RC3\n19ca9acf702a32f1c1fb789e4696c794739d9531 refs/tags/Earlgrey-A2-Orchestrator-RC4\nbca4b342739aa7d43255ecfceafcdb96c682216f refs/tags/Earlgrey-A2-Orchestrator-RC5\nf346c1de0fbaa48fd6d395cc7158e53a7e9e105f refs/tags/Earlgrey-A2-Orchestrator-RC6\na0001bc25dbd76ad7573f7c51d59d593c12202b2 refs/tags/Earlgrey-A2-Orchestrator-RC7\n203fb2d564d9e4d85eabc2811c812e54fdb66545 refs/tags/Earlgrey-A2-Provisioning-RC0\n2816f7669f2a7f8b845d32d9459459f99fba5411 refs/tags/Earlgrey-A2-Provisioning-RC1\n5537996adffdbc1dd3ddb89a1d579e775a39bb9d refs/tags/Earlgrey-A2-Provisioning-RC10\nb2b48791b1786962de17a3f56a026ff4d7846836 refs/tags/Earlgrey-A2-Provisioning-RC11\n14ddd8d91814f06dc80fa564856df3e61764e485 refs/tags/Earlgrey-A2-Provisioning-RC12\n536735b1762ef7df7fd88d446547142e159d35b7 refs/tags/Earlgrey-A2-Provisioning-RC13\naa6b6e45b194c5613e9a768fb3c6a9470b8b4545 refs/tags/Earlgrey-A2-Provisioning-RC14\n58322aae19107fe4ef10181f6566526f155cac72 refs/tags/Earlgrey-A2-Provisioning-RC15\n3e5a19b53548b086eb89c9cac0cea0f0ffd855bd refs/tags/Earlgrey-A2-Provisioning-RC16\nbd9ada3c529983926f33ae065a95344a9832c301 refs/tags/Earlgrey-A2-Provisioning-RC17\nff5853e2c0cfb26c1a455943b29aeed6e357a8a5 refs/tags/Earlgrey-A2-Provisioning-RC2\n6ae909eed1efd43e0abd36f580504b56aaf19850 refs/tags/Earlgrey-A2-Provisioning-RC3\nc5c7345078c165307d70480d11da200173909871 refs/tags/Earlgrey-A2-Provisioning-RC4\nabb0310e5c71d8b1fadd2c02ac36c2ccc7c70fd8 refs/tags/Earlgrey-A2-Provisioning-RC5\n9ca5d547d270373cc86a12583ed3f5148f3cf682 refs/tags/Earlgrey-A2-Provisioning-RC6\nff7da13469e3d9ad28a83d87d503b6c0a1736d09 refs/tags/Earlgrey-A2-Provisioning-RC7\nc6db44154a9e1162827245a7229dca80d31d7679 refs/tags/Earlgrey-A2-Provisioning-RC8\nc8ba1aba4a7840581c65bae53a86d52cd7e1b440 refs/tags/Earlgrey-A2-Provisioning-RC9\nf38b01f4d453f6a618482b2897009938ba392680 refs/tags/Earlgrey-ES-SV2\nee1fddc31a319f287af989413e11fca3df4e2a05 refs/tags/Earlgrey-M2.5.1-RC0\n^44c75fcc9cc4c4c4daa551d0614ae49b85e54cc4\nf0e07030010aca19bfa3d5fca918ecb6f77488e2 refs/tags/Earlgrey-M2.5.1-RC1\n^02fd38a036eb88f0e1068c83667b928d11e1f648\n21ce4e9761abdf5c919b46e5ae64a5a8e24992f7 refs/tags/Earlgrey-M2.5.2-RC0\nb6c2886f84a9e61b3f8036908b74c2d0fd540426 refs/tags/Earlgrey-M2.5.2-ROM-RC0\n8522e05bc4e5e5e6fec08e8066957fd39559838f refs/tags/Earlgrey-M2.5.2-ROM-RC1\n895673387aa3ef894d0036e6f8f4a8248d42f7d7 refs/tags/Earlgrey-PROD-A2-M6-RC0\n^676fe222252f7a9fc4e0f4b2a4c14c53dfff1b96\n05e45b21357639520421b52fec177c97e37588b2 refs/tags/Earlgrey-PROD-A2-M6-ROM-RC0\n9f20940d494a223cc950a5b98f748fb28109d458 refs/tags/Earlgrey-PROD-A2-M6-ROM-RC1\n892e170679284fc79084022061ae0f79ee357a97 refs/tags/Earlgrey-PROD-M2\n^30d7e787c753caaa03fe68a4a70da1bbcbc1d96f\n36c168c253a68a4e7b11567beea12374f9407aad refs/tags/Earlgrey-PROD-M2-RC0\nc187a82ee842f2b082397b49366fd6155b55dc66 refs/tags/Earlgrey-PROD-M2-RC1\nb3869fb5a8bdbec7f22702edd4152f9af0b5a981 refs/tags/Earlgrey-PROD-M2-RC2\na29dba0686093ce4bbb288768ae0f6381deafc61 refs/tags/Earlgrey-PROD-M2-RC3\nf24455d0a8b65afe75d8b3a84bdf6ba01c940b1a refs/tags/Earlgrey-PROD-M2-RC4\n^919341eb22b8115d333d116db7187f0a13d61b85\n2230571b0014b0679ece90b9f990030a9987ac55 refs/tags/Earlgrey-PROD-M2-RC5\n^30d7e787c753caaa03fe68a4a70da1bbcbc1d96f\ned6c0b1bb52aff8b687c343d717e4728a99ad9d9 refs/tags/Earlgrey-PROD-M3\n^49d4e53c1beb1124beab2b35138a2bfda98af827\nec711524c05e92a306b3e28c0343522909a1b9a7 refs/tags/Earlgrey-PROD-M3-RC0\nc1e0fb7bfe05ff00fa870acd1c6228ccae9f6fa5 refs/tags/Earlgrey-PROD-M3-RC1\n^49d4e53c1beb1124beab2b35138a2bfda98af827\n694ef78d1eb505041b00fca7d8003b4b7c7e742d refs/tags/Earlgrey-PROD-M4\n^34bde60fbf53bf87aadbca540c36bc0506ecb3ef\n52ac422e4e0826badd005e260ce6c516ac0ad480 refs/tags/Earlgrey-PROD-M4-RC0\n^856e402f740d40dbdb06013320f1697670154fc0\n54ed923e9e956737aee0d5a107221447fec33afb refs/tags/Earlgrey-PROD-M4-RC1\n^1a41f176ce409c95e0aecb4f3c270021442a571e\nc9d7d13d2ed61c12edbd49871b09f20980ece2c6 refs/tags/Earlgrey-PROD-M4-RC2\n^73c42574957fad3c99aee16cce2bfcbb720e0d04\n47513032502c40992777a4075c07b3cf62dbf34c refs/tags/Earlgrey-PROD-M4-RC3\n^b4ea446e71ea8e54265b08b744686a430a931bfe\n5d0a99f7f0f059299d8a9757a6f8ae03c3586c37 refs/tags/Earlgrey-PROD-M4-RC4\n^acd065ca7dab30b94a59ec33bdc6c167801fcfbd\nd64e15985089fa700d0684c69e0effbd85cc36ed refs/tags/Earlgrey-PROD-M4-RC5\n^77065bf50cc6641553b01a008461a5a52908bb60\n57afb0bab509661469dcd16e482e756fa8e531a5 refs/tags/Earlgrey-PROD-M4-RC6\n^9152251fd7eea49befcb8d440c835ee923dd7d86\n003713bf56b624bd387b8aab42b968fd27de5629 refs/tags/Earlgrey-PROD-M4-RC7\n^34bde60fbf53bf87aadbca540c36bc0506ecb3ef\n43011e76e61a92821f41633d600518dc5b93c336 refs/tags/Earlgrey-PROD-M5\n^cb7dbb5bbe8a5105d98a6e1d7bdbef84126a5424\n666d4f76993d8b1fca8859ff41acfe95094c5e0c refs/tags/Earlgrey-PROD-M5-RC0\n^4fec3e528e5e5bb6021e14c5d5af4f89b03133f2\n5daa745df09ed3f8717d4642e62246cff3f0da34 refs/tags/Earlgrey-PROD-M5-RC1\n^c04cc5d074d9acefd052feb8a4fd6de6bfa0faab\n2271e2dd95ea3eb11b69ae8f25995ad958a6e4f6 refs/tags/Earlgrey-PROD-M5-RC2\n^a365ced52c2af6ee20a891d6e8f5ddbfbd2b25ce\n9e7ca1de9f635ca3a46bd5e28da075cb112ce67b refs/tags/Earlgrey-PROD-M5-RC3\n^cb7dbb5bbe8a5105d98a6e1d7bdbef84126a5424\n49de03cd42e5878ad983df040544283552302b68 refs/tags/Earlgrey-PROD-M5-ROM-RC0\n6a84251492142c26314bd9ec7e9f16fba348a059 refs/tags/Earlgrey-PROD-M5-ROM-RC1\ne907b95292586a40bcb1c40ce299a158a37ca235 refs/tags/Earlgrey-PROD-M5-ROM-RC2\nb01f81ae203c3e74bb77bf6e123ebdb7ebbdcd63 refs/tags/Earlgrey-PROD-M6\n^a78922f14a8cc20c7ee569f322a04626f2ac6127\n563352df18db4dfa5d4326d80ea1de2d2e7fcbda refs/tags/Earlgrey-PROD-M6-RC0\n^07b417ef03dbfc78446dd724f140d250a27cbac1\n0150f4779b96bca8ea42f5f0bfcf23321f04a78f refs/tags/Earlgrey-PROD-M6-RC1\n^a24387a5be823e204957be7f03ffc61761834500\n51609fc4d7d056e21737c9383d678618e1cf1cc5 refs/tags/Earlgrey-PROD-M6-RC2\n^2f7d9461b8d8f63c39dd9287979d2f7c673c3724\n0c944c8652fa7904f7623ba8f30c78fe18a47f09 refs/tags/Earlgrey-PROD-M6-RC3\n^31ff0de3e29e06c14ac3e5bef2afa68fae6243c0\n2431cb89253ff7120fa3fe31ee996d17a1b27cea refs/tags/Earlgrey-PROD-M6-RC4\n^765a41c3ac3e40a6fad3752a98df14b0e15bf3e7\n0b7215dc2d9571899d20d0a3bea39fe69217d4ab refs/tags/Earlgrey-PROD-M6-RC5\n^a7532758da13cafa7d2d764d6ff0abdf856e9625\n976b1905aec3308bf5f873c0dc27dd5bed74e756 refs/tags/Earlgrey-PROD-M6-RC6\n^40292c033aaa1f4b68dd1f4503dd90a3231b6cb5\ncdcfaf10172cb4695e493c5951dd813c7c037d20 refs/tags/Earlgrey-PROD-M6-RC7\n^a78922f14a8cc20c7ee569f322a04626f2ac6127\n777fc18762dfbf1098a38d888853c960a66ef2e6 refs/tags/Earlgrey-PROD-M6-ROM-RC0\n549f26968d380a64dd6522a8d7ddbf9563ae81db refs/tags/ROM_EXT_BUILD_0.1\nfa29558e3d605600db08350d1dffb681f65b7472 refs/tags/ROM_EXT_BUILD_0.102\n1a07e5f0860b735d2b3b94d961310a3431be4f30 refs/tags/ROM_EXT_BUILD_0.103\nc8ba1aba4a7840581c65bae53a86d52cd7e1b440 refs/tags/ROM_EXT_BUILD_0.111\n5537996adffdbc1dd3ddb89a1d579e775a39bb9d refs/tags/ROM_EXT_BUILD_0.112\nb2b48791b1786962de17a3f56a026ff4d7846836 refs/tags/ROM_EXT_BUILD_0.113\n14ddd8d91814f06dc80fa564856df3e61764e485 refs/tags/ROM_EXT_BUILD_0.114\n536735b1762ef7df7fd88d446547142e159d35b7 refs/tags/ROM_EXT_BUILD_0.115\n3e5a19b53548b086eb89c9cac0cea0f0ffd855bd refs/tags/ROM_EXT_BUILD_0.116\nac6afa5e0d8846f24d092d69087a2937fe3a93df refs/tags/ROM_EXT_BUILD_0.2\n0997649325871c52ccc156201871b1d3abb7aeec refs/tags/ROM_EXT_BUILD_0.3\n73e506d8fdad0b4010a4f45243fe7f794cf54bc2 refs/tags/ROM_EXT_BUILD_0.4\nf67fc1722a98421311592d1f2e4062cd0753c0a9 refs/tags/ROM_EXT_RELEASE_0.1\n0135da5e167491a7709d972789278acd2f4cec4e refs/tags/devbundle-2026-06-02-1\n44a5255d95007f2fb524a28af69b7d75192cd4ce refs/tags/devbundle-2026-08-21-1\n7439265b265acc8b1b25299c10c032b9873ccfe4 refs/tags/earlgrey_bronze_rc1\n^dc8ba9743a146648f060088c1115581327fbe4c7\n39ef627acc3810b0e8217359223b7547c65d5844 refs/tags/earlgrey_bronze_rc2\n^6dc01dc4f76b721aa8e09cea2069cf0f1f9066ea\n5308602059c38b93ddbe79f333c4ceec1f9a47fb refs/tags/earlgrey_bronze_release\n^9d6264ef98ac4737c90941c505adb4c299f212f6\n19ee5d60b43f47689a7a48578adc099de18009ba refs/tags/earlgrey_bronze_release_v10\n^e280bdea5f2639f9304bd4c4a96b993ccd6dc281\na9700ae7623e361305ddb46d3ef773e1cfb5ff9d refs/tags/earlgrey_bronze_release_v11\n^1dcc8cddddd2f20bc6c47f732188aad50a2ac85b\ne96bb24f1a360196715fe7d2ca951318e7a9cb58 refs/tags/earlgrey_bronze_release_v2\n^b97c2166adae98da00c5c6591e14d273305a6a27\n0799a32cf8f398d1686e6fc9f899509dec3127a5 refs/tags/earlgrey_bronze_release_v3\n^4e483d8bbe4ed97aff87cebdd7cfe03dde273599\nc1daac48aa6cb1997355a7dc3d175ccd4dfdc8ea refs/tags/earlgrey_bronze_release_v4\n^800323b31a443edf9ec214c2141815d5da6e6c78\n2355d9569121ddc7bf91e071f011e134e822b5f6 refs/tags/earlgrey_bronze_release_v5\n^89ca71f60d4b1776258e30c272f02b6313a39b9c\nf16e29bb0364137b447395142ed090918a8b8649 refs/tags/earlgrey_bronze_release_v6\n^a1f8f31134198bee55153b74a245f20b0c7f2fe4\n76ba89f6ac875f8313df11bfc48e7394d588da3a refs/tags/earlgrey_bronze_release_v7\n^45d0a638582be5c8b8d4161aa0325577e6738951\n21e1869668dc63a74d6c3af21e319c63f997c258 refs/tags/earlgrey_bronze_release_v8\n^acb97c6adb821a8769af3f16f5953b2c65121603\na66d5e32c26cc93ff68466e5af2e19c2d5aed0fd refs/tags/earlgrey_bronze_release_v9\n^a6be322c34a60175519cdd087ecabfdfa0a2a1c1\n98bfbf0ef37350e517f0e197016a034e888ebfc7 refs/tags/earlgrey_silver_release_v1\n^2254ac84e11794389859f9c1249cf5e2a0f7321f\n208528c6f24c84ee47d3a251701933889aa40d9c refs/tags/earlgrey_silver_release_v2\n^9d9d86fb65b5e5cb16df6cdba89cffe1327ec056\n63bd1f94bdc6633130e567179e32f6a98b7f00d7 refs/tags/earlgrey_silver_release_v3\n^d5c17ccdf0ce03438350cf6792c1bc1f07060e99\nbc7d5809eec8b29c155d58c6d6f8d2390a2a6a55 refs/tags/earlgrey_silver_release_v4\n^21e6a4f15ec7355041b524648beca27b68293ba0\n5492f7f80dc087ca1adcd6e189db04f8bf5abdcc refs/tags/earlgrey_silver_release_v4_rc1\n1e4ac9ad37e8ab936768ca1b2a810d61d3f1c0f1 refs/tags/earlgrey_silver_release_v4_rc2\n^c3091ba158ce055d302787e2dacb44d0674ad8c1\n20a5166b4c69110d1f557bbbd4229b9b4d84a9e6 refs/tags/earlgrey_silver_release_v5\n^ed044fc9760bdf9fc075d0015ba1db07fa075355\n00d5d8e70b4f7e1869d38833a6d85d42b9e14957 refs/tags/kororo_job_633\n277c76d7fb1e50997251488c66c9b6d45d2e82e5 refs/tags/riscv-summit\n3733c3e2d00507f7a39748cfdd9512ea628f655e refs/tags/riscv-summitv2\n0cc313f3b01bc97649dd7a7241cd1c0f6ac10812 refs/tags/snapshot-20191030-1\n^542e220bdfd5fb34a86827fdba6844693994a679\n6409712a2e45118c356ff2371ac32eb555dff526 refs/tags/snapshot-20191101-1\n^1d0d927693c2ef60d7880ab306beb25115a53dcb\n42bef8cb10b2c46d80cd4fc6b48e002dfe0b7065 refs/tags/snapshot-20191101-2\n^8bbd8b881a836f9fc4e99dceb072774e877428bc\naa5233edd4813ac783fa88d0962d50ad687335bc refs/tags/test-1",
+      "packs": [
+        {
+          "bytes": 9424024,
+          "indexed_objects": 336534,
+          "name": "pack-9d63c7f2fb63b5fc0cd003903c8af0d1405681f1.idx",
+          "sha256": "3e3126e51b9b0391fdb8bba81f81ef54a22fe162451d8900e6790769631397f0"
+        },
+        {
+          "bytes": 42525930,
+          "name": "pack-9d63c7f2fb63b5fc0cd003903c8af0d1405681f1.pack"
+        },
+        {
+          "bytes": 21639,
+          "name": "pack-9d63c7f2fb63b5fc0cd003903c8af0d1405681f1.promisor"
+        },
+        {
+          "bytes": 1346188,
+          "name": "pack-9d63c7f2fb63b5fc0cd003903c8af0d1405681f1.rev"
+        },
+        {
+          "bytes": 352388,
+          "indexed_objects": 12547,
+          "name": "pack-b74e450d97abd9d5f59389565f628712961c540c.idx",
+          "sha256": "9a0c7ef19d947e531ba00d04129922e1081af5c9c5e35251c57a1d8f7c36a2f7"
+        },
+        {
+          "bytes": 40000021,
+          "name": "pack-b74e450d97abd9d5f59389565f628712961c540c.pack"
+        },
+        {
+          "bytes": 1028854,
+          "name": "pack-b74e450d97abd9d5f59389565f628712961c540c.promisor"
+        },
+        {
+          "bytes": 50240,
+          "name": "pack-b74e450d97abd9d5f59389565f628712961c540c.rev"
+        }
+      ],
+      "partialclone": null,
+      "promisor_true": true,
+      "remotes": {
+        "remote \"origin\"": {
+          "partialclonefilter": "blob:none",
+          "promisor": "true"
+        }
+      },
+      "revision_ref_visible": true,
+      "root": "/root/fanzehui/myfuzz/dma-uart-project",
+      "shallow": null,
+      "status": "read_only_metadata_observed"
+    },
+    {
+      "alternates": null,
+      "component": "soc-zipcpu",
+      "config_sha256": "a67bf3dd82eb2e824e1ca501c1b95e01cec07f9efbd84b359e7400cc1f32ff80",
+      "config_unchanged_during_read": true,
+      "expected_loose_object_present": false,
+      "expected_object_index_presence": [
+        "pack-2847051dd14e16b9fcc553f2475357d87f7f8612.idx"
+      ],
+      "expected_revision": "42606d2d6ef55df313772232977621b2d72f0159",
+      "git_directory": "/root/fanzehui/myfuzz/dma-uart-project/third_party/soc-zipcpu/.git",
+      "git_entry": "/root/fanzehui/myfuzz/dma-uart-project/third_party/soc-zipcpu/.git",
+      "head": "42606d2d6ef55df313772232977621b2d72f0159",
+      "head_ref_value": null,
+      "loose_refs": {
+        "refs/heads/master": "42606d2d6ef55df313772232977621b2d72f0159",
+        "refs/remotes/origin/HEAD": "ref: refs/remotes/origin/master"
+      },
+      "packed_refs": "# pack-refs with: peeled fully-peeled sorted \naf9cf9edc3d0e7222b0a10a26eada7cf0a997cbb refs/remotes/origin/dev\n42606d2d6ef55df313772232977621b2d72f0159 refs/remotes/origin/master\n315eb63b50c476780126d826a71e094eee19731b refs/remotes/origin/zaxdma",
+      "packs": [
+        {
+          "bytes": 111252,
+          "indexed_objects": 3935,
+          "name": "pack-2847051dd14e16b9fcc553f2475357d87f7f8612.idx",
+          "sha256": "a9c216f288e5853b8374f4c4adf79b33c3277e1321b2e87a36ac3051a85e692e"
+        },
+        {
+          "bytes": 492486,
+          "name": "pack-2847051dd14e16b9fcc553f2475357d87f7f8612.pack"
+        },
+        {
+          "bytes": 220,
+          "name": "pack-2847051dd14e16b9fcc553f2475357d87f7f8612.promisor"
+        },
+        {
+          "bytes": 15792,
+          "name": "pack-2847051dd14e16b9fcc553f2475357d87f7f8612.rev"
+        },
+        {
+          "bytes": 11376,
+          "indexed_objects": 368,
+          "name": "pack-43ce0bc8e2534555fa411418434fd914bcbc6272.idx",
+          "sha256": "ef1782cecdfe0be03e695cf7e58265a1bdfca520a560857721edd3caaa62c761"
+        },
+        {
+          "bytes": 31003412,
+          "name": "pack-43ce0bc8e2534555fa411418434fd914bcbc6272.pack"
+        },
+        {
+          "bytes": 30176,
+          "name": "pack-43ce0bc8e2534555fa411418434fd914bcbc6272.promisor"
+        },
+        {
+          "bytes": 1524,
+          "name": "pack-43ce0bc8e2534555fa411418434fd914bcbc6272.rev"
+        }
+      ],
+      "partialclone": null,
+      "promisor_true": true,
+      "remotes": {
+        "remote \"origin\"": {
+          "partialclonefilter": "blob:none",
+          "promisor": "true"
+        }
+      },
+      "revision_ref_visible": true,
+      "root": "/root/fanzehui/myfuzz/dma-uart-project",
+      "shallow": null,
+      "status": "read_only_metadata_observed"
+    },
+    {
+      "alternates": null,
+      "component": "ibex",
+      "config_sha256": "e7b559e1146a5947ba37df13f4f0a89baeac5118fa28fe81300c5c2155f5eb00",
+      "config_unchanged_during_read": true,
+      "expected_loose_object_present": false,
+      "expected_object_index_presence": [
+        "pack-7139ff2ea71f183fa044f230f2ed61812a3890b6.idx"
+      ],
+      "expected_revision": "34b0705760ef3dfa00e99637432473d2be8f22f3",
+      "git_directory": "/root/fanzehui/myfuzz/dma-uart-project/third_party/rfuzz/upstream/ibex/.git",
+      "git_entry": "/root/fanzehui/myfuzz/dma-uart-project/third_party/rfuzz/upstream/ibex/.git",
+      "head": "34b0705760ef3dfa00e99637432473d2be8f22f3",
+      "head_ref_value": null,
+      "loose_refs": {
+        "refs/heads/main": "531ca2ec439fe3fa89bd6f60ae8f256bc0b9b241",
+        "refs/remotes/origin/HEAD": "ref: refs/remotes/origin/main"
+      },
+      "packed_refs": "# pack-refs with: peeled fully-peeled sorted \nf910e3be528ba9af7b4e185bfff0e0e9eb75396b refs/remotes/origin/cheriot-dma\n69358e0dc2db3db94fb8c358b85d9dc71b4cd1da refs/remotes/origin/dependabot/github_actions/github-actions-10f8c2daf3\na3f2cc8d27dff6b4b766cd66eeb9fcd60fc85a3a refs/remotes/origin/dependabot/pip/dv/formal/jinja2-3.1.6\n531ca2ec439fe3fa89bd6f60ae8f256bc0b9b241 refs/remotes/origin/main\n228ee08b047c7badb493087d3eb66f903bb6d889 refs/tags/cheriot_ibex_v1.0",
+      "packs": [
+        {
+          "bytes": 1100,
+          "indexed_objects": 1,
+          "name": "pack-1163065f24157cc2f4576f363464a2e70031eabc.idx",
+          "sha256": "ff4bf7d79a74c85f4c33aa10fdaeb4059bd9439376e29fca1c56b35d35f6d472"
+        },
+        {
+          "bytes": 41,
+          "name": "pack-1163065f24157cc2f4576f363464a2e70031eabc.pack"
+        },
+        {
+          "bytes": 0,
+          "name": "pack-1163065f24157cc2f4576f363464a2e70031eabc.promisor"
+        },
+        {
+          "bytes": 56,
+          "name": "pack-1163065f24157cc2f4576f363464a2e70031eabc.rev"
+        },
+        {
+          "bytes": 13448,
+          "indexed_objects": 442,
+          "name": "pack-3bca1c552447fc932c5e5e4186410554e2544cf5.idx",
+          "sha256": "4d56c670cce0dbb717015d45ce720d9188264b40a75bdbfa9339d5776445ba2c"
+        },
+        {
+          "bytes": 903484,
+          "name": "pack-3bca1c552447fc932c5e5e4186410554e2544cf5.pack"
+        },
+        {
+          "bytes": 36244,
+          "name": "pack-3bca1c552447fc932c5e5e4186410554e2544cf5.promisor"
+        },
+        {
+          "bytes": 1820,
+          "name": "pack-3bca1c552447fc932c5e5e4186410554e2544cf5.rev"
+        },
+        {
+          "bytes": 292720,
+          "indexed_objects": 10416,
+          "name": "pack-624b2da93a784e53b603ecfb7f13d8b5788d5fa5.idx",
+          "sha256": "75705c723f36c7b12387144e03b97015e04f27aaff7ce9bdb0f569f237de5059"
+        },
+        {
+          "bytes": 1602676,
+          "name": "pack-624b2da93a784e53b603ecfb7f13d8b5788d5fa5.pack"
+        },
+        {
+          "bytes": 430,
+          "name": "pack-624b2da93a784e53b603ecfb7f13d8b5788d5fa5.promisor"
+        },
+        {
+          "bytes": 41716,
+          "name": "pack-624b2da93a784e53b603ecfb7f13d8b5788d5fa5.rev"
+        },
+        {
+          "bytes": 433532,
+          "indexed_objects": 15445,
+          "name": "pack-7139ff2ea71f183fa044f230f2ed61812a3890b6.idx",
+          "sha256": "4ae9f9bf34d857698a541be5574fbc4724ae0c1dc090e549d1a6245cafbbc19b"
+        },
+        {
+          "bytes": 33549458,
+          "name": "pack-7139ff2ea71f183fa044f230f2ed61812a3890b6.pack"
+        },
+        {
+          "bytes": 61832,
+          "name": "pack-7139ff2ea71f183fa044f230f2ed61812a3890b6.rev"
+        },
+        {
+          "bytes": 23528,
+          "indexed_objects": 802,
+          "name": "pack-b233a0be957de907591a8d7b8cde8334328272f6.idx",
+          "sha256": "8264a34231fa0e5600d7e59e62a4b16c7117480f1f0444ceff7ad6ad0f0ad379"
+        },
+        {
+          "bytes": 1325772,
+          "name": "pack-b233a0be957de907591a8d7b8cde8334328272f6.pack"
+        },
+        {
+          "bytes": 65764,
+          "name": "pack-b233a0be957de907591a8d7b8cde8334328272f6.promisor"
+        },
+        {
+          "bytes": 3260,
+          "name": "pack-b233a0be957de907591a8d7b8cde8334328272f6.rev"
+        }
+      ],
+      "partialclone": null,
+      "promisor_true": true,
+      "remotes": {
+        "remote \"origin\"": {
+          "partialclonefilter": "blob:none",
+          "promisor": "true"
+        }
+      },
+      "revision_ref_visible": true,
+      "root": "/root/fanzehui/myfuzz/dma-uart-project",
+      "shallow": null,
+      "status": "read_only_metadata_observed"
+    },
+    {
+      "alternates": null,
+      "component": "soc-opentitan",
+      "config_sha256": "fc5244535fc212252ecda858414dccad380e3ae6d320d71d224fd2f9a96ef179",
+      "config_unchanged_during_read": true,
+      "expected_loose_object_present": false,
+      "expected_object_index_presence": [
+        "pack-9d63c7f2fb63b5fc0cd003903c8af0d1405681f1.idx"
+      ],
+      "expected_revision": "fca045df919a26c47e71616b9dac917b1ea4fd07",
+      "git_directory": "/root/fanzehui/myfuzz/dma-uart-rx-project/third_party/soc-opentitan/.git",
+      "git_entry": "/root/fanzehui/myfuzz/dma-uart-rx-project/third_party/soc-opentitan/.git",
+      "head": "fca045df919a26c47e71616b9dac917b1ea4fd07",
+      "head_ref_value": null,
+      "loose_refs": {
+        "refs/heads/master": "231b399517763c32caa7b3878b6c4feaa1dc79af",
+        "refs/remotes/origin/HEAD": "ref: refs/remotes/origin/master"
+      },
+      "packed_refs": "# pack-refs with: peeled fully-peeled sorted \na7bd7e32ed6ad1f642ab68cc1cc14ee1ca02bc15 refs/remotes/origin/acvp_test_suite\n45f9110b2b3a0a416909714c89007cc9e6c634bd refs/remotes/origin/backport-22659-to-master\n1f66d1fbf57d9bd58f97128cbc9cb6131d1dc02b refs/remotes/origin/backport-23249-to-master\n401e27d3e1232086dd7eafc75df66225986bd927 refs/remotes/origin/backport-24200-to-earlgrey_1.0.0\n9f2bb34380e09d9f293d20beced6e672e8d1532f refs/remotes/origin/backport-25266-to-earlgrey_1.0.0\n3d5978306c1b130cbce917c54e37f34c90819660 refs/remotes/origin/backport-25278-to-master\na0f496fb32ef6030700c5550eb12cf767f97f601 refs/remotes/origin/backport-25362-to-earlgrey_1.0.0\n314283690a8f3472c1c9ad192e33f63e7aaf1680 refs/remotes/origin/backport-25369-to-earlgrey_1.0.0\nb785e1391112549dfde8a0bfede031b681222dcc refs/remotes/origin/backport-25443-to-earlgrey_1.0.0\nf29439135e88aae44274ea71aa9c8131041889a6 refs/remotes/origin/backport-25531-to-earlgrey_1.0.0\ncd3be6a2fac02136cf8874639ecb0ce6cba4888d refs/remotes/origin/backport-25651-to-master\nb3066f10732539110fc1aca0662d242957e00215 refs/remotes/origin/backport-25674-to-earlgrey_1.0.0\n9fcadcdef2fda9ce988f7d9aa71492066fce751d refs/remotes/origin/backport-25820-to-earlgrey_1.0.0\ne06216bdd805a318885840080d9ed9877b4fa75f refs/remotes/origin/backport-25934-to-earlgrey_1.0.0\n117e6fa0ebde42c68ea2a5113abec162acea76ac refs/remotes/origin/backport-26065-to-master\n3632cb9c2a95f9c9c00c754b8da6bec473c76b3b refs/remotes/origin/backport-26291-to-master\nb980c2d5edb97b231f2f378c6ee060c9b8a61de6 refs/remotes/origin/backport-26722-to-master\nc05b830a001abf97497cf1230856fb17038a11a5 refs/remotes/origin/backport-26760-to-master\nd92d9ae7b08e234f63e9055197cdbf7fc8f6f09b refs/remotes/origin/backport-27010-to-master\n854b059fbb81e0f00f54622c40008caefd22817f refs/remotes/origin/backport-27091-to-earlgrey_1.0.0\n93f42624ff71e7d4fae995ada61ab65262894697 refs/remotes/origin/backport-27464-to-earlgrey_1.0.0\n402db0905de6bc8fea42815c6fb690921350ea4c refs/remotes/origin/backport-27539-to-earlgrey_1.0.0\n37db40ac6d7975049c00b1dbcf91482c88122210 refs/remotes/origin/backport-27562-to-earlgrey_1.0.0\n26c0dff0fa0ad53fbfb278aec827c071f706cbf8 refs/remotes/origin/backport-27569-to-earlgrey_1.0.0\nd64559d58105c1a0d1a78832c6d25742de52c1fe refs/remotes/origin/backport-27582-to-earlgrey_1.0.0\ndbc899d8c96db5784686085924665d20095ec542 refs/remotes/origin/backport-27602-to-earlgrey_1.0.0\n0d121d1d1289dc6fe3036292c18b6dbf9da8de89 refs/remotes/origin/backport-27684-to-earlgrey_1.0.0\nd193b40db4514f0f3b96449b5e6955bc187823b3 refs/remotes/origin/backport-27740-to-earlgrey_1.0.0\n5b3478eed7e0afca5fe7f42a06fbbd16b56ea4e5 refs/remotes/origin/backport-27771-to-earlgrey_1.0.0\n8fa1578f7e06203e3af650a34a046aeca0a8a180 refs/remotes/origin/backport-27808-to-earlgrey_1.0.0\n855cf78449ac5cbdd0c2a27b2e375713a87b4598 refs/remotes/origin/backport-27937-to-earlgrey_1.0.0\nf7b0b04754a7cae33dad2c59e665df3c33552a03 refs/remotes/origin/backport-28038-to-earlgrey_1.0.0\n8dce06f433d02f3ce22a012ef17d1bf5f3657197 refs/remotes/origin/backport-28145-to-master\nea9148ed387c3e1ea2688703bf00b5b9a785a92e refs/remotes/origin/backport-28194-to-master\ne95ed356f16ba0a93de0b5a18e3e823e7ab587c1 refs/remotes/origin/backport-28211-to-earlgrey_1.0.0\nbcd487f49196e4f4bf595e23fcc19e1154c5fcfd refs/remotes/origin/backport-28230-to-master\nb8f676a15adf0bee61093903a76f0e07bcaa4aed refs/remotes/origin/backport-28464-to-master\nbd1d97caed63941b521927c46acaf3c110ded50b refs/remotes/origin/backport-28501-to-earlgrey_1.0.0\nf5ae1a993f35f8b1316d223da316764b7f2216e2 refs/remotes/origin/backport-28511-to-master\n2a783fca5ceb016c618e78642d8e9d89d9ad8dbf refs/remotes/origin/backport-28592-to-earlgrey_1.0.0\nb359cc6ef693387544d8b534a4db51c831ae25b3 refs/remotes/origin/backport-28602-to-earlgrey_1.0.0\n30c5c1bbb7b4af5cca86ff5dcf91789d969837a8 refs/remotes/origin/backport-28612-to-earlgrey_1.0.0\neee24007bc7900de616d342da8428e09ee6e88e2 refs/remotes/origin/backport-28616-to-master\n12a0fb4de7b343dd569dc58c5a25c5dbf7079529 refs/remotes/origin/backport-28636-to-earlgrey_1.0.0\n7ad2fe22439db4d1f7cff41776544f82e0172763 refs/remotes/origin/backport-28716-to-master\nbea04505c7e60606120aaff0e1f65735cfdcd22b refs/remotes/origin/backport-28850-to-earlgrey_1.0.0\ne27b58eac6beef90b506ee5aa38bf2e500540d31 refs/remotes/origin/backport-28909-to-master\ne3e6198b48e636753a573addcd1e27d5088f834f refs/remotes/origin/backport-28945-to-earlgrey_1.0.0\n64d79955b64f62a263d234b6bc02b4e978252bbf refs/remotes/origin/backport-28987-to-earlgrey_1.0.0\nce9c8c0d3e24f38b563e84d2e6a65bf120adb219 refs/remotes/origin/backport-29009-to-earlgrey_1.0.0\n6360ccf7302fe6996a913eb1ca51feeb5bc4f6c5 refs/remotes/origin/backport-29060-to-master\n30ec6f623cd785a6c2b96ddfee69d4987983e9a9 refs/remotes/origin/backport-29061-to-master\n544050cccf351315f91d05b7f226c0875a491df2 refs/remotes/origin/backport-29072-to-master\nff1cc01a3dd76c6f84cf7bae9c7f6e2567b62736 refs/remotes/origin/backport-29203-to-earlgrey_1.0.0\n8e2efee19df89c432b776786ecaa05b29fa63e60 refs/remotes/origin/backport-29227-to-earlgrey_1.0.0\nf77462f085e723f5b488c27dcf8cd7040f920aa0 refs/remotes/origin/backport-29414-to-master\nfa15f6ee94fa89f690a50ccabd8b3d0ffba9212b refs/remotes/origin/backport-29430-to-earlgrey_1.0.0\n24bcd95f50879d46a814ac4a31a5414412654d4d refs/remotes/origin/backport-29493-to-master\n2c1139ddfba550e42646d3fec58b458058447208 refs/remotes/origin/backport-29512-to-earlgrey_1.0.0\n8e85fce1a158e9a62c3beaa346b1b5dafb023e3f refs/remotes/origin/backport-29514-to-master\ne93b722ac0c87cc2587222761019b657f70ac007 refs/remotes/origin/backport-29515-to-earlgrey_1.0.0\n2a4ca5fd00d096804bd9dcced82ba8407d39351c refs/remotes/origin/backport-29529-to-master\n23f2edd9b89040552b54c403ce8ee952757fc449 refs/remotes/origin/backport-29532-to-earlgrey_1.0.0\n5cca39d4f961e97da708e4cab95c44923e33694b refs/remotes/origin/backport-29557-to-earlgrey_1.0.0\ncebdcc09bc94447905be904a10b5acade5f51b7f refs/remotes/origin/backport-29566-to-earlgrey_1.0.0\nb97545ff58a7c2b7593de281f17fc8e5bcc5aa11 refs/remotes/origin/backport-29619-to-master\nda1d75358d14590f212ce4661084d8371400deb5 refs/remotes/origin/backport-29646-to-master\n9d3710f5f90d792da0e29ef1527af1a35c7ce46f refs/remotes/origin/backport-29667-to-master\n63c022eda58dca9407b28cae89b7e63a46f9393e refs/remotes/origin/backport-29677-to-master\n7ee428ed1fd26035b134eb9d598cc78bcc6941f6 refs/remotes/origin/backport-29683-to-master\n5265cacc368d218d7f960f61f6b5e755035f8b53 refs/remotes/origin/backport-29694-to-master\n6825caec5be12954d45b6002aad57c028415cc80 refs/remotes/origin/backport-29699-to-master\n09eff984aad4fd98bd3d135cb5736f725169da80 refs/remotes/origin/backport-29749-to-master\nd7b86f05fb7435cbd3c2802fdd9c4dfe7cc5b032 refs/remotes/origin/backport-29751-to-master\nbca16fdf20b1fe6e33805e441f7e97476cc8062d refs/remotes/origin/backport-29764-to-master\n1473f94916944aee9981b44776811593e194bddf refs/remotes/origin/backport-29767-to-master\n9d812b7b15cc7036521c15726f1d18128a995ad2 refs/remotes/origin/backport-29771-to-master\n20ad8cd378c75b8d7832f5f6012008ae9098b44f refs/remotes/origin/backport-29799-to-master\n40d3dbf5a53e7f8a172e94175567515c81b5e4a5 refs/remotes/origin/backport-29801-to-master\nc0e56e79058c6dddda17b5cbd1696ba311acc911 refs/remotes/origin/backport-29822-to-master\nbbd736f304a2522615cd46968d3544de6b390ba6 refs/remotes/origin/backport-29832-to-master\nea95e8b15149f06230929ea63690842ab010da79 refs/remotes/origin/backport-29849-to-master\na2bf5a417e1dcbde023dbfad76cc1c76dd66d45c refs/remotes/origin/backport-29863-to-earlgrey_1.0.0\nea400078c0477afea42826c8706eb90b1dc02f39 refs/remotes/origin/backport-30018-to-master\n31e185042e633641193d017ae669eec9423bef28 refs/remotes/origin/backport-30052-to-master\n11e7d4639e190e028cd07151e93325faec53a4a4 refs/remotes/origin/backport-30098-to-master\nbd7e27a3fb67ecdd9599731a1b78fa5a527eaa3f refs/remotes/origin/backport-30169-to-master\n45e0a43bca68d9f77184f3cd29e202a0267ee791 refs/remotes/origin/backport-30243-to-master\n12f4ebf2ef63e0ea4c8734e293e96dbcb58b01f1 refs/remotes/origin/backport-30253-to-master\nfef4dd567e4cfe12390c4513b70fb7cee87472e9 refs/remotes/origin/backport-30328-to-master\n463be37fb25d00b4f52ea12183eb3e1bdb53ec83 refs/remotes/origin/backport-30348-to-master\na3c76ebbb57b46227edf1a0833bfe80f65e8a7a9 refs/remotes/origin/backport-30367-to-master\n0bc1f8c44f24d76788614b0c419196f709d32cf9 refs/remotes/origin/backport-30371-to-earlgrey_1.0.0\n6c0eeb6bfe4077190c7b2da89f18da63f4d687a5 refs/remotes/origin/backport-30372-to-master\n59e07c3b325e003bf431b93a2266155f3a626c2d refs/remotes/origin/backport-30401-to-master\na91700e114dcfda779e91362721a9315130c5dc2 refs/remotes/origin/backport-30408-to-master\na6d5b44878eab20dfcf938250347f813164360fc refs/remotes/origin/backport-30414-to-master\n4df5682455657cbad422a80ea0524353d58d1a35 refs/remotes/origin/backport-30433-to-master\n4ac1d5764342d76f24aab2697c506a0b6f518758 refs/remotes/origin/backport-30446-to-master\n9624963abce93573709f91cf15e900e736a517bb refs/remotes/origin/backport-30448-to-earlgrey_1.0.0\n98daecbe322001f4a95bbc92cb59cc82244bc887 refs/remotes/origin/backport-30450-to-master\nb5c1d72dc62e7445ee618d5c8b15c84cdb9f0d23 refs/remotes/origin/backport-30451-to-master\nec66731a0a90d8008bd5143aa8e02e7066d7ad20 refs/remotes/origin/backport-30453-to-master\naac77fad077185c15b413b1b5132bd8dfe521054 refs/remotes/origin/backport-30455-to-master\na26f005592bbef78e1b2bc62c690626b1628e1a1 refs/remotes/origin/backport-30456-to-master\nc0a54e319fb25696c8369efe8740342641f99049 refs/remotes/origin/backport-30458-to-master\n66cbaec5c5bff3adf8b0054ff3adce8dca12fb52 refs/remotes/origin/backport-30488-to-master\na73074ee3ec098c0d68feda12316ecf9be38d637 refs/remotes/origin/backport-30546-to-master\ned62090eaaea4bf9925c354a55ba214e052fc859 refs/remotes/origin/backport-30686-to-master\n4a2263b8d575e01acc966161632a945c44a9f7b3 refs/remotes/origin/backport-30698-to-master\n30364ffc4f452b00f02f796618e1e31e04ecbe34 refs/remotes/origin/backport-30699-to-master\n5ff19b484539f85fe1f5cf4bc7d09b7b4875d782 refs/remotes/origin/backport-30724-to-earlgrey_1.0.0\n59fda78304554594720d3c0b1f65bf072e9322c9 refs/remotes/origin/backport-30744-to-master\n57048f4de02795d91ead93938ec5a26e8260e4c2 refs/remotes/origin/backport-30812-to-master\n91cca10b066c931f368234f9f7cab208a32bbb0d refs/remotes/origin/backport-30864-to-master\n3df9bc9472c6acf757f4ac5f5a98ceb172df65da refs/remotes/origin/backport-30966-to-earlgrey_1.0.0\n0b18cb6bd2332958551ce49bfdf91ad136f908bb refs/remotes/origin/backport-31003-to-master\n9d66b4d832ec417db61838fc0e459db2c11451de refs/remotes/origin/backport-31031-to-master\n081e84ca3dee9ec2d866e0847504325ad3a4656b refs/remotes/origin/backport-31053-to-master\nf2338e63bc4db5eeaac40537f8d2eb4a172328d6 refs/remotes/origin/backport-31077-to-master\n54e2a9fe00a64b01b3bad6f4e0cc0aaf12dccacc refs/remotes/origin/backport-31083-to-master\n69c40db1e58b217cf6203bd175f1ae97c754c699 refs/remotes/origin/backport-31091-to-earlgrey_1.0.0\n7225540b401452ab9ab94bf254039464fde36f34 refs/remotes/origin/backport-31109-to-master\n4bf6eaa830943ebd6965767b69da596134ad838b refs/remotes/origin/backport-31179-to-master\nf427b9db314aecd1409f7b13ea7c5bfb7943a50a refs/remotes/origin/backport-31263-to-earlgrey_1.0.0\nc8117737641ad3c7023c8420f0b8524f70a50f27 refs/remotes/origin/backport-31272-to-master\na325dc80c9f8f4d24c07a10607842f054438d03c refs/remotes/origin/backport-31301-to-master\nb038b1254c7bb7e56dd2772c7c789755e1a07ddd refs/remotes/origin/backport-31311-to-master\n5c28912e596bf5feb704a3a15993df3efd601885 refs/remotes/origin/backport-31373-to-master\n2a7c2fe8cdc6794f0ef7413cc71b80224b4d6b94 refs/remotes/origin/blockfile-many-files\nc8ff78280f57bc278c07055d8f031376d5b20772 refs/remotes/origin/ci-lint-darjeeling\ne3793f0d0fe7bed693cc6ecac91b7beba4e8ccea refs/remotes/origin/ci-release-incr-timeout\n68d53c17484d5eb5d78741a24aef787448f6ca01 refs/remotes/origin/darjeeling_1.0.0\nba40664f5db2da533b3bde3351019122a66f2670 refs/remotes/origin/dvsim_dvplan_integ\n7b4319e15da3b1c46ea56ef3dd0a85c50da0d95e refs/remotes/origin/earlgrey-1.0.0-devbundle-licenses\na816ab46d5a410b58e11cab46450bee682d9e1da refs/remotes/origin/earlgrey-spi_device-1r1w\n7d0af709c093b13dc875a32716a935dc1ea2f393 refs/remotes/origin/earlgrey_1.0.0\n9f20940d494a223cc950a5b98f748fb28109d458 refs/remotes/origin/earlgrey_1.0.0_A2_presilicon\nbf170d3225d7d1b271290d12c426376854af8fbf refs/remotes/origin/earlgrey_1.0.0_presilicon\nedf5e35f5d50a5377641c90a315109a351de7635 refs/remotes/origin/earlgrey_es\ndbfb6b92b33f675f34c6c0c90c62c086db03961b refs/remotes/origin/earlgrey_es_sival\nde2345a616b4288c12b73347f35f477bda899da4 refs/remotes/origin/ed25519-legacy\n9a3723391feca3fe93576b8a39ae0258320a4b02 refs/remotes/origin/integrated_dev\n231b399517763c32caa7b3878b6c4feaa1dc79af refs/remotes/origin/master\n553226eae21190b4082396ff6dc3635e90047cb7 refs/remotes/origin/merge-queue\n4126517b85043306d60de77b16c5570d15400995 refs/remotes/origin/multitop_dev\n87b38950a26c209ce1a11008160f4c1ee7275bbf refs/remotes/origin/new_ci_fpga_dispatch\nf83d25345dc79dada0a13a2de45f9291901b561a refs/remotes/origin/nightly_test\n183e2e1d9d3ab3b4110526c1075b7366b3c8b3c5 refs/remotes/origin/nt11-provisioning-rig\n867c06ac88df09dd9fca6eca6fe1e9966da61e11 refs/remotes/origin/ot-sca_cw310\n51a8f50110a12f8c242763882201b116a0e5e21e refs/remotes/origin/ot-sca_cw310_aes\n5b823702439f5b50dd940628884b6cb97046cdcf refs/remotes/origin/ot-sca_cw310_kmac\n2898576bf825a1f577360d8fb5db742f2043e368 refs/remotes/origin/ot-sca_cw310_otbn\nc7d707f564a84bfb02f83c4b0efdf859be9fb4dc refs/remotes/origin/ot-sku-ci\nd9f2cc0e3da72a67dddbdecf7c099d93ac988fac refs/remotes/origin/otbn-kmac-sim\nccd10e56abae7ebee57a80cbdf644721790afefe refs/remotes/origin/publish_bazel_reports\na6a72a24fa6ec4dc4057b982bf1e5a951800a1d0 refs/remotes/origin/release\nd128f5602209cace59177f24791b295f17de40f1 refs/remotes/origin/revert-17124-mode3\n167c38ba87c3faccd29ae563fe11f268b72520dc refs/remotes/origin/revert-26535-pentest_icache_dummy\neb326a86724fd8909348cf9ead2ea0cd971fa928 refs/remotes/origin/revert-26758-no-clock-div\n2b2720754c55f9726d4e690962cc3bd21255fca1 refs/remotes/origin/revert-30472-cherry_pick_compression\na9665d8d6a40e7079072df31b6a06fa6897faa18 refs/remotes/origin/sival_slow_crypto\n95011a30559497e2fdc8055bedf0e1f777e9060e refs/remotes/origin/sw-multi-top\nd2a4c12c2267d026abe5438e006afe5cedd748c2 refs/remotes/origin/test-toolchain\n488414217ab784ccc144ff8e2b0bb48438ca3e47 refs/remotes/origin/to-xcelium\n1dcc8cddddd2f20bc6c47f732188aad50a2ac85b refs/remotes/origin/v1-bronze\n3ea2a2e95e20ed7bc4ad33f3876f3901ab21c58b refs/remotes/origin/vcs_z01x\n81739c5bf28a58e8951ccd8d4fa3c5d453085aa0 refs/tags/2026-05-21-test\n325777cfe783a2c487a0e7155826d47cb867614f refs/tags/2026-06-01-test\n38ea01a366aaa48bcda4ab271a6d5d4a021f6346 refs/tags/Earlgrey-A2-Orchestrator-RC0\n6e8e395e98fb403b1d656d50cf9dccd2794b3d8f refs/tags/Earlgrey-A2-Orchestrator-RC1\n85b8eb248a3f27d7aaa036ead8ba59ffb8d773a3 refs/tags/Earlgrey-A2-Orchestrator-RC2\ncc10b843210d228e48a563e64e72edf09e66e3b7 refs/tags/Earlgrey-A2-Orchestrator-RC3\n19ca9acf702a32f1c1fb789e4696c794739d9531 refs/tags/Earlgrey-A2-Orchestrator-RC4\nbca4b342739aa7d43255ecfceafcdb96c682216f refs/tags/Earlgrey-A2-Orchestrator-RC5\nf346c1de0fbaa48fd6d395cc7158e53a7e9e105f refs/tags/Earlgrey-A2-Orchestrator-RC6\na0001bc25dbd76ad7573f7c51d59d593c12202b2 refs/tags/Earlgrey-A2-Orchestrator-RC7\n203fb2d564d9e4d85eabc2811c812e54fdb66545 refs/tags/Earlgrey-A2-Provisioning-RC0\n2816f7669f2a7f8b845d32d9459459f99fba5411 refs/tags/Earlgrey-A2-Provisioning-RC1\n5537996adffdbc1dd3ddb89a1d579e775a39bb9d refs/tags/Earlgrey-A2-Provisioning-RC10\nb2b48791b1786962de17a3f56a026ff4d7846836 refs/tags/Earlgrey-A2-Provisioning-RC11\n14ddd8d91814f06dc80fa564856df3e61764e485 refs/tags/Earlgrey-A2-Provisioning-RC12\n536735b1762ef7df7fd88d446547142e159d35b7 refs/tags/Earlgrey-A2-Provisioning-RC13\naa6b6e45b194c5613e9a768fb3c6a9470b8b4545 refs/tags/Earlgrey-A2-Provisioning-RC14\n58322aae19107fe4ef10181f6566526f155cac72 refs/tags/Earlgrey-A2-Provisioning-RC15\n3e5a19b53548b086eb89c9cac0cea0f0ffd855bd refs/tags/Earlgrey-A2-Provisioning-RC16\nbd9ada3c529983926f33ae065a95344a9832c301 refs/tags/Earlgrey-A2-Provisioning-RC17\nff5853e2c0cfb26c1a455943b29aeed6e357a8a5 refs/tags/Earlgrey-A2-Provisioning-RC2\n6ae909eed1efd43e0abd36f580504b56aaf19850 refs/tags/Earlgrey-A2-Provisioning-RC3\nc5c7345078c165307d70480d11da200173909871 refs/tags/Earlgrey-A2-Provisioning-RC4\nabb0310e5c71d8b1fadd2c02ac36c2ccc7c70fd8 refs/tags/Earlgrey-A2-Provisioning-RC5\n9ca5d547d270373cc86a12583ed3f5148f3cf682 refs/tags/Earlgrey-A2-Provisioning-RC6\nff7da13469e3d9ad28a83d87d503b6c0a1736d09 refs/tags/Earlgrey-A2-Provisioning-RC7\nc6db44154a9e1162827245a7229dca80d31d7679 refs/tags/Earlgrey-A2-Provisioning-RC8\nc8ba1aba4a7840581c65bae53a86d52cd7e1b440 refs/tags/Earlgrey-A2-Provisioning-RC9\nf38b01f4d453f6a618482b2897009938ba392680 refs/tags/Earlgrey-ES-SV2\nee1fddc31a319f287af989413e11fca3df4e2a05 refs/tags/Earlgrey-M2.5.1-RC0\n^44c75fcc9cc4c4c4daa551d0614ae49b85e54cc4\nf0e07030010aca19bfa3d5fca918ecb6f77488e2 refs/tags/Earlgrey-M2.5.1-RC1\n^02fd38a036eb88f0e1068c83667b928d11e1f648\n21ce4e9761abdf5c919b46e5ae64a5a8e24992f7 refs/tags/Earlgrey-M2.5.2-RC0\nb6c2886f84a9e61b3f8036908b74c2d0fd540426 refs/tags/Earlgrey-M2.5.2-ROM-RC0\n8522e05bc4e5e5e6fec08e8066957fd39559838f refs/tags/Earlgrey-M2.5.2-ROM-RC1\n895673387aa3ef894d0036e6f8f4a8248d42f7d7 refs/tags/Earlgrey-PROD-A2-M6-RC0\n^676fe222252f7a9fc4e0f4b2a4c14c53dfff1b96\n05e45b21357639520421b52fec177c97e37588b2 refs/tags/Earlgrey-PROD-A2-M6-ROM-RC0\n9f20940d494a223cc950a5b98f748fb28109d458 refs/tags/Earlgrey-PROD-A2-M6-ROM-RC1\n892e170679284fc79084022061ae0f79ee357a97 refs/tags/Earlgrey-PROD-M2\n^30d7e787c753caaa03fe68a4a70da1bbcbc1d96f\n36c168c253a68a4e7b11567beea12374f9407aad refs/tags/Earlgrey-PROD-M2-RC0\nc187a82ee842f2b082397b49366fd6155b55dc66 refs/tags/Earlgrey-PROD-M2-RC1\nb3869fb5a8bdbec7f22702edd4152f9af0b5a981 refs/tags/Earlgrey-PROD-M2-RC2\na29dba0686093ce4bbb288768ae0f6381deafc61 refs/tags/Earlgrey-PROD-M2-RC3\nf24455d0a8b65afe75d8b3a84bdf6ba01c940b1a refs/tags/Earlgrey-PROD-M2-RC4\n^919341eb22b8115d333d116db7187f0a13d61b85\n2230571b0014b0679ece90b9f990030a9987ac55 refs/tags/Earlgrey-PROD-M2-RC5\n^30d7e787c753caaa03fe68a4a70da1bbcbc1d96f\ned6c0b1bb52aff8b687c343d717e4728a99ad9d9 refs/tags/Earlgrey-PROD-M3\n^49d4e53c1beb1124beab2b35138a2bfda98af827\nec711524c05e92a306b3e28c0343522909a1b9a7 refs/tags/Earlgrey-PROD-M3-RC0\nc1e0fb7bfe05ff00fa870acd1c6228ccae9f6fa5 refs/tags/Earlgrey-PROD-M3-RC1\n^49d4e53c1beb1124beab2b35138a2bfda98af827\n694ef78d1eb505041b00fca7d8003b4b7c7e742d refs/tags/Earlgrey-PROD-M4\n^34bde60fbf53bf87aadbca540c36bc0506ecb3ef\n52ac422e4e0826badd005e260ce6c516ac0ad480 refs/tags/Earlgrey-PROD-M4-RC0\n^856e402f740d40dbdb06013320f1697670154fc0\n54ed923e9e956737aee0d5a107221447fec33afb refs/tags/Earlgrey-PROD-M4-RC1\n^1a41f176ce409c95e0aecb4f3c270021442a571e\nc9d7d13d2ed61c12edbd49871b09f20980ece2c6 refs/tags/Earlgrey-PROD-M4-RC2\n^73c42574957fad3c99aee16cce2bfcbb720e0d04\n47513032502c40992777a4075c07b3cf62dbf34c refs/tags/Earlgrey-PROD-M4-RC3\n^b4ea446e71ea8e54265b08b744686a430a931bfe\n5d0a99f7f0f059299d8a9757a6f8ae03c3586c37 refs/tags/Earlgrey-PROD-M4-RC4\n^acd065ca7dab30b94a59ec33bdc6c167801fcfbd\nd64e15985089fa700d0684c69e0effbd85cc36ed refs/tags/Earlgrey-PROD-M4-RC5\n^77065bf50cc6641553b01a008461a5a52908bb60\n57afb0bab509661469dcd16e482e756fa8e531a5 refs/tags/Earlgrey-PROD-M4-RC6\n^9152251fd7eea49befcb8d440c835ee923dd7d86\n003713bf56b624bd387b8aab42b968fd27de5629 refs/tags/Earlgrey-PROD-M4-RC7\n^34bde60fbf53bf87aadbca540c36bc0506ecb3ef\n43011e76e61a92821f41633d600518dc5b93c336 refs/tags/Earlgrey-PROD-M5\n^cb7dbb5bbe8a5105d98a6e1d7bdbef84126a5424\n666d4f76993d8b1fca8859ff41acfe95094c5e0c refs/tags/Earlgrey-PROD-M5-RC0\n^4fec3e528e5e5bb6021e14c5d5af4f89b03133f2\n5daa745df09ed3f8717d4642e62246cff3f0da34 refs/tags/Earlgrey-PROD-M5-RC1\n^c04cc5d074d9acefd052feb8a4fd6de6bfa0faab\n2271e2dd95ea3eb11b69ae8f25995ad958a6e4f6 refs/tags/Earlgrey-PROD-M5-RC2\n^a365ced52c2af6ee20a891d6e8f5ddbfbd2b25ce\n9e7ca1de9f635ca3a46bd5e28da075cb112ce67b refs/tags/Earlgrey-PROD-M5-RC3\n^cb7dbb5bbe8a5105d98a6e1d7bdbef84126a5424\n49de03cd42e5878ad983df040544283552302b68 refs/tags/Earlgrey-PROD-M5-ROM-RC0\n6a84251492142c26314bd9ec7e9f16fba348a059 refs/tags/Earlgrey-PROD-M5-ROM-RC1\ne907b95292586a40bcb1c40ce299a158a37ca235 refs/tags/Earlgrey-PROD-M5-ROM-RC2\nb01f81ae203c3e74bb77bf6e123ebdb7ebbdcd63 refs/tags/Earlgrey-PROD-M6\n^a78922f14a8cc20c7ee569f322a04626f2ac6127\n563352df18db4dfa5d4326d80ea1de2d2e7fcbda refs/tags/Earlgrey-PROD-M6-RC0\n^07b417ef03dbfc78446dd724f140d250a27cbac1\n0150f4779b96bca8ea42f5f0bfcf23321f04a78f refs/tags/Earlgrey-PROD-M6-RC1\n^a24387a5be823e204957be7f03ffc61761834500\n51609fc4d7d056e21737c9383d678618e1cf1cc5 refs/tags/Earlgrey-PROD-M6-RC2\n^2f7d9461b8d8f63c39dd9287979d2f7c673c3724\n0c944c8652fa7904f7623ba8f30c78fe18a47f09 refs/tags/Earlgrey-PROD-M6-RC3\n^31ff0de3e29e06c14ac3e5bef2afa68fae6243c0\n2431cb89253ff7120fa3fe31ee996d17a1b27cea refs/tags/Earlgrey-PROD-M6-RC4\n^765a41c3ac3e40a6fad3752a98df14b0e15bf3e7\n0b7215dc2d9571899d20d0a3bea39fe69217d4ab refs/tags/Earlgrey-PROD-M6-RC5\n^a7532758da13cafa7d2d764d6ff0abdf856e9625\n976b1905aec3308bf5f873c0dc27dd5bed74e756 refs/tags/Earlgrey-PROD-M6-RC6\n^40292c033aaa1f4b68dd1f4503dd90a3231b6cb5\ncdcfaf10172cb4695e493c5951dd813c7c037d20 refs/tags/Earlgrey-PROD-M6-RC7\n^a78922f14a8cc20c7ee569f322a04626f2ac6127\n777fc18762dfbf1098a38d888853c960a66ef2e6 refs/tags/Earlgrey-PROD-M6-ROM-RC0\n549f26968d380a64dd6522a8d7ddbf9563ae81db refs/tags/ROM_EXT_BUILD_0.1\nfa29558e3d605600db08350d1dffb681f65b7472 refs/tags/ROM_EXT_BUILD_0.102\n1a07e5f0860b735d2b3b94d961310a3431be4f30 refs/tags/ROM_EXT_BUILD_0.103\nc8ba1aba4a7840581c65bae53a86d52cd7e1b440 refs/tags/ROM_EXT_BUILD_0.111\n5537996adffdbc1dd3ddb89a1d579e775a39bb9d refs/tags/ROM_EXT_BUILD_0.112\nb2b48791b1786962de17a3f56a026ff4d7846836 refs/tags/ROM_EXT_BUILD_0.113\n14ddd8d91814f06dc80fa564856df3e61764e485 refs/tags/ROM_EXT_BUILD_0.114\n536735b1762ef7df7fd88d446547142e159d35b7 refs/tags/ROM_EXT_BUILD_0.115\n3e5a19b53548b086eb89c9cac0cea0f0ffd855bd refs/tags/ROM_EXT_BUILD_0.116\nac6afa5e0d8846f24d092d69087a2937fe3a93df refs/tags/ROM_EXT_BUILD_0.2\n0997649325871c52ccc156201871b1d3abb7aeec refs/tags/ROM_EXT_BUILD_0.3\n73e506d8fdad0b4010a4f45243fe7f794cf54bc2 refs/tags/ROM_EXT_BUILD_0.4\nf67fc1722a98421311592d1f2e4062cd0753c0a9 refs/tags/ROM_EXT_RELEASE_0.1\n0135da5e167491a7709d972789278acd2f4cec4e refs/tags/devbundle-2026-06-02-1\n44a5255d95007f2fb524a28af69b7d75192cd4ce refs/tags/devbundle-2026-08-21-1\n7439265b265acc8b1b25299c10c032b9873ccfe4 refs/tags/earlgrey_bronze_rc1\n^dc8ba9743a146648f060088c1115581327fbe4c7\n39ef627acc3810b0e8217359223b7547c65d5844 refs/tags/earlgrey_bronze_rc2\n^6dc01dc4f76b721aa8e09cea2069cf0f1f9066ea\n5308602059c38b93ddbe79f333c4ceec1f9a47fb refs/tags/earlgrey_bronze_release\n^9d6264ef98ac4737c90941c505adb4c299f212f6\n19ee5d60b43f47689a7a48578adc099de18009ba refs/tags/earlgrey_bronze_release_v10\n^e280bdea5f2639f9304bd4c4a96b993ccd6dc281\na9700ae7623e361305ddb46d3ef773e1cfb5ff9d refs/tags/earlgrey_bronze_release_v11\n^1dcc8cddddd2f20bc6c47f732188aad50a2ac85b\ne96bb24f1a360196715fe7d2ca951318e7a9cb58 refs/tags/earlgrey_bronze_release_v2\n^b97c2166adae98da00c5c6591e14d273305a6a27\n0799a32cf8f398d1686e6fc9f899509dec3127a5 refs/tags/earlgrey_bronze_release_v3\n^4e483d8bbe4ed97aff87cebdd7cfe03dde273599\nc1daac48aa6cb1997355a7dc3d175ccd4dfdc8ea refs/tags/earlgrey_bronze_release_v4\n^800323b31a443edf9ec214c2141815d5da6e6c78\n2355d9569121ddc7bf91e071f011e134e822b5f6 refs/tags/earlgrey_bronze_release_v5\n^89ca71f60d4b1776258e30c272f02b6313a39b9c\nf16e29bb0364137b447395142ed090918a8b8649 refs/tags/earlgrey_bronze_release_v6\n^a1f8f31134198bee55153b74a245f20b0c7f2fe4\n76ba89f6ac875f8313df11bfc48e7394d588da3a refs/tags/earlgrey_bronze_release_v7\n^45d0a638582be5c8b8d4161aa0325577e6738951\n21e1869668dc63a74d6c3af21e319c63f997c258 refs/tags/earlgrey_bronze_release_v8\n^acb97c6adb821a8769af3f16f5953b2c65121603\na66d5e32c26cc93ff68466e5af2e19c2d5aed0fd refs/tags/earlgrey_bronze_release_v9\n^a6be322c34a60175519cdd087ecabfdfa0a2a1c1\n98bfbf0ef37350e517f0e197016a034e888ebfc7 refs/tags/earlgrey_silver_release_v1\n^2254ac84e11794389859f9c1249cf5e2a0f7321f\n208528c6f24c84ee47d3a251701933889aa40d9c refs/tags/earlgrey_silver_release_v2\n^9d9d86fb65b5e5cb16df6cdba89cffe1327ec056\n63bd1f94bdc6633130e567179e32f6a98b7f00d7 refs/tags/earlgrey_silver_release_v3\n^d5c17ccdf0ce03438350cf6792c1bc1f07060e99\nbc7d5809eec8b29c155d58c6d6f8d2390a2a6a55 refs/tags/earlgrey_silver_release_v4\n^21e6a4f15ec7355041b524648beca27b68293ba0\n5492f7f80dc087ca1adcd6e189db04f8bf5abdcc refs/tags/earlgrey_silver_release_v4_rc1\n1e4ac9ad37e8ab936768ca1b2a810d61d3f1c0f1 refs/tags/earlgrey_silver_release_v4_rc2\n^c3091ba158ce055d302787e2dacb44d0674ad8c1\n20a5166b4c69110d1f557bbbd4229b9b4d84a9e6 refs/tags/earlgrey_silver_release_v5\n^ed044fc9760bdf9fc075d0015ba1db07fa075355\n00d5d8e70b4f7e1869d38833a6d85d42b9e14957 refs/tags/kororo_job_633\n277c76d7fb1e50997251488c66c9b6d45d2e82e5 refs/tags/riscv-summit\n3733c3e2d00507f7a39748cfdd9512ea628f655e refs/tags/riscv-summitv2\n0cc313f3b01bc97649dd7a7241cd1c0f6ac10812 refs/tags/snapshot-20191030-1\n^542e220bdfd5fb34a86827fdba6844693994a679\n6409712a2e45118c356ff2371ac32eb555dff526 refs/tags/snapshot-20191101-1\n^1d0d927693c2ef60d7880ab306beb25115a53dcb\n42bef8cb10b2c46d80cd4fc6b48e002dfe0b7065 refs/tags/snapshot-20191101-2\n^8bbd8b881a836f9fc4e99dceb072774e877428bc\naa5233edd4813ac783fa88d0962d50ad687335bc refs/tags/test-1",
+      "packs": [
+        {
+          "bytes": 9424024,
+          "indexed_objects": 336534,
+          "name": "pack-9d63c7f2fb63b5fc0cd003903c8af0d1405681f1.idx",
+          "sha256": "3e3126e51b9b0391fdb8bba81f81ef54a22fe162451d8900e6790769631397f0"
+        },
+        {
+          "bytes": 42525930,
+          "name": "pack-9d63c7f2fb63b5fc0cd003903c8af0d1405681f1.pack"
+        },
+        {
+          "bytes": 21639,
+          "name": "pack-9d63c7f2fb63b5fc0cd003903c8af0d1405681f1.promisor"
+        },
+        {
+          "bytes": 1346188,
+          "name": "pack-9d63c7f2fb63b5fc0cd003903c8af0d1405681f1.rev"
+        },
+        {
+          "bytes": 352388,
+          "indexed_objects": 12547,
+          "name": "pack-b74e450d97abd9d5f59389565f628712961c540c.idx",
+          "sha256": "9a0c7ef19d947e531ba00d04129922e1081af5c9c5e35251c57a1d8f7c36a2f7"
+        },
+        {
+          "bytes": 40000021,
+          "name": "pack-b74e450d97abd9d5f59389565f628712961c540c.pack"
+        },
+        {
+          "bytes": 1028854,
+          "name": "pack-b74e450d97abd9d5f59389565f628712961c540c.promisor"
+        },
+        {
+          "bytes": 50240,
+          "name": "pack-b74e450d97abd9d5f59389565f628712961c540c.rev"
+        }
+      ],
+      "partialclone": null,
+      "promisor_true": true,
+      "remotes": {
+        "remote \"origin\"": {
+          "partialclonefilter": "blob:none",
+          "promisor": "true"
+        }
+      },
+      "revision_ref_visible": true,
+      "root": "/root/fanzehui/myfuzz/dma-uart-rx-project",
+      "shallow": null,
+      "status": "read_only_metadata_observed"
+    },
+    {
+      "alternates": null,
+      "component": "soc-zipcpu",
+      "config_sha256": "a67bf3dd82eb2e824e1ca501c1b95e01cec07f9efbd84b359e7400cc1f32ff80",
+      "config_unchanged_during_read": true,
+      "expected_loose_object_present": false,
+      "expected_object_index_presence": [
+        "pack-2847051dd14e16b9fcc553f2475357d87f7f8612.idx"
+      ],
+      "expected_revision": "42606d2d6ef55df313772232977621b2d72f0159",
+      "git_directory": "/root/fanzehui/myfuzz/dma-uart-rx-project/third_party/soc-zipcpu/.git",
+      "git_entry": "/root/fanzehui/myfuzz/dma-uart-rx-project/third_party/soc-zipcpu/.git",
+      "head": "42606d2d6ef55df313772232977621b2d72f0159",
+      "head_ref_value": null,
+      "loose_refs": {
+        "refs/heads/master": "42606d2d6ef55df313772232977621b2d72f0159",
+        "refs/remotes/origin/HEAD": "ref: refs/remotes/origin/master"
+      },
+      "packed_refs": "# pack-refs with: peeled fully-peeled sorted \naf9cf9edc3d0e7222b0a10a26eada7cf0a997cbb refs/remotes/origin/dev\n42606d2d6ef55df313772232977621b2d72f0159 refs/remotes/origin/master\n315eb63b50c476780126d826a71e094eee19731b refs/remotes/origin/zaxdma",
+      "packs": [
+        {
+          "bytes": 111252,
+          "indexed_objects": 3935,
+          "name": "pack-2847051dd14e16b9fcc553f2475357d87f7f8612.idx",
+          "sha256": "a9c216f288e5853b8374f4c4adf79b33c3277e1321b2e87a36ac3051a85e692e"
+        },
+        {
+          "bytes": 492486,
+          "name": "pack-2847051dd14e16b9fcc553f2475357d87f7f8612.pack"
+        },
+        {
+          "bytes": 220,
+          "name": "pack-2847051dd14e16b9fcc553f2475357d87f7f8612.promisor"
+        },
+        {
+          "bytes": 15792,
+          "name": "pack-2847051dd14e16b9fcc553f2475357d87f7f8612.rev"
+        },
+        {
+          "bytes": 11376,
+          "indexed_objects": 368,
+          "name": "pack-43ce0bc8e2534555fa411418434fd914bcbc6272.idx",
+          "sha256": "ef1782cecdfe0be03e695cf7e58265a1bdfca520a560857721edd3caaa62c761"
+        },
+        {
+          "bytes": 31003412,
+          "name": "pack-43ce0bc8e2534555fa411418434fd914bcbc6272.pack"
+        },
+        {
+          "bytes": 30176,
+          "name": "pack-43ce0bc8e2534555fa411418434fd914bcbc6272.promisor"
+        },
+        {
+          "bytes": 1524,
+          "name": "pack-43ce0bc8e2534555fa411418434fd914bcbc6272.rev"
+        }
+      ],
+      "partialclone": null,
+      "promisor_true": true,
+      "remotes": {
+        "remote \"origin\"": {
+          "partialclonefilter": "blob:none",
+          "promisor": "true"
+        }
+      },
+      "revision_ref_visible": true,
+      "root": "/root/fanzehui/myfuzz/dma-uart-rx-project",
+      "shallow": null,
+      "status": "read_only_metadata_observed"
+    },
+    {
+      "alternates": null,
+      "component": "ibex",
+      "config_sha256": "e7b559e1146a5947ba37df13f4f0a89baeac5118fa28fe81300c5c2155f5eb00",
+      "config_unchanged_during_read": true,
+      "expected_loose_object_present": false,
+      "expected_object_index_presence": [
+        "pack-7139ff2ea71f183fa044f230f2ed61812a3890b6.idx"
+      ],
+      "expected_revision": "34b0705760ef3dfa00e99637432473d2be8f22f3",
+      "git_directory": "/root/fanzehui/myfuzz/dma-uart-rx-project/third_party/rfuzz/upstream/ibex/.git",
+      "git_entry": "/root/fanzehui/myfuzz/dma-uart-rx-project/third_party/rfuzz/upstream/ibex/.git",
+      "head": "34b0705760ef3dfa00e99637432473d2be8f22f3",
+      "head_ref_value": null,
+      "loose_refs": {
+        "refs/heads/main": "531ca2ec439fe3fa89bd6f60ae8f256bc0b9b241",
+        "refs/remotes/origin/HEAD": "ref: refs/remotes/origin/main"
+      },
+      "packed_refs": "# pack-refs with: peeled fully-peeled sorted \nf910e3be528ba9af7b4e185bfff0e0e9eb75396b refs/remotes/origin/cheriot-dma\n69358e0dc2db3db94fb8c358b85d9dc71b4cd1da refs/remotes/origin/dependabot/github_actions/github-actions-10f8c2daf3\na3f2cc8d27dff6b4b766cd66eeb9fcd60fc85a3a refs/remotes/origin/dependabot/pip/dv/formal/jinja2-3.1.6\n531ca2ec439fe3fa89bd6f60ae8f256bc0b9b241 refs/remotes/origin/main\n228ee08b047c7badb493087d3eb66f903bb6d889 refs/tags/cheriot_ibex_v1.0",
+      "packs": [
+        {
+          "bytes": 1100,
+          "indexed_objects": 1,
+          "name": "pack-1163065f24157cc2f4576f363464a2e70031eabc.idx",
+          "sha256": "ff4bf7d79a74c85f4c33aa10fdaeb4059bd9439376e29fca1c56b35d35f6d472"
+        },
+        {
+          "bytes": 41,
+          "name": "pack-1163065f24157cc2f4576f363464a2e70031eabc.pack"
+        },
+        {
+          "bytes": 0,
+          "name": "pack-1163065f24157cc2f4576f363464a2e70031eabc.promisor"
+        },
+        {
+          "bytes": 56,
+          "name": "pack-1163065f24157cc2f4576f363464a2e70031eabc.rev"
+        },
+        {
+          "bytes": 13448,
+          "indexed_objects": 442,
+          "name": "pack-3bca1c552447fc932c5e5e4186410554e2544cf5.idx",
+          "sha256": "4d56c670cce0dbb717015d45ce720d9188264b40a75bdbfa9339d5776445ba2c"
+        },
+        {
+          "bytes": 903484,
+          "name": "pack-3bca1c552447fc932c5e5e4186410554e2544cf5.pack"
+        },
+        {
+          "bytes": 36244,
+          "name": "pack-3bca1c552447fc932c5e5e4186410554e2544cf5.promisor"
+        },
+        {
+          "bytes": 1820,
+          "name": "pack-3bca1c552447fc932c5e5e4186410554e2544cf5.rev"
+        },
+        {
+          "bytes": 292720,
+          "indexed_objects": 10416,
+          "name": "pack-624b2da93a784e53b603ecfb7f13d8b5788d5fa5.idx",
+          "sha256": "75705c723f36c7b12387144e03b97015e04f27aaff7ce9bdb0f569f237de5059"
+        },
+        {
+          "bytes": 1602676,
+          "name": "pack-624b2da93a784e53b603ecfb7f13d8b5788d5fa5.pack"
+        },
+        {
+          "bytes": 430,
+          "name": "pack-624b2da93a784e53b603ecfb7f13d8b5788d5fa5.promisor"
+        },
+        {
+          "bytes": 41716,
+          "name": "pack-624b2da93a784e53b603ecfb7f13d8b5788d5fa5.rev"
+        },
+        {
+          "bytes": 433532,
+          "indexed_objects": 15445,
+          "name": "pack-7139ff2ea71f183fa044f230f2ed61812a3890b6.idx",
+          "sha256": "4ae9f9bf34d857698a541be5574fbc4724ae0c1dc090e549d1a6245cafbbc19b"
+        },
+        {
+          "bytes": 33549458,
+          "name": "pack-7139ff2ea71f183fa044f230f2ed61812a3890b6.pack"
+        },
+        {
+          "bytes": 61832,
+          "name": "pack-7139ff2ea71f183fa044f230f2ed61812a3890b6.rev"
+        },
+        {
+          "bytes": 23528,
+          "indexed_objects": 802,
+          "name": "pack-b233a0be957de907591a8d7b8cde8334328272f6.idx",
+          "sha256": "8264a34231fa0e5600d7e59e62a4b16c7117480f1f0444ceff7ad6ad0f0ad379"
+        },
+        {
+          "bytes": 1325772,
+          "name": "pack-b233a0be957de907591a8d7b8cde8334328272f6.pack"
+        },
+        {
+          "bytes": 65764,
+          "name": "pack-b233a0be957de907591a8d7b8cde8334328272f6.promisor"
+        },
+        {
+          "bytes": 3260,
+          "name": "pack-b233a0be957de907591a8d7b8cde8334328272f6.rev"
+        }
+      ],
+      "partialclone": null,
+      "promisor_true": true,
+      "remotes": {
+        "remote \"origin\"": {
+          "partialclonefilter": "blob:none",
+          "promisor": "true"
+        }
+      },
+      "revision_ref_visible": true,
+      "root": "/root/fanzehui/myfuzz/dma-uart-rx-project",
+      "shallow": null,
+      "status": "read_only_metadata_observed"
+    },
+    {
+      "component": "soc-opentitan",
+      "error": "ValueError('git-directory-missing')",
+      "expected_revision": "fca045df919a26c47e71616b9dac917b1ea4fd07",
+      "git_directory": "/root/fanzehui/myfuzz/dma-continuous-verification-20261017/third_party/soc-opentitan/.git",
+      "git_entry": "/root/fanzehui/myfuzz/dma-continuous-verification-20261017/third_party/soc-opentitan/.git",
+      "root": "/root/fanzehui/myfuzz/dma-continuous-verification-20261017",
+      "status": "unavailable"
+    },
+    {
+      "component": "soc-zipcpu",
+      "error": "ValueError('git-directory-missing')",
+      "expected_revision": "42606d2d6ef55df313772232977621b2d72f0159",
+      "git_directory": "/root/fanzehui/myfuzz/dma-continuous-verification-20261017/third_party/soc-zipcpu/.git",
+      "git_entry": "/root/fanzehui/myfuzz/dma-continuous-verification-20261017/third_party/soc-zipcpu/.git",
+      "root": "/root/fanzehui/myfuzz/dma-continuous-verification-20261017",
+      "status": "unavailable"
+    },
+    {
+      "component": "ibex",
+      "error": "ValueError('git-directory-missing')",
+      "expected_revision": "34b0705760ef3dfa00e99637432473d2be8f22f3",
+      "git_directory": "/root/fanzehui/myfuzz/dma-continuous-verification-20261017/third_party/rfuzz/upstream/ibex/.git",
+      "git_entry": "/root/fanzehui/myfuzz/dma-continuous-verification-20261017/third_party/rfuzz/upstream/ibex/.git",
+      "root": "/root/fanzehui/myfuzz/dma-continuous-verification-20261017",
+      "status": "unavailable"
+    },
+    {
+      "alternates": null,
+      "component": "soc-opentitan",
+      "config_sha256": "fc5244535fc212252ecda858414dccad380e3ae6d320d71d224fd2f9a96ef179",
+      "config_unchanged_during_read": true,
+      "expected_loose_object_present": false,
+      "expected_object_index_presence": [
+        "pack-9d63c7f2fb63b5fc0cd003903c8af0d1405681f1.idx"
+      ],
+      "expected_revision": "fca045df919a26c47e71616b9dac917b1ea4fd07",
+      "git_directory": "/root/fanzehui/system-20261016/project/third_party/soc-opentitan/.git",
+      "git_entry": "/root/fanzehui/system-20261016/project/third_party/soc-opentitan/.git",
+      "head": "fca045df919a26c47e71616b9dac917b1ea4fd07",
+      "head_ref_value": null,
+      "loose_refs": {
+        "refs/heads/master": "231b399517763c32caa7b3878b6c4feaa1dc79af",
+        "refs/remotes/origin/HEAD": "ref: refs/remotes/origin/master"
+      },
+      "packed_refs": "# pack-refs with: peeled fully-peeled sorted \na7bd7e32ed6ad1f642ab68cc1cc14ee1ca02bc15 refs/remotes/origin/acvp_test_suite\n45f9110b2b3a0a416909714c89007cc9e6c634bd refs/remotes/origin/backport-22659-to-master\n1f66d1fbf57d9bd58f97128cbc9cb6131d1dc02b refs/remotes/origin/backport-23249-to-master\n401e27d3e1232086dd7eafc75df66225986bd927 refs/remotes/origin/backport-24200-to-earlgrey_1.0.0\n9f2bb34380e09d9f293d20beced6e672e8d1532f refs/remotes/origin/backport-25266-to-earlgrey_1.0.0\n3d5978306c1b130cbce917c54e37f34c90819660 refs/remotes/origin/backport-25278-to-master\na0f496fb32ef6030700c5550eb12cf767f97f601 refs/remotes/origin/backport-25362-to-earlgrey_1.0.0\n314283690a8f3472c1c9ad192e33f63e7aaf1680 refs/remotes/origin/backport-25369-to-earlgrey_1.0.0\nb785e1391112549dfde8a0bfede031b681222dcc refs/remotes/origin/backport-25443-to-earlgrey_1.0.0\nf29439135e88aae44274ea71aa9c8131041889a6 refs/remotes/origin/backport-25531-to-earlgrey_1.0.0\ncd3be6a2fac02136cf8874639ecb0ce6cba4888d refs/remotes/origin/backport-25651-to-master\nb3066f10732539110fc1aca0662d242957e00215 refs/remotes/origin/backport-25674-to-earlgrey_1.0.0\n9fcadcdef2fda9ce988f7d9aa71492066fce751d refs/remotes/origin/backport-25820-to-earlgrey_1.0.0\ne06216bdd805a318885840080d9ed9877b4fa75f refs/remotes/origin/backport-25934-to-earlgrey_1.0.0\n117e6fa0ebde42c68ea2a5113abec162acea76ac refs/remotes/origin/backport-26065-to-master\n3632cb9c2a95f9c9c00c754b8da6bec473c76b3b refs/remotes/origin/backport-26291-to-master\nb980c2d5edb97b231f2f378c6ee060c9b8a61de6 refs/remotes/origin/backport-26722-to-master\nc05b830a001abf97497cf1230856fb17038a11a5 refs/remotes/origin/backport-26760-to-master\nd92d9ae7b08e234f63e9055197cdbf7fc8f6f09b refs/remotes/origin/backport-27010-to-master\n854b059fbb81e0f00f54622c40008caefd22817f refs/remotes/origin/backport-27091-to-earlgrey_1.0.0\n93f42624ff71e7d4fae995ada61ab65262894697 refs/remotes/origin/backport-27464-to-earlgrey_1.0.0\n402db0905de6bc8fea42815c6fb690921350ea4c refs/remotes/origin/backport-27539-to-earlgrey_1.0.0\n37db40ac6d7975049c00b1dbcf91482c88122210 refs/remotes/origin/backport-27562-to-earlgrey_1.0.0\n26c0dff0fa0ad53fbfb278aec827c071f706cbf8 refs/remotes/origin/backport-27569-to-earlgrey_1.0.0\nd64559d58105c1a0d1a78832c6d25742de52c1fe refs/remotes/origin/backport-27582-to-earlgrey_1.0.0\ndbc899d8c96db5784686085924665d20095ec542 refs/remotes/origin/backport-27602-to-earlgrey_1.0.0\n0d121d1d1289dc6fe3036292c18b6dbf9da8de89 refs/remotes/origin/backport-27684-to-earlgrey_1.0.0\nd193b40db4514f0f3b96449b5e6955bc187823b3 refs/remotes/origin/backport-27740-to-earlgrey_1.0.0\n5b3478eed7e0afca5fe7f42a06fbbd16b56ea4e5 refs/remotes/origin/backport-27771-to-earlgrey_1.0.0\n8fa1578f7e06203e3af650a34a046aeca0a8a180 refs/remotes/origin/backport-27808-to-earlgrey_1.0.0\n855cf78449ac5cbdd0c2a27b2e375713a87b4598 refs/remotes/origin/backport-27937-to-earlgrey_1.0.0\nf7b0b04754a7cae33dad2c59e665df3c33552a03 refs/remotes/origin/backport-28038-to-earlgrey_1.0.0\n8dce06f433d02f3ce22a012ef17d1bf5f3657197 refs/remotes/origin/backport-28145-to-master\nea9148ed387c3e1ea2688703bf00b5b9a785a92e refs/remotes/origin/backport-28194-to-master\ne95ed356f16ba0a93de0b5a18e3e823e7ab587c1 refs/remotes/origin/backport-28211-to-earlgrey_1.0.0\nbcd487f49196e4f4bf595e23fcc19e1154c5fcfd refs/remotes/origin/backport-28230-to-master\nb8f676a15adf0bee61093903a76f0e07bcaa4aed refs/remotes/origin/backport-28464-to-master\nbd1d97caed63941b521927c46acaf3c110ded50b refs/remotes/origin/backport-28501-to-earlgrey_1.0.0\nf5ae1a993f35f8b1316d223da316764b7f2216e2 refs/remotes/origin/backport-28511-to-master\n2a783fca5ceb016c618e78642d8e9d89d9ad8dbf refs/remotes/origin/backport-28592-to-earlgrey_1.0.0\nb359cc6ef693387544d8b534a4db51c831ae25b3 refs/remotes/origin/backport-28602-to-earlgrey_1.0.0\n30c5c1bbb7b4af5cca86ff5dcf91789d969837a8 refs/remotes/origin/backport-28612-to-earlgrey_1.0.0\neee24007bc7900de616d342da8428e09ee6e88e2 refs/remotes/origin/backport-28616-to-master\n12a0fb4de7b343dd569dc58c5a25c5dbf7079529 refs/remotes/origin/backport-28636-to-earlgrey_1.0.0\n7ad2fe22439db4d1f7cff41776544f82e0172763 refs/remotes/origin/backport-28716-to-master\nbea04505c7e60606120aaff0e1f65735cfdcd22b refs/remotes/origin/backport-28850-to-earlgrey_1.0.0\ne27b58eac6beef90b506ee5aa38bf2e500540d31 refs/remotes/origin/backport-28909-to-master\ne3e6198b48e636753a573addcd1e27d5088f834f refs/remotes/origin/backport-28945-to-earlgrey_1.0.0\n64d79955b64f62a263d234b6bc02b4e978252bbf refs/remotes/origin/backport-28987-to-earlgrey_1.0.0\nce9c8c0d3e24f38b563e84d2e6a65bf120adb219 refs/remotes/origin/backport-29009-to-earlgrey_1.0.0\n6360ccf7302fe6996a913eb1ca51feeb5bc4f6c5 refs/remotes/origin/backport-29060-to-master\n30ec6f623cd785a6c2b96ddfee69d4987983e9a9 refs/remotes/origin/backport-29061-to-master\n544050cccf351315f91d05b7f226c0875a491df2 refs/remotes/origin/backport-29072-to-master\nff1cc01a3dd76c6f84cf7bae9c7f6e2567b62736 refs/remotes/origin/backport-29203-to-earlgrey_1.0.0\n8e2efee19df89c432b776786ecaa05b29fa63e60 refs/remotes/origin/backport-29227-to-earlgrey_1.0.0\nf77462f085e723f5b488c27dcf8cd7040f920aa0 refs/remotes/origin/backport-29414-to-master\nfa15f6ee94fa89f690a50ccabd8b3d0ffba9212b refs/remotes/origin/backport-29430-to-earlgrey_1.0.0\n24bcd95f50879d46a814ac4a31a5414412654d4d refs/remotes/origin/backport-29493-to-master\n2c1139ddfba550e42646d3fec58b458058447208 refs/remotes/origin/backport-29512-to-earlgrey_1.0.0\n8e85fce1a158e9a62c3beaa346b1b5dafb023e3f refs/remotes/origin/backport-29514-to-master\ne93b722ac0c87cc2587222761019b657f70ac007 refs/remotes/origin/backport-29515-to-earlgrey_1.0.0\n2a4ca5fd00d096804bd9dcced82ba8407d39351c refs/remotes/origin/backport-29529-to-master\n23f2edd9b89040552b54c403ce8ee952757fc449 refs/remotes/origin/backport-29532-to-earlgrey_1.0.0\n5cca39d4f961e97da708e4cab95c44923e33694b refs/remotes/origin/backport-29557-to-earlgrey_1.0.0\ncebdcc09bc94447905be904a10b5acade5f51b7f refs/remotes/origin/backport-29566-to-earlgrey_1.0.0\nb97545ff58a7c2b7593de281f17fc8e5bcc5aa11 refs/remotes/origin/backport-29619-to-master\nda1d75358d14590f212ce4661084d8371400deb5 refs/remotes/origin/backport-29646-to-master\n9d3710f5f90d792da0e29ef1527af1a35c7ce46f refs/remotes/origin/backport-29667-to-master\n63c022eda58dca9407b28cae89b7e63a46f9393e refs/remotes/origin/backport-29677-to-master\n7ee428ed1fd26035b134eb9d598cc78bcc6941f6 refs/remotes/origin/backport-29683-to-master\n5265cacc368d218d7f960f61f6b5e755035f8b53 refs/remotes/origin/backport-29694-to-master\n6825caec5be12954d45b6002aad57c028415cc80 refs/remotes/origin/backport-29699-to-master\n09eff984aad4fd98bd3d135cb5736f725169da80 refs/remotes/origin/backport-29749-to-master\nd7b86f05fb7435cbd3c2802fdd9c4dfe7cc5b032 refs/remotes/origin/backport-29751-to-master\nbca16fdf20b1fe6e33805e441f7e97476cc8062d refs/remotes/origin/backport-29764-to-master\n1473f94916944aee9981b44776811593e194bddf refs/remotes/origin/backport-29767-to-master\n9d812b7b15cc7036521c15726f1d18128a995ad2 refs/remotes/origin/backport-29771-to-master\n20ad8cd378c75b8d7832f5f6012008ae9098b44f refs/remotes/origin/backport-29799-to-master\n40d3dbf5a53e7f8a172e94175567515c81b5e4a5 refs/remotes/origin/backport-29801-to-master\nc0e56e79058c6dddda17b5cbd1696ba311acc911 refs/remotes/origin/backport-29822-to-master\nbbd736f304a2522615cd46968d3544de6b390ba6 refs/remotes/origin/backport-29832-to-master\nea95e8b15149f06230929ea63690842ab010da79 refs/remotes/origin/backport-29849-to-master\na2bf5a417e1dcbde023dbfad76cc1c76dd66d45c refs/remotes/origin/backport-29863-to-earlgrey_1.0.0\nea400078c0477afea42826c8706eb90b1dc02f39 refs/remotes/origin/backport-30018-to-master\n31e185042e633641193d017ae669eec9423bef28 refs/remotes/origin/backport-30052-to-master\n11e7d4639e190e028cd07151e93325faec53a4a4 refs/remotes/origin/backport-30098-to-master\nbd7e27a3fb67ecdd9599731a1b78fa5a527eaa3f refs/remotes/origin/backport-30169-to-master\n45e0a43bca68d9f77184f3cd29e202a0267ee791 refs/remotes/origin/backport-30243-to-master\n12f4ebf2ef63e0ea4c8734e293e96dbcb58b01f1 refs/remotes/origin/backport-30253-to-master\nfef4dd567e4cfe12390c4513b70fb7cee87472e9 refs/remotes/origin/backport-30328-to-master\n463be37fb25d00b4f52ea12183eb3e1bdb53ec83 refs/remotes/origin/backport-30348-to-master\na3c76ebbb57b46227edf1a0833bfe80f65e8a7a9 refs/remotes/origin/backport-30367-to-master\n0bc1f8c44f24d76788614b0c419196f709d32cf9 refs/remotes/origin/backport-30371-to-earlgrey_1.0.0\n6c0eeb6bfe4077190c7b2da89f18da63f4d687a5 refs/remotes/origin/backport-30372-to-master\n59e07c3b325e003bf431b93a2266155f3a626c2d refs/remotes/origin/backport-30401-to-master\na91700e114dcfda779e91362721a9315130c5dc2 refs/remotes/origin/backport-30408-to-master\na6d5b44878eab20dfcf938250347f813164360fc refs/remotes/origin/backport-30414-to-master\n4df5682455657cbad422a80ea0524353d58d1a35 refs/remotes/origin/backport-30433-to-master\n4ac1d5764342d76f24aab2697c506a0b6f518758 refs/remotes/origin/backport-30446-to-master\n9624963abce93573709f91cf15e900e736a517bb refs/remotes/origin/backport-30448-to-earlgrey_1.0.0\n98daecbe322001f4a95bbc92cb59cc82244bc887 refs/remotes/origin/backport-30450-to-master\nb5c1d72dc62e7445ee618d5c8b15c84cdb9f0d23 refs/remotes/origin/backport-30451-to-master\nec66731a0a90d8008bd5143aa8e02e7066d7ad20 refs/remotes/origin/backport-30453-to-master\naac77fad077185c15b413b1b5132bd8dfe521054 refs/remotes/origin/backport-30455-to-master\na26f005592bbef78e1b2bc62c690626b1628e1a1 refs/remotes/origin/backport-30456-to-master\nc0a54e319fb25696c8369efe8740342641f99049 refs/remotes/origin/backport-30458-to-master\n66cbaec5c5bff3adf8b0054ff3adce8dca12fb52 refs/remotes/origin/backport-30488-to-master\na73074ee3ec098c0d68feda12316ecf9be38d637 refs/remotes/origin/backport-30546-to-master\ned62090eaaea4bf9925c354a55ba214e052fc859 refs/remotes/origin/backport-30686-to-master\n4a2263b8d575e01acc966161632a945c44a9f7b3 refs/remotes/origin/backport-30698-to-master\n30364ffc4f452b00f02f796618e1e31e04ecbe34 refs/remotes/origin/backport-30699-to-master\n5ff19b484539f85fe1f5cf4bc7d09b7b4875d782 refs/remotes/origin/backport-30724-to-earlgrey_1.0.0\n59fda78304554594720d3c0b1f65bf072e9322c9 refs/remotes/origin/backport-30744-to-master\n57048f4de02795d91ead93938ec5a26e8260e4c2 refs/remotes/origin/backport-30812-to-master\n91cca10b066c931f368234f9f7cab208a32bbb0d refs/remotes/origin/backport-30864-to-master\n3df9bc9472c6acf757f4ac5f5a98ceb172df65da refs/remotes/origin/backport-30966-to-earlgrey_1.0.0\n0b18cb6bd2332958551ce49bfdf91ad136f908bb refs/remotes/origin/backport-31003-to-master\n9d66b4d832ec417db61838fc0e459db2c11451de refs/remotes/origin/backport-31031-to-master\n081e84ca3dee9ec2d866e0847504325ad3a4656b refs/remotes/origin/backport-31053-to-master\nf2338e63bc4db5eeaac40537f8d2eb4a172328d6 refs/remotes/origin/backport-31077-to-master\n54e2a9fe00a64b01b3bad6f4e0cc0aaf12dccacc refs/remotes/origin/backport-31083-to-master\n69c40db1e58b217cf6203bd175f1ae97c754c699 refs/remotes/origin/backport-31091-to-earlgrey_1.0.0\n7225540b401452ab9ab94bf254039464fde36f34 refs/remotes/origin/backport-31109-to-master\n4bf6eaa830943ebd6965767b69da596134ad838b refs/remotes/origin/backport-31179-to-master\nf427b9db314aecd1409f7b13ea7c5bfb7943a50a refs/remotes/origin/backport-31263-to-earlgrey_1.0.0\nc8117737641ad3c7023c8420f0b8524f70a50f27 refs/remotes/origin/backport-31272-to-master\na325dc80c9f8f4d24c07a10607842f054438d03c refs/remotes/origin/backport-31301-to-master\nb038b1254c7bb7e56dd2772c7c789755e1a07ddd refs/remotes/origin/backport-31311-to-master\n5c28912e596bf5feb704a3a15993df3efd601885 refs/remotes/origin/backport-31373-to-master\n2a7c2fe8cdc6794f0ef7413cc71b80224b4d6b94 refs/remotes/origin/blockfile-many-files\nc8ff78280f57bc278c07055d8f031376d5b20772 refs/remotes/origin/ci-lint-darjeeling\ne3793f0d0fe7bed693cc6ecac91b7beba4e8ccea refs/remotes/origin/ci-release-incr-timeout\n68d53c17484d5eb5d78741a24aef787448f6ca01 refs/remotes/origin/darjeeling_1.0.0\nba40664f5db2da533b3bde3351019122a66f2670 refs/remotes/origin/dvsim_dvplan_integ\n7b4319e15da3b1c46ea56ef3dd0a85c50da0d95e refs/remotes/origin/earlgrey-1.0.0-devbundle-licenses\na816ab46d5a410b58e11cab46450bee682d9e1da refs/remotes/origin/earlgrey-spi_device-1r1w\n7d0af709c093b13dc875a32716a935dc1ea2f393 refs/remotes/origin/earlgrey_1.0.0\n9f20940d494a223cc950a5b98f748fb28109d458 refs/remotes/origin/earlgrey_1.0.0_A2_presilicon\nbf170d3225d7d1b271290d12c426376854af8fbf refs/remotes/origin/earlgrey_1.0.0_presilicon\nedf5e35f5d50a5377641c90a315109a351de7635 refs/remotes/origin/earlgrey_es\ndbfb6b92b33f675f34c6c0c90c62c086db03961b refs/remotes/origin/earlgrey_es_sival\nde2345a616b4288c12b73347f35f477bda899da4 refs/remotes/origin/ed25519-legacy\n9a3723391feca3fe93576b8a39ae0258320a4b02 refs/remotes/origin/integrated_dev\n231b399517763c32caa7b3878b6c4feaa1dc79af refs/remotes/origin/master\n553226eae21190b4082396ff6dc3635e90047cb7 refs/remotes/origin/merge-queue\n4126517b85043306d60de77b16c5570d15400995 refs/remotes/origin/multitop_dev\n87b38950a26c209ce1a11008160f4c1ee7275bbf refs/remotes/origin/new_ci_fpga_dispatch\nf83d25345dc79dada0a13a2de45f9291901b561a refs/remotes/origin/nightly_test\n183e2e1d9d3ab3b4110526c1075b7366b3c8b3c5 refs/remotes/origin/nt11-provisioning-rig\n867c06ac88df09dd9fca6eca6fe1e9966da61e11 refs/remotes/origin/ot-sca_cw310\n51a8f50110a12f8c242763882201b116a0e5e21e refs/remotes/origin/ot-sca_cw310_aes\n5b823702439f5b50dd940628884b6cb97046cdcf refs/remotes/origin/ot-sca_cw310_kmac\n2898576bf825a1f577360d8fb5db742f2043e368 refs/remotes/origin/ot-sca_cw310_otbn\nc7d707f564a84bfb02f83c4b0efdf859be9fb4dc refs/remotes/origin/ot-sku-ci\nd9f2cc0e3da72a67dddbdecf7c099d93ac988fac refs/remotes/origin/otbn-kmac-sim\nccd10e56abae7ebee57a80cbdf644721790afefe refs/remotes/origin/publish_bazel_reports\na6a72a24fa6ec4dc4057b982bf1e5a951800a1d0 refs/remotes/origin/release\nd128f5602209cace59177f24791b295f17de40f1 refs/remotes/origin/revert-17124-mode3\n167c38ba87c3faccd29ae563fe11f268b72520dc refs/remotes/origin/revert-26535-pentest_icache_dummy\neb326a86724fd8909348cf9ead2ea0cd971fa928 refs/remotes/origin/revert-26758-no-clock-div\n2b2720754c55f9726d4e690962cc3bd21255fca1 refs/remotes/origin/revert-30472-cherry_pick_compression\na9665d8d6a40e7079072df31b6a06fa6897faa18 refs/remotes/origin/sival_slow_crypto\n95011a30559497e2fdc8055bedf0e1f777e9060e refs/remotes/origin/sw-multi-top\nd2a4c12c2267d026abe5438e006afe5cedd748c2 refs/remotes/origin/test-toolchain\n488414217ab784ccc144ff8e2b0bb48438ca3e47 refs/remotes/origin/to-xcelium\n1dcc8cddddd2f20bc6c47f732188aad50a2ac85b refs/remotes/origin/v1-bronze\n3ea2a2e95e20ed7bc4ad33f3876f3901ab21c58b refs/remotes/origin/vcs_z01x\n81739c5bf28a58e8951ccd8d4fa3c5d453085aa0 refs/tags/2026-05-21-test\n325777cfe783a2c487a0e7155826d47cb867614f refs/tags/2026-06-01-test\n38ea01a366aaa48bcda4ab271a6d5d4a021f6346 refs/tags/Earlgrey-A2-Orchestrator-RC0\n6e8e395e98fb403b1d656d50cf9dccd2794b3d8f refs/tags/Earlgrey-A2-Orchestrator-RC1\n85b8eb248a3f27d7aaa036ead8ba59ffb8d773a3 refs/tags/Earlgrey-A2-Orchestrator-RC2\ncc10b843210d228e48a563e64e72edf09e66e3b7 refs/tags/Earlgrey-A2-Orchestrator-RC3\n19ca9acf702a32f1c1fb789e4696c794739d9531 refs/tags/Earlgrey-A2-Orchestrator-RC4\nbca4b342739aa7d43255ecfceafcdb96c682216f refs/tags/Earlgrey-A2-Orchestrator-RC5\nf346c1de0fbaa48fd6d395cc7158e53a7e9e105f refs/tags/Earlgrey-A2-Orchestrator-RC6\na0001bc25dbd76ad7573f7c51d59d593c12202b2 refs/tags/Earlgrey-A2-Orchestrator-RC7\n203fb2d564d9e4d85eabc2811c812e54fdb66545 refs/tags/Earlgrey-A2-Provisioning-RC0\n2816f7669f2a7f8b845d32d9459459f99fba5411 refs/tags/Earlgrey-A2-Provisioning-RC1\n5537996adffdbc1dd3ddb89a1d579e775a39bb9d refs/tags/Earlgrey-A2-Provisioning-RC10\nb2b48791b1786962de17a3f56a026ff4d7846836 refs/tags/Earlgrey-A2-Provisioning-RC11\n14ddd8d91814f06dc80fa564856df3e61764e485 refs/tags/Earlgrey-A2-Provisioning-RC12\n536735b1762ef7df7fd88d446547142e159d35b7 refs/tags/Earlgrey-A2-Provisioning-RC13\naa6b6e45b194c5613e9a768fb3c6a9470b8b4545 refs/tags/Earlgrey-A2-Provisioning-RC14\n58322aae19107fe4ef10181f6566526f155cac72 refs/tags/Earlgrey-A2-Provisioning-RC15\n3e5a19b53548b086eb89c9cac0cea0f0ffd855bd refs/tags/Earlgrey-A2-Provisioning-RC16\nbd9ada3c529983926f33ae065a95344a9832c301 refs/tags/Earlgrey-A2-Provisioning-RC17\nff5853e2c0cfb26c1a455943b29aeed6e357a8a5 refs/tags/Earlgrey-A2-Provisioning-RC2\n6ae909eed1efd43e0abd36f580504b56aaf19850 refs/tags/Earlgrey-A2-Provisioning-RC3\nc5c7345078c165307d70480d11da200173909871 refs/tags/Earlgrey-A2-Provisioning-RC4\nabb0310e5c71d8b1fadd2c02ac36c2ccc7c70fd8 refs/tags/Earlgrey-A2-Provisioning-RC5\n9ca5d547d270373cc86a12583ed3f5148f3cf682 refs/tags/Earlgrey-A2-Provisioning-RC6\nff7da13469e3d9ad28a83d87d503b6c0a1736d09 refs/tags/Earlgrey-A2-Provisioning-RC7\nc6db44154a9e1162827245a7229dca80d31d7679 refs/tags/Earlgrey-A2-Provisioning-RC8\nc8ba1aba4a7840581c65bae53a86d52cd7e1b440 refs/tags/Earlgrey-A2-Provisioning-RC9\nf38b01f4d453f6a618482b2897009938ba392680 refs/tags/Earlgrey-ES-SV2\nee1fddc31a319f287af989413e11fca3df4e2a05 refs/tags/Earlgrey-M2.5.1-RC0\n^44c75fcc9cc4c4c4daa551d0614ae49b85e54cc4\nf0e07030010aca19bfa3d5fca918ecb6f77488e2 refs/tags/Earlgrey-M2.5.1-RC1\n^02fd38a036eb88f0e1068c83667b928d11e1f648\n21ce4e9761abdf5c919b46e5ae64a5a8e24992f7 refs/tags/Earlgrey-M2.5.2-RC0\nb6c2886f84a9e61b3f8036908b74c2d0fd540426 refs/tags/Earlgrey-M2.5.2-ROM-RC0\n8522e05bc4e5e5e6fec08e8066957fd39559838f refs/tags/Earlgrey-M2.5.2-ROM-RC1\n895673387aa3ef894d0036e6f8f4a8248d42f7d7 refs/tags/Earlgrey-PROD-A2-M6-RC0\n^676fe222252f7a9fc4e0f4b2a4c14c53dfff1b96\n05e45b21357639520421b52fec177c97e37588b2 refs/tags/Earlgrey-PROD-A2-M6-ROM-RC0\n9f20940d494a223cc950a5b98f748fb28109d458 refs/tags/Earlgrey-PROD-A2-M6-ROM-RC1\n892e170679284fc79084022061ae0f79ee357a97 refs/tags/Earlgrey-PROD-M2\n^30d7e787c753caaa03fe68a4a70da1bbcbc1d96f\n36c168c253a68a4e7b11567beea12374f9407aad refs/tags/Earlgrey-PROD-M2-RC0\nc187a82ee842f2b082397b49366fd6155b55dc66 refs/tags/Earlgrey-PROD-M2-RC1\nb3869fb5a8bdbec7f22702edd4152f9af0b5a981 refs/tags/Earlgrey-PROD-M2-RC2\na29dba0686093ce4bbb288768ae0f6381deafc61 refs/tags/Earlgrey-PROD-M2-RC3\nf24455d0a8b65afe75d8b3a84bdf6ba01c940b1a refs/tags/Earlgrey-PROD-M2-RC4\n^919341eb22b8115d333d116db7187f0a13d61b85\n2230571b0014b0679ece90b9f990030a9987ac55 refs/tags/Earlgrey-PROD-M2-RC5\n^30d7e787c753caaa03fe68a4a70da1bbcbc1d96f\ned6c0b1bb52aff8b687c343d717e4728a99ad9d9 refs/tags/Earlgrey-PROD-M3\n^49d4e53c1beb1124beab2b35138a2bfda98af827\nec711524c05e92a306b3e28c0343522909a1b9a7 refs/tags/Earlgrey-PROD-M3-RC0\nc1e0fb7bfe05ff00fa870acd1c6228ccae9f6fa5 refs/tags/Earlgrey-PROD-M3-RC1\n^49d4e53c1beb1124beab2b35138a2bfda98af827\n694ef78d1eb505041b00fca7d8003b4b7c7e742d refs/tags/Earlgrey-PROD-M4\n^34bde60fbf53bf87aadbca540c36bc0506ecb3ef\n52ac422e4e0826badd005e260ce6c516ac0ad480 refs/tags/Earlgrey-PROD-M4-RC0\n^856e402f740d40dbdb06013320f1697670154fc0\n54ed923e9e956737aee0d5a107221447fec33afb refs/tags/Earlgrey-PROD-M4-RC1\n^1a41f176ce409c95e0aecb4f3c270021442a571e\nc9d7d13d2ed61c12edbd49871b09f20980ece2c6 refs/tags/Earlgrey-PROD-M4-RC2\n^73c42574957fad3c99aee16cce2bfcbb720e0d04\n47513032502c40992777a4075c07b3cf62dbf34c refs/tags/Earlgrey-PROD-M4-RC3\n^b4ea446e71ea8e54265b08b744686a430a931bfe\n5d0a99f7f0f059299d8a9757a6f8ae03c3586c37 refs/tags/Earlgrey-PROD-M4-RC4\n^acd065ca7dab30b94a59ec33bdc6c167801fcfbd\nd64e15985089fa700d0684c69e0effbd85cc36ed refs/tags/Earlgrey-PROD-M4-RC5\n^77065bf50cc6641553b01a008461a5a52908bb60\n57afb0bab509661469dcd16e482e756fa8e531a5 refs/tags/Earlgrey-PROD-M4-RC6\n^9152251fd7eea49befcb8d440c835ee923dd7d86\n003713bf56b624bd387b8aab42b968fd27de5629 refs/tags/Earlgrey-PROD-M4-RC7\n^34bde60fbf53bf87aadbca540c36bc0506ecb3ef\n43011e76e61a92821f41633d600518dc5b93c336 refs/tags/Earlgrey-PROD-M5\n^cb7dbb5bbe8a5105d98a6e1d7bdbef84126a5424\n666d4f76993d8b1fca8859ff41acfe95094c5e0c refs/tags/Earlgrey-PROD-M5-RC0\n^4fec3e528e5e5bb6021e14c5d5af4f89b03133f2\n5daa745df09ed3f8717d4642e62246cff3f0da34 refs/tags/Earlgrey-PROD-M5-RC1\n^c04cc5d074d9acefd052feb8a4fd6de6bfa0faab\n2271e2dd95ea3eb11b69ae8f25995ad958a6e4f6 refs/tags/Earlgrey-PROD-M5-RC2\n^a365ced52c2af6ee20a891d6e8f5ddbfbd2b25ce\n9e7ca1de9f635ca3a46bd5e28da075cb112ce67b refs/tags/Earlgrey-PROD-M5-RC3\n^cb7dbb5bbe8a5105d98a6e1d7bdbef84126a5424\n49de03cd42e5878ad983df040544283552302b68 refs/tags/Earlgrey-PROD-M5-ROM-RC0\n6a84251492142c26314bd9ec7e9f16fba348a059 refs/tags/Earlgrey-PROD-M5-ROM-RC1\ne907b95292586a40bcb1c40ce299a158a37ca235 refs/tags/Earlgrey-PROD-M5-ROM-RC2\nb01f81ae203c3e74bb77bf6e123ebdb7ebbdcd63 refs/tags/Earlgrey-PROD-M6\n^a78922f14a8cc20c7ee569f322a04626f2ac6127\n563352df18db4dfa5d4326d80ea1de2d2e7fcbda refs/tags/Earlgrey-PROD-M6-RC0\n^07b417ef03dbfc78446dd724f140d250a27cbac1\n0150f4779b96bca8ea42f5f0bfcf23321f04a78f refs/tags/Earlgrey-PROD-M6-RC1\n^a24387a5be823e204957be7f03ffc61761834500\n51609fc4d7d056e21737c9383d678618e1cf1cc5 refs/tags/Earlgrey-PROD-M6-RC2\n^2f7d9461b8d8f63c39dd9287979d2f7c673c3724\n0c944c8652fa7904f7623ba8f30c78fe18a47f09 refs/tags/Earlgrey-PROD-M6-RC3\n^31ff0de3e29e06c14ac3e5bef2afa68fae6243c0\n2431cb89253ff7120fa3fe31ee996d17a1b27cea refs/tags/Earlgrey-PROD-M6-RC4\n^765a41c3ac3e40a6fad3752a98df14b0e15bf3e7\n0b7215dc2d9571899d20d0a3bea39fe69217d4ab refs/tags/Earlgrey-PROD-M6-RC5\n^a7532758da13cafa7d2d764d6ff0abdf856e9625\n976b1905aec3308bf5f873c0dc27dd5bed74e756 refs/tags/Earlgrey-PROD-M6-RC6\n^40292c033aaa1f4b68dd1f4503dd90a3231b6cb5\ncdcfaf10172cb4695e493c5951dd813c7c037d20 refs/tags/Earlgrey-PROD-M6-RC7\n^a78922f14a8cc20c7ee569f322a04626f2ac6127\n777fc18762dfbf1098a38d888853c960a66ef2e6 refs/tags/Earlgrey-PROD-M6-ROM-RC0\n549f26968d380a64dd6522a8d7ddbf9563ae81db refs/tags/ROM_EXT_BUILD_0.1\nfa29558e3d605600db08350d1dffb681f65b7472 refs/tags/ROM_EXT_BUILD_0.102\n1a07e5f0860b735d2b3b94d961310a3431be4f30 refs/tags/ROM_EXT_BUILD_0.103\nc8ba1aba4a7840581c65bae53a86d52cd7e1b440 refs/tags/ROM_EXT_BUILD_0.111\n5537996adffdbc1dd3ddb89a1d579e775a39bb9d refs/tags/ROM_EXT_BUILD_0.112\nb2b48791b1786962de17a3f56a026ff4d7846836 refs/tags/ROM_EXT_BUILD_0.113\n14ddd8d91814f06dc80fa564856df3e61764e485 refs/tags/ROM_EXT_BUILD_0.114\n536735b1762ef7df7fd88d446547142e159d35b7 refs/tags/ROM_EXT_BUILD_0.115\n3e5a19b53548b086eb89c9cac0cea0f0ffd855bd refs/tags/ROM_EXT_BUILD_0.116\nac6afa5e0d8846f24d092d69087a2937fe3a93df refs/tags/ROM_EXT_BUILD_0.2\n0997649325871c52ccc156201871b1d3abb7aeec refs/tags/ROM_EXT_BUILD_0.3\n73e506d8fdad0b4010a4f45243fe7f794cf54bc2 refs/tags/ROM_EXT_BUILD_0.4\nf67fc1722a98421311592d1f2e4062cd0753c0a9 refs/tags/ROM_EXT_RELEASE_0.1\n0135da5e167491a7709d972789278acd2f4cec4e refs/tags/devbundle-2026-06-02-1\n44a5255d95007f2fb524a28af69b7d75192cd4ce refs/tags/devbundle-2026-08-21-1\n7439265b265acc8b1b25299c10c032b9873ccfe4 refs/tags/earlgrey_bronze_rc1\n^dc8ba9743a146648f060088c1115581327fbe4c7\n39ef627acc3810b0e8217359223b7547c65d5844 refs/tags/earlgrey_bronze_rc2\n^6dc01dc4f76b721aa8e09cea2069cf0f1f9066ea\n5308602059c38b93ddbe79f333c4ceec1f9a47fb refs/tags/earlgrey_bronze_release\n^9d6264ef98ac4737c90941c505adb4c299f212f6\n19ee5d60b43f47689a7a48578adc099de18009ba refs/tags/earlgrey_bronze_release_v10\n^e280bdea5f2639f9304bd4c4a96b993ccd6dc281\na9700ae7623e361305ddb46d3ef773e1cfb5ff9d refs/tags/earlgrey_bronze_release_v11\n^1dcc8cddddd2f20bc6c47f732188aad50a2ac85b\ne96bb24f1a360196715fe7d2ca951318e7a9cb58 refs/tags/earlgrey_bronze_release_v2\n^b97c2166adae98da00c5c6591e14d273305a6a27\n0799a32cf8f398d1686e6fc9f899509dec3127a5 refs/tags/earlgrey_bronze_release_v3\n^4e483d8bbe4ed97aff87cebdd7cfe03dde273599\nc1daac48aa6cb1997355a7dc3d175ccd4dfdc8ea refs/tags/earlgrey_bronze_release_v4\n^800323b31a443edf9ec214c2141815d5da6e6c78\n2355d9569121ddc7bf91e071f011e134e822b5f6 refs/tags/earlgrey_bronze_release_v5\n^89ca71f60d4b1776258e30c272f02b6313a39b9c\nf16e29bb0364137b447395142ed090918a8b8649 refs/tags/earlgrey_bronze_release_v6\n^a1f8f31134198bee55153b74a245f20b0c7f2fe4\n76ba89f6ac875f8313df11bfc48e7394d588da3a refs/tags/earlgrey_bronze_release_v7\n^45d0a638582be5c8b8d4161aa0325577e6738951\n21e1869668dc63a74d6c3af21e319c63f997c258 refs/tags/earlgrey_bronze_release_v8\n^acb97c6adb821a8769af3f16f5953b2c65121603\na66d5e32c26cc93ff68466e5af2e19c2d5aed0fd refs/tags/earlgrey_bronze_release_v9\n^a6be322c34a60175519cdd087ecabfdfa0a2a1c1\n98bfbf0ef37350e517f0e197016a034e888ebfc7 refs/tags/earlgrey_silver_release_v1\n^2254ac84e11794389859f9c1249cf5e2a0f7321f\n208528c6f24c84ee47d3a251701933889aa40d9c refs/tags/earlgrey_silver_release_v2\n^9d9d86fb65b5e5cb16df6cdba89cffe1327ec056\n63bd1f94bdc6633130e567179e32f6a98b7f00d7 refs/tags/earlgrey_silver_release_v3\n^d5c17ccdf0ce03438350cf6792c1bc1f07060e99\nbc7d5809eec8b29c155d58c6d6f8d2390a2a6a55 refs/tags/earlgrey_silver_release_v4\n^21e6a4f15ec7355041b524648beca27b68293ba0\n5492f7f80dc087ca1adcd6e189db04f8bf5abdcc refs/tags/earlgrey_silver_release_v4_rc1\n1e4ac9ad37e8ab936768ca1b2a810d61d3f1c0f1 refs/tags/earlgrey_silver_release_v4_rc2\n^c3091ba158ce055d302787e2dacb44d0674ad8c1\n20a5166b4c69110d1f557bbbd4229b9b4d84a9e6 refs/tags/earlgrey_silver_release_v5\n^ed044fc9760bdf9fc075d0015ba1db07fa075355\n00d5d8e70b4f7e1869d38833a6d85d42b9e14957 refs/tags/kororo_job_633\n277c76d7fb1e50997251488c66c9b6d45d2e82e5 refs/tags/riscv-summit\n3733c3e2d00507f7a39748cfdd9512ea628f655e refs/tags/riscv-summitv2\n0cc313f3b01bc97649dd7a7241cd1c0f6ac10812 refs/tags/snapshot-20191030-1\n^542e220bdfd5fb34a86827fdba6844693994a679\n6409712a2e45118c356ff2371ac32eb555dff526 refs/tags/snapshot-20191101-1\n^1d0d927693c2ef60d7880ab306beb25115a53dcb\n42bef8cb10b2c46d80cd4fc6b48e002dfe0b7065 refs/tags/snapshot-20191101-2\n^8bbd8b881a836f9fc4e99dceb072774e877428bc\naa5233edd4813ac783fa88d0962d50ad687335bc refs/tags/test-1",
+      "packs": [
+        {
+          "bytes": 9424024,
+          "indexed_objects": 336534,
+          "name": "pack-9d63c7f2fb63b5fc0cd003903c8af0d1405681f1.idx",
+          "sha256": "3e3126e51b9b0391fdb8bba81f81ef54a22fe162451d8900e6790769631397f0"
+        },
+        {
+          "bytes": 42525930,
+          "name": "pack-9d63c7f2fb63b5fc0cd003903c8af0d1405681f1.pack"
+        },
+        {
+          "bytes": 21639,
+          "name": "pack-9d63c7f2fb63b5fc0cd003903c8af0d1405681f1.promisor"
+        },
+        {
+          "bytes": 1346188,
+          "name": "pack-9d63c7f2fb63b5fc0cd003903c8af0d1405681f1.rev"
+        },
+        {
+          "bytes": 352388,
+          "indexed_objects": 12547,
+          "name": "pack-b74e450d97abd9d5f59389565f628712961c540c.idx",
+          "sha256": "9a0c7ef19d947e531ba00d04129922e1081af5c9c5e35251c57a1d8f7c36a2f7"
+        },
+        {
+          "bytes": 40000021,
+          "name": "pack-b74e450d97abd9d5f59389565f628712961c540c.pack"
+        },
+        {
+          "bytes": 1028854,
+          "name": "pack-b74e450d97abd9d5f59389565f628712961c540c.promisor"
+        },
+        {
+          "bytes": 50240,
+          "name": "pack-b74e450d97abd9d5f59389565f628712961c540c.rev"
+        }
+      ],
+      "partialclone": null,
+      "promisor_true": true,
+      "remotes": {
+        "remote \"origin\"": {
+          "partialclonefilter": "blob:none",
+          "promisor": "true"
+        }
+      },
+      "revision_ref_visible": true,
+      "root": "/root/fanzehui/system-20261016/project",
+      "shallow": null,
+      "status": "read_only_metadata_observed"
+    },
+    {
+      "alternates": null,
+      "component": "soc-zipcpu",
+      "config_sha256": "a67bf3dd82eb2e824e1ca501c1b95e01cec07f9efbd84b359e7400cc1f32ff80",
+      "config_unchanged_during_read": true,
+      "expected_loose_object_present": false,
+      "expected_object_index_presence": [
+        "pack-2847051dd14e16b9fcc553f2475357d87f7f8612.idx"
+      ],
+      "expected_revision": "42606d2d6ef55df313772232977621b2d72f0159",
+      "git_directory": "/root/fanzehui/system-20261016/project/third_party/soc-zipcpu/.git",
+      "git_entry": "/root/fanzehui/system-20261016/project/third_party/soc-zipcpu/.git",
+      "head": "42606d2d6ef55df313772232977621b2d72f0159",
+      "head_ref_value": null,
+      "loose_refs": {
+        "refs/heads/master": "42606d2d6ef55df313772232977621b2d72f0159",
+        "refs/remotes/origin/HEAD": "ref: refs/remotes/origin/master"
+      },
+      "packed_refs": "# pack-refs with: peeled fully-peeled sorted \naf9cf9edc3d0e7222b0a10a26eada7cf0a997cbb refs/remotes/origin/dev\n42606d2d6ef55df313772232977621b2d72f0159 refs/remotes/origin/master\n315eb63b50c476780126d826a71e094eee19731b refs/remotes/origin/zaxdma",
+      "packs": [
+        {
+          "bytes": 111252,
+          "indexed_objects": 3935,
+          "name": "pack-2847051dd14e16b9fcc553f2475357d87f7f8612.idx",
+          "sha256": "a9c216f288e5853b8374f4c4adf79b33c3277e1321b2e87a36ac3051a85e692e"
+        },
+        {
+          "bytes": 492486,
+          "name": "pack-2847051dd14e16b9fcc553f2475357d87f7f8612.pack"
+        },
+        {
+          "bytes": 220,
+          "name": "pack-2847051dd14e16b9fcc553f2475357d87f7f8612.promisor"
+        },
+        {
+          "bytes": 15792,
+          "name": "pack-2847051dd14e16b9fcc553f2475357d87f7f8612.rev"
+        },
+        {
+          "bytes": 11376,
+          "indexed_objects": 368,
+          "name": "pack-43ce0bc8e2534555fa411418434fd914bcbc6272.idx",
+          "sha256": "ef1782cecdfe0be03e695cf7e58265a1bdfca520a560857721edd3caaa62c761"
+        },
+        {
+          "bytes": 31003412,
+          "name": "pack-43ce0bc8e2534555fa411418434fd914bcbc6272.pack"
+        },
+        {
+          "bytes": 30176,
+          "name": "pack-43ce0bc8e2534555fa411418434fd914bcbc6272.promisor"
+        },
+        {
+          "bytes": 1524,
+          "name": "pack-43ce0bc8e2534555fa411418434fd914bcbc6272.rev"
+        }
+      ],
+      "partialclone": null,
+      "promisor_true": true,
+      "remotes": {
+        "remote \"origin\"": {
+          "partialclonefilter": "blob:none",
+          "promisor": "true"
+        }
+      },
+      "revision_ref_visible": true,
+      "root": "/root/fanzehui/system-20261016/project",
+      "shallow": null,
+      "status": "read_only_metadata_observed"
+    },
+    {
+      "alternates": null,
+      "component": "ibex",
+      "config_sha256": "e7b559e1146a5947ba37df13f4f0a89baeac5118fa28fe81300c5c2155f5eb00",
+      "config_unchanged_during_read": true,
+      "expected_loose_object_present": false,
+      "expected_object_index_presence": [
+        "pack-7139ff2ea71f183fa044f230f2ed61812a3890b6.idx"
+      ],
+      "expected_revision": "34b0705760ef3dfa00e99637432473d2be8f22f3",
+      "git_directory": "/root/fanzehui/system-20261016/project/third_party/rfuzz/upstream/ibex/.git",
+      "git_entry": "/root/fanzehui/system-20261016/project/third_party/rfuzz/upstream/ibex/.git",
+      "head": "34b0705760ef3dfa00e99637432473d2be8f22f3",
+      "head_ref_value": null,
+      "loose_refs": {
+        "refs/heads/main": "531ca2ec439fe3fa89bd6f60ae8f256bc0b9b241",
+        "refs/remotes/origin/HEAD": "ref: refs/remotes/origin/main"
+      },
+      "packed_refs": "# pack-refs with: peeled fully-peeled sorted \nf910e3be528ba9af7b4e185bfff0e0e9eb75396b refs/remotes/origin/cheriot-dma\n69358e0dc2db3db94fb8c358b85d9dc71b4cd1da refs/remotes/origin/dependabot/github_actions/github-actions-10f8c2daf3\na3f2cc8d27dff6b4b766cd66eeb9fcd60fc85a3a refs/remotes/origin/dependabot/pip/dv/formal/jinja2-3.1.6\n531ca2ec439fe3fa89bd6f60ae8f256bc0b9b241 refs/remotes/origin/main\n228ee08b047c7badb493087d3eb66f903bb6d889 refs/tags/cheriot_ibex_v1.0",
+      "packs": [
+        {
+          "bytes": 1100,
+          "indexed_objects": 1,
+          "name": "pack-1163065f24157cc2f4576f363464a2e70031eabc.idx",
+          "sha256": "ff4bf7d79a74c85f4c33aa10fdaeb4059bd9439376e29fca1c56b35d35f6d472"
+        },
+        {
+          "bytes": 41,
+          "name": "pack-1163065f24157cc2f4576f363464a2e70031eabc.pack"
+        },
+        {
+          "bytes": 0,
+          "name": "pack-1163065f24157cc2f4576f363464a2e70031eabc.promisor"
+        },
+        {
+          "bytes": 56,
+          "name": "pack-1163065f24157cc2f4576f363464a2e70031eabc.rev"
+        },
+        {
+          "bytes": 13448,
+          "indexed_objects": 442,
+          "name": "pack-3bca1c552447fc932c5e5e4186410554e2544cf5.idx",
+          "sha256": "4d56c670cce0dbb717015d45ce720d9188264b40a75bdbfa9339d5776445ba2c"
+        },
+        {
+          "bytes": 903484,
+          "name": "pack-3bca1c552447fc932c5e5e4186410554e2544cf5.pack"
+        },
+        {
+          "bytes": 36244,
+          "name": "pack-3bca1c552447fc932c5e5e4186410554e2544cf5.promisor"
+        },
+        {
+          "bytes": 1820,
+          "name": "pack-3bca1c552447fc932c5e5e4186410554e2544cf5.rev"
+        },
+        {
+          "bytes": 292720,
+          "indexed_objects": 10416,
+          "name": "pack-624b2da93a784e53b603ecfb7f13d8b5788d5fa5.idx",
+          "sha256": "75705c723f36c7b12387144e03b97015e04f27aaff7ce9bdb0f569f237de5059"
+        },
+        {
+          "bytes": 1602676,
+          "name": "pack-624b2da93a784e53b603ecfb7f13d8b5788d5fa5.pack"
+        },
+        {
+          "bytes": 430,
+          "name": "pack-624b2da93a784e53b603ecfb7f13d8b5788d5fa5.promisor"
+        },
+        {
+          "bytes": 41716,
+          "name": "pack-624b2da93a784e53b603ecfb7f13d8b5788d5fa5.rev"
+        },
+        {
+          "bytes": 433532,
+          "indexed_objects": 15445,
+          "name": "pack-7139ff2ea71f183fa044f230f2ed61812a3890b6.idx",
+          "sha256": "4ae9f9bf34d857698a541be5574fbc4724ae0c1dc090e549d1a6245cafbbc19b"
+        },
+        {
+          "bytes": 33549458,
+          "name": "pack-7139ff2ea71f183fa044f230f2ed61812a3890b6.pack"
+        },
+        {
+          "bytes": 61832,
+          "name": "pack-7139ff2ea71f183fa044f230f2ed61812a3890b6.rev"
+        },
+        {
+          "bytes": 23528,
+          "indexed_objects": 802,
+          "name": "pack-b233a0be957de907591a8d7b8cde8334328272f6.idx",
+          "sha256": "8264a34231fa0e5600d7e59e62a4b16c7117480f1f0444ceff7ad6ad0f0ad379"
+        },
+        {
+          "bytes": 1325772,
+          "name": "pack-b233a0be957de907591a8d7b8cde8334328272f6.pack"
+        },
+        {
+          "bytes": 65764,
+          "name": "pack-b233a0be957de907591a8d7b8cde8334328272f6.promisor"
+        },
+        {
+          "bytes": 3260,
+          "name": "pack-b233a0be957de907591a8d7b8cde8334328272f6.rev"
+        }
+      ],
+      "partialclone": null,
+      "promisor_true": true,
+      "remotes": {
+        "remote \"origin\"": {
+          "partialclonefilter": "blob:none",
+          "promisor": "true"
+        }
+      },
+      "revision_ref_visible": true,
+      "root": "/root/fanzehui/system-20261016/project",
+      "shallow": null,
+      "status": "read_only_metadata_observed"
+    }
+  ],
+  "schema_version": "p8_existing_remote_metadata_readonly.v1",
+  "transport": {
+    "argv": [
+      "ssh",
+      "jumpserver",
+      "ssh root@192.168.5.70 python3 -"
+    ],
+    "packs_downloaded": false,
+    "remote_git_subprocess": false,
+    "remote_mutation": false,
+    "remote_project_import": false,
+    "returncode": 0
+  }
+}
