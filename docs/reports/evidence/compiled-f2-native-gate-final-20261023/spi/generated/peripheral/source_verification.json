@@ -1,0 +1,59 @@
+{
+  "closure_sha256": "c575700a1cc1c25a73a56b50545d4483f44f6e0cadaa535a7b847ac541b92a30",
+  "elaboration_status": "elaboration_verified",
+  "lock_sha256": "4caf0ae616e99e3c7cac76a1b04daca41af9bcef0eee3b6b0923fb6bd7e2a29e",
+  "profile_union_revision": "sha256:c653811843b453f0689a8f6942934ff9d551734aa4bc4e197d8b9acbfb020230",
+  "schema_version": "local_source_lock_verification.v1",
+  "source_records": [
+    {
+      "elaboration": {
+        "closure_files": 7,
+        "closure_roots": [
+          "third_party/soc-pulp-apb-spi",
+          "third_party/soc-pulp-axi-spi"
+        ],
+        "elaboration_status": "elaboration_verified",
+        "lint": {
+          "errors": 0,
+          "exit_code": 0,
+          "log": "runs/soc-source-elaboration/pulp/pulp_spi.elaborate.log",
+          "warnings": 10
+        },
+        "tool": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+        "top_module": "apb_spi_master"
+      },
+      "elaboration_status": "elaboration_verified",
+      "id": "pulp_spi",
+      "parse_status": "parameterized_ports_pending_elaboration",
+      "runtime_status": "runtime_unverified",
+      "selected_content_hash": "sha256:4e4179730dd875bc66396b973ddf98ecf6bedf5c13e241a4e4140bf002667929",
+      "selected_files": 2,
+      "source_status": "source_verified"
+    },
+    {
+      "elaboration": {
+        "closure_files": 4,
+        "closure_roots": [
+          "third_party/soc-pulp-axi-spi"
+        ],
+        "elaboration_status": "elaboration_verified",
+        "lint": {
+          "errors": 0,
+          "exit_code": 0,
+          "log": "runs/soc-source-elaboration/pulp/pulp_spi_dependencies.elaborate.log",
+          "warnings": 5
+        },
+        "tool": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+        "top_module": "spi_master_controller"
+      },
+      "elaboration_status": "elaboration_verified",
+      "id": "pulp_spi_dependencies",
+      "parse_status": "parameterized_ports_pending_elaboration",
+      "runtime_status": "runtime_unverified",
+      "selected_content_hash": "sha256:90935e7e6ad612ce30f6f246abd05501e8276b3d51cbfe537d1d6dbd725c5e58",
+      "selected_files": 5,
+      "source_status": "source_verified"
+    }
+  ],
+  "source_status": "source_verified"
+}

@@ -1,0 +1,330 @@
+{
+  "dispositions": [
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_timer",
+      "direction": "input",
+      "disposition": "functional",
+      "evidence": "component_profile.clocks[HCLK]",
+      "instance_id": "peripheral",
+      "port": "HCLK",
+      "port_width": 1,
+      "reason": "clock port distributed from the SoC clock input",
+      "reset_domain": "local_reset",
+      "role": "clock",
+      "target": "clock_reset"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_timer",
+      "direction": "input",
+      "disposition": "functional",
+      "evidence": "component_profile.resets[HRESETn]",
+      "instance_id": "peripheral",
+      "port": "HRESETn",
+      "port_width": 1,
+      "reason": "reset port distributed from the SoC reset input",
+      "reset_domain": "local_reset",
+      "role": "reset",
+      "target": "clock_reset"
+    },
+    {
+      "bits": {
+        "hi": 11,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_timer",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "timer.bus",
+      "evidence": "elaborated_ports[PADDR]",
+      "instance_id": "peripheral",
+      "port": "PADDR",
+      "port_width": 12,
+      "reason": "bound to interface timer.bus role paddr",
+      "reset_domain": "local_reset",
+      "role": "paddr",
+      "target": "fabric_target"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_timer",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "timer.bus",
+      "evidence": "elaborated_ports[PENABLE]",
+      "instance_id": "peripheral",
+      "port": "PENABLE",
+      "port_width": 1,
+      "reason": "bound to interface timer.bus role penable",
+      "reset_domain": "local_reset",
+      "role": "penable",
+      "target": "fabric_target"
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_timer",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "timer.bus",
+      "evidence": "elaborated_ports[PRDATA]",
+      "instance_id": "peripheral",
+      "port": "PRDATA",
+      "port_width": 32,
+      "reason": "bound to interface timer.bus role prdata",
+      "reset_domain": "local_reset",
+      "role": "prdata",
+      "target": "fabric_target"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_timer",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "timer.bus",
+      "evidence": "elaborated_ports[PREADY]",
+      "instance_id": "peripheral",
+      "port": "PREADY",
+      "port_width": 1,
+      "reason": "bound to interface timer.bus role pready",
+      "reset_domain": "local_reset",
+      "role": "pready",
+      "target": "fabric_target"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_timer",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "timer.bus",
+      "evidence": "elaborated_ports[PSEL]",
+      "instance_id": "peripheral",
+      "port": "PSEL",
+      "port_width": 1,
+      "reason": "bound to interface timer.bus role psel",
+      "reset_domain": "local_reset",
+      "role": "psel",
+      "target": "fabric_target"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_timer",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "timer.bus",
+      "evidence": "elaborated_ports[PSLVERR]",
+      "instance_id": "peripheral",
+      "port": "PSLVERR",
+      "port_width": 1,
+      "reason": "bound to interface timer.bus role pslverr",
+      "reset_domain": "local_reset",
+      "role": "pslverr",
+      "target": "fabric_target"
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_timer",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "timer.bus",
+      "evidence": "elaborated_ports[PWDATA]",
+      "instance_id": "peripheral",
+      "port": "PWDATA",
+      "port_width": 32,
+      "reason": "bound to interface timer.bus role pwdata",
+      "reset_domain": "local_reset",
+      "role": "pwdata",
+      "target": "fabric_target"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_timer",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "timer.bus",
+      "evidence": "elaborated_ports[PWRITE]",
+      "instance_id": "peripheral",
+      "port": "PWRITE",
+      "port_width": 1,
+      "reason": "bound to interface timer.bus role pwrite",
+      "reset_domain": "local_reset",
+      "role": "pwrite",
+      "target": "fabric_target"
+    },
+    {
+      "bits": {
+        "hi": 3,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "pulp_timer",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[irq_o]",
+      "instance_id": "peripheral",
+      "port": "irq_o",
+      "port_width": 4,
+      "reason": "Four native comparator/overflow equality signals, one cycle when count equals the comparator at the prescaler point. They are pulse observations; the level-only CPU IRQ collector cannot directly consume them.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    }
+  ],
+  "module_name": "local_peripheral",
+  "parameter_evidence": [
+    {
+      "declaration": "parameter APB_ADDR_WIDTH = 12",
+      "name": "APB_ADDR_WIDTH",
+      "qualified_type": null,
+      "source_file": "src/apb_timer.sv",
+      "source_sha256": "22dce4e3ff8328bdd6e1621c20e2877e7f44cfecccc07203d09e994632cc1778"
+    },
+    {
+      "declaration": "parameter TIMER_CNT = 2",
+      "name": "TIMER_CNT",
+      "qualified_type": null,
+      "source_file": "src/apb_timer.sv",
+      "source_sha256": "22dce4e3ff8328bdd6e1621c20e2877e7f44cfecccc07203d09e994632cc1778"
+    }
+  ],
+  "plan_sha256": "60f7e2b67ba828bcf10a1bbbd929eefe8c99bcdbbd7b882b734055319986c66a",
+  "ports": [
+    {
+      "bit_hi": 11,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "timer.bus",
+      "physical_port": "PADDR",
+      "role": "paddr",
+      "width": 12,
+      "wrapper_name": "lh_p_2_11_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "timer.bus",
+      "physical_port": "PENABLE",
+      "role": "penable",
+      "width": 1,
+      "wrapper_name": "lh_p_3_0_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "timer.bus",
+      "physical_port": "PRDATA",
+      "role": "prdata",
+      "width": 32,
+      "wrapper_name": "lh_p_4_31_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "timer.bus",
+      "physical_port": "PREADY",
+      "role": "pready",
+      "width": 1,
+      "wrapper_name": "lh_p_5_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "timer.bus",
+      "physical_port": "PSEL",
+      "role": "psel",
+      "width": 1,
+      "wrapper_name": "lh_p_6_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "timer.bus",
+      "physical_port": "PSLVERR",
+      "role": "pslverr",
+      "width": 1,
+      "wrapper_name": "lh_p_7_0_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "timer.bus",
+      "physical_port": "PWDATA",
+      "role": "pwdata",
+      "width": 32,
+      "wrapper_name": "lh_p_8_31_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "timer.bus",
+      "physical_port": "PWRITE",
+      "role": "pwrite",
+      "width": 1,
+      "wrapper_name": "lh_p_9_0_0"
+    },
+    {
+      "bit_hi": 3,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "irq_o",
+      "role": null,
+      "width": 4,
+      "wrapper_name": "lh_p_10_3_0"
+    }
+  ],
+  "reset_assertion": "active_high",
+  "schema_version": "local_harness_abi.v1"
+}

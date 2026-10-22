@@ -1,0 +1,81 @@
+{
+  "capabilities": {
+    "/home/qinkejiu/myfuzz/configs/scenarios/compiled-f4-obi-apb-spi-cv32e40p/test_capability.json": {
+      "component_id": "pulp_spi",
+      "endpoint_capabilities": [
+        {
+          "endpoint_id": "spi.bus",
+          "operations": [
+            "request",
+            "accept",
+            "response",
+            "read",
+            "write",
+            "wait",
+            "error"
+          ]
+        }
+      ],
+      "observation_mappings": [],
+      "profile_fingerprint": "sha256:d2cdcd865c77cd8e85ea5843694a9a86fc035d8a6d03a75fa7bd9cee3af2fddf",
+      "register_aliases": [],
+      "register_semantics": [
+        {
+          "access": "rw",
+          "evidence_ref": "rtl:third_party/soc-pulp-apb-spi/spi_master_apb_if.sv@sha256:c653811843b453f0689a8f6942934ff9d551734aa4bc4e197d8b9acbfb020230:84-107,110-169,182-212;sha256=a9a32da6cc07768cab293c48989599e36b2000bb572191667960aa1423fc790a",
+          "field": "value",
+          "lsb": 0,
+          "read_mask": 4294967295,
+          "register": "SPICMD",
+          "reset_value": 0,
+          "side_effect": "none",
+          "width": 32,
+          "write_mask": 4294967295
+        }
+      ],
+      "schema_version": "ip_test_capability.v3"
+    }
+  },
+  "compose": {
+    "cpu": {
+      "data_endpoint": "processor.data",
+      "instance_id": "processor",
+      "request": "requests/processor.json"
+    },
+    "devices": [
+      {
+        "base": 1073745920,
+        "bus_endpoint": "spi.bus",
+        "device_id": "peripheral",
+        "instance_id": "peripheral",
+        "request": "requests/peripheral.json",
+        "size": 4096
+      }
+    ],
+    "memory": [
+      {
+        "base": 65536,
+        "component_instance": "processor",
+        "execute": true,
+        "initialization_policy": "preload",
+        "read": true,
+        "resource_id": "ram",
+        "size": 196608,
+        "write": true
+      }
+    ],
+    "schema_version": "harness_compose.v1"
+  },
+  "records": [
+    "08100040"
+  ],
+  "supplement": {
+    "ownership": {
+      "fields": [],
+      "owners": []
+    },
+    "physical_port_map": [],
+    "request_supplements": {},
+    "schema_version": "compiled_execution_file_supplement.v1"
+  }
+}

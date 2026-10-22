@@ -1,0 +1,40 @@
+{
+  "closed": true,
+  "exits": {
+    "peripheral": {
+      "reaped": true,
+      "returncode": 0
+    },
+    "processor": {
+      "reaped": true,
+      "returncode": 0
+    }
+  },
+  "identities": {
+    "peripheral": {
+      "artifact_digest": "70f3c1bdecd045494ad28cce07ed443d568240dec94a5d382b6f7a02bf8f4489",
+      "binary_sha256": "3ef38b1d177caf02b6691a6915cf9909a824cdcca4df9e8ced4216467d144044",
+      "build_digest": "978451389a5f971470047c3fd09be28c2cf25f0f2c3bbacff89dcc4ff8268c88",
+      "built_receipt_sha256": "e08da0822609dfbc4eef4a0edd11e6ce1cf3e84de7872d29a0ffdff472a94751",
+      "component": "peripheral",
+      "execution_nonce": "c7e5754dbf4246bf88c264de41e85443",
+      "observed_executable_sha256": "3ef38b1d177caf02b6691a6915cf9909a824cdcca4df9e8ced4216467d144044",
+      "pid": 544522,
+      "ready_artifact_digest": "70f3c1bdecd045494ad28cce07ed443d568240dec94a5d382b6f7a02bf8f4489",
+      "role": "bound_target"
+    },
+    "processor": {
+      "artifact_digest": "221cecdb2a3c3148846bbf7318587d3fa08fb5cb118ad235bf12337cfc8e1f84",
+      "binary_sha256": "a2af5a1c8deedde276196a41a29fb51fec9d2c07cd39b220173aea861d62460f",
+      "build_digest": "7bc875df1ef0fcf60cb666a8feca3a4b7678a3c4f900624339b12efd1b6c404d",
+      "built_receipt_sha256": "d178e85b7972edf29fbedf652e57907c541e6fff361e27192e23bc64ee349d05",
+      "component": "processor",
+      "execution_nonce": "be59fec4b16840faa4e02993ab8bda33",
+      "observed_executable_sha256": "a2af5a1c8deedde276196a41a29fb51fec9d2c07cd39b220173aea861d62460f",
+      "pid": 544576,
+      "ready_artifact_digest": "221cecdb2a3c3148846bbf7318587d3fa08fb5cb118ad235bf12337cfc8e1f84",
+      "role": "cpu"
+    }
+  },
+  "schema_version": "compiled_F2_execution_audit.v1"
+}

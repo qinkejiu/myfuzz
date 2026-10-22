@@ -1,0 +1,18 @@
+{
+  "/home/qinkejiu/.native-gate/final-f2-spi/fresh-1/comparison.json": {
+    "resolved_path": "/home/qinkejiu/.native-gate/final-f2-spi/fresh-1/comparison.json",
+    "sha256": "efcfc50b4f85a2644f68c6e47266731de9db4c02a234b9f33be56a95e51ccbb1"
+  },
+  "/home/qinkejiu/.native-gate/final-f2-spi/fresh-1/events.json": {
+    "resolved_path": "/home/qinkejiu/.native-gate/final-f2-spi/fresh-1/events.json",
+    "sha256": "9a1a5f8d2aa7847ea0741a6a3f890a94a5c08edd08f2973dee6509a69866498c"
+  },
+  "/home/qinkejiu/.native-gate/final-f2-spi/fresh-1/execution_audit.json": {
+    "resolved_path": "/home/qinkejiu/.native-gate/final-f2-spi/fresh-1/execution_audit.json",
+    "sha256": "ff91eebd471e5b4c2505f718c7d163c1da7436bfd9032297d3e6cfe8dfd6775e"
+  },
+  "/home/qinkejiu/.native-gate/final-f2-spi/fresh-1/prefix.json": {
+    "resolved_path": "/home/qinkejiu/.native-gate/final-f2-spi/fresh-1/prefix.json",
+    "sha256": "e7501c80d2057c8f03fd2352b7bc3c59b5edbcd351ae2cde90282d68a033e48a"
+  }
+}

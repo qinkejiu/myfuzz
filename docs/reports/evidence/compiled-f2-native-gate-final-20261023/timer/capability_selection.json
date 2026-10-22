@@ -1,0 +1,8 @@
+[
+  {
+    "instance_id": "peripheral",
+    "profile": "configs/peripherals/pulp_timer/component_profile.json",
+    "source": "declared-option",
+    "test_capability": "configs/scenarios/compiled-f4-obi-apb-timer/test_capability.json"
+  }
+]

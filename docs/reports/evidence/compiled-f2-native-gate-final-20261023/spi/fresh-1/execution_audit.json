@@ -1,0 +1,40 @@
+{
+  "closed": true,
+  "exits": {
+    "peripheral": {
+      "reaped": true,
+      "returncode": 0
+    },
+    "processor": {
+      "reaped": true,
+      "returncode": 0
+    }
+  },
+  "identities": {
+    "peripheral": {
+      "artifact_digest": "e2c0242a32d03392711161e0b156f054f26e5f04a91c202df06569b6ab54d9f4",
+      "binary_sha256": "839b7cc78ecf3515ab432b835477564fb9570cfd821e21a6cdbf36aa7299ff67",
+      "build_digest": "63dc9913957de742932b1655f49dc104ada66aceb0d2d5e0c079303412d51566",
+      "built_receipt_sha256": "6d19198abebe48809402163bb9c2c4293fa63e134e4d385872e63ad76508883c",
+      "component": "peripheral",
+      "execution_nonce": "ac7a213c0e2d4d54ba8f96ad78911c3d",
+      "observed_executable_sha256": "839b7cc78ecf3515ab432b835477564fb9570cfd821e21a6cdbf36aa7299ff67",
+      "pid": 553590,
+      "ready_artifact_digest": "e2c0242a32d03392711161e0b156f054f26e5f04a91c202df06569b6ab54d9f4",
+      "role": "bound_target"
+    },
+    "processor": {
+      "artifact_digest": "1169e7c79ae1fa9b9c7c01e6ad61876b506f73d7c2758236eac75a0262f4ad47",
+      "binary_sha256": "03f255aefe7bece35e191d09db8ec0ff9d36e78e8130f4abb858ee49d0f42c68",
+      "build_digest": "cff6691672266a6213a16ae37402e2d9a76bc7c21e595a4ee2eba8fccb65f621",
+      "built_receipt_sha256": "3e7fc1f8699c660830fd9835682122de41ec25b54709a77b9d393b6cb42a88d0",
+      "component": "processor",
+      "execution_nonce": "9e675770914f4cc2ac77d3bd4cf80f13",
+      "observed_executable_sha256": "03f255aefe7bece35e191d09db8ec0ff9d36e78e8130f4abb858ee49d0f42c68",
+      "pid": 553644,
+      "ready_artifact_digest": "1169e7c79ae1fa9b9c7c01e6ad61876b506f73d7c2758236eac75a0262f4ad47",
+      "role": "cpu"
+    }
+  },
+  "schema_version": "compiled_F2_execution_audit.v1"
+}

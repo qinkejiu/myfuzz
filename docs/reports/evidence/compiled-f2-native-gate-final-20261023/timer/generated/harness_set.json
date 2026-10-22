@@ -1,0 +1,94 @@
+{
+  "components": [
+    {
+      "artifact_digest": "221cecdb2a3c3148846bbf7318587d3fa08fb5cb118ad235bf12337cfc8e1f84",
+      "binary": null,
+      "device_id": null,
+      "harness": "processor",
+      "instance_id": "processor",
+      "kind": "obi_cpu",
+      "request": "requests/processor.json",
+      "role": "cpu",
+      "template": {
+        "declared_role": "cpu-data",
+        "endpoint_id": "processor.data",
+        "identity_sha256": "96d81bc391d36b1108c2c875f60e5eeb1a96a5688a7e1d9d0e55c1401109ab83",
+        "instance_id": "processor",
+        "protocol": [
+          "obi",
+          "1"
+        ],
+        "template_id": "cpu.obi",
+        "template_version": "1",
+        "variant_id": "read-write"
+      }
+    },
+    {
+      "artifact_digest": "70f3c1bdecd045494ad28cce07ed443d568240dec94a5d382b6f7a02bf8f4489",
+      "binary": null,
+      "device_id": "peripheral",
+      "harness": "peripheral",
+      "instance_id": "peripheral",
+      "kind": "apb3_register_observe",
+      "request": "requests/peripheral.json",
+      "role": "device",
+      "template": {
+        "declared_role": "device-bus",
+        "endpoint_id": "timer.bus",
+        "identity_sha256": "31a5a8add131e35375fdc972241ae9bb6f18030798b39edf9c4120952ea3d59a",
+        "instance_id": "peripheral",
+        "protocol": [
+          "apb",
+          "3"
+        ],
+        "template_id": "target.apb3",
+        "template_version": "1",
+        "variant_id": "full-word"
+      }
+    }
+  ],
+  "not_claimed": [
+    "cross_component_accepted",
+    "rtl_operational",
+    "coverage_guided_searched",
+    "bug_confirmed"
+  ],
+  "schema_version": "harness_set.v1",
+  "tier": "generated",
+  "tier_scope": "harnesses were generated and admitted by template",
+  "wiring": {
+    "cpu": {
+      "endpoint_id": "processor.data",
+      "instance_id": "processor",
+      "template": "cpu.obi",
+      "variant_id": "read-write"
+    },
+    "cycle_accurate": false,
+    "delivery": "transaction_level_explicit",
+    "global_interconnect": false,
+    "resources": [
+      {
+        "base": 65536,
+        "component_instance": "processor",
+        "execute": true,
+        "initialization_policy": "preload",
+        "read": true,
+        "resource_id": "ram",
+        "size": 196608,
+        "write": true
+      }
+    ],
+    "schema_version": "wiring_contract.v1",
+    "windows": [
+      {
+        "base": 1073745920,
+        "device_id": "peripheral",
+        "endpoint_id": "timer.bus",
+        "size": 4096,
+        "target_instance": "peripheral",
+        "template": "target.apb3",
+        "variant_id": "full-word"
+      }
+    ]
+  }
+}

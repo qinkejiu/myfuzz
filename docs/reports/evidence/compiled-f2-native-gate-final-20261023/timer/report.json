@@ -1,0 +1,343 @@
+{
+  "build_join": {
+    "schema_version": "compiled_F2_build_join.v1",
+    "sha256": "8ef6a67e875c3af4f7791599fc157fd8ded9d8e9872065fb2587b55e323332fa",
+    "status": "complete"
+  },
+  "capability": {
+    "execution_supported": 1,
+    "executor": "compiled_f2_obi_apb",
+    "flow_id": "F2",
+    "path_id": "F2:ram.image",
+    "producer_binding": {
+      "compiled_sha256": "cc2c117af88255e1d4b57fac23d1fbd0d65e77da47eef7c22787291b022fe7ce",
+      "endpoint_id": "timer.bus",
+      "execution_contract": {
+        "address": 1073745924,
+        "allowed_byte_enables": [
+          15
+        ],
+        "consumption_mode": "native_read_then_dependent_ram_store",
+        "device_id": "peripheral",
+        "expectation_ids": [
+          "cross_component.declared_edge_hops",
+          "protocol_checker.receipt_violations"
+        ],
+        "field": "value",
+        "instruction_source_id": "ram.image",
+        "load_source_id": "peripheral.TIMER0_CTRL.value.address",
+        "nodes": {
+          "consumed": "F2.data_read_consumed",
+          "image": "F2.program_image",
+          "request": "F2.read_request",
+          "response": "F2.read_response"
+        },
+        "register": "TIMER0_CTRL",
+        "response_mask": 4294967295,
+        "schema_version": "compiled_F2_read_contract.v1",
+        "source_component": "processor",
+        "source_endpoint": "processor.data",
+        "target_component": "peripheral",
+        "target_endpoint": "timer.bus",
+        "version_selector": {
+          "component": "peripheral",
+          "epoch_policy": "current_live_epoch",
+          "kind": "ip_register_version",
+          "register": "TIMER0_CTRL"
+        },
+        "width_bytes": 4,
+        "window": {
+          "base": 1073745920,
+          "size": 4096
+        }
+      },
+      "layout_digest": "6d18b1b747635b731f6b7d51e27f030e994be07fa6d5fbddbcbf336c0fd2dd33",
+      "live_authority": "not_claimed",
+      "probe": {
+        "digest": "e852d7028f3e4583e4cd54dbb574e4c61acc92cd5ff50fc7c548fba7259da739",
+        "hierarchy_evidence": {
+          "binding_digest": "fc2056da3f3857290b8e06428d32939229be3788544d7fe9eede32bea83117a3",
+          "proof_digest": "a889c6eb699ecdbd2ad4959f3ca14a5762608edb5a8ce93523343e02fffbef85",
+          "reference": "docs/reports/evidence/verilog-probe-pulp-apb-timer/proof.json",
+          "runtime_sv_sha256": "3ec91be8df7b19a154821c74d3a64508f2ed991f389b3d8d91f7fe7dc13842a6",
+          "sample_digest": "155028cedf0b31be0fe8b09ff1a900832178be8c34ebf37664fa445b2723201e",
+          "schema_version": "apb_storage_hierarchy_evidence.v1",
+          "verilator": {
+            "top_module": "local_runtime_peripheral",
+            "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67"
+          },
+          "wrapper_sha256": "7bffa340977a2c002abd0f43fc16b4fc06afe420f772ec9d31c5e31e905e38f3"
+        },
+        "hierarchy_verified": true,
+        "native_verified": true,
+        "port_names": [
+          "storage_paddr",
+          "storage_penable",
+          "storage_prdata",
+          "storage_pready",
+          "storage_psel",
+          "storage_pslverr",
+          "storage_pwdata",
+          "storage_pwrite",
+          "storage_reset",
+          "storage_value"
+        ],
+        "reset_authority": false,
+        "sample_group": "storage_probes",
+        "schema_version": "apb_storage_probe.v1",
+        "source_authority": false,
+        "source_contract_digest": "75bf4ddf1bacc6879235cabf980ec7c252dbd9251243895f25f72ebddd1f131f",
+        "version_authority": false
+      },
+      "producer": {
+        "grants_reset_prerequisite": false,
+        "issuer_source_sha256": "97134ae051795fe5847248743537edf11f1cfb6ca6cf513930a4331b74e7ab2a",
+        "session_construction": {
+          "bound_inputs": [],
+          "dynamic_inputs": [],
+          "probe_offsets": [],
+          "setup_writes": []
+        },
+        "session_source_sha256": "4abd50281982ab1094c6e37b509dc192cdfe54b6b0200589193b52d7a68b485f"
+      },
+      "protocol": [
+        "apb",
+        "3"
+      ],
+      "register": {
+        "address": 1073745924,
+        "byte_enables": [
+          15
+        ],
+        "name": "TIMER0_CTRL",
+        "offset": 4,
+        "operation": "read",
+        "read_mask": 4294967295,
+        "width": 32
+      },
+      "row": "generic_apb_storage_read_abi",
+      "schema_version": "compiled_F2_read_producer_binding.v1",
+      "source": {
+        "authority": false,
+        "clock": {
+          "edge": "posedge",
+          "port": "HCLK"
+        },
+        "contract_id": "pulp-apb-timer.ctrl0.source.v1",
+        "decode": {
+          "address_width": 12,
+          "alias_period_bytes": 32,
+          "aligned_word_alias_count": 128,
+          "child_select": "2-bit register_adr truncates PADDR[4:2] to PADDR[3:2]; REG_TIMER_CTRL=1",
+          "expression": "PADDR[4:2] == 3'b001",
+          "host_alignment_bytes": 4,
+          "host_alignment_scope": "separate_transport_rule_not_raw_storage_decode",
+          "ignored_address_bits": [
+            0,
+            1,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ],
+          "mask": 28,
+          "raw_address_alias_count": 512,
+          "top_select": "slave_address_int = PADDR[4]",
+          "value": 4
+        },
+        "digest": "75bf4ddf1bacc6879235cabf980ec7c252dbd9251243895f25f72ebddd1f131f",
+        "hierarchy_verified": false,
+        "native_verified": false,
+        "not_claimed": [
+          "arbitrary_RTL_inference",
+          "native_hierarchy",
+          "generated_probe",
+          "build_process_eligibility",
+          "reset_observation",
+          "live_register_version",
+          "serialized_authority",
+          "complete_F4",
+          "P7"
+        ],
+        "parameters": {
+          "APB_ADDR_WIDTH": 12,
+          "TIMER_CNT": 2
+        },
+        "register": {
+          "canonical_offset": 4,
+          "name": "TIMER0_CTRL",
+          "read_mask": 4294967295,
+          "reset_value": 0,
+          "width": 32,
+          "write_mask": 4294967295
+        },
+        "reset": {
+          "event": "negedge HRESETn or asserted at posedge HCLK",
+          "polarity": "active_low",
+          "port": "HRESETn",
+          "synchronous": false
+        },
+        "reset_authority": false,
+        "schema_version": "apb_storage_source_contract.v1",
+        "scope": "source_reviewed_contract",
+        "source": {
+          "defines": {},
+          "files": {
+            "src/apb_timer.sv": "22dce4e3ff8328bdd6e1621c20e2877e7f44cfecccc07203d09e994632cc1778",
+            "src/timer.sv": "d352fc4476da83658d361e8f500b5a73f857f0a11e9436ab47d5bf0ba0bc7fce"
+          },
+          "identity_basis": "declared_pinned_revision_and_exact_reviewed_bytes_not_new_git_or_elaboration_verification",
+          "include_roots": [],
+          "revision": "git:03eba2e6965f5363df12621882bc70498c551a73",
+          "root": "third_party/soc-pulp-apb-timer",
+          "top_module": "apb_timer"
+        },
+        "source_authority": false,
+        "source_review": [
+          {
+            "fact": "two timers, bit4 selection, forwarded APB and output mux",
+            "file": "src/apb_timer.sv",
+            "lines": [
+              [
+                12,
+                17
+              ],
+              [
+                34,
+                42
+              ],
+              [
+                49,
+                59
+              ],
+              [
+                64,
+                85
+              ]
+            ]
+          },
+          {
+            "fact": "truncated decode, complete combinational writers/read/reset/sequential commit",
+            "file": "src/timer.sv",
+            "lines": [
+              [
+                12,
+                18
+              ],
+              [
+                39,
+                48
+              ],
+              [
+                67,
+                105
+              ],
+              [
+                108,
+                140
+              ]
+            ]
+          }
+        ],
+        "storage_expression": {
+          "expression": "u_component.u_dut.TIMER_GEN[0].timer_i.regs_q[1]",
+          "relative_source_storage": "timer.regs_q[REG_TIMER_CTRL]",
+          "required_followup": "verify_actual_elaborated_hierarchy_and_read_only_pre_post_probe_wiring",
+          "status": "prospective_not_codegen_or_native_verified"
+        },
+        "version_authority": false,
+        "writers": {
+          "all_alias_writes": "every raw decode match writes the same storage, including ignored low/high bits",
+          "autonomous_ctrl_writers": [],
+          "bus_write": "if PSEL && PENABLE && PWRITE && PADDR[4:2]==1: next_CTRL = PWDATA",
+          "commit": "at posedge HCLK when HRESETn: regs_q <= regs_n",
+          "complete_for_registered_source": true,
+          "hold": "regs_n = regs_q; no autonomous assignment to CTRL",
+          "other_state": "COUNT changes autonomously; CMP write resets COUNT; CTRL bits affect count/prescaler behavior",
+          "priority": [
+            "asynchronous_asserted_reset",
+            "selected_full_word_overwrite",
+            "hold"
+          ],
+          "read": "selected PSEL && PENABLE && !PWRITE: PRDATA = regs_q[REG_TIMER_CTRL]",
+          "ready_error": "PREADY=1, PSLVERR=0; no error generation claim",
+          "reset": "if !HRESETn: regs_q <= bank_of_32bit_zeroes",
+          "scope": "selected_CTRL_storage_only_not_all_timer_state"
+        }
+      },
+      "target_artifact_digest": "70f3c1bdecd045494ad28cce07ed443d568240dec94a5d382b6f7a02bf8f4489",
+      "target_artifact_kind": "apb3_register_observe",
+      "target_component": "peripheral",
+      "template": {
+        "template_id": "target.apb3",
+        "template_version": "1",
+        "variant_id": "full-word"
+      }
+    },
+    "runtime_admitted": false,
+    "schema_version": "compiled_F2_support.v1",
+    "startup_requires": [
+      "native_first_fetch_inside_instruction_image",
+      "exact_private_input_readmission",
+      "actual_native_APB_read_response",
+      "actual_native_current_register_version_token",
+      "dependent_XOR_result_RAM_store"
+    ],
+    "status": "supported_requires_actual_startup",
+    "support_scope": "registered_full_word_APB3_read_response_with_live_current_version_and_dependent_result_RAM_store",
+    "unsupported_paths": []
+  },
+  "capability_report_sha256": "511f997e8daaf007c2983ae37039b44dc8685c1d5b7015fa540a99b232a99335",
+  "case_wall_seconds": 67.71820815499996,
+  "cases": 1,
+  "certified_cases": 1,
+  "coverage_guided": false,
+  "executor": "compiled_f2_obi_apb",
+  "flow": "F2",
+  "full_D4_accepted": false,
+  "general_instruction_search": false,
+  "generation_seconds": 15.486524068999643,
+  "heavy_lock": "/home/qinkejiu/.native-gate/f2-heavy.lock",
+  "replays": 1,
+  "runtime_admitted": true,
+  "saved_file_hashes": {
+    "candidate_layout.json": "94ea0ad8d03f7f393f954797e8b3266428f4c271eb816e3bfc641211c999f928",
+    "capability_report.json": "511f997e8daaf007c2983ae37039b44dc8685c1d5b7015fa540a99b232a99335",
+    "capability_selection.json": "3410c9684d5c0ee965b8e26001b3ba8621daffa9da1245a9a3ec7c586fe65b3e",
+    "case_timings.json": "8ebe7dbade04e95a710eff19c18f2207f2f0b6e449dc07dddbeb0dd163fe72f7",
+    "compiled_f2_build_join.v1.json": "8ef6a67e875c3af4f7791599fc157fd8ded9d8e9872065fb2587b55e323332fa",
+    "compiled_paths.json": "f6844405e8e526fd0f85ec49c0180ae3384b118fe07d27c1a85441a8f3bce5c4",
+    "events.json": "f418796085ff2fd409142f43471139e88533c9cdca5d11465441e13dc78aed2e",
+    "execution_audit.json": "0e7899991256e5f38602bc763a50f04717f8116ca712a439d0ac43189e369009",
+    "fresh-1/artifact_hashes.json": "8dfc37a8cd17b8f475808a500171dbfad6117ba483dc38d9fc1490bbadc8ef94",
+    "fresh-1/comparison.json": "4d83aa8921fecbb9435bf7473e64e7e92f88fe5fc24ece62343c34e1992690de",
+    "fresh-1/events.json": "9104e8c141b76958d0d711c65282143d529a834cb6201c1b2ab9f66548167207",
+    "fresh-1/execution_audit.json": "a8dc434b5a02155e7fefa661eaf9c6a6ef572d9276030e75fd4b6940ed96afd8",
+    "fresh-1/prefix.json": "af2e346af8aba224dc26be3a63ec9f220d7d8ecf1befccfc55d25676b5924a82",
+    "generated/harness_set.json": "1261e32158e1f51654e3e1ec10e58ce6086ba07a09cbceadded7fa966798d300",
+    "generated/peripheral/abi.json": "753fc9d8bdbb92d6e1cdba99f01620f70daca3cdb89855b93c7162d1c32d0833",
+    "generated/peripheral/artifact.json": "192cf5fedd122d09ea35be0ff255400adfcc8c4eb2a817ce28957bc5e949ef26",
+    "generated/peripheral/request.json": "b2f62ab1254bd20a7d1c24138e84c9fafb91c8173c4800a3ff3fc3aec7cc9337",
+    "generated/peripheral/source_verification.json": "bd13c4a856af32866e495c900e3c4a709c82efa957c6bd9f45ce6acba6f86cb1",
+    "generated/processor/abi.json": "48302322a19877958123c992c30c70ec2bf2c602e1bac7e57d381b0631bb31c9",
+    "generated/processor/artifact.json": "0219cea47aea8ab07aadcb6d89c7fceb8df12c313e5e63358bcc9d48c30525ec",
+    "generated/processor/request.json": "0031952b824678834c2d5310e3cfb20b9dcdd00c88ab2e13ec9c828447cef92e",
+    "generated/processor/source_verification.json": "16998ca6751bfe3ee57c168e2b01a0aa10249bfb89caadd116f528e1c74ad27a",
+    "generated/wiring_contract.json": "c8f87c609a30ef7dbc3f51c50b2e5e9833d631baf5be4cedbf1bae0162fdd77a",
+    "input_declarations.json": "1e4daa86e75d8883993ae4a96a08315397512067df015f22a1d141dcbd496c6c",
+    "path_compile_request.json": "f79778267d2d50b81da5d818be276d717bcafbd6abf748bef945e673ec9aea25",
+    "prefix.json": "af2e346af8aba224dc26be3a63ec9f220d7d8ecf1befccfc55d25676b5924a82",
+    "replays.json": "2e0ec1720245c6a834004f34f4b7f7c51cba054499a8ac5d581104eac270cc10",
+    "source_input_hashes.json": "c020f1b49bfdd4e25bab8daa4df6711db2a21fdfec67b8c223ddb09ec7b5e6d8"
+  },
+  "schema_version": "compiled_execution_files_report.v1",
+  "scope": "experimental_directed_continuous_F2_candidates_and_fresh_prefix_replay",
+  "semantic_hash": "9e90366a2194501ad14ad46516f566e21720366afdc9863c2e53a1841a36c9df",
+  "startup_seconds": 12.977723870000773,
+  "status": "completed",
+  "total_wall_seconds": 194.34959474899915,
+  "useful_cases_per_second": 0.014767077086728338
+}

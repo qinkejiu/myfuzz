@@ -1,0 +1,1110 @@
+{
+  "dispositions": [
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[apu_busy_o]",
+      "instance_id": "processor",
+      "port": "apu_busy_o",
+      "port_width": 1,
+      "reason": "Observe the physical APU busy status; FPU=0 leaves it inactive.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 4,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[apu_flags_i]",
+      "instance_id": "processor",
+      "port": "apu_flags_i",
+      "port_width": 5,
+      "reason": "FPU=0 disables the APU/FPU extension; deterministic inactive flags.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 14,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[apu_flags_o]",
+      "instance_id": "processor",
+      "port": "apu_flags_o",
+      "port_width": 15,
+      "reason": "Observe the physical APU flags without driving them.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[apu_gnt_i]",
+      "instance_id": "processor",
+      "port": "apu_gnt_i",
+      "port_width": 1,
+      "reason": "FPU=0 disables the APU/FPU extension; no external APU response is accepted.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 5,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[apu_op_o]",
+      "instance_id": "processor",
+      "port": "apu_op_o",
+      "port_width": 6,
+      "reason": "Observe the physical APU operation without driving it.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 95,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[apu_operands_o]",
+      "instance_id": "processor",
+      "port": "apu_operands_o",
+      "port_width": 96,
+      "reason": "Observe the physical APU operands without driving them.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[apu_req_o]",
+      "instance_id": "processor",
+      "port": "apu_req_o",
+      "port_width": 1,
+      "reason": "Observe the physical APU request; FPU=0 leaves it inactive.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[apu_result_i]",
+      "instance_id": "processor",
+      "port": "apu_result_i",
+      "port_width": 32,
+      "reason": "FPU=0 disables the APU/FPU extension; deterministic inactive result.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[apu_rvalid_i]",
+      "instance_id": "processor",
+      "port": "apu_rvalid_i",
+      "port_width": 1,
+      "reason": "FPU=0 disables the APU/FPU extension; no external APU response is generated.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[boot_addr_i]",
+      "instance_id": "processor",
+      "port": "boot_addr_i",
+      "port_width": 32,
+      "reason": "The upstream IF stage aligns boot_addr_i to four bytes; 0x10000 is the configured local program base.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 65536
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "input",
+      "disposition": "functional",
+      "evidence": "component_profile.clocks[clk_i]",
+      "instance_id": "processor",
+      "port": "clk_i",
+      "port_width": 1,
+      "reason": "clock port distributed from the SoC clock input",
+      "reset_domain": "local_reset",
+      "role": "clock",
+      "target": "clock_reset"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[core_sleep_o]",
+      "instance_id": "processor",
+      "port": "core_sleep_o",
+      "port_width": 1,
+      "reason": "Observe the native sleep status.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "evidence": "elaborated_ports[data_addr_o]",
+      "instance_id": "processor",
+      "port": "data_addr_o",
+      "port_width": 32,
+      "reason": "bound to interface processor.data role addr",
+      "reset_domain": "local_reset",
+      "role": "addr",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 3,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "evidence": "elaborated_ports[data_be_o]",
+      "instance_id": "processor",
+      "port": "data_be_o",
+      "port_width": 4,
+      "reason": "bound to interface processor.data role be",
+      "reset_domain": "local_reset",
+      "role": "be",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "evidence": "elaborated_ports[data_gnt_i]",
+      "instance_id": "processor",
+      "port": "data_gnt_i",
+      "port_width": 1,
+      "reason": "bound to interface processor.data role gnt",
+      "reset_domain": "local_reset",
+      "role": "gnt",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "evidence": "elaborated_ports[data_rdata_i]",
+      "instance_id": "processor",
+      "port": "data_rdata_i",
+      "port_width": 32,
+      "reason": "bound to interface processor.data role rdata",
+      "reset_domain": "local_reset",
+      "role": "rdata",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "evidence": "elaborated_ports[data_req_o]",
+      "instance_id": "processor",
+      "port": "data_req_o",
+      "port_width": 1,
+      "reason": "bound to interface processor.data role req",
+      "reset_domain": "local_reset",
+      "role": "req",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "evidence": "elaborated_ports[data_rvalid_i]",
+      "instance_id": "processor",
+      "port": "data_rvalid_i",
+      "port_width": 1,
+      "reason": "bound to interface processor.data role rvalid",
+      "reset_domain": "local_reset",
+      "role": "rvalid",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "evidence": "elaborated_ports[data_wdata_o]",
+      "instance_id": "processor",
+      "port": "data_wdata_o",
+      "port_width": 32,
+      "reason": "bound to interface processor.data role wdata",
+      "reset_domain": "local_reset",
+      "role": "wdata",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "evidence": "elaborated_ports[data_we_o]",
+      "instance_id": "processor",
+      "port": "data_we_o",
+      "port_width": 1,
+      "reason": "bound to interface processor.data role we",
+      "reset_domain": "local_reset",
+      "role": "we",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[debug_halted_o]",
+      "instance_id": "processor",
+      "port": "debug_halted_o",
+      "port_width": 1,
+      "reason": "Observe native debug halted status.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[debug_havereset_o]",
+      "instance_id": "processor",
+      "port": "debug_havereset_o",
+      "port_width": 1,
+      "reason": "Observe native debug reset status.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[debug_req_i]",
+      "instance_id": "processor",
+      "port": "debug_req_i",
+      "port_width": 1,
+      "reason": "Do not enter debug mode during the local program acceptance.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[debug_running_o]",
+      "instance_id": "processor",
+      "port": "debug_running_o",
+      "port_width": 1,
+      "reason": "Observe native debug running status.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[dm_exception_addr_i]",
+      "instance_id": "processor",
+      "port": "dm_exception_addr_i",
+      "port_width": 32,
+      "reason": "Debug entry is disabled by debug_req_i; use the deterministic unused exception vector.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[dm_halt_addr_i]",
+      "instance_id": "processor",
+      "port": "dm_halt_addr_i",
+      "port_width": 32,
+      "reason": "Debug entry is disabled by debug_req_i; use the deterministic unused halt vector.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[fetch_enable_i]",
+      "instance_id": "processor",
+      "port": "fetch_enable_i",
+      "port_width": 1,
+      "reason": "Enable instruction fetch after reset release.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 1
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[hart_id_i]",
+      "instance_id": "processor",
+      "port": "hart_id_i",
+      "port_width": 32,
+      "reason": "This local harness represents one hart.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.instruction",
+      "evidence": "elaborated_ports[instr_addr_o]",
+      "instance_id": "processor",
+      "port": "instr_addr_o",
+      "port_width": 32,
+      "reason": "bound to interface processor.instruction role addr",
+      "reset_domain": "local_reset",
+      "role": "addr",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.instruction",
+      "evidence": "elaborated_ports[instr_gnt_i]",
+      "instance_id": "processor",
+      "port": "instr_gnt_i",
+      "port_width": 1,
+      "reason": "bound to interface processor.instruction role gnt",
+      "reset_domain": "local_reset",
+      "role": "gnt",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.instruction",
+      "evidence": "elaborated_ports[instr_rdata_i]",
+      "instance_id": "processor",
+      "port": "instr_rdata_i",
+      "port_width": 32,
+      "reason": "bound to interface processor.instruction role rdata",
+      "reset_domain": "local_reset",
+      "role": "rdata",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.instruction",
+      "evidence": "elaborated_ports[instr_req_o]",
+      "instance_id": "processor",
+      "port": "instr_req_o",
+      "port_width": 1,
+      "reason": "bound to interface processor.instruction role req",
+      "reset_domain": "local_reset",
+      "role": "req",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.instruction",
+      "evidence": "elaborated_ports[instr_rvalid_i]",
+      "instance_id": "processor",
+      "port": "instr_rvalid_i",
+      "port_width": 1,
+      "reason": "bound to interface processor.instruction role rvalid",
+      "reset_domain": "local_reset",
+      "role": "rvalid",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[irq_ack_o]",
+      "instance_id": "processor",
+      "port": "irq_ack_o",
+      "port_width": 1,
+      "reason": "Observe native interrupt acknowledgement.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 12
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[irq_i]",
+      "instance_id": "processor",
+      "port": "irq_i",
+      "port_width": 32,
+      "reason": "The endpoint binds the machine-external line irq_i[11]; bits 12 through 31 remain inactive.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 11,
+        "lo": 11
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.interrupts",
+      "evidence": "elaborated_ports[irq_i]",
+      "instance_id": "processor",
+      "port": "irq_i",
+      "port_width": 32,
+      "reason": "bound to interface processor.interrupts role external",
+      "reset_domain": "local_reset",
+      "role": "external",
+      "target": "interrupt_controller"
+    },
+    {
+      "bits": {
+        "hi": 10,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[irq_i]",
+      "instance_id": "processor",
+      "port": "irq_i",
+      "port_width": 32,
+      "reason": "The endpoint binds the machine-external line irq_i[11]; bits 0 through 10 remain inactive.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 4,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[irq_id_o]",
+      "instance_id": "processor",
+      "port": "irq_id_o",
+      "port_width": 5,
+      "reason": "Observe the native interrupt identifier.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[mtvec_addr_i]",
+      "instance_id": "processor",
+      "port": "mtvec_addr_i",
+      "port_width": 32,
+      "reason": "The current CPU memory acceptance program does not enable interrupts; the trap base remains a deterministic inactive environment value.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[pulp_clock_en_i]",
+      "instance_id": "processor",
+      "port": "pulp_clock_en_i",
+      "port_width": 1,
+      "reason": "COREV_CLUSTER=0 disables cluster clock gating; keep the clock enable asserted.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 1
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "direction": "input",
+      "disposition": "functional",
+      "evidence": "component_profile.resets[rst_ni]",
+      "instance_id": "processor",
+      "port": "rst_ni",
+      "port_width": 1,
+      "reason": "reset port distributed from the SoC reset input",
+      "reset_domain": "local_reset",
+      "role": "reset",
+      "target": "clock_reset"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "cv32e40p",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[scan_cg_en_i]",
+      "instance_id": "processor",
+      "port": "scan_cg_en_i",
+      "port_width": 1,
+      "reason": "Keep scan clock-gating override inactive during functional execution.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    }
+  ],
+  "module_name": "local_processor",
+  "parameter_evidence": [
+    {
+      "declaration": "parameter COREV_CLUSTER = 0",
+      "name": "COREV_CLUSTER",
+      "qualified_type": null,
+      "source_file": "rtl/cv32e40p_core.sv",
+      "source_sha256": "6a78a0d77d32e6795f63e5149f77b98320ce504c67c44a2e359c9aea70989224"
+    },
+    {
+      "declaration": "parameter COREV_PULP = 0",
+      "name": "COREV_PULP",
+      "qualified_type": null,
+      "source_file": "rtl/cv32e40p_core.sv",
+      "source_sha256": "6a78a0d77d32e6795f63e5149f77b98320ce504c67c44a2e359c9aea70989224"
+    },
+    {
+      "declaration": "parameter FPU = 0",
+      "name": "FPU",
+      "qualified_type": null,
+      "source_file": "rtl/cv32e40p_core.sv",
+      "source_sha256": "6a78a0d77d32e6795f63e5149f77b98320ce504c67c44a2e359c9aea70989224"
+    },
+    {
+      "declaration": "parameter FPU_ADDMUL_LAT = 0",
+      "name": "FPU_ADDMUL_LAT",
+      "qualified_type": null,
+      "source_file": "rtl/cv32e40p_core.sv",
+      "source_sha256": "6a78a0d77d32e6795f63e5149f77b98320ce504c67c44a2e359c9aea70989224"
+    },
+    {
+      "declaration": "parameter FPU_OTHERS_LAT = 0",
+      "name": "FPU_OTHERS_LAT",
+      "qualified_type": null,
+      "source_file": "rtl/cv32e40p_core.sv",
+      "source_sha256": "6a78a0d77d32e6795f63e5149f77b98320ce504c67c44a2e359c9aea70989224"
+    },
+    {
+      "declaration": "parameter NUM_MHPMCOUNTERS = 1",
+      "name": "NUM_MHPMCOUNTERS",
+      "qualified_type": null,
+      "source_file": "rtl/cv32e40p_core.sv",
+      "source_sha256": "6a78a0d77d32e6795f63e5149f77b98320ce504c67c44a2e359c9aea70989224"
+    },
+    {
+      "declaration": "parameter ZFINX = 0",
+      "name": "ZFINX",
+      "qualified_type": null,
+      "source_file": "rtl/cv32e40p_core.sv",
+      "source_sha256": "6a78a0d77d32e6795f63e5149f77b98320ce504c67c44a2e359c9aea70989224"
+    }
+  ],
+  "plan_sha256": "4c22c9233412147fbc03404f32840a3b230568a04aa308ddd26250c2eeff0c9e",
+  "ports": [
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "apu_busy_o",
+      "role": null,
+      "width": 1,
+      "wrapper_name": "lh_p_0_0_0"
+    },
+    {
+      "bit_hi": 14,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "apu_flags_o",
+      "role": null,
+      "width": 15,
+      "wrapper_name": "lh_p_2_14_0"
+    },
+    {
+      "bit_hi": 5,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "apu_op_o",
+      "role": null,
+      "width": 6,
+      "wrapper_name": "lh_p_4_5_0"
+    },
+    {
+      "bit_hi": 95,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "apu_operands_o",
+      "role": null,
+      "width": 96,
+      "wrapper_name": "lh_p_5_95_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "apu_req_o",
+      "role": null,
+      "width": 1,
+      "wrapper_name": "lh_p_6_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "core_sleep_o",
+      "role": null,
+      "width": 1,
+      "wrapper_name": "lh_p_11_0_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "physical_port": "data_addr_o",
+      "role": "addr",
+      "width": 32,
+      "wrapper_name": "lh_p_12_31_0"
+    },
+    {
+      "bit_hi": 3,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "physical_port": "data_be_o",
+      "role": "be",
+      "width": 4,
+      "wrapper_name": "lh_p_13_3_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "physical_port": "data_gnt_i",
+      "role": "gnt",
+      "width": 1,
+      "wrapper_name": "lh_p_14_0_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "physical_port": "data_rdata_i",
+      "role": "rdata",
+      "width": 32,
+      "wrapper_name": "lh_p_15_31_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "physical_port": "data_req_o",
+      "role": "req",
+      "width": 1,
+      "wrapper_name": "lh_p_16_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "physical_port": "data_rvalid_i",
+      "role": "rvalid",
+      "width": 1,
+      "wrapper_name": "lh_p_17_0_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "physical_port": "data_wdata_o",
+      "role": "wdata",
+      "width": 32,
+      "wrapper_name": "lh_p_18_31_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "physical_port": "data_we_o",
+      "role": "we",
+      "width": 1,
+      "wrapper_name": "lh_p_19_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "debug_halted_o",
+      "role": null,
+      "width": 1,
+      "wrapper_name": "lh_p_20_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "debug_havereset_o",
+      "role": null,
+      "width": 1,
+      "wrapper_name": "lh_p_21_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "debug_running_o",
+      "role": null,
+      "width": 1,
+      "wrapper_name": "lh_p_23_0_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.instruction",
+      "physical_port": "instr_addr_o",
+      "role": "addr",
+      "width": 32,
+      "wrapper_name": "lh_p_28_31_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.instruction",
+      "physical_port": "instr_gnt_i",
+      "role": "gnt",
+      "width": 1,
+      "wrapper_name": "lh_p_29_0_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.instruction",
+      "physical_port": "instr_rdata_i",
+      "role": "rdata",
+      "width": 32,
+      "wrapper_name": "lh_p_30_31_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.instruction",
+      "physical_port": "instr_req_o",
+      "role": "req",
+      "width": 1,
+      "wrapper_name": "lh_p_31_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.instruction",
+      "physical_port": "instr_rvalid_i",
+      "role": "rvalid",
+      "width": 1,
+      "wrapper_name": "lh_p_32_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "irq_ack_o",
+      "role": null,
+      "width": 1,
+      "wrapper_name": "lh_p_33_0_0"
+    },
+    {
+      "bit_hi": 11,
+      "bit_lo": 11,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.interrupts",
+      "physical_port": "irq_i",
+      "role": "external",
+      "width": 1,
+      "wrapper_name": "lh_p_34_11_11"
+    },
+    {
+      "bit_hi": 4,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "irq_id_o",
+      "role": null,
+      "width": 5,
+      "wrapper_name": "lh_p_35_4_0"
+    }
+  ],
+  "reset_assertion": "active_high",
+  "schema_version": "local_harness_abi.v1"
+}

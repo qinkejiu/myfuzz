@@ -185,3 +185,21 @@ file is the later fixed-input-ownership change described above (a functional
 no-op for the Timer target). The failed-attempt logs are force-added despite the
 repository `*.log` ignore rule. The audit's F-1 is resolved by source
 integration; F-2/F-3/F-4 report-text issues are corrected here.
+
+
+## Final clean-HEAD rerun (source-closed)
+
+After `5634abb` committed the exact source used by the gates, both F2 instances
+were rerun from the clean tree. Evidence:
+`docs/reports/evidence/compiled-f2-native-gate-final-20261023/{timer,spi}/`.
+
+- Timer: `status=completed`, 1 certified, semantic
+  `9e90366a2194501ad14ad46516f566e21720366afdc9863c2e53a1841a36c9df`,
+  build join `complete` `8ef6a67e…`, fresh `matches=true/full`.
+- SPI: `status=completed`, 1 certified, semantic
+  `da0e5e46034ba27b9cbd8ca734a16fb7d9b76d3feb8f4184925761838cc92323`,
+  build join `complete` `4d22e476…`, fresh `matches=true/full`.
+- Both ran with the same external cache/lock and produced new
+  `saved_file_hashes.json`/`source_input_hashes.json`; the committed archive is
+  the final source-closed evidence. The earlier a54289b bundle remains as the
+  audited working-tree package and its failed attempts.

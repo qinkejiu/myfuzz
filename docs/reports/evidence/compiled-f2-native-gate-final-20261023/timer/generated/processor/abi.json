@@ -1,0 +1,1666 @@
+{
+  "dispositions": [
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[alert_major_bus_o]",
+      "instance_id": "processor",
+      "port": "alert_major_bus_o",
+      "port_width": 1,
+      "reason": "Major bus security alert (rtl/ibex_top.sv:1355-1360); status output with no in-SoC consumer, exported for passive monitoring only.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[alert_major_internal_o]",
+      "instance_id": "processor",
+      "port": "alert_major_internal_o",
+      "port_width": 1,
+      "reason": "Major internal security alert (rtl/ibex_top.sv:1355-1360); status output with no in-SoC consumer, exported for passive monitoring only.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[alert_minor_o]",
+      "instance_id": "processor",
+      "port": "alert_minor_o",
+      "port_width": 1,
+      "reason": "Security alert output (minored, rtl/ibex_top.sv:1355-1359). It is a component output with no in-SoC consumer: nothing in the fabric, the adapters or the interrupt controller samples it, so the generated SoC exports it for passive monitoring only.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[boot_addr_i]",
+      "instance_id": "processor",
+      "port": "boot_addr_i",
+      "port_width": 32,
+      "reason": "Reset-vector base. rtl/ibex_if_stage.sv:243 sets PC_BOOT = {boot_addr_i[31:8], 8'h80} and rtl/ibex_if_stage.sv:199 records boot_addr_i[7:0] as unused, so 0x10000 makes the first fetch 0x10080, inside the request's rom0 window 0x10000..0x18000. 0x10000 is this profile's declared cpu.reset_vector and the value configs/soc/ibex-pulp.json uses for the same core.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 65536
+    },
+    {
+      "bits": {
+        "hi": 3,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[cheriot_enable_i]",
+      "instance_id": "processor",
+      "port": "cheriot_enable_i",
+      "port_width": 4,
+      "reason": "ibex_pkg::IbexMuBiOff is 4'b1010 = 10 (rtl/ibex_pkg.sv:760). The parameters keep BaseIsa at its default BaseIsaRV32I, so the CHERIoT base ISA is not selected and the MuBi 'off' pattern is the declared disabled value (soc_ibex_beat_core.sv drives ibex_pkg::IbexMuBiOff).",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 10
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "input",
+      "disposition": "functional",
+      "evidence": "component_profile.clocks[clk_i]",
+      "instance_id": "processor",
+      "port": "clk_i",
+      "port_width": 1,
+      "reason": "clock port distributed from the SoC clock input",
+      "reset_domain": "local_reset",
+      "role": "clock",
+      "target": "clock_reset"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[core_sleep_o]",
+      "instance_id": "processor",
+      "port": "core_sleep_o",
+      "port_width": 1,
+      "reason": "Clock-gating status, assigned ~clock_en (rtl/ibex_top.sv:331). Output, so it can only be observed: exported for passive monitoring only.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 159,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[crash_dump_o]",
+      "instance_id": "processor",
+      "port": "crash_dump_o",
+      "port_width": 160,
+      "reason": "Crash dump of the trapped instruction (current_pc/next_pc/last_data_addr/exception_pc/exception_addr, ibex_top.sv:132 and 471). Status output; it stays one flat observation entry covering all five members and is exported for passive monitoring only.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "evidence": "elaborated_ports[data_addr_o]",
+      "instance_id": "processor",
+      "port": "data_addr_o",
+      "port_width": 32,
+      "reason": "bound to interface processor.data role addr",
+      "reset_domain": "local_reset",
+      "role": "addr",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[data_addr_shadow_o]",
+      "instance_id": "processor",
+      "port": "data_addr_shadow_o",
+      "port_width": 32,
+      "reason": "Shadow-core data address, constant 0 under gen_no_lockstep (rtl/ibex_top.sv:1256-1261). Output, exported for passive monitoring only.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 3,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "evidence": "elaborated_ports[data_be_o]",
+      "instance_id": "processor",
+      "port": "data_be_o",
+      "port_width": 4,
+      "reason": "bound to interface processor.data role be",
+      "reset_domain": "local_reset",
+      "role": "be",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 3,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[data_be_shadow_o]",
+      "instance_id": "processor",
+      "port": "data_be_shadow_o",
+      "port_width": 4,
+      "reason": "Shadow-core data byte enables, constant 0 under gen_no_lockstep (rtl/ibex_top.sv:1256-1261). Output, exported for passive monitoring only.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "evidence": "elaborated_ports[data_err_i]",
+      "instance_id": "processor",
+      "port": "data_err_i",
+      "port_width": 1,
+      "reason": "bound to interface processor.data role error",
+      "reset_domain": "local_reset",
+      "role": "error",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "evidence": "elaborated_ports[data_gnt_i]",
+      "instance_id": "processor",
+      "port": "data_gnt_i",
+      "port_width": 1,
+      "reason": "bound to interface processor.data role gnt",
+      "reset_domain": "local_reset",
+      "role": "gnt",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "evidence": "elaborated_ports[data_rdata_i]",
+      "instance_id": "processor",
+      "port": "data_rdata_i",
+      "port_width": 32,
+      "reason": "bound to interface processor.data role rdata",
+      "reset_domain": "local_reset",
+      "role": "rdata",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 6,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[data_rdata_intg_i]",
+      "instance_id": "processor",
+      "port": "data_rdata_intg_i",
+      "port_width": 7,
+      "reason": "Data-read integrity sideband, sunk through trvk_rdata_intg by gen_non_mem_rdata_ecc (rtl/ibex_top.sv:362-367) because MemECC is 0 with SecureIbex=0; the OBI data path carries no ECC bits, so 0 is the declared inactive value.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "evidence": "elaborated_ports[data_req_o]",
+      "instance_id": "processor",
+      "port": "data_req_o",
+      "port_width": 1,
+      "reason": "bound to interface processor.data role req",
+      "reset_domain": "local_reset",
+      "role": "req",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[data_req_shadow_o]",
+      "instance_id": "processor",
+      "port": "data_req_shadow_o",
+      "port_width": 1,
+      "reason": "Shadow-core data request of the redundant lockstep core, driven to constant 0 by gen_no_lockstep (rtl/ibex_top.sv:1256-1261) because Lockstep=SecureIbex=0. Output, exported for passive monitoring only.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "evidence": "elaborated_ports[data_rvalid_i]",
+      "instance_id": "processor",
+      "port": "data_rvalid_i",
+      "port_width": 1,
+      "reason": "bound to interface processor.data role rvalid",
+      "reset_domain": "local_reset",
+      "role": "rvalid",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[data_tag_i]",
+      "instance_id": "processor",
+      "port": "data_tag_i",
+      "port_width": 1,
+      "reason": "CHERIoT data-tag sideband; gen_no_cheriot_trvk folds it into unused_trvk (rtl/ibex_top.sv:1328-1346) because BaseIsa is RV32I. 0 is the disabled value (soc_ibex_beat_core.sv drives 1'b0).",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[data_tag_o]",
+      "instance_id": "processor",
+      "port": "data_tag_o",
+      "port_width": 1,
+      "reason": "CHERIoT data-tag output, driven to constant 0 by gen_no_cheriot_trvk (rtl/ibex_top.sv:1322-1327) because BaseIsa is RV32I. Output, exported for passive monitoring only.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 6,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[data_wdata_intg_o]",
+      "instance_id": "processor",
+      "port": "data_wdata_intg_o",
+      "port_width": 7,
+      "reason": "Data-write integrity sideband. SecureIbex=0 makes MemECC 0, so ibex_top generates gen_no_mem_ecc and drives it to constant 0 (rtl/ibex_top.sv:862-869). It is an output, so it cannot be tied off by the SoC; it is exported for passive monitoring only.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 6,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[data_wdata_intg_shadow_o]",
+      "instance_id": "processor",
+      "port": "data_wdata_intg_shadow_o",
+      "port_width": 7,
+      "reason": "Shadow-core data write integrity, constant 0 under gen_no_lockstep (rtl/ibex_top.sv:1256-1261). Output, exported for passive monitoring only.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "evidence": "elaborated_ports[data_wdata_o]",
+      "instance_id": "processor",
+      "port": "data_wdata_o",
+      "port_width": 32,
+      "reason": "bound to interface processor.data role wdata",
+      "reset_domain": "local_reset",
+      "role": "wdata",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[data_wdata_shadow_o]",
+      "instance_id": "processor",
+      "port": "data_wdata_shadow_o",
+      "port_width": 32,
+      "reason": "Shadow-core data write data, constant 0 under gen_no_lockstep (rtl/ibex_top.sv:1256-1261). Output, exported for passive monitoring only.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "evidence": "elaborated_ports[data_we_o]",
+      "instance_id": "processor",
+      "port": "data_we_o",
+      "port_width": 1,
+      "reason": "bound to interface processor.data role we",
+      "reset_domain": "local_reset",
+      "role": "we",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[data_we_shadow_o]",
+      "instance_id": "processor",
+      "port": "data_we_shadow_o",
+      "port_width": 1,
+      "reason": "Shadow-core data write enable, constant 0 under gen_no_lockstep (rtl/ibex_top.sv:1256-1261). Output, exported for passive monitoring only.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[debug_req_i]",
+      "instance_id": "processor",
+      "port": "debug_req_i",
+      "port_width": 1,
+      "reason": "Debug entry request. This profile declares no debug endpoint (a debug transport would need a debug_slave protocol contract that this composition request does not provide), so debug entry is held disabled: ibex_core enters debug mode on a high level and ibex_top keeps the core clock alive for a pending debug request (rtl/ibex_top.sv:322-331). soc_ibex_beat_core.sv drives 1'b0 as well.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[double_fault_seen_o]",
+      "instance_id": "processor",
+      "port": "double_fault_seen_o",
+      "port_width": 1,
+      "reason": "Sticky double-fault status from ibex_core (rtl/ibex_top.sv:471). Status output, exported for passive monitoring only.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 3,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[fetch_enable_i]",
+      "instance_id": "processor",
+      "port": "fetch_enable_i",
+      "port_width": 4,
+      "reason": "ibex_pkg::IbexMuBiOn is 4'b0101 = 5 (rtl/ibex_pkg.sv:759). rtl/ibex_core.sv:648-649 gates instruction fetch on fetch_enable_i == IbexMuBiOn, so the core must be enabled for the whole test; soc_ibex_beat_core.sv drives ibex_pkg::IbexMuBiOn.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 5
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[hart_id_i]",
+      "instance_id": "processor",
+      "port": "hart_id_i",
+      "port_width": 32,
+      "reason": "rtl/ibex_cs_registers.sv:430 returns it as CSR_MHARTID. This SoC composes exactly one hart, so the single-hart identity 0 is the only correct value; soc_ibex_beat_core.sv drives 32'd0.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.instruction",
+      "evidence": "elaborated_ports[instr_addr_o]",
+      "instance_id": "processor",
+      "port": "instr_addr_o",
+      "port_width": 32,
+      "reason": "bound to interface processor.instruction role addr",
+      "reset_domain": "local_reset",
+      "role": "addr",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[instr_addr_shadow_o]",
+      "instance_id": "processor",
+      "port": "instr_addr_shadow_o",
+      "port_width": 32,
+      "reason": "Shadow-core instruction address, constant 0 under gen_no_lockstep (rtl/ibex_top.sv:1256-1261). Output, exported for passive monitoring only.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.instruction",
+      "evidence": "elaborated_ports[instr_err_i]",
+      "instance_id": "processor",
+      "port": "instr_err_i",
+      "port_width": 1,
+      "reason": "bound to interface processor.instruction role error",
+      "reset_domain": "local_reset",
+      "role": "error",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.instruction",
+      "evidence": "elaborated_ports[instr_gnt_i]",
+      "instance_id": "processor",
+      "port": "instr_gnt_i",
+      "port_width": 1,
+      "reason": "bound to interface processor.instruction role gnt",
+      "reset_domain": "local_reset",
+      "role": "gnt",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.instruction",
+      "evidence": "elaborated_ports[instr_rdata_i]",
+      "instance_id": "processor",
+      "port": "instr_rdata_i",
+      "port_width": 32,
+      "reason": "bound to interface processor.instruction role rdata",
+      "reset_domain": "local_reset",
+      "role": "rdata",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 6,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[instr_rdata_intg_i]",
+      "instance_id": "processor",
+      "port": "instr_rdata_intg_i",
+      "port_width": 7,
+      "reason": "Instruction-read integrity sideband. SecureIbex=0 makes MemECC 0, so ibex_top generates gen_non_mem_rdata_ecc and sinks instr_rdata_intg_i (rtl/ibex_top.sv:362-367). The OBI instruction path composed here carries no ECC bits, so 0 is the declared inactive value.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.instruction",
+      "evidence": "elaborated_ports[instr_req_o]",
+      "instance_id": "processor",
+      "port": "instr_req_o",
+      "port_width": 1,
+      "reason": "bound to interface processor.instruction role req",
+      "reset_domain": "local_reset",
+      "role": "req",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[instr_req_shadow_o]",
+      "instance_id": "processor",
+      "port": "instr_req_shadow_o",
+      "port_width": 1,
+      "reason": "Shadow-core instruction request, constant 0 under gen_no_lockstep (rtl/ibex_top.sv:1256-1261). Output, exported for passive monitoring only.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.instruction",
+      "evidence": "elaborated_ports[instr_rvalid_i]",
+      "instance_id": "processor",
+      "port": "instr_rvalid_i",
+      "port_width": 1,
+      "reason": "bound to interface processor.instruction role rvalid",
+      "reset_domain": "local_reset",
+      "role": "rvalid",
+      "target": "processor_adapter"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.interrupts",
+      "evidence": "elaborated_ports[irq_external_i]",
+      "instance_id": "processor",
+      "port": "irq_external_i",
+      "port_width": 1,
+      "reason": "bound to interface processor.interrupts role external",
+      "reset_domain": "local_reset",
+      "role": "external",
+      "target": "interrupt_controller"
+    },
+    {
+      "bits": {
+        "hi": 14,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[irq_fast_i]",
+      "instance_id": "processor",
+      "port": "irq_fast_i",
+      "port_width": 15,
+      "reason": "15 local (fast) interrupt bits. No local interrupt source is composed and the interrupt plan only drives the machine-external entry, so every fast bit is held inactive; soc_ibex_beat_core.sv drives 15'd0 as well.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[irq_nm_i]",
+      "instance_id": "processor",
+      "port": "irq_nm_i",
+      "port_width": 1,
+      "reason": "Non-maskable interrupt. The SoC composes no NMI source and the interrupt plan declares none, so the input is held inactive rather than left floating; soc_ibex_beat_core.sv drives 1'b0.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[irq_software_i]",
+      "instance_id": "processor",
+      "port": "irq_software_i",
+      "port_width": 1,
+      "reason": "Machine software interrupt. The composition's interrupt plan routes exactly one machine-external level source into irq_external_i, this profile's declared entry; the SoC has no CLINT/software-interrupt source, so the input is held inactive (Ibex machine interrupts are active-high levels). soc_ibex_beat_core.sv ties it to 1'b0 as well.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[irq_timer_i]",
+      "instance_id": "processor",
+      "port": "irq_timer_i",
+      "port_width": 1,
+      "reason": "Machine timer interrupt. No timer source is composed (the interrupt plan declares only the machine-external entry), so the input is held inactive; soc_ibex_beat_core.sv ties it to 1'b0 as well.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 3,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[lockstep_cmp_en_o]",
+      "instance_id": "processor",
+      "port": "lockstep_cmp_en_o",
+      "port_width": 4,
+      "reason": "Lockstep compare enable. With SecureIbex=0 ibex_top generates gen_no_lockstep and drives it to IbexMuBiOff (rtl/ibex_top.sv:1255). Output, exported for passive monitoring only.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 3,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[mcounteren_writable_i]",
+      "instance_id": "processor",
+      "port": "mcounteren_writable_i",
+      "port_width": 4,
+      "reason": "rtl/ibex_cs_registers.sv:845 makes CSR_MCOUNTEREN writable only when mcounteren_writable_i == IbexMuBiOn (= 4'b0101 = 5, rtl/ibex_pkg.sv:759); soc_ibex_beat_core.sv drives IbexMuBiOn and this profile declares no separate control for it.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 5
+    },
+    {
+      "bits": {
+        "hi": 23,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[ram_cfg_icache_data_i]",
+      "instance_id": "processor",
+      "port": "ram_cfg_icache_data_i",
+      "port_width": 24,
+      "reason": "ICache=0 selects gen_norams; ibex_top sinks this packed RAM configuration request.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 1,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[ram_cfg_icache_data_o]",
+      "instance_id": "processor",
+      "port": "ram_cfg_icache_data_o",
+      "port_width": 2,
+      "reason": "ICache=0 drives the packed RAM configuration response from RAM_1P_CFG_RSP_DEFAULT.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 23,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[ram_cfg_icache_tag_i]",
+      "instance_id": "processor",
+      "port": "ram_cfg_icache_tag_i",
+      "port_width": 24,
+      "reason": "ICache=0 selects gen_norams; ibex_top sinks this packed RAM configuration request.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 1,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[ram_cfg_icache_tag_o]",
+      "instance_id": "processor",
+      "port": "ram_cfg_icache_tag_o",
+      "port_width": 2,
+      "reason": "ICache=0 drives the packed RAM configuration response from RAM_1P_CFG_RSP_DEFAULT.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "input",
+      "disposition": "functional",
+      "evidence": "component_profile.resets[rst_ni]",
+      "instance_id": "processor",
+      "port": "rst_ni",
+      "port_width": 1,
+      "reason": "reset port distributed from the SoC reset input",
+      "reset_domain": "local_reset",
+      "role": "reset",
+      "target": "clock_reset"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[scan_rst_ni]",
+      "instance_id": "processor",
+      "port": "scan_rst_ni",
+      "port_width": 1,
+      "reason": "DFT scan reset, active low. SecureIbex=0 means the lockstep block is not generated, so ibex_top takes gen_no_lockstep and sinks the input (rtl/ibex_top.sv:1262-1263). Holding it deasserted (1) is the functional-mode value; soc_ibex_beat_core.sv drives it from reset release.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 1
+    },
+    {
+      "bits": {
+        "hi": 127,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[scramble_key_i]",
+      "instance_id": "processor",
+      "port": "scramble_key_i",
+      "port_width": 128,
+      "reason": "ICache scramble key, sunk by gen_noscramble (rtl/ibex_top.sv:657-671) because ICacheScramble is 0; all-zero is the declared disabled value.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[scramble_key_valid_i]",
+      "instance_id": "processor",
+      "port": "scramble_key_valid_i",
+      "port_width": 1,
+      "reason": "ICache scramble key valid. ICacheScramble keeps its default 1'b0, so ibex_top generates gen_noscramble and sinks this input (rtl/ibex_top.sv:657-671); no key is present, so 0 is the disabled value.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 63,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[scramble_nonce_i]",
+      "instance_id": "processor",
+      "port": "scramble_nonce_i",
+      "port_width": 64,
+      "reason": "ICache scramble nonce, sunk by gen_noscramble (rtl/ibex_top.sv:657-671) because ICacheScramble is 0; all-zero is the declared disabled value.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[scramble_req_o]",
+      "instance_id": "processor",
+      "port": "scramble_req_o",
+      "port_width": 1,
+      "reason": "ICache scramble key request, driven to constant 0 by gen_noscramble (rtl/ibex_top.sv:666) because ICacheScramble is 0. Output, exported for passive monitoring only.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[test_en_i]",
+      "instance_id": "processor",
+      "port": "test_en_i",
+      "port_width": 1,
+      "reason": "DFT / clock-gating test enable: ibex_top wires it into prim_clock_gating u_core_clock_gate_i (rtl/ibex_top.sv:332-337). Holding it at 0 keeps the gated core clock in functional mode; src/myfuzz/composition/rtl/soc_ibex_beat_core.sv ties the same port to 1'b0.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[trvk_heap_base_addr_i]",
+      "instance_id": "processor",
+      "port": "trvk_heap_base_addr_i",
+      "port_width": 32,
+      "reason": "CHERIoT TRVK revocation-bitmap heap base. The parameters keep BaseIsa at its default BaseIsaRV32I, so ibex_top generates gen_no_cheriot_trvk and sinks this input (rtl/ibex_top.sv:1320-1349); 0 is the disabled value and matches soc_ibex_beat_core.sv (32'd0).",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[trvk_revbm_addr_o]",
+      "instance_id": "processor",
+      "port": "trvk_revbm_addr_o",
+      "port_width": 32,
+      "reason": "CHERIoT revocation-bitmap request address, driven to constant 0 by gen_no_cheriot_trvk (rtl/ibex_top.sv:1322-1327). Output, exported for passive monitoring only.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[trvk_revbm_err_i]",
+      "instance_id": "processor",
+      "port": "trvk_revbm_err_i",
+      "port_width": 1,
+      "reason": "CHERIoT revocation-bitmap error response, sunk by gen_no_cheriot_trvk (rtl/ibex_top.sv:1328-1346); no request is ever issued, so 0 (no error) is the declared idle value.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[trvk_revbm_gnt_i]",
+      "instance_id": "processor",
+      "port": "trvk_revbm_gnt_i",
+      "port_width": 1,
+      "reason": "CHERIoT revocation-bitmap response. gen_no_cheriot_trvk sinks it and drives trvk_revbm_req_o and trvk_revbm_addr_o to '0 (rtl/ibex_top.sv:1322-1346), so the channel is inactive and 0 is the declared idle value.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 31,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[trvk_revbm_rdata_i]",
+      "instance_id": "processor",
+      "port": "trvk_revbm_rdata_i",
+      "port_width": 32,
+      "reason": "CHERIoT revocation-bitmap read data, sunk by gen_no_cheriot_trvk (rtl/ibex_top.sv:1328-1346); no request is ever issued, so 0 is the declared idle value.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 6,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[trvk_revbm_rdata_intg_i]",
+      "instance_id": "processor",
+      "port": "trvk_revbm_rdata_intg_i",
+      "port_width": 7,
+      "reason": "CHERIoT revocation-bitmap read-data integrity, sunk by gen_no_cheriot_trvk (rtl/ibex_top.sv:1328-1346); no request is ever issued, so 0 is the declared idle value.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "direction": "output",
+      "disposition": "observe",
+      "evidence": "component_profile.port_actions[trvk_revbm_req_o]",
+      "instance_id": "processor",
+      "port": "trvk_revbm_req_o",
+      "port_width": 1,
+      "reason": "CHERIoT revocation-bitmap request, driven to constant 0 by gen_no_cheriot_trvk (rtl/ibex_top.sv:1322-1327). Output, exported for passive monitoring only.",
+      "reset_domain": "local_reset",
+      "target": "soc_top"
+    },
+    {
+      "bits": {
+        "hi": 0,
+        "lo": 0
+      },
+      "clock_domain": "local_clock",
+      "component_id": "ibex_obi_local",
+      "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+      "direction": "input",
+      "disposition": "constant",
+      "evidence": "component_profile.port_actions[trvk_revbm_rvalid_i]",
+      "instance_id": "processor",
+      "port": "trvk_revbm_rvalid_i",
+      "port_width": 1,
+      "reason": "CHERIoT revocation-bitmap response valid, sunk by gen_no_cheriot_trvk (rtl/ibex_top.sv:1328-1346); the channel is inactive, so 0 is the declared idle value.",
+      "reset_domain": "local_reset",
+      "target": "const",
+      "value": 0
+    }
+  ],
+  "module_name": "local_processor",
+  "parameter_evidence": [
+    {
+      "declaration": "parameter bit ICache = 1'b0",
+      "name": "ICache",
+      "qualified_type": null,
+      "source_file": "rtl/ibex_top.sv",
+      "source_sha256": "0db761a029b18d17271200a7ffe438c856db53423efa25912ba7ce60948cdfc5"
+    },
+    {
+      "declaration": "parameter bit PMPEnable = 1'b0",
+      "name": "PMPEnable",
+      "qualified_type": null,
+      "source_file": "rtl/ibex_top.sv",
+      "source_sha256": "0db761a029b18d17271200a7ffe438c856db53423efa25912ba7ce60948cdfc5"
+    },
+    {
+      "declaration": "parameter bit RV32E = 1'b0",
+      "name": "RV32E",
+      "qualified_type": null,
+      "source_file": "rtl/ibex_top.sv",
+      "source_sha256": "0db761a029b18d17271200a7ffe438c856db53423efa25912ba7ce60948cdfc5"
+    },
+    {
+      "declaration": "parameter bit SecureIbex = 1'b0",
+      "name": "SecureIbex",
+      "qualified_type": null,
+      "source_file": "rtl/ibex_top.sv",
+      "source_sha256": "0db761a029b18d17271200a7ffe438c856db53423efa25912ba7ce60948cdfc5"
+    }
+  ],
+  "plan_sha256": "eb4507a3629a9c17565021ff5fc08af999c17541d675dc48797b9efac33009c1",
+  "ports": [
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "alert_major_bus_o",
+      "role": null,
+      "width": 1,
+      "wrapper_name": "lh_p_0_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "alert_major_internal_o",
+      "role": null,
+      "width": 1,
+      "wrapper_name": "lh_p_1_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "alert_minor_o",
+      "role": null,
+      "width": 1,
+      "wrapper_name": "lh_p_2_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "core_sleep_o",
+      "role": null,
+      "width": 1,
+      "wrapper_name": "lh_p_6_0_0"
+    },
+    {
+      "bit_hi": 159,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "crash_dump_o",
+      "role": null,
+      "width": 160,
+      "wrapper_name": "lh_p_7_159_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "physical_port": "data_addr_o",
+      "role": "addr",
+      "width": 32,
+      "wrapper_name": "lh_p_8_31_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "data_addr_shadow_o",
+      "role": null,
+      "width": 32,
+      "wrapper_name": "lh_p_9_31_0"
+    },
+    {
+      "bit_hi": 3,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "physical_port": "data_be_o",
+      "role": "be",
+      "width": 4,
+      "wrapper_name": "lh_p_10_3_0"
+    },
+    {
+      "bit_hi": 3,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "data_be_shadow_o",
+      "role": null,
+      "width": 4,
+      "wrapper_name": "lh_p_11_3_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "physical_port": "data_err_i",
+      "role": "error",
+      "width": 1,
+      "wrapper_name": "lh_p_12_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "physical_port": "data_gnt_i",
+      "role": "gnt",
+      "width": 1,
+      "wrapper_name": "lh_p_13_0_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "physical_port": "data_rdata_i",
+      "role": "rdata",
+      "width": 32,
+      "wrapper_name": "lh_p_14_31_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "physical_port": "data_req_o",
+      "role": "req",
+      "width": 1,
+      "wrapper_name": "lh_p_16_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "data_req_shadow_o",
+      "role": null,
+      "width": 1,
+      "wrapper_name": "lh_p_17_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "physical_port": "data_rvalid_i",
+      "role": "rvalid",
+      "width": 1,
+      "wrapper_name": "lh_p_18_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "data_tag_o",
+      "role": null,
+      "width": 1,
+      "wrapper_name": "lh_p_20_0_0"
+    },
+    {
+      "bit_hi": 6,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "data_wdata_intg_o",
+      "role": null,
+      "width": 7,
+      "wrapper_name": "lh_p_21_6_0"
+    },
+    {
+      "bit_hi": 6,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "data_wdata_intg_shadow_o",
+      "role": null,
+      "width": 7,
+      "wrapper_name": "lh_p_22_6_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "physical_port": "data_wdata_o",
+      "role": "wdata",
+      "width": 32,
+      "wrapper_name": "lh_p_23_31_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "data_wdata_shadow_o",
+      "role": null,
+      "width": 32,
+      "wrapper_name": "lh_p_24_31_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.data",
+      "physical_port": "data_we_o",
+      "role": "we",
+      "width": 1,
+      "wrapper_name": "lh_p_25_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "data_we_shadow_o",
+      "role": null,
+      "width": 1,
+      "wrapper_name": "lh_p_26_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "double_fault_seen_o",
+      "role": null,
+      "width": 1,
+      "wrapper_name": "lh_p_28_0_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.instruction",
+      "physical_port": "instr_addr_o",
+      "role": "addr",
+      "width": 32,
+      "wrapper_name": "lh_p_31_31_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "instr_addr_shadow_o",
+      "role": null,
+      "width": 32,
+      "wrapper_name": "lh_p_32_31_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.instruction",
+      "physical_port": "instr_err_i",
+      "role": "error",
+      "width": 1,
+      "wrapper_name": "lh_p_33_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.instruction",
+      "physical_port": "instr_gnt_i",
+      "role": "gnt",
+      "width": 1,
+      "wrapper_name": "lh_p_34_0_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.instruction",
+      "physical_port": "instr_rdata_i",
+      "role": "rdata",
+      "width": 32,
+      "wrapper_name": "lh_p_35_31_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "functional",
+      "endpoint_id": "processor.instruction",
+      "physical_port": "instr_req_o",
+      "role": "req",
+      "width": 1,
+      "wrapper_name": "lh_p_37_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "instr_req_shadow_o",
+      "role": null,
+      "width": 1,
+      "wrapper_name": "lh_p_38_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.instruction",
+      "physical_port": "instr_rvalid_i",
+      "role": "rvalid",
+      "width": 1,
+      "wrapper_name": "lh_p_39_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "functional",
+      "endpoint_id": "processor.interrupts",
+      "physical_port": "irq_external_i",
+      "role": "external",
+      "width": 1,
+      "wrapper_name": "lh_p_40_0_0"
+    },
+    {
+      "bit_hi": 3,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "lockstep_cmp_en_o",
+      "role": null,
+      "width": 4,
+      "wrapper_name": "lh_p_45_3_0"
+    },
+    {
+      "bit_hi": 1,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "ram_cfg_icache_data_o",
+      "role": null,
+      "width": 2,
+      "wrapper_name": "lh_p_48_1_0"
+    },
+    {
+      "bit_hi": 1,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "ram_cfg_icache_tag_o",
+      "role": null,
+      "width": 2,
+      "wrapper_name": "lh_p_50_1_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "scramble_req_o",
+      "role": null,
+      "width": 1,
+      "wrapper_name": "lh_p_56_0_0"
+    },
+    {
+      "bit_hi": 31,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "trvk_revbm_addr_o",
+      "role": null,
+      "width": 32,
+      "wrapper_name": "lh_p_59_31_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "endpoint_id": null,
+      "physical_port": "trvk_revbm_req_o",
+      "role": null,
+      "width": 1,
+      "wrapper_name": "lh_p_64_0_0"
+    }
+  ],
+  "reset_assertion": "active_high",
+  "schema_version": "local_harness_abi.v1"
+}

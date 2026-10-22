@@ -1,0 +1,25 @@
+{
+  "elaboration": {
+    "closure_files": 2,
+    "closure_roots": [
+      "third_party/soc-pulp-apb-timer"
+    ],
+    "elaboration_status": "elaboration_verified",
+    "lint": {
+      "errors": 0,
+      "exit_code": 0,
+      "warnings": 9
+    },
+    "tool": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+    "top_module": "apb_timer"
+  },
+  "elaboration_status": "elaboration_verified",
+  "id": "pulp_timer",
+  "lock_sha256": "4caf0ae616e99e3c7cac76a1b04daca41af9bcef0eee3b6b0923fb6bd7e2a29e",
+  "parse_status": "parameterized_ports_pending_elaboration",
+  "runtime_status": "runtime_unverified",
+  "schema_version": "local_source_lock_verification.v1",
+  "selected_content_hash": "sha256:114a62d680fbafc5c28b612bd9b90e997041632525a8a12979cbc58e9f729530",
+  "selected_files": 2,
+  "source_status": "source_verified"
+}

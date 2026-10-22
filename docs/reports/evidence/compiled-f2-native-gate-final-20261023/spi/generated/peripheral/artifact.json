@@ -1,0 +1,2892 @@
+{
+  "adapted_endpoint_ids": [
+    "spi.bus"
+  ],
+  "adapter_sources": [
+    {
+      "path": "src/myfuzz/protocols/rtl/beat_to_apb.sv",
+      "sha256": "35cc8c1765a42cdfbfdd1ec504492ab789559d7a3ceee95c9f3ed48b474b2d7c"
+    }
+  ],
+  "artifact_digest": "e2c0242a32d03392711161e0b156f054f26e5f04a91c202df06569b6ab54d9f4",
+  "backend_ports": [
+    {
+      "channel": "ip_protocol_trace",
+      "direction": "output",
+      "name": "trace_paddr",
+      "role": "paddr",
+      "width": 12
+    },
+    {
+      "channel": "ip_protocol_trace",
+      "direction": "output",
+      "name": "trace_psel",
+      "role": "psel",
+      "width": 1
+    },
+    {
+      "channel": "ip_protocol_trace",
+      "direction": "output",
+      "name": "trace_penable",
+      "role": "penable",
+      "width": 1
+    },
+    {
+      "channel": "ip_protocol_trace",
+      "direction": "output",
+      "name": "trace_pwrite",
+      "role": "pwrite",
+      "width": 1
+    },
+    {
+      "channel": "ip_protocol_trace",
+      "direction": "output",
+      "name": "trace_pwdata",
+      "role": "pwdata",
+      "width": 32
+    },
+    {
+      "channel": "ip_protocol_trace",
+      "direction": "output",
+      "name": "trace_pready",
+      "role": "pready",
+      "width": 1
+    },
+    {
+      "channel": "ip_protocol_trace",
+      "direction": "output",
+      "name": "trace_prdata",
+      "role": "prdata",
+      "width": 32
+    },
+    {
+      "channel": "ip_protocol_trace",
+      "direction": "output",
+      "name": "trace_pslverr",
+      "role": "pslverr",
+      "width": 1
+    },
+    {
+      "channel": "reg",
+      "direction": "input",
+      "name": "reg_req_valid",
+      "role": "req_valid",
+      "width": 1
+    },
+    {
+      "channel": "reg",
+      "direction": "output",
+      "name": "reg_req_ready",
+      "role": "req_ready",
+      "width": 1
+    },
+    {
+      "channel": "reg",
+      "direction": "input",
+      "name": "reg_req_write",
+      "role": "req_write",
+      "width": 1
+    },
+    {
+      "channel": "reg",
+      "direction": "input",
+      "name": "reg_req_addr",
+      "role": "req_addr",
+      "width": 32
+    },
+    {
+      "channel": "reg",
+      "direction": "input",
+      "name": "reg_req_wdata",
+      "role": "req_wdata",
+      "width": 32
+    },
+    {
+      "channel": "reg",
+      "direction": "input",
+      "name": "reg_req_be",
+      "role": "req_be",
+      "width": 4
+    },
+    {
+      "channel": "reg",
+      "direction": "output",
+      "name": "reg_rsp_valid",
+      "role": "rsp_valid",
+      "width": 1
+    },
+    {
+      "channel": "reg",
+      "direction": "input",
+      "name": "reg_rsp_ready",
+      "role": "rsp_ready",
+      "width": 1
+    },
+    {
+      "channel": "reg",
+      "direction": "output",
+      "name": "reg_rsp_rdata",
+      "role": "rsp_rdata",
+      "width": 32
+    },
+    {
+      "channel": "reg",
+      "direction": "output",
+      "name": "reg_rsp_error",
+      "role": "rsp_error",
+      "width": 1
+    }
+  ],
+  "base_event_schema_version": "ip_base_event.v1",
+  "base_protocol_trace": {
+    "clock_domain": "core",
+    "endpoint_id": "spi.bus",
+    "max_wait_cycles": 16,
+    "protocol": "apb3",
+    "schema_version": "ip_protocol_trace.v1",
+    "signal_widths": {
+      "paddr": 12,
+      "penable": 1,
+      "prdata": 32,
+      "pready": 1,
+      "psel": 1,
+      "pslverr": 1,
+      "pwdata": 32,
+      "pwrite": 1
+    },
+    "signals": {
+      "paddr": "trace_paddr",
+      "penable": "trace_penable",
+      "prdata": "trace_prdata",
+      "pready": "trace_pready",
+      "psel": "trace_psel",
+      "pslverr": "trace_pslverr",
+      "pwdata": "trace_pwdata",
+      "pwrite": "trace_pwrite"
+    }
+  },
+  "boot_contract": null,
+  "bound_physical_inputs": [],
+  "clock_schedule": {
+    "clock_edges_observed": "rising_edges_since_ready",
+    "clocks": [
+      {
+        "domain": "core",
+        "first_rising_fast_tick": 1,
+        "frequency_hz": 50000000,
+        "half_period_fast_ticks": 1,
+        "ratio": 1,
+        "signal": "clk"
+      }
+    ],
+    "fast_frequency_hz": 50000000,
+    "phase_policy": "all_low_then_half_period_toggle",
+    "primary_clock_domain": "core",
+    "primary_reset_domain": "sys_rst",
+    "resets": [
+      {
+        "domain": "sys_rst",
+        "polarity": "active_low",
+        "port": "HRESETn",
+        "signal": "reset",
+        "synchronous": false
+      }
+    ],
+    "schema_version": "local_clock_schedule.v1",
+    "startup_fast_ticks": 5
+  },
+  "cpp_sha256": "43a97efd08a1271d3b62ce84c5277795b21a0a84bf7fe6fa5183ebe5f498daa2",
+  "driver_field_map": {},
+  "driver_header_sources": [
+    {
+      "path": "src/myfuzz/local_harness/rtl/local_driver_v1.h",
+      "sha256": "1e72a2d2a8fce550c87e37cdf28bb3bb23a9954d150a89392fe75375fe9bbb8e"
+    },
+    {
+      "path": "src/myfuzz/scenario/rtl/local_command_replay.h",
+      "sha256": "6707578af002d5097c2df6595c22715367d080e2ef11598834bfc26f0292d24d"
+    }
+  ],
+  "driver_limits": {
+    "max_cached_bytes": 67108864,
+    "max_command_bytes": 1024,
+    "max_payload_json_bytes": 1048576,
+    "max_reply_line_bytes": 2097664,
+    "max_samples_per_command": 37,
+    "reply_reservation_bytes": 148874
+  },
+  "driver_reset": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "schema_version": "generated_local_reset.v1"
+  },
+  "driver_schema_version": "local_driver_generation.v1",
+  "driver_status": "generated",
+  "dynamic_physical_inputs": [],
+  "effective_max_wait_cycles": 16,
+  "fixed_physical_inputs": [
+    {
+      "endpoint_id": "spi.pins",
+      "role": "sdi0",
+      "runtime_name": "rt_lh_p_17_0_0",
+      "value": 0,
+      "width": 1
+    },
+    {
+      "endpoint_id": "spi.pins",
+      "role": "sdi1",
+      "runtime_name": "rt_lh_p_18_0_0",
+      "value": 0,
+      "width": 1
+    },
+    {
+      "endpoint_id": "spi.pins",
+      "role": "sdi2",
+      "runtime_name": "rt_lh_p_19_0_0",
+      "value": 0,
+      "width": 1
+    },
+    {
+      "endpoint_id": "spi.pins",
+      "role": "sdi3",
+      "runtime_name": "rt_lh_p_20_0_0",
+      "value": 0,
+      "width": 1
+    }
+  ],
+  "functional_scope": "apb3_register_only_pin_observe_no_peer",
+  "kind": "apb3_register_observe",
+  "lint_argv": [
+    "verilator",
+    "--lint-only",
+    "-Wno-fatal",
+    "--top-module",
+    "local_runtime_peripheral",
+    "third_party/soc-pulp-apb-spi/apb_spi_master.sv",
+    "third_party/soc-pulp-apb-spi/spi_master_apb_if.sv",
+    "third_party/soc-pulp-axi-spi/spi_master_clkgen.sv",
+    "third_party/soc-pulp-axi-spi/spi_master_controller.sv",
+    "third_party/soc-pulp-axi-spi/spi_master_fifo.sv",
+    "third_party/soc-pulp-axi-spi/spi_master_rx.sv",
+    "third_party/soc-pulp-axi-spi/spi_master_tx.sv",
+    "src/myfuzz/protocols/rtl/beat_to_apb.sv"
+  ],
+  "module_name": "local_runtime_peripheral",
+  "physical_exports": [
+    {
+      "bit_hi": 1,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "encoding": "integer",
+      "endpoint_id": null,
+      "hex_digits": 1,
+      "physical_port": "events_o",
+      "role": null,
+      "runtime_name": "rt_lh_p_10_1_0",
+      "width": 2,
+      "wrapper_name": "lh_p_10_1_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "external",
+      "encoding": "integer",
+      "endpoint_id": "spi.pins",
+      "hex_digits": 1,
+      "physical_port": "spi_clk",
+      "role": "sck",
+      "runtime_name": "rt_lh_p_11_0_0",
+      "width": 1,
+      "wrapper_name": "lh_p_11_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "external",
+      "encoding": "integer",
+      "endpoint_id": "spi.pins",
+      "hex_digits": 1,
+      "physical_port": "spi_csn0",
+      "role": "csn0",
+      "runtime_name": "rt_lh_p_12_0_0",
+      "width": 1,
+      "wrapper_name": "lh_p_12_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "external",
+      "encoding": "integer",
+      "endpoint_id": "spi.pins",
+      "hex_digits": 1,
+      "physical_port": "spi_csn1",
+      "role": "csn1",
+      "runtime_name": "rt_lh_p_13_0_0",
+      "width": 1,
+      "wrapper_name": "lh_p_13_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "external",
+      "encoding": "integer",
+      "endpoint_id": "spi.pins",
+      "hex_digits": 1,
+      "physical_port": "spi_csn2",
+      "role": "csn2",
+      "runtime_name": "rt_lh_p_14_0_0",
+      "width": 1,
+      "wrapper_name": "lh_p_14_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "external",
+      "encoding": "integer",
+      "endpoint_id": "spi.pins",
+      "hex_digits": 1,
+      "physical_port": "spi_csn3",
+      "role": "csn3",
+      "runtime_name": "rt_lh_p_15_0_0",
+      "width": 1,
+      "wrapper_name": "lh_p_15_0_0"
+    },
+    {
+      "bit_hi": 1,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "external",
+      "encoding": "integer",
+      "endpoint_id": "spi.pins",
+      "hex_digits": 1,
+      "physical_port": "spi_mode",
+      "role": "mode",
+      "runtime_name": "rt_lh_p_16_1_0",
+      "width": 2,
+      "wrapper_name": "lh_p_16_1_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "external",
+      "encoding": "integer",
+      "endpoint_id": "spi.pins",
+      "hex_digits": 1,
+      "physical_port": "spi_sdi0",
+      "role": "sdi0",
+      "runtime_name": "rt_lh_p_17_0_0",
+      "width": 1,
+      "wrapper_name": "lh_p_17_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "external",
+      "encoding": "integer",
+      "endpoint_id": "spi.pins",
+      "hex_digits": 1,
+      "physical_port": "spi_sdi1",
+      "role": "sdi1",
+      "runtime_name": "rt_lh_p_18_0_0",
+      "width": 1,
+      "wrapper_name": "lh_p_18_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "external",
+      "encoding": "integer",
+      "endpoint_id": "spi.pins",
+      "hex_digits": 1,
+      "physical_port": "spi_sdi2",
+      "role": "sdi2",
+      "runtime_name": "rt_lh_p_19_0_0",
+      "width": 1,
+      "wrapper_name": "lh_p_19_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "input",
+      "disposition": "external",
+      "encoding": "integer",
+      "endpoint_id": "spi.pins",
+      "hex_digits": 1,
+      "physical_port": "spi_sdi3",
+      "role": "sdi3",
+      "runtime_name": "rt_lh_p_20_0_0",
+      "width": 1,
+      "wrapper_name": "lh_p_20_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "external",
+      "encoding": "integer",
+      "endpoint_id": "spi.pins",
+      "hex_digits": 1,
+      "physical_port": "spi_sdo0",
+      "role": "sdo0",
+      "runtime_name": "rt_lh_p_21_0_0",
+      "width": 1,
+      "wrapper_name": "lh_p_21_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "external",
+      "encoding": "integer",
+      "endpoint_id": "spi.pins",
+      "hex_digits": 1,
+      "physical_port": "spi_sdo1",
+      "role": "sdo1",
+      "runtime_name": "rt_lh_p_22_0_0",
+      "width": 1,
+      "wrapper_name": "lh_p_22_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "external",
+      "encoding": "integer",
+      "endpoint_id": "spi.pins",
+      "hex_digits": 1,
+      "physical_port": "spi_sdo2",
+      "role": "sdo2",
+      "runtime_name": "rt_lh_p_23_0_0",
+      "width": 1,
+      "wrapper_name": "lh_p_23_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "external",
+      "encoding": "integer",
+      "endpoint_id": "spi.pins",
+      "hex_digits": 1,
+      "physical_port": "spi_sdo3",
+      "role": "sdo3",
+      "runtime_name": "rt_lh_p_24_0_0",
+      "width": 1,
+      "wrapper_name": "lh_p_24_0_0"
+    }
+  ],
+  "plan": {
+    "component_id": "pulp_spi",
+    "instance_id": "peripheral",
+    "parameter_source_sha256": {
+      "soc-pulp-apb-spi/apb_spi_master.sv": "dfc82b0f3c91ba44d986288e1884b1eede0aad6ed8c5b09179a629344d547d0e",
+      "soc-pulp-apb-spi/spi_master_apb_if.sv": "a9a32da6cc07768cab293c48989599e36b2000bb572191667960aa1423fc790a",
+      "soc-pulp-axi-spi/spi_master_clkgen.sv": "dbfc81a8afe1c05a4372cf7e46f1217f6b57d56c8927bf25ee5f427761b15332",
+      "soc-pulp-axi-spi/spi_master_controller.sv": "0ba0d90e99949939b3815ed2e69a9f95b980114ec554baca14083ab54496db76",
+      "soc-pulp-axi-spi/spi_master_fifo.sv": "226f53f2e78a82eb9859149a505c287daa8cfd54f55c51b6c1cfa2cd90a38555",
+      "soc-pulp-axi-spi/spi_master_rx.sv": "1290e4beaa7d4b588da9cf84da47b39923010bcfdb355641509ee90295d8ca5f",
+      "soc-pulp-axi-spi/spi_master_tx.sv": "ee9a7d305bc7bb574ece02dbd6dc8a3f0403729d336bd7431689da47a08558f6"
+    },
+    "ports": [
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "input",
+        "disposition": "functional",
+        "evidence": "component_profile.clocks[HCLK]",
+        "instance_id": "peripheral",
+        "port": "HCLK",
+        "port_width": 1,
+        "reason": "clock port distributed from the SoC clock input",
+        "reset_domain": "local_reset",
+        "role": "clock",
+        "target": "local_clock_reset"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "input",
+        "disposition": "functional",
+        "evidence": "component_profile.resets[HRESETn]",
+        "instance_id": "peripheral",
+        "port": "HRESETn",
+        "port_width": 1,
+        "reason": "reset port distributed from the SoC reset input",
+        "reset_domain": "local_reset",
+        "role": "reset",
+        "target": "local_clock_reset"
+      },
+      {
+        "bits": {
+          "hi": 11,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "spi.bus",
+        "evidence": "elaborated_ports[PADDR]",
+        "instance_id": "peripheral",
+        "port": "PADDR",
+        "port_width": 12,
+        "reason": "bound to interface spi.bus role paddr",
+        "reset_domain": "local_reset",
+        "role": "paddr",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "spi.bus",
+        "evidence": "elaborated_ports[PENABLE]",
+        "instance_id": "peripheral",
+        "port": "PENABLE",
+        "port_width": 1,
+        "reason": "bound to interface spi.bus role penable",
+        "reset_domain": "local_reset",
+        "role": "penable",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "spi.bus",
+        "evidence": "elaborated_ports[PRDATA]",
+        "instance_id": "peripheral",
+        "port": "PRDATA",
+        "port_width": 32,
+        "reason": "bound to interface spi.bus role prdata",
+        "reset_domain": "local_reset",
+        "role": "prdata",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "spi.bus",
+        "evidence": "elaborated_ports[PREADY]",
+        "instance_id": "peripheral",
+        "port": "PREADY",
+        "port_width": 1,
+        "reason": "bound to interface spi.bus role pready",
+        "reset_domain": "local_reset",
+        "role": "pready",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "spi.bus",
+        "evidence": "elaborated_ports[PSEL]",
+        "instance_id": "peripheral",
+        "port": "PSEL",
+        "port_width": 1,
+        "reason": "bound to interface spi.bus role psel",
+        "reset_domain": "local_reset",
+        "role": "psel",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "spi.bus",
+        "evidence": "elaborated_ports[PSLVERR]",
+        "instance_id": "peripheral",
+        "port": "PSLVERR",
+        "port_width": 1,
+        "reason": "bound to interface spi.bus role pslverr",
+        "reset_domain": "local_reset",
+        "role": "pslverr",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "spi.bus",
+        "evidence": "elaborated_ports[PWDATA]",
+        "instance_id": "peripheral",
+        "port": "PWDATA",
+        "port_width": 32,
+        "reason": "bound to interface spi.bus role pwdata",
+        "reset_domain": "local_reset",
+        "role": "pwdata",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "spi.bus",
+        "evidence": "elaborated_ports[PWRITE]",
+        "instance_id": "peripheral",
+        "port": "PWRITE",
+        "port_width": 1,
+        "reason": "bound to interface spi.bus role pwrite",
+        "reset_domain": "local_reset",
+        "role": "pwrite",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 1,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[events_o]",
+        "instance_id": "peripheral",
+        "port": "events_o",
+        "port_width": 2,
+        "reason": "Two one-cycle pulses, not held levels: `assign events_o[0] = s_int_tx | s_int_rx;` (the TX/RX threshold event generated for one cycle in GEN_INT_TX/GEN_INT_RX, apb_spi_master.sv:116,179-183,220-224) and `assign events_o[1] = s_eot;` (the end-of-transfer pulse registered in spi_master_controller.sv:455). This project's interrupt controller admits level sources only, so the profile declares no interrupt_source endpoint and exports both bits for observation instead of inventing a level hold the RTL does not have. The matching status path is also non-level: REG_INTSTA (0x28) has no read-mux arm, so it reads 0 and the read itself only re-arms the TX/RX event state machine (spi_master_apb_if.sv:82,210-211).",
+        "reset_domain": "local_reset",
+        "target": "observation"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_clk",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "sck",
+        "target": "environment_pin"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_csn0",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "csn0",
+        "target": "environment_pin"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_csn1",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "csn1",
+        "target": "environment_pin"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_csn2",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "csn2",
+        "target": "environment_pin"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_csn3",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "csn3",
+        "target": "environment_pin"
+      },
+      {
+        "bits": {
+          "hi": 1,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_mode",
+        "port_width": 2,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "mode",
+        "target": "environment_pin"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "input",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_sdi0",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "sdi0",
+        "target": "environment_pin"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "input",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_sdi1",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "sdi1",
+        "target": "environment_pin"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "input",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_sdi2",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "sdi2",
+        "target": "environment_pin"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "input",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_sdi3",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "sdi3",
+        "target": "environment_pin"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_sdo0",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "sdo0",
+        "target": "environment_pin"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_sdo1",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "sdo1",
+        "target": "environment_pin"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_sdo2",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "sdo2",
+        "target": "environment_pin"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_sdo3",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "sdo3",
+        "target": "environment_pin"
+      }
+    ],
+    "profile_path": "configs/peripherals/pulp_spi/local_component_profile.json",
+    "profile_sha256": "2dd26a1598d93e8a67c3539e4da50df42594a8759eb291ebe01f1a8f4e43dd9c",
+    "protocol_endpoint_ids": [
+      "spi.bus"
+    ],
+    "request_schema_version": "local_harness.v2",
+    "schema_version": "local_harness_plan.v1",
+    "scope": "single_component",
+    "source_content_hash": "sha256:c653811843b453f0689a8f6942934ff9d551734aa4bc4e197d8b9acbfb020230",
+    "source_files": [
+      "soc-pulp-apb-spi/apb_spi_master.sv",
+      "soc-pulp-apb-spi/spi_master_apb_if.sv",
+      "soc-pulp-axi-spi/spi_master_clkgen.sv",
+      "soc-pulp-axi-spi/spi_master_controller.sv",
+      "soc-pulp-axi-spi/spi_master_fifo.sv",
+      "soc-pulp-axi-spi/spi_master_rx.sv",
+      "soc-pulp-axi-spi/spi_master_tx.sv"
+    ],
+    "source_revision": "sha256:c653811843b453f0689a8f6942934ff9d551734aa4bc4e197d8b9acbfb020230",
+    "timing": {
+      "max_wait_cycles": 16,
+      "reset_assert_ticks": 2,
+      "reset_release_ticks": 3
+    },
+    "top": "apb_spi_master",
+    "tuning": {
+      "apb_storage_observations": [
+        {
+          "contract_id": "pulp-apb-spi.spicmd.source.v1",
+          "endpoint_id": "spi.bus",
+          "register": "SPICMD"
+        }
+      ],
+      "bound_bindings": [],
+      "endpoint_policies": [
+        {
+          "endpoint_id": "spi.bus",
+          "max_outstanding": 1,
+          "template_id": "target.apb3",
+          "template_version": "1",
+          "variant_id": "full-word"
+        }
+      ],
+      "environment_bindings": [],
+      "fixed_inputs": [
+        {
+          "endpoint_id": "spi.pins",
+          "role": "sdi0",
+          "value": 0
+        },
+        {
+          "endpoint_id": "spi.pins",
+          "role": "sdi1",
+          "value": 0
+        },
+        {
+          "endpoint_id": "spi.pins",
+          "role": "sdi2",
+          "value": 0
+        },
+        {
+          "endpoint_id": "spi.pins",
+          "role": "sdi3",
+          "value": 0
+        }
+      ],
+      "irq_delivery": [],
+      "optional_signals": [],
+      "peer_bindings": [],
+      "reset_policies": []
+    },
+    "tuning_sha256": "9c13ec4c82fdb44456e53b430f93c96e52a2adb5804e5134aada08c47158ee84"
+  },
+  "raw_observation_schema_version": "ip_raw_observation.v1",
+  "runtime_ports": [
+    {
+      "direction": "input",
+      "name": "clk",
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "name": "reset",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_10_1_0",
+      "width": 2
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_11_0_0",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_12_0_0",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_13_0_0",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_14_0_0",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_15_0_0",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_16_1_0",
+      "width": 2
+    },
+    {
+      "direction": "input",
+      "name": "rt_lh_p_17_0_0",
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "name": "rt_lh_p_18_0_0",
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "name": "rt_lh_p_19_0_0",
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "name": "rt_lh_p_20_0_0",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_21_0_0",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_22_0_0",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_23_0_0",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_24_0_0",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "trace_paddr",
+      "width": 12
+    },
+    {
+      "direction": "output",
+      "name": "trace_psel",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "trace_penable",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "trace_pwrite",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "trace_pwdata",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "name": "trace_pready",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "trace_prdata",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "name": "trace_pslverr",
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "name": "reg_req_valid",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "reg_req_ready",
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "name": "reg_req_write",
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "name": "reg_req_addr",
+      "width": 32
+    },
+    {
+      "direction": "input",
+      "name": "reg_req_wdata",
+      "width": 32
+    },
+    {
+      "direction": "input",
+      "name": "reg_req_be",
+      "width": 4
+    },
+    {
+      "direction": "output",
+      "name": "reg_rsp_valid",
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "name": "reg_rsp_ready",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "reg_rsp_rdata",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "name": "reg_rsp_error",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "storage_value",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "name": "storage_reset",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "storage_paddr",
+      "width": 12
+    },
+    {
+      "direction": "output",
+      "name": "storage_psel",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "storage_penable",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "storage_pwrite",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "storage_pwdata",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "name": "storage_prdata",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "name": "storage_pready",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "storage_pslverr",
+      "width": 1
+    }
+  ],
+  "runtime_sv_sha256": "aead645b6f2adeb61c818ab1c65b58806254ef2c2c6311c41042b3a15d286b44",
+  "schema_version": "local_runtime_artifact.v1",
+  "selected_template": {
+    "contract": {
+      "dut_semantics_verified": false,
+      "generation_stage": "source_admitted_runtime_top",
+      "protocol_capability_claim": false,
+      "schema_version": "local_generated_executor_contract.v1",
+      "scope": "generated_executor_only",
+      "template_id": "local.generated.apb3_register_observe",
+      "template_version": "1",
+      "variant_id": "apb3_register_observe"
+    },
+    "contract_sha256": "103a3e225cb26ddc93ebba1527a20c4dc3a92ef9f9eb357227d280d485bf13aa",
+    "dut_semantics_verified": false,
+    "executor": {
+      "binding": {
+        "adapter_sources": [
+          {
+            "path": "src/myfuzz/protocols/rtl/beat_to_apb.sv",
+            "sha256": "35cc8c1765a42cdfbfdd1ec504492ab789559d7a3ceee95c9f3ed48b474b2d7c"
+          }
+        ],
+        "boot_contract": null,
+        "clock_schedule": {
+          "clock_edges_observed": "rising_edges_since_ready",
+          "clocks": [
+            {
+              "domain": "core",
+              "first_rising_fast_tick": 1,
+              "frequency_hz": 50000000,
+              "half_period_fast_ticks": 1,
+              "ratio": 1,
+              "signal": "clk"
+            }
+          ],
+          "fast_frequency_hz": 50000000,
+          "phase_policy": "all_low_then_half_period_toggle",
+          "primary_clock_domain": "core",
+          "primary_reset_domain": "sys_rst",
+          "resets": [
+            {
+              "domain": "sys_rst",
+              "polarity": "active_low",
+              "port": "HRESETn",
+              "signal": "reset",
+              "synchronous": false
+            }
+          ],
+          "schema_version": "local_clock_schedule.v1",
+          "startup_fast_ticks": 5
+        },
+        "declared_profile_facts": {
+          "address_width": 12,
+          "byte_enable": false,
+          "data_width": 32,
+          "has_error": true,
+          "max_wait_cycles": 16,
+          "partial_write": false,
+          "read": true,
+          "write": true
+        },
+        "effective_max_wait_cycles": 16,
+        "endpoints": [
+          {
+            "endpoint_id": "spi.bus",
+            "function": "mmio_slave",
+            "protocol": [
+              "apb",
+              "3"
+            ],
+            "roles": [
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PADDR",
+                "port_width": 12,
+                "raw_hi": 11,
+                "raw_lo": 0,
+                "role": "paddr",
+                "width": 12
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PENABLE",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "penable",
+                "width": 1
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "PRDATA",
+                "port_width": 32,
+                "raw_hi": 31,
+                "raw_lo": 0,
+                "role": "prdata",
+                "width": 32
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "PREADY",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "pready",
+                "width": 1
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PSEL",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "psel",
+                "width": 1
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "PSLVERR",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "pslverr",
+                "width": 1
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PWDATA",
+                "port_width": 32,
+                "raw_hi": 31,
+                "raw_lo": 0,
+                "role": "pwdata",
+                "width": 32
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PWRITE",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "pwrite",
+                "width": 1
+              }
+            ]
+          }
+        ],
+        "implementation_sources": [
+          {
+            "path": "src/myfuzz/local_harness/runtime_renderer.py",
+            "sha256": "ededda67ad7e8eb797219649556e0be4ebe4a08394fe0f93dd8e8a4e49b7eb23"
+          },
+          {
+            "path": "src/myfuzz/local_harness/template_contracts.py",
+            "sha256": "34a74ae2fbff14b69bca50ec4770afe897652c51e77fdcd832543e0cd58c5637"
+          },
+          {
+            "path": "src/myfuzz/local_harness/apb_storage_source_contract.py",
+            "sha256": "73a5a94c8fb90bc2ea1ec4dbe89e59b0c8345e57cee690ba0db73e7e2c410edb"
+          },
+          {
+            "path": "src/myfuzz/local_harness/apb_storage_probe_contract.py",
+            "sha256": "46cf63a0d1b9e676121f71a55444d3d670af9b77d2ad42078108277ce26d0a3b"
+          }
+        ],
+        "parameter_overrides": {
+          "APB_ADDR_WIDTH": "12",
+          "BUFFER_DEPTH": "10"
+        },
+        "physical_input_policy": {
+          "bound_physical_inputs": [],
+          "dynamic_physical_inputs": [],
+          "fixed_physical_inputs": [
+            {
+              "endpoint_id": "spi.pins",
+              "role": "sdi0",
+              "runtime_name": "rt_lh_p_17_0_0",
+              "value": 0,
+              "width": 1
+            },
+            {
+              "endpoint_id": "spi.pins",
+              "role": "sdi1",
+              "runtime_name": "rt_lh_p_18_0_0",
+              "value": 0,
+              "width": 1
+            },
+            {
+              "endpoint_id": "spi.pins",
+              "role": "sdi2",
+              "runtime_name": "rt_lh_p_19_0_0",
+              "value": 0,
+              "width": 1
+            },
+            {
+              "endpoint_id": "spi.pins",
+              "role": "sdi3",
+              "runtime_name": "rt_lh_p_20_0_0",
+              "value": 0,
+              "width": 1
+            }
+          ],
+          "functional_scope": "apb3_register_only_pin_observe_no_peer"
+        },
+        "profile_sha256": "2dd26a1598d93e8a67c3539e4da50df42594a8759eb291ebe01f1a8f4e43dd9c",
+        "runtime_sv_sha256": "aead645b6f2adeb61c818ab1c65b58806254ef2c2c6311c41042b3a15d286b44"
+      },
+      "contract": {
+        "dut_semantics_verified": false,
+        "generation_stage": "source_admitted_runtime_top",
+        "protocol_capability_claim": false,
+        "schema_version": "local_generated_executor_contract.v1",
+        "scope": "generated_executor_only",
+        "template_id": "local.generated.apb3_register_observe",
+        "template_version": "1",
+        "variant_id": "apb3_register_observe"
+      },
+      "contract_sha256": "103a3e225cb26ddc93ebba1527a20c4dc3a92ef9f9eb357227d280d485bf13aa",
+      "dut_semantics_verified": false,
+      "identity_sha256": "f81ec37a0824b9a23ed2396b295516c56bc9ef56968b8ed3a7ba3de8d3849ed3",
+      "protocol_templates": [
+        {
+          "binding": {
+            "address_width": 12,
+            "data_width": 32,
+            "endpoint_id": "spi.bus",
+            "function": "mmio_slave",
+            "protocol": [
+              "apb",
+              "3"
+            ],
+            "roles": [
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PADDR",
+                "port_width": 12,
+                "raw_hi": 11,
+                "raw_lo": 0,
+                "role": "paddr",
+                "width": 12
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PENABLE",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "penable",
+                "width": 1
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "PRDATA",
+                "port_width": 32,
+                "raw_hi": 31,
+                "raw_lo": 0,
+                "role": "prdata",
+                "width": 32
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "PREADY",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "pready",
+                "width": 1
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PSEL",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "psel",
+                "width": 1
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "PSLVERR",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "pslverr",
+                "width": 1
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PWDATA",
+                "port_width": 32,
+                "raw_hi": 31,
+                "raw_lo": 0,
+                "role": "pwdata",
+                "width": 32
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PWRITE",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "pwrite",
+                "width": 1
+              }
+            ],
+            "selection_mode": "automatic",
+            "typed_profile_facts": {
+              "address_width": 12,
+              "byte_enable": false,
+              "data_width": 32,
+              "has_error": true,
+              "max_wait_cycles": 16,
+              "partial_write": false,
+              "read": true,
+              "write": true
+            }
+          },
+          "contract": {
+            "dut_semantics_verified": false,
+            "host_to_device_roles": [
+              "paddr",
+              "penable",
+              "psel",
+              "pwdata",
+              "pwrite"
+            ],
+            "limits": {
+              "address_width_max": 64,
+              "address_width_min": 1,
+              "byte_enable": false,
+              "clock_crossing": false,
+              "completion": "setup_access_response",
+              "error_policy": "observe_pslverr_on_completion",
+              "has_error": true,
+              "max_field_width": 4096,
+              "max_outstanding": 1,
+              "max_wait_cycles_limit": 1024,
+              "outstanding_scope": "endpoint",
+              "partial_write": false,
+              "pipelining": false,
+              "supported_data_widths": [
+                32
+              ]
+            },
+            "optional_profile_facts": {},
+            "optional_role_groups": [],
+            "optional_roles": [],
+            "protocol": [
+              "apb",
+              "3"
+            ],
+            "required_profile_facts": {
+              "byte_enable": false,
+              "partial_write": false
+            },
+            "required_roles": [
+              "paddr",
+              "penable",
+              "prdata",
+              "pready",
+              "psel",
+              "pslverr",
+              "pwdata",
+              "pwrite"
+            ],
+            "role_shapes": {
+              "paddr": {
+                "width": "address_width"
+              },
+              "penable": {
+                "width": 1
+              },
+              "prdata": {
+                "width": "data_width"
+              },
+              "pready": {
+                "width": 1
+              },
+              "psel": {
+                "width": 1
+              },
+              "pslverr": {
+                "width": 1
+              },
+              "pwdata": {
+                "width": "data_width"
+              },
+              "pwrite": {
+                "width": 1
+              }
+            },
+            "runtime_effective": false,
+            "schema_version": "local_protocol_template_contract.v1",
+            "semantic_selection": "shape",
+            "side": "target",
+            "template_id": "target.apb3",
+            "template_version": "1",
+            "variant_id": "full-word"
+          },
+          "contract_sha256": "31a5a8add131e35375fdc972241ae9bb6f18030798b39edf9c4120952ea3d59a",
+          "dut_semantics_verified": false,
+          "runtime_effective": false,
+          "schema_version": "local_protocol_template_selection.v1"
+        }
+      ],
+      "runtime_effective": false,
+      "schema_version": "local_generated_executor_selection.v1"
+    },
+    "runtime_effective": false,
+    "schema_version": "local_generated_template_selection.v1"
+  },
+  "source_verification": {
+    "closure_sha256": "c575700a1cc1c25a73a56b50545d4483f44f6e0cadaa535a7b847ac541b92a30",
+    "elaboration_status": "elaboration_verified",
+    "lock_sha256": "4caf0ae616e99e3c7cac76a1b04daca41af9bcef0eee3b6b0923fb6bd7e2a29e",
+    "profile_union_revision": "sha256:c653811843b453f0689a8f6942934ff9d551734aa4bc4e197d8b9acbfb020230",
+    "schema_version": "local_source_lock_verification.v1",
+    "source_records": [
+      {
+        "elaboration": {
+          "closure_files": 7,
+          "closure_roots": [
+            "third_party/soc-pulp-apb-spi",
+            "third_party/soc-pulp-axi-spi"
+          ],
+          "elaboration_status": "elaboration_verified",
+          "lint": {
+            "errors": 0,
+            "exit_code": 0,
+            "log": "runs/soc-source-elaboration/pulp/pulp_spi.elaborate.log",
+            "warnings": 10
+          },
+          "tool": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+          "top_module": "apb_spi_master"
+        },
+        "elaboration_status": "elaboration_verified",
+        "id": "pulp_spi",
+        "parse_status": "parameterized_ports_pending_elaboration",
+        "runtime_status": "runtime_unverified",
+        "selected_content_hash": "sha256:4e4179730dd875bc66396b973ddf98ecf6bedf5c13e241a4e4140bf002667929",
+        "selected_files": 2,
+        "source_status": "source_verified"
+      },
+      {
+        "elaboration": {
+          "closure_files": 4,
+          "closure_roots": [
+            "third_party/soc-pulp-axi-spi"
+          ],
+          "elaboration_status": "elaboration_verified",
+          "lint": {
+            "errors": 0,
+            "exit_code": 0,
+            "log": "runs/soc-source-elaboration/pulp/pulp_spi_dependencies.elaborate.log",
+            "warnings": 5
+          },
+          "tool": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+          "top_module": "spi_master_controller"
+        },
+        "elaboration_status": "elaboration_verified",
+        "id": "pulp_spi_dependencies",
+        "parse_status": "parameterized_ports_pending_elaboration",
+        "runtime_status": "runtime_unverified",
+        "selected_content_hash": "sha256:90935e7e6ad612ce30f6f246abd05501e8276b3d51cbfe537d1d6dbd725c5e58",
+        "selected_files": 5,
+        "source_status": "source_verified"
+      }
+    ],
+    "source_status": "source_verified"
+  },
+  "status": "driver_generated",
+  "storage_observation": {
+    "digest": "5b24d396e715d164b450c293a03bbbb4d6373850975955cae7e90f72e83dcce9",
+    "hierarchy_verified": false,
+    "native_verified": false,
+    "ports": [
+      {
+        "direction": "output",
+        "expression": "u_component.u_dut.u_axiregs.spi_cmd",
+        "name": "storage_value",
+        "role": "value",
+        "width": 32
+      },
+      {
+        "direction": "output",
+        "expression": "reset",
+        "name": "storage_reset",
+        "role": "reset",
+        "width": 1
+      },
+      {
+        "direction": "output",
+        "expression": "link_lh_p_2_11_0",
+        "name": "storage_paddr",
+        "role": "paddr",
+        "width": 12
+      },
+      {
+        "direction": "output",
+        "expression": "link_lh_p_6_0_0",
+        "name": "storage_psel",
+        "role": "psel",
+        "width": 1
+      },
+      {
+        "direction": "output",
+        "expression": "link_lh_p_3_0_0",
+        "name": "storage_penable",
+        "role": "penable",
+        "width": 1
+      },
+      {
+        "direction": "output",
+        "expression": "link_lh_p_9_0_0",
+        "name": "storage_pwrite",
+        "role": "pwrite",
+        "width": 1
+      },
+      {
+        "direction": "output",
+        "expression": "link_lh_p_8_31_0",
+        "name": "storage_pwdata",
+        "role": "pwdata",
+        "width": 32
+      },
+      {
+        "direction": "output",
+        "expression": "link_lh_p_4_31_0",
+        "name": "storage_prdata",
+        "role": "prdata",
+        "width": 32
+      },
+      {
+        "direction": "output",
+        "expression": "link_lh_p_5_0_0",
+        "name": "storage_pready",
+        "role": "pready",
+        "width": 1
+      },
+      {
+        "direction": "output",
+        "expression": "link_lh_p_7_0_0",
+        "name": "storage_pslverr",
+        "role": "pslverr",
+        "width": 1
+      }
+    ],
+    "reset_authority": false,
+    "sample_group": "storage_probes",
+    "schema_version": "apb_storage_probe.v1",
+    "scope": "generated_expression_source_mapped",
+    "selection": {
+      "contract_id": "pulp-apb-spi.spicmd.source.v1",
+      "endpoint_id": "spi.bus",
+      "register": "SPICMD"
+    },
+    "source_authority": false,
+    "source_contract": {
+      "authority": false,
+      "clock": {
+        "edge": "posedge",
+        "port": "HCLK"
+      },
+      "contract_id": "pulp-apb-spi.spicmd.source.v1",
+      "decode": {
+        "address_width": 12,
+        "alias_period_bytes": 64,
+        "aligned_word_alias_count": 64,
+        "child_select": "write_address = PADDR[5:2]; read_address = PADDR[5:2]; REG_SPICMD=2",
+        "expression": "PADDR[5:2] == 4'b0010",
+        "host_alignment_bytes": 4,
+        "host_alignment_scope": "separate_transport_rule_not_raw_storage_decode",
+        "ignored_address_bits": [
+          0,
+          1,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "mask": 60,
+        "raw_address_alias_count": 256,
+        "top_select": "PADDR is forwarded unchanged to u_axiregs",
+        "value": 8
+      },
+      "digest": "ec6caf247dab2d2a668ca350092507e4897c9a0d1937de3e1000d16624a32480",
+      "hierarchy_verified": false,
+      "native_verified": false,
+      "not_claimed": [
+        "arbitrary_RTL_inference",
+        "native_hierarchy",
+        "generated_probe",
+        "build_process_eligibility",
+        "reset_observation",
+        "live_register_version",
+        "serialized_authority",
+        "complete_F4",
+        "P7",
+        "STATUS_transfer_strobes",
+        "SPI_serial_pins",
+        "TX_RX_FIFOs",
+        "interrupts",
+        "other_registers"
+      ],
+      "parameters": {
+        "APB_ADDR_WIDTH": 12,
+        "BUFFER_DEPTH": 10
+      },
+      "register": {
+        "canonical_offset": 8,
+        "name": "SPICMD",
+        "read_mask": 4294967295,
+        "reset_value": 0,
+        "width": 32,
+        "write_mask": 4294967295
+      },
+      "reset": {
+        "event": "negedge HRESETn or asserted at posedge HCLK",
+        "polarity": "active_low",
+        "port": "HRESETn",
+        "synchronous": false
+      },
+      "reset_authority": false,
+      "schema_version": "apb_storage_source_contract.v1",
+      "scope": "source_reviewed_contract",
+      "source": {
+        "defines": {},
+        "files": {
+          "soc-pulp-apb-spi/apb_spi_master.sv": "dfc82b0f3c91ba44d986288e1884b1eede0aad6ed8c5b09179a629344d547d0e",
+          "soc-pulp-apb-spi/spi_master_apb_if.sv": "a9a32da6cc07768cab293c48989599e36b2000bb572191667960aa1423fc790a",
+          "soc-pulp-axi-spi/spi_master_clkgen.sv": "dbfc81a8afe1c05a4372cf7e46f1217f6b57d56c8927bf25ee5f427761b15332",
+          "soc-pulp-axi-spi/spi_master_controller.sv": "0ba0d90e99949939b3815ed2e69a9f95b980114ec554baca14083ab54496db76",
+          "soc-pulp-axi-spi/spi_master_fifo.sv": "226f53f2e78a82eb9859149a505c287daa8cfd54f55c51b6c1cfa2cd90a38555",
+          "soc-pulp-axi-spi/spi_master_rx.sv": "1290e4beaa7d4b588da9cf84da47b39923010bcfdb355641509ee90295d8ca5f",
+          "soc-pulp-axi-spi/spi_master_tx.sv": "ee9a7d305bc7bb574ece02dbd6dc8a3f0403729d336bd7431689da47a08558f6"
+        },
+        "identity_basis": "declared_pinned_revision_and_exact_reviewed_bytes_not_new_git_or_elaboration_verification",
+        "include_roots": [],
+        "revision": "sha256:c653811843b453f0689a8f6942934ff9d551734aa4bc4e197d8b9acbfb020230",
+        "root": "third_party",
+        "top_module": "apb_spi_master"
+      },
+      "source_authority": false,
+      "source_review": [
+        {
+          "fact": "full APB forwarding to u_axiregs; spi_cmd is consumed by controller separately from STATUS command strobes",
+          "file": "soc-pulp-apb-spi/apb_spi_master.sv",
+          "lines": [
+            [
+              14,
+              29
+            ],
+            [
+              61,
+              65
+            ],
+            [
+              242,
+              275
+            ],
+            [
+              335,
+              355
+            ]
+          ]
+        },
+        {
+          "fact": "complete spi_cmd writer/reset/hold; full-word overwrite; raw four-bit decode; combinational read mux",
+          "file": "soc-pulp-apb-spi/spi_master_apb_if.sv",
+          "lines": [
+            [
+              13,
+              16
+            ],
+            [
+              31,
+              48
+            ],
+            [
+              73,
+              80
+            ],
+            [
+              84,
+              110
+            ],
+            [
+              119,
+              141
+            ],
+            [
+              170,
+              191
+            ]
+          ]
+        }
+      ],
+      "storage_expression": {
+        "expression": "u_component.u_dut.u_axiregs.spi_cmd",
+        "relative_source_storage": "spi_master_apb_if.spi_cmd",
+        "required_followup": "verify_actual_elaborated_hierarchy_and_read_only_pre_post_probe_wiring",
+        "status": "prospective_not_codegen_or_native_verified"
+      },
+      "version_authority": false,
+      "writers": {
+        "all_alias_writes": "every raw decode match writes the same storage, including ignored low/high bits",
+        "autonomous_ctrl_writers": [],
+        "bus_write": "if PSEL && PENABLE && PWRITE && PADDR[5:2]==2: spi_cmd <= PWDATA",
+        "commit": "at posedge HCLK when HRESETn: selected full-word overwrite or hold",
+        "complete_for_registered_source": true,
+        "hold": "spi_cmd retains its value outside reset and selected SPICMD writes",
+        "other_state": "STATUS writes strobe transfer commands; SPICMD writes do not start serial activity",
+        "priority": [
+          "asynchronous_asserted_reset",
+          "selected_full_word_overwrite",
+          "hold"
+        ],
+        "read": "combinational read_address==REG_SPICMD: PRDATA = spi_cmd; not gated by PSEL/PENABLE/PWRITE",
+        "ready_error": "PREADY=1, PSLVERR=0; no error generation claim",
+        "reset": "if HRESETn == 1'b0: spi_cmd <= '0",
+        "scope": "selected_SPICMD_storage_only_not_all_spi_state"
+      }
+    },
+    "version_authority": false
+  },
+  "storage_probe_ports": [
+    {
+      "direction": "output",
+      "expression": "u_component.u_dut.u_axiregs.spi_cmd",
+      "name": "storage_value",
+      "role": "value",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "expression": "reset",
+      "name": "storage_reset",
+      "role": "reset",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "expression": "link_lh_p_2_11_0",
+      "name": "storage_paddr",
+      "role": "paddr",
+      "width": 12
+    },
+    {
+      "direction": "output",
+      "expression": "link_lh_p_6_0_0",
+      "name": "storage_psel",
+      "role": "psel",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "expression": "link_lh_p_3_0_0",
+      "name": "storage_penable",
+      "role": "penable",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "expression": "link_lh_p_9_0_0",
+      "name": "storage_pwrite",
+      "role": "pwrite",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "expression": "link_lh_p_8_31_0",
+      "name": "storage_pwdata",
+      "role": "pwdata",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "expression": "link_lh_p_4_31_0",
+      "name": "storage_prdata",
+      "role": "prdata",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "expression": "link_lh_p_5_0_0",
+      "name": "storage_pready",
+      "role": "pready",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "expression": "link_lh_p_7_0_0",
+      "name": "storage_pslverr",
+      "role": "pslverr",
+      "width": 1
+    }
+  ],
+  "structural_abi": {
+    "dispositions": [
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "input",
+        "disposition": "functional",
+        "evidence": "component_profile.clocks[HCLK]",
+        "instance_id": "peripheral",
+        "port": "HCLK",
+        "port_width": 1,
+        "reason": "clock port distributed from the SoC clock input",
+        "reset_domain": "local_reset",
+        "role": "clock",
+        "target": "clock_reset"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "input",
+        "disposition": "functional",
+        "evidence": "component_profile.resets[HRESETn]",
+        "instance_id": "peripheral",
+        "port": "HRESETn",
+        "port_width": 1,
+        "reason": "reset port distributed from the SoC reset input",
+        "reset_domain": "local_reset",
+        "role": "reset",
+        "target": "clock_reset"
+      },
+      {
+        "bits": {
+          "hi": 11,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "spi.bus",
+        "evidence": "elaborated_ports[PADDR]",
+        "instance_id": "peripheral",
+        "port": "PADDR",
+        "port_width": 12,
+        "reason": "bound to interface spi.bus role paddr",
+        "reset_domain": "local_reset",
+        "role": "paddr",
+        "target": "fabric_target"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "spi.bus",
+        "evidence": "elaborated_ports[PENABLE]",
+        "instance_id": "peripheral",
+        "port": "PENABLE",
+        "port_width": 1,
+        "reason": "bound to interface spi.bus role penable",
+        "reset_domain": "local_reset",
+        "role": "penable",
+        "target": "fabric_target"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "spi.bus",
+        "evidence": "elaborated_ports[PRDATA]",
+        "instance_id": "peripheral",
+        "port": "PRDATA",
+        "port_width": 32,
+        "reason": "bound to interface spi.bus role prdata",
+        "reset_domain": "local_reset",
+        "role": "prdata",
+        "target": "fabric_target"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "spi.bus",
+        "evidence": "elaborated_ports[PREADY]",
+        "instance_id": "peripheral",
+        "port": "PREADY",
+        "port_width": 1,
+        "reason": "bound to interface spi.bus role pready",
+        "reset_domain": "local_reset",
+        "role": "pready",
+        "target": "fabric_target"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "spi.bus",
+        "evidence": "elaborated_ports[PSEL]",
+        "instance_id": "peripheral",
+        "port": "PSEL",
+        "port_width": 1,
+        "reason": "bound to interface spi.bus role psel",
+        "reset_domain": "local_reset",
+        "role": "psel",
+        "target": "fabric_target"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "spi.bus",
+        "evidence": "elaborated_ports[PSLVERR]",
+        "instance_id": "peripheral",
+        "port": "PSLVERR",
+        "port_width": 1,
+        "reason": "bound to interface spi.bus role pslverr",
+        "reset_domain": "local_reset",
+        "role": "pslverr",
+        "target": "fabric_target"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "spi.bus",
+        "evidence": "elaborated_ports[PWDATA]",
+        "instance_id": "peripheral",
+        "port": "PWDATA",
+        "port_width": 32,
+        "reason": "bound to interface spi.bus role pwdata",
+        "reset_domain": "local_reset",
+        "role": "pwdata",
+        "target": "fabric_target"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "spi.bus",
+        "evidence": "elaborated_ports[PWRITE]",
+        "instance_id": "peripheral",
+        "port": "PWRITE",
+        "port_width": 1,
+        "reason": "bound to interface spi.bus role pwrite",
+        "reset_domain": "local_reset",
+        "role": "pwrite",
+        "target": "fabric_target"
+      },
+      {
+        "bits": {
+          "hi": 1,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[events_o]",
+        "instance_id": "peripheral",
+        "port": "events_o",
+        "port_width": 2,
+        "reason": "Two one-cycle pulses, not held levels: `assign events_o[0] = s_int_tx | s_int_rx;` (the TX/RX threshold event generated for one cycle in GEN_INT_TX/GEN_INT_RX, apb_spi_master.sv:116,179-183,220-224) and `assign events_o[1] = s_eot;` (the end-of-transfer pulse registered in spi_master_controller.sv:455). This project's interrupt controller admits level sources only, so the profile declares no interrupt_source endpoint and exports both bits for observation instead of inventing a level hold the RTL does not have. The matching status path is also non-level: REG_INTSTA (0x28) has no read-mux arm, so it reads 0 and the read itself only re-arms the TX/RX event state machine (spi_master_apb_if.sv:82,210-211).",
+        "reset_domain": "local_reset",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_clk",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "sck",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_csn0",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "csn0",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_csn1",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "csn1",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_csn2",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "csn2",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_csn3",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "csn3",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 1,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_mode",
+        "port_width": 2,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "mode",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "input",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_sdi0",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "sdi0",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "input",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_sdi1",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "sdi1",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "input",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_sdi2",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "sdi2",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "input",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_sdi3",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "sdi3",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_sdo0",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "sdo0",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_sdo1",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "sdo1",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_sdo2",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "sdo2",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_spi",
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "evidence": "component_profile.endpoints[spi.pins]",
+        "instance_id": "peripheral",
+        "port": "spi_sdo3",
+        "port_width": 1,
+        "reason": "profile declares a non-MMIO external interface and the composition request names no internal peer, so the pin is exported to the SoC top",
+        "reset_domain": "local_reset",
+        "role": "sdo3",
+        "target": "soc_top"
+      }
+    ],
+    "module_name": "local_peripheral",
+    "parameter_evidence": [
+      {
+        "declaration": "parameter APB_ADDR_WIDTH = 12",
+        "name": "APB_ADDR_WIDTH",
+        "qualified_type": null,
+        "source_file": "soc-pulp-apb-spi/apb_spi_master.sv",
+        "source_sha256": "dfc82b0f3c91ba44d986288e1884b1eede0aad6ed8c5b09179a629344d547d0e"
+      },
+      {
+        "declaration": "parameter BUFFER_DEPTH = 10",
+        "name": "BUFFER_DEPTH",
+        "qualified_type": null,
+        "source_file": "soc-pulp-apb-spi/apb_spi_master.sv",
+        "source_sha256": "dfc82b0f3c91ba44d986288e1884b1eede0aad6ed8c5b09179a629344d547d0e"
+      }
+    ],
+    "plan_sha256": "e0ad3dd0814e77a7d2632b4eed9ec036aa2b7d850d5c0862cad1880a434946c0",
+    "ports": [
+      {
+        "bit_hi": 11,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "spi.bus",
+        "physical_port": "PADDR",
+        "role": "paddr",
+        "width": 12,
+        "wrapper_name": "lh_p_2_11_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "spi.bus",
+        "physical_port": "PENABLE",
+        "role": "penable",
+        "width": 1,
+        "wrapper_name": "lh_p_3_0_0"
+      },
+      {
+        "bit_hi": 31,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "spi.bus",
+        "physical_port": "PRDATA",
+        "role": "prdata",
+        "width": 32,
+        "wrapper_name": "lh_p_4_31_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "spi.bus",
+        "physical_port": "PREADY",
+        "role": "pready",
+        "width": 1,
+        "wrapper_name": "lh_p_5_0_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "spi.bus",
+        "physical_port": "PSEL",
+        "role": "psel",
+        "width": 1,
+        "wrapper_name": "lh_p_6_0_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "spi.bus",
+        "physical_port": "PSLVERR",
+        "role": "pslverr",
+        "width": 1,
+        "wrapper_name": "lh_p_7_0_0"
+      },
+      {
+        "bit_hi": 31,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "spi.bus",
+        "physical_port": "PWDATA",
+        "role": "pwdata",
+        "width": 32,
+        "wrapper_name": "lh_p_8_31_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "spi.bus",
+        "physical_port": "PWRITE",
+        "role": "pwrite",
+        "width": 1,
+        "wrapper_name": "lh_p_9_0_0"
+      },
+      {
+        "bit_hi": 1,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "observe",
+        "endpoint_id": null,
+        "physical_port": "events_o",
+        "role": null,
+        "width": 2,
+        "wrapper_name": "lh_p_10_1_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "physical_port": "spi_clk",
+        "role": "sck",
+        "width": 1,
+        "wrapper_name": "lh_p_11_0_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "physical_port": "spi_csn0",
+        "role": "csn0",
+        "width": 1,
+        "wrapper_name": "lh_p_12_0_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "physical_port": "spi_csn1",
+        "role": "csn1",
+        "width": 1,
+        "wrapper_name": "lh_p_13_0_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "physical_port": "spi_csn2",
+        "role": "csn2",
+        "width": 1,
+        "wrapper_name": "lh_p_14_0_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "physical_port": "spi_csn3",
+        "role": "csn3",
+        "width": 1,
+        "wrapper_name": "lh_p_15_0_0"
+      },
+      {
+        "bit_hi": 1,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "physical_port": "spi_mode",
+        "role": "mode",
+        "width": 2,
+        "wrapper_name": "lh_p_16_1_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "physical_port": "spi_sdi0",
+        "role": "sdi0",
+        "width": 1,
+        "wrapper_name": "lh_p_17_0_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "physical_port": "spi_sdi1",
+        "role": "sdi1",
+        "width": 1,
+        "wrapper_name": "lh_p_18_0_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "physical_port": "spi_sdi2",
+        "role": "sdi2",
+        "width": 1,
+        "wrapper_name": "lh_p_19_0_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "physical_port": "spi_sdi3",
+        "role": "sdi3",
+        "width": 1,
+        "wrapper_name": "lh_p_20_0_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "physical_port": "spi_sdo0",
+        "role": "sdo0",
+        "width": 1,
+        "wrapper_name": "lh_p_21_0_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "physical_port": "spi_sdo1",
+        "role": "sdo1",
+        "width": 1,
+        "wrapper_name": "lh_p_22_0_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "physical_port": "spi_sdo2",
+        "role": "sdo2",
+        "width": 1,
+        "wrapper_name": "lh_p_23_0_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "external",
+        "endpoint_id": "spi.pins",
+        "physical_port": "spi_sdo3",
+        "role": "sdo3",
+        "width": 1,
+        "wrapper_name": "lh_p_24_0_0"
+      }
+    ],
+    "reset_assertion": "active_high",
+    "schema_version": "local_harness_abi.v1"
+  },
+  "structural_build": {
+    "defines": [],
+    "include_roots": [],
+    "lint_argv": [
+      "verilator",
+      "--lint-only",
+      "-Wno-fatal",
+      "--top-module",
+      "local_peripheral",
+      "third_party/soc-pulp-apb-spi/apb_spi_master.sv",
+      "third_party/soc-pulp-apb-spi/spi_master_apb_if.sv",
+      "third_party/soc-pulp-axi-spi/spi_master_clkgen.sv",
+      "third_party/soc-pulp-axi-spi/spi_master_controller.sv",
+      "third_party/soc-pulp-axi-spi/spi_master_fifo.sv",
+      "third_party/soc-pulp-axi-spi/spi_master_rx.sv",
+      "third_party/soc-pulp-axi-spi/spi_master_tx.sv"
+    ],
+    "parameter_evidence": [
+      {
+        "declaration": "parameter APB_ADDR_WIDTH = 12",
+        "name": "APB_ADDR_WIDTH",
+        "qualified_type": null,
+        "source_file": "soc-pulp-apb-spi/apb_spi_master.sv",
+        "source_sha256": "dfc82b0f3c91ba44d986288e1884b1eede0aad6ed8c5b09179a629344d547d0e"
+      },
+      {
+        "declaration": "parameter BUFFER_DEPTH = 10",
+        "name": "BUFFER_DEPTH",
+        "qualified_type": null,
+        "source_file": "soc-pulp-apb-spi/apb_spi_master.sv",
+        "source_sha256": "dfc82b0f3c91ba44d986288e1884b1eede0aad6ed8c5b09179a629344d547d0e"
+      }
+    ],
+    "parameter_overrides": {
+      "APB_ADDR_WIDTH": "12",
+      "BUFFER_DEPTH": "10"
+    },
+    "profile_sha256": "2dd26a1598d93e8a67c3539e4da50df42594a8759eb291ebe01f1a8f4e43dd9c",
+    "schema_version": "local_harness_build.v1",
+    "source_content_hash": "sha256:c653811843b453f0689a8f6942934ff9d551734aa4bc4e197d8b9acbfb020230",
+    "source_files": [
+      "third_party/soc-pulp-apb-spi/apb_spi_master.sv",
+      "third_party/soc-pulp-apb-spi/spi_master_apb_if.sv",
+      "third_party/soc-pulp-axi-spi/spi_master_clkgen.sv",
+      "third_party/soc-pulp-axi-spi/spi_master_controller.sv",
+      "third_party/soc-pulp-axi-spi/spi_master_fifo.sv",
+      "third_party/soc-pulp-axi-spi/spi_master_rx.sv",
+      "third_party/soc-pulp-axi-spi/spi_master_tx.sv"
+    ],
+    "source_revision": "sha256:c653811843b453f0689a8f6942934ff9d551734aa4bc4e197d8b9acbfb020230",
+    "status": "structural_only",
+    "wrapper_sha256": "4111c41127523e7e8c57aadcf773d22e9b31ceeba00218a59474246c17651153"
+  },
+  "wire_schema_version": "local_driver.v1"
+}

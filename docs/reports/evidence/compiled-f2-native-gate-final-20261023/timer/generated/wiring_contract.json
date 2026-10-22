@@ -1,0 +1,35 @@
+{
+  "cpu": {
+    "endpoint_id": "processor.data",
+    "instance_id": "processor",
+    "template": "cpu.obi",
+    "variant_id": "read-write"
+  },
+  "cycle_accurate": false,
+  "delivery": "transaction_level_explicit",
+  "global_interconnect": false,
+  "resources": [
+    {
+      "base": 65536,
+      "component_instance": "processor",
+      "execute": true,
+      "initialization_policy": "preload",
+      "read": true,
+      "resource_id": "ram",
+      "size": 196608,
+      "write": true
+    }
+  ],
+  "schema_version": "wiring_contract.v1",
+  "windows": [
+    {
+      "base": 1073745920,
+      "device_id": "peripheral",
+      "endpoint_id": "timer.bus",
+      "size": 4096,
+      "target_instance": "peripheral",
+      "template": "target.apb3",
+      "variant_id": "full-word"
+    }
+  ]
+}

@@ -1,0 +1,1800 @@
+{
+  "adapted_endpoint_ids": [
+    "timer.bus"
+  ],
+  "adapter_sources": [
+    {
+      "path": "src/myfuzz/protocols/rtl/beat_to_apb.sv",
+      "sha256": "35cc8c1765a42cdfbfdd1ec504492ab789559d7a3ceee95c9f3ed48b474b2d7c"
+    }
+  ],
+  "artifact_digest": "70f3c1bdecd045494ad28cce07ed443d568240dec94a5d382b6f7a02bf8f4489",
+  "backend_ports": [
+    {
+      "channel": "ip_protocol_trace",
+      "direction": "output",
+      "name": "trace_paddr",
+      "role": "paddr",
+      "width": 12
+    },
+    {
+      "channel": "ip_protocol_trace",
+      "direction": "output",
+      "name": "trace_psel",
+      "role": "psel",
+      "width": 1
+    },
+    {
+      "channel": "ip_protocol_trace",
+      "direction": "output",
+      "name": "trace_penable",
+      "role": "penable",
+      "width": 1
+    },
+    {
+      "channel": "ip_protocol_trace",
+      "direction": "output",
+      "name": "trace_pwrite",
+      "role": "pwrite",
+      "width": 1
+    },
+    {
+      "channel": "ip_protocol_trace",
+      "direction": "output",
+      "name": "trace_pwdata",
+      "role": "pwdata",
+      "width": 32
+    },
+    {
+      "channel": "ip_protocol_trace",
+      "direction": "output",
+      "name": "trace_pready",
+      "role": "pready",
+      "width": 1
+    },
+    {
+      "channel": "ip_protocol_trace",
+      "direction": "output",
+      "name": "trace_prdata",
+      "role": "prdata",
+      "width": 32
+    },
+    {
+      "channel": "ip_protocol_trace",
+      "direction": "output",
+      "name": "trace_pslverr",
+      "role": "pslverr",
+      "width": 1
+    },
+    {
+      "channel": "reg",
+      "direction": "input",
+      "name": "reg_req_valid",
+      "role": "req_valid",
+      "width": 1
+    },
+    {
+      "channel": "reg",
+      "direction": "output",
+      "name": "reg_req_ready",
+      "role": "req_ready",
+      "width": 1
+    },
+    {
+      "channel": "reg",
+      "direction": "input",
+      "name": "reg_req_write",
+      "role": "req_write",
+      "width": 1
+    },
+    {
+      "channel": "reg",
+      "direction": "input",
+      "name": "reg_req_addr",
+      "role": "req_addr",
+      "width": 32
+    },
+    {
+      "channel": "reg",
+      "direction": "input",
+      "name": "reg_req_wdata",
+      "role": "req_wdata",
+      "width": 32
+    },
+    {
+      "channel": "reg",
+      "direction": "input",
+      "name": "reg_req_be",
+      "role": "req_be",
+      "width": 4
+    },
+    {
+      "channel": "reg",
+      "direction": "output",
+      "name": "reg_rsp_valid",
+      "role": "rsp_valid",
+      "width": 1
+    },
+    {
+      "channel": "reg",
+      "direction": "input",
+      "name": "reg_rsp_ready",
+      "role": "rsp_ready",
+      "width": 1
+    },
+    {
+      "channel": "reg",
+      "direction": "output",
+      "name": "reg_rsp_rdata",
+      "role": "rsp_rdata",
+      "width": 32
+    },
+    {
+      "channel": "reg",
+      "direction": "output",
+      "name": "reg_rsp_error",
+      "role": "rsp_error",
+      "width": 1
+    }
+  ],
+  "base_event_schema_version": "ip_base_event.v1",
+  "base_protocol_trace": {
+    "clock_domain": "core",
+    "endpoint_id": "timer.bus",
+    "max_wait_cycles": 16,
+    "protocol": "apb3",
+    "schema_version": "ip_protocol_trace.v1",
+    "signal_widths": {
+      "paddr": 12,
+      "penable": 1,
+      "prdata": 32,
+      "pready": 1,
+      "psel": 1,
+      "pslverr": 1,
+      "pwdata": 32,
+      "pwrite": 1
+    },
+    "signals": {
+      "paddr": "trace_paddr",
+      "penable": "trace_penable",
+      "prdata": "trace_prdata",
+      "pready": "trace_pready",
+      "psel": "trace_psel",
+      "pslverr": "trace_pslverr",
+      "pwdata": "trace_pwdata",
+      "pwrite": "trace_pwrite"
+    }
+  },
+  "boot_contract": null,
+  "bound_physical_inputs": [],
+  "clock_schedule": {
+    "clock_edges_observed": "rising_edges_since_ready",
+    "clocks": [
+      {
+        "domain": "core",
+        "first_rising_fast_tick": 1,
+        "frequency_hz": 50000000,
+        "half_period_fast_ticks": 1,
+        "ratio": 1,
+        "signal": "clk"
+      }
+    ],
+    "fast_frequency_hz": 50000000,
+    "phase_policy": "all_low_then_half_period_toggle",
+    "primary_clock_domain": "core",
+    "primary_reset_domain": "sys_rst",
+    "resets": [
+      {
+        "domain": "sys_rst",
+        "polarity": "active_low",
+        "port": "HRESETn",
+        "signal": "reset",
+        "synchronous": false
+      }
+    ],
+    "schema_version": "local_clock_schedule.v1",
+    "startup_fast_ticks": 5
+  },
+  "cpp_sha256": "8186e3db6e7b28a82972b2bbe91ef197d375d5409aa0524e9898c0d06d2432e6",
+  "driver_field_map": {},
+  "driver_header_sources": [
+    {
+      "path": "src/myfuzz/local_harness/rtl/local_driver_v1.h",
+      "sha256": "1e72a2d2a8fce550c87e37cdf28bb3bb23a9954d150a89392fe75375fe9bbb8e"
+    },
+    {
+      "path": "src/myfuzz/scenario/rtl/local_command_replay.h",
+      "sha256": "6707578af002d5097c2df6595c22715367d080e2ef11598834bfc26f0292d24d"
+    }
+  ],
+  "driver_limits": {
+    "max_cached_bytes": 67108864,
+    "max_command_bytes": 1024,
+    "max_payload_json_bytes": 1048576,
+    "max_reply_line_bytes": 2097664,
+    "max_samples_per_command": 37,
+    "reply_reservation_bytes": 109124
+  },
+  "driver_reset": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "schema_version": "generated_local_reset.v1"
+  },
+  "driver_schema_version": "local_driver_generation.v1",
+  "driver_status": "generated",
+  "dynamic_physical_inputs": [],
+  "effective_max_wait_cycles": 16,
+  "fixed_physical_inputs": [],
+  "functional_scope": "apb3_register_only_pin_observe_no_peer",
+  "kind": "apb3_register_observe",
+  "lint_argv": [
+    "verilator",
+    "--lint-only",
+    "-Wno-fatal",
+    "--top-module",
+    "local_runtime_peripheral",
+    "third_party/soc-pulp-apb-timer/src/apb_timer.sv",
+    "third_party/soc-pulp-apb-timer/src/timer.sv",
+    "src/myfuzz/protocols/rtl/beat_to_apb.sv"
+  ],
+  "module_name": "local_runtime_peripheral",
+  "physical_exports": [
+    {
+      "bit_hi": 3,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "encoding": "integer",
+      "endpoint_id": null,
+      "hex_digits": 1,
+      "physical_port": "irq_o",
+      "role": null,
+      "runtime_name": "rt_lh_p_10_3_0",
+      "width": 4,
+      "wrapper_name": "lh_p_10_3_0"
+    }
+  ],
+  "plan": {
+    "component_id": "pulp_timer",
+    "instance_id": "peripheral",
+    "parameter_source_sha256": {
+      "src/apb_timer.sv": "22dce4e3ff8328bdd6e1621c20e2877e7f44cfecccc07203d09e994632cc1778",
+      "src/timer.sv": "d352fc4476da83658d361e8f500b5a73f857f0a11e9436ab47d5bf0ba0bc7fce"
+    },
+    "ports": [
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_timer",
+        "direction": "input",
+        "disposition": "functional",
+        "evidence": "component_profile.clocks[HCLK]",
+        "instance_id": "peripheral",
+        "port": "HCLK",
+        "port_width": 1,
+        "reason": "clock port distributed from the SoC clock input",
+        "reset_domain": "local_reset",
+        "role": "clock",
+        "target": "local_clock_reset"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_timer",
+        "direction": "input",
+        "disposition": "functional",
+        "evidence": "component_profile.resets[HRESETn]",
+        "instance_id": "peripheral",
+        "port": "HRESETn",
+        "port_width": 1,
+        "reason": "reset port distributed from the SoC reset input",
+        "reset_domain": "local_reset",
+        "role": "reset",
+        "target": "local_clock_reset"
+      },
+      {
+        "bits": {
+          "hi": 11,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_timer",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "timer.bus",
+        "evidence": "elaborated_ports[PADDR]",
+        "instance_id": "peripheral",
+        "port": "PADDR",
+        "port_width": 12,
+        "reason": "bound to interface timer.bus role paddr",
+        "reset_domain": "local_reset",
+        "role": "paddr",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_timer",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "timer.bus",
+        "evidence": "elaborated_ports[PENABLE]",
+        "instance_id": "peripheral",
+        "port": "PENABLE",
+        "port_width": 1,
+        "reason": "bound to interface timer.bus role penable",
+        "reset_domain": "local_reset",
+        "role": "penable",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_timer",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "timer.bus",
+        "evidence": "elaborated_ports[PRDATA]",
+        "instance_id": "peripheral",
+        "port": "PRDATA",
+        "port_width": 32,
+        "reason": "bound to interface timer.bus role prdata",
+        "reset_domain": "local_reset",
+        "role": "prdata",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_timer",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "timer.bus",
+        "evidence": "elaborated_ports[PREADY]",
+        "instance_id": "peripheral",
+        "port": "PREADY",
+        "port_width": 1,
+        "reason": "bound to interface timer.bus role pready",
+        "reset_domain": "local_reset",
+        "role": "pready",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_timer",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "timer.bus",
+        "evidence": "elaborated_ports[PSEL]",
+        "instance_id": "peripheral",
+        "port": "PSEL",
+        "port_width": 1,
+        "reason": "bound to interface timer.bus role psel",
+        "reset_domain": "local_reset",
+        "role": "psel",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_timer",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "timer.bus",
+        "evidence": "elaborated_ports[PSLVERR]",
+        "instance_id": "peripheral",
+        "port": "PSLVERR",
+        "port_width": 1,
+        "reason": "bound to interface timer.bus role pslverr",
+        "reset_domain": "local_reset",
+        "role": "pslverr",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_timer",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "timer.bus",
+        "evidence": "elaborated_ports[PWDATA]",
+        "instance_id": "peripheral",
+        "port": "PWDATA",
+        "port_width": 32,
+        "reason": "bound to interface timer.bus role pwdata",
+        "reset_domain": "local_reset",
+        "role": "pwdata",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_timer",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "timer.bus",
+        "evidence": "elaborated_ports[PWRITE]",
+        "instance_id": "peripheral",
+        "port": "PWRITE",
+        "port_width": 1,
+        "reason": "bound to interface timer.bus role pwrite",
+        "reset_domain": "local_reset",
+        "role": "pwrite",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 3,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_timer",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[irq_o]",
+        "instance_id": "peripheral",
+        "port": "irq_o",
+        "port_width": 4,
+        "reason": "Four native comparator/overflow equality signals, one cycle when count equals the comparator at the prescaler point. They are pulse observations; the level-only CPU IRQ collector cannot directly consume them.",
+        "reset_domain": "local_reset",
+        "target": "observation"
+      }
+    ],
+    "profile_path": "configs/peripherals/pulp_timer/component_profile.json",
+    "profile_sha256": "7bb36b6dd56a0f4216dc6943016632d8d83b55ffe9dbb9c7744ed993182b6610",
+    "protocol_endpoint_ids": [
+      "timer.bus"
+    ],
+    "request_schema_version": "local_harness.v2",
+    "schema_version": "local_harness_plan.v1",
+    "scope": "single_component",
+    "source_content_hash": "git:03eba2e6965f5363df12621882bc70498c551a73",
+    "source_files": [
+      "src/apb_timer.sv",
+      "src/timer.sv"
+    ],
+    "source_revision": "git:03eba2e6965f5363df12621882bc70498c551a73",
+    "timing": {
+      "max_wait_cycles": 16,
+      "reset_assert_ticks": 2,
+      "reset_release_ticks": 3
+    },
+    "top": "apb_timer",
+    "tuning": {
+      "apb_storage_observations": [
+        {
+          "contract_id": "pulp-apb-timer.ctrl0.source.v1",
+          "endpoint_id": "timer.bus",
+          "register": "TIMER0_CTRL"
+        }
+      ],
+      "bound_bindings": [],
+      "endpoint_policies": [
+        {
+          "endpoint_id": "timer.bus",
+          "max_outstanding": 1,
+          "template_id": "target.apb3",
+          "template_version": "1",
+          "variant_id": "full-word"
+        }
+      ],
+      "environment_bindings": [],
+      "fixed_inputs": [],
+      "irq_delivery": [],
+      "optional_signals": [],
+      "peer_bindings": [],
+      "reset_policies": []
+    },
+    "tuning_sha256": "5555877666caec50644f48637c5398f546e18ce39caa57a6a43bcb3eab9f51c5"
+  },
+  "raw_observation_schema_version": "ip_raw_observation.v1",
+  "runtime_ports": [
+    {
+      "direction": "input",
+      "name": "clk",
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "name": "reset",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_10_3_0",
+      "width": 4
+    },
+    {
+      "direction": "output",
+      "name": "trace_paddr",
+      "width": 12
+    },
+    {
+      "direction": "output",
+      "name": "trace_psel",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "trace_penable",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "trace_pwrite",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "trace_pwdata",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "name": "trace_pready",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "trace_prdata",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "name": "trace_pslverr",
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "name": "reg_req_valid",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "reg_req_ready",
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "name": "reg_req_write",
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "name": "reg_req_addr",
+      "width": 32
+    },
+    {
+      "direction": "input",
+      "name": "reg_req_wdata",
+      "width": 32
+    },
+    {
+      "direction": "input",
+      "name": "reg_req_be",
+      "width": 4
+    },
+    {
+      "direction": "output",
+      "name": "reg_rsp_valid",
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "name": "reg_rsp_ready",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "reg_rsp_rdata",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "name": "reg_rsp_error",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "storage_value",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "name": "storage_reset",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "storage_paddr",
+      "width": 12
+    },
+    {
+      "direction": "output",
+      "name": "storage_psel",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "storage_penable",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "storage_pwrite",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "storage_pwdata",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "name": "storage_prdata",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "name": "storage_pready",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "storage_pslverr",
+      "width": 1
+    }
+  ],
+  "runtime_sv_sha256": "3ec91be8df7b19a154821c74d3a64508f2ed991f389b3d8d91f7fe7dc13842a6",
+  "schema_version": "local_runtime_artifact.v1",
+  "selected_template": {
+    "contract": {
+      "dut_semantics_verified": false,
+      "generation_stage": "source_admitted_runtime_top",
+      "protocol_capability_claim": false,
+      "schema_version": "local_generated_executor_contract.v1",
+      "scope": "generated_executor_only",
+      "template_id": "local.generated.apb3_register_observe",
+      "template_version": "1",
+      "variant_id": "apb3_register_observe"
+    },
+    "contract_sha256": "103a3e225cb26ddc93ebba1527a20c4dc3a92ef9f9eb357227d280d485bf13aa",
+    "dut_semantics_verified": false,
+    "executor": {
+      "binding": {
+        "adapter_sources": [
+          {
+            "path": "src/myfuzz/protocols/rtl/beat_to_apb.sv",
+            "sha256": "35cc8c1765a42cdfbfdd1ec504492ab789559d7a3ceee95c9f3ed48b474b2d7c"
+          }
+        ],
+        "boot_contract": null,
+        "clock_schedule": {
+          "clock_edges_observed": "rising_edges_since_ready",
+          "clocks": [
+            {
+              "domain": "core",
+              "first_rising_fast_tick": 1,
+              "frequency_hz": 50000000,
+              "half_period_fast_ticks": 1,
+              "ratio": 1,
+              "signal": "clk"
+            }
+          ],
+          "fast_frequency_hz": 50000000,
+          "phase_policy": "all_low_then_half_period_toggle",
+          "primary_clock_domain": "core",
+          "primary_reset_domain": "sys_rst",
+          "resets": [
+            {
+              "domain": "sys_rst",
+              "polarity": "active_low",
+              "port": "HRESETn",
+              "signal": "reset",
+              "synchronous": false
+            }
+          ],
+          "schema_version": "local_clock_schedule.v1",
+          "startup_fast_ticks": 5
+        },
+        "declared_profile_facts": {
+          "address_width": 12,
+          "byte_enable": false,
+          "data_width": 32,
+          "has_error": true,
+          "local_runtime_variant": "apb_timer",
+          "max_wait_cycles": 16,
+          "partial_write": false,
+          "read": true,
+          "write": true
+        },
+        "effective_max_wait_cycles": 16,
+        "endpoints": [
+          {
+            "endpoint_id": "timer.bus",
+            "function": "mmio_slave",
+            "protocol": [
+              "apb",
+              "3"
+            ],
+            "roles": [
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PADDR",
+                "port_width": 12,
+                "raw_hi": 11,
+                "raw_lo": 0,
+                "role": "paddr",
+                "width": 12
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PENABLE",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "penable",
+                "width": 1
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "PRDATA",
+                "port_width": 32,
+                "raw_hi": 31,
+                "raw_lo": 0,
+                "role": "prdata",
+                "width": 32
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "PREADY",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "pready",
+                "width": 1
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PSEL",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "psel",
+                "width": 1
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "PSLVERR",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "pslverr",
+                "width": 1
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PWDATA",
+                "port_width": 32,
+                "raw_hi": 31,
+                "raw_lo": 0,
+                "role": "pwdata",
+                "width": 32
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PWRITE",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "pwrite",
+                "width": 1
+              }
+            ]
+          }
+        ],
+        "implementation_sources": [
+          {
+            "path": "src/myfuzz/local_harness/runtime_renderer.py",
+            "sha256": "ededda67ad7e8eb797219649556e0be4ebe4a08394fe0f93dd8e8a4e49b7eb23"
+          },
+          {
+            "path": "src/myfuzz/local_harness/template_contracts.py",
+            "sha256": "34a74ae2fbff14b69bca50ec4770afe897652c51e77fdcd832543e0cd58c5637"
+          },
+          {
+            "path": "src/myfuzz/local_harness/apb_storage_source_contract.py",
+            "sha256": "73a5a94c8fb90bc2ea1ec4dbe89e59b0c8345e57cee690ba0db73e7e2c410edb"
+          },
+          {
+            "path": "src/myfuzz/local_harness/apb_storage_probe_contract.py",
+            "sha256": "46cf63a0d1b9e676121f71a55444d3d670af9b77d2ad42078108277ce26d0a3b"
+          }
+        ],
+        "parameter_overrides": {
+          "APB_ADDR_WIDTH": "12",
+          "TIMER_CNT": "2"
+        },
+        "physical_input_policy": {
+          "bound_physical_inputs": [],
+          "dynamic_physical_inputs": [],
+          "fixed_physical_inputs": [],
+          "functional_scope": "apb3_register_only_pin_observe_no_peer"
+        },
+        "profile_sha256": "7bb36b6dd56a0f4216dc6943016632d8d83b55ffe9dbb9c7744ed993182b6610",
+        "runtime_sv_sha256": "3ec91be8df7b19a154821c74d3a64508f2ed991f389b3d8d91f7fe7dc13842a6"
+      },
+      "contract": {
+        "dut_semantics_verified": false,
+        "generation_stage": "source_admitted_runtime_top",
+        "protocol_capability_claim": false,
+        "schema_version": "local_generated_executor_contract.v1",
+        "scope": "generated_executor_only",
+        "template_id": "local.generated.apb3_register_observe",
+        "template_version": "1",
+        "variant_id": "apb3_register_observe"
+      },
+      "contract_sha256": "103a3e225cb26ddc93ebba1527a20c4dc3a92ef9f9eb357227d280d485bf13aa",
+      "dut_semantics_verified": false,
+      "identity_sha256": "bd27eab49ee768c7f30621c354555bd0c423e4fa01ac14a746dbbdf43f5a89a3",
+      "protocol_templates": [
+        {
+          "binding": {
+            "address_width": 12,
+            "data_width": 32,
+            "endpoint_id": "timer.bus",
+            "function": "mmio_slave",
+            "protocol": [
+              "apb",
+              "3"
+            ],
+            "roles": [
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PADDR",
+                "port_width": 12,
+                "raw_hi": 11,
+                "raw_lo": 0,
+                "role": "paddr",
+                "width": 12
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PENABLE",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "penable",
+                "width": 1
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "PRDATA",
+                "port_width": 32,
+                "raw_hi": 31,
+                "raw_lo": 0,
+                "role": "prdata",
+                "width": 32
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "PREADY",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "pready",
+                "width": 1
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PSEL",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "psel",
+                "width": 1
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "PSLVERR",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "pslverr",
+                "width": 1
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PWDATA",
+                "port_width": 32,
+                "raw_hi": 31,
+                "raw_lo": 0,
+                "role": "pwdata",
+                "width": 32
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "PWRITE",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "pwrite",
+                "width": 1
+              }
+            ],
+            "selection_mode": "automatic",
+            "typed_profile_facts": {
+              "address_width": 12,
+              "byte_enable": false,
+              "data_width": 32,
+              "has_error": true,
+              "local_runtime_variant": "apb_timer",
+              "max_wait_cycles": 16,
+              "partial_write": false,
+              "read": true,
+              "write": true
+            }
+          },
+          "contract": {
+            "dut_semantics_verified": false,
+            "host_to_device_roles": [
+              "paddr",
+              "penable",
+              "psel",
+              "pwdata",
+              "pwrite"
+            ],
+            "limits": {
+              "address_width_max": 64,
+              "address_width_min": 1,
+              "byte_enable": false,
+              "clock_crossing": false,
+              "completion": "setup_access_response",
+              "error_policy": "observe_pslverr_on_completion",
+              "has_error": true,
+              "max_field_width": 4096,
+              "max_outstanding": 1,
+              "max_wait_cycles_limit": 1024,
+              "outstanding_scope": "endpoint",
+              "partial_write": false,
+              "pipelining": false,
+              "supported_data_widths": [
+                32
+              ]
+            },
+            "optional_profile_facts": {},
+            "optional_role_groups": [],
+            "optional_roles": [],
+            "protocol": [
+              "apb",
+              "3"
+            ],
+            "required_profile_facts": {
+              "byte_enable": false,
+              "partial_write": false
+            },
+            "required_roles": [
+              "paddr",
+              "penable",
+              "prdata",
+              "pready",
+              "psel",
+              "pslverr",
+              "pwdata",
+              "pwrite"
+            ],
+            "role_shapes": {
+              "paddr": {
+                "width": "address_width"
+              },
+              "penable": {
+                "width": 1
+              },
+              "prdata": {
+                "width": "data_width"
+              },
+              "pready": {
+                "width": 1
+              },
+              "psel": {
+                "width": 1
+              },
+              "pslverr": {
+                "width": 1
+              },
+              "pwdata": {
+                "width": "data_width"
+              },
+              "pwrite": {
+                "width": 1
+              }
+            },
+            "runtime_effective": false,
+            "schema_version": "local_protocol_template_contract.v1",
+            "semantic_selection": "shape",
+            "side": "target",
+            "template_id": "target.apb3",
+            "template_version": "1",
+            "variant_id": "full-word"
+          },
+          "contract_sha256": "31a5a8add131e35375fdc972241ae9bb6f18030798b39edf9c4120952ea3d59a",
+          "dut_semantics_verified": false,
+          "runtime_effective": false,
+          "schema_version": "local_protocol_template_selection.v1"
+        }
+      ],
+      "runtime_effective": false,
+      "schema_version": "local_generated_executor_selection.v1"
+    },
+    "runtime_effective": false,
+    "schema_version": "local_generated_template_selection.v1"
+  },
+  "source_verification": {
+    "elaboration": {
+      "closure_files": 2,
+      "closure_roots": [
+        "third_party/soc-pulp-apb-timer"
+      ],
+      "elaboration_status": "elaboration_verified",
+      "lint": {
+        "errors": 0,
+        "exit_code": 0,
+        "warnings": 9
+      },
+      "tool": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+      "top_module": "apb_timer"
+    },
+    "elaboration_status": "elaboration_verified",
+    "id": "pulp_timer",
+    "lock_sha256": "4caf0ae616e99e3c7cac76a1b04daca41af9bcef0eee3b6b0923fb6bd7e2a29e",
+    "parse_status": "parameterized_ports_pending_elaboration",
+    "runtime_status": "runtime_unverified",
+    "schema_version": "local_source_lock_verification.v1",
+    "selected_content_hash": "sha256:114a62d680fbafc5c28b612bd9b90e997041632525a8a12979cbc58e9f729530",
+    "selected_files": 2,
+    "source_status": "source_verified"
+  },
+  "status": "driver_generated",
+  "storage_observation": {
+    "digest": "e852d7028f3e4583e4cd54dbb574e4c61acc92cd5ff50fc7c548fba7259da739",
+    "hierarchy_evidence": {
+      "binding_digest": "fc2056da3f3857290b8e06428d32939229be3788544d7fe9eede32bea83117a3",
+      "proof_digest": "a889c6eb699ecdbd2ad4959f3ca14a5762608edb5a8ce93523343e02fffbef85",
+      "reference": "docs/reports/evidence/verilog-probe-pulp-apb-timer/proof.json",
+      "runtime_sv_sha256": "3ec91be8df7b19a154821c74d3a64508f2ed991f389b3d8d91f7fe7dc13842a6",
+      "sample_digest": "155028cedf0b31be0fe8b09ff1a900832178be8c34ebf37664fa445b2723201e",
+      "schema_version": "apb_storage_hierarchy_evidence.v1",
+      "verilator": {
+        "top_module": "local_runtime_peripheral",
+        "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67"
+      },
+      "wrapper_sha256": "7bffa340977a2c002abd0f43fc16b4fc06afe420f772ec9d31c5e31e905e38f3"
+    },
+    "hierarchy_verified": true,
+    "native_verified": true,
+    "ports": [
+      {
+        "direction": "output",
+        "expression": "u_component.u_dut.TIMER_GEN[0].timer_i.regs_q[1]",
+        "name": "storage_value",
+        "role": "value",
+        "width": 32
+      },
+      {
+        "direction": "output",
+        "expression": "reset",
+        "name": "storage_reset",
+        "role": "reset",
+        "width": 1
+      },
+      {
+        "direction": "output",
+        "expression": "link_lh_p_2_11_0",
+        "name": "storage_paddr",
+        "role": "paddr",
+        "width": 12
+      },
+      {
+        "direction": "output",
+        "expression": "link_lh_p_6_0_0",
+        "name": "storage_psel",
+        "role": "psel",
+        "width": 1
+      },
+      {
+        "direction": "output",
+        "expression": "link_lh_p_3_0_0",
+        "name": "storage_penable",
+        "role": "penable",
+        "width": 1
+      },
+      {
+        "direction": "output",
+        "expression": "link_lh_p_9_0_0",
+        "name": "storage_pwrite",
+        "role": "pwrite",
+        "width": 1
+      },
+      {
+        "direction": "output",
+        "expression": "link_lh_p_8_31_0",
+        "name": "storage_pwdata",
+        "role": "pwdata",
+        "width": 32
+      },
+      {
+        "direction": "output",
+        "expression": "link_lh_p_4_31_0",
+        "name": "storage_prdata",
+        "role": "prdata",
+        "width": 32
+      },
+      {
+        "direction": "output",
+        "expression": "link_lh_p_5_0_0",
+        "name": "storage_pready",
+        "role": "pready",
+        "width": 1
+      },
+      {
+        "direction": "output",
+        "expression": "link_lh_p_7_0_0",
+        "name": "storage_pslverr",
+        "role": "pslverr",
+        "width": 1
+      }
+    ],
+    "reset_authority": false,
+    "sample_group": "storage_probes",
+    "schema_version": "apb_storage_probe.v1",
+    "scope": "generated_expression_source_mapped",
+    "selection": {
+      "contract_id": "pulp-apb-timer.ctrl0.source.v1",
+      "endpoint_id": "timer.bus",
+      "register": "TIMER0_CTRL"
+    },
+    "source_authority": false,
+    "source_contract": {
+      "authority": false,
+      "clock": {
+        "edge": "posedge",
+        "port": "HCLK"
+      },
+      "contract_id": "pulp-apb-timer.ctrl0.source.v1",
+      "decode": {
+        "address_width": 12,
+        "alias_period_bytes": 32,
+        "aligned_word_alias_count": 128,
+        "child_select": "2-bit register_adr truncates PADDR[4:2] to PADDR[3:2]; REG_TIMER_CTRL=1",
+        "expression": "PADDR[4:2] == 3'b001",
+        "host_alignment_bytes": 4,
+        "host_alignment_scope": "separate_transport_rule_not_raw_storage_decode",
+        "ignored_address_bits": [
+          0,
+          1,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "mask": 28,
+        "raw_address_alias_count": 512,
+        "top_select": "slave_address_int = PADDR[4]",
+        "value": 4
+      },
+      "digest": "75bf4ddf1bacc6879235cabf980ec7c252dbd9251243895f25f72ebddd1f131f",
+      "hierarchy_verified": false,
+      "native_verified": false,
+      "not_claimed": [
+        "arbitrary_RTL_inference",
+        "native_hierarchy",
+        "generated_probe",
+        "build_process_eligibility",
+        "reset_observation",
+        "live_register_version",
+        "serialized_authority",
+        "complete_F4",
+        "P7"
+      ],
+      "parameters": {
+        "APB_ADDR_WIDTH": 12,
+        "TIMER_CNT": 2
+      },
+      "register": {
+        "canonical_offset": 4,
+        "name": "TIMER0_CTRL",
+        "read_mask": 4294967295,
+        "reset_value": 0,
+        "width": 32,
+        "write_mask": 4294967295
+      },
+      "reset": {
+        "event": "negedge HRESETn or asserted at posedge HCLK",
+        "polarity": "active_low",
+        "port": "HRESETn",
+        "synchronous": false
+      },
+      "reset_authority": false,
+      "schema_version": "apb_storage_source_contract.v1",
+      "scope": "source_reviewed_contract",
+      "source": {
+        "defines": {},
+        "files": {
+          "src/apb_timer.sv": "22dce4e3ff8328bdd6e1621c20e2877e7f44cfecccc07203d09e994632cc1778",
+          "src/timer.sv": "d352fc4476da83658d361e8f500b5a73f857f0a11e9436ab47d5bf0ba0bc7fce"
+        },
+        "identity_basis": "declared_pinned_revision_and_exact_reviewed_bytes_not_new_git_or_elaboration_verification",
+        "include_roots": [],
+        "revision": "git:03eba2e6965f5363df12621882bc70498c551a73",
+        "root": "third_party/soc-pulp-apb-timer",
+        "top_module": "apb_timer"
+      },
+      "source_authority": false,
+      "source_review": [
+        {
+          "fact": "two timers, bit4 selection, forwarded APB and output mux",
+          "file": "src/apb_timer.sv",
+          "lines": [
+            [
+              12,
+              17
+            ],
+            [
+              34,
+              42
+            ],
+            [
+              49,
+              59
+            ],
+            [
+              64,
+              85
+            ]
+          ]
+        },
+        {
+          "fact": "truncated decode, complete combinational writers/read/reset/sequential commit",
+          "file": "src/timer.sv",
+          "lines": [
+            [
+              12,
+              18
+            ],
+            [
+              39,
+              48
+            ],
+            [
+              67,
+              105
+            ],
+            [
+              108,
+              140
+            ]
+          ]
+        }
+      ],
+      "storage_expression": {
+        "expression": "u_component.u_dut.TIMER_GEN[0].timer_i.regs_q[1]",
+        "relative_source_storage": "timer.regs_q[REG_TIMER_CTRL]",
+        "required_followup": "verify_actual_elaborated_hierarchy_and_read_only_pre_post_probe_wiring",
+        "status": "prospective_not_codegen_or_native_verified"
+      },
+      "version_authority": false,
+      "writers": {
+        "all_alias_writes": "every raw decode match writes the same storage, including ignored low/high bits",
+        "autonomous_ctrl_writers": [],
+        "bus_write": "if PSEL && PENABLE && PWRITE && PADDR[4:2]==1: next_CTRL = PWDATA",
+        "commit": "at posedge HCLK when HRESETn: regs_q <= regs_n",
+        "complete_for_registered_source": true,
+        "hold": "regs_n = regs_q; no autonomous assignment to CTRL",
+        "other_state": "COUNT changes autonomously; CMP write resets COUNT; CTRL bits affect count/prescaler behavior",
+        "priority": [
+          "asynchronous_asserted_reset",
+          "selected_full_word_overwrite",
+          "hold"
+        ],
+        "read": "selected PSEL && PENABLE && !PWRITE: PRDATA = regs_q[REG_TIMER_CTRL]",
+        "ready_error": "PREADY=1, PSLVERR=0; no error generation claim",
+        "reset": "if !HRESETn: regs_q <= bank_of_32bit_zeroes",
+        "scope": "selected_CTRL_storage_only_not_all_timer_state"
+      }
+    },
+    "version_authority": false
+  },
+  "storage_probe_ports": [
+    {
+      "direction": "output",
+      "expression": "u_component.u_dut.TIMER_GEN[0].timer_i.regs_q[1]",
+      "name": "storage_value",
+      "role": "value",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "expression": "reset",
+      "name": "storage_reset",
+      "role": "reset",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "expression": "link_lh_p_2_11_0",
+      "name": "storage_paddr",
+      "role": "paddr",
+      "width": 12
+    },
+    {
+      "direction": "output",
+      "expression": "link_lh_p_6_0_0",
+      "name": "storage_psel",
+      "role": "psel",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "expression": "link_lh_p_3_0_0",
+      "name": "storage_penable",
+      "role": "penable",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "expression": "link_lh_p_9_0_0",
+      "name": "storage_pwrite",
+      "role": "pwrite",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "expression": "link_lh_p_8_31_0",
+      "name": "storage_pwdata",
+      "role": "pwdata",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "expression": "link_lh_p_4_31_0",
+      "name": "storage_prdata",
+      "role": "prdata",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "expression": "link_lh_p_5_0_0",
+      "name": "storage_pready",
+      "role": "pready",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "expression": "link_lh_p_7_0_0",
+      "name": "storage_pslverr",
+      "role": "pslverr",
+      "width": 1
+    }
+  ],
+  "structural_abi": {
+    "dispositions": [
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_timer",
+        "direction": "input",
+        "disposition": "functional",
+        "evidence": "component_profile.clocks[HCLK]",
+        "instance_id": "peripheral",
+        "port": "HCLK",
+        "port_width": 1,
+        "reason": "clock port distributed from the SoC clock input",
+        "reset_domain": "local_reset",
+        "role": "clock",
+        "target": "clock_reset"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_timer",
+        "direction": "input",
+        "disposition": "functional",
+        "evidence": "component_profile.resets[HRESETn]",
+        "instance_id": "peripheral",
+        "port": "HRESETn",
+        "port_width": 1,
+        "reason": "reset port distributed from the SoC reset input",
+        "reset_domain": "local_reset",
+        "role": "reset",
+        "target": "clock_reset"
+      },
+      {
+        "bits": {
+          "hi": 11,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_timer",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "timer.bus",
+        "evidence": "elaborated_ports[PADDR]",
+        "instance_id": "peripheral",
+        "port": "PADDR",
+        "port_width": 12,
+        "reason": "bound to interface timer.bus role paddr",
+        "reset_domain": "local_reset",
+        "role": "paddr",
+        "target": "fabric_target"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_timer",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "timer.bus",
+        "evidence": "elaborated_ports[PENABLE]",
+        "instance_id": "peripheral",
+        "port": "PENABLE",
+        "port_width": 1,
+        "reason": "bound to interface timer.bus role penable",
+        "reset_domain": "local_reset",
+        "role": "penable",
+        "target": "fabric_target"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_timer",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "timer.bus",
+        "evidence": "elaborated_ports[PRDATA]",
+        "instance_id": "peripheral",
+        "port": "PRDATA",
+        "port_width": 32,
+        "reason": "bound to interface timer.bus role prdata",
+        "reset_domain": "local_reset",
+        "role": "prdata",
+        "target": "fabric_target"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_timer",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "timer.bus",
+        "evidence": "elaborated_ports[PREADY]",
+        "instance_id": "peripheral",
+        "port": "PREADY",
+        "port_width": 1,
+        "reason": "bound to interface timer.bus role pready",
+        "reset_domain": "local_reset",
+        "role": "pready",
+        "target": "fabric_target"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_timer",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "timer.bus",
+        "evidence": "elaborated_ports[PSEL]",
+        "instance_id": "peripheral",
+        "port": "PSEL",
+        "port_width": 1,
+        "reason": "bound to interface timer.bus role psel",
+        "reset_domain": "local_reset",
+        "role": "psel",
+        "target": "fabric_target"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_timer",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "timer.bus",
+        "evidence": "elaborated_ports[PSLVERR]",
+        "instance_id": "peripheral",
+        "port": "PSLVERR",
+        "port_width": 1,
+        "reason": "bound to interface timer.bus role pslverr",
+        "reset_domain": "local_reset",
+        "role": "pslverr",
+        "target": "fabric_target"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_timer",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "timer.bus",
+        "evidence": "elaborated_ports[PWDATA]",
+        "instance_id": "peripheral",
+        "port": "PWDATA",
+        "port_width": 32,
+        "reason": "bound to interface timer.bus role pwdata",
+        "reset_domain": "local_reset",
+        "role": "pwdata",
+        "target": "fabric_target"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_timer",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "timer.bus",
+        "evidence": "elaborated_ports[PWRITE]",
+        "instance_id": "peripheral",
+        "port": "PWRITE",
+        "port_width": 1,
+        "reason": "bound to interface timer.bus role pwrite",
+        "reset_domain": "local_reset",
+        "role": "pwrite",
+        "target": "fabric_target"
+      },
+      {
+        "bits": {
+          "hi": 3,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "pulp_timer",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[irq_o]",
+        "instance_id": "peripheral",
+        "port": "irq_o",
+        "port_width": 4,
+        "reason": "Four native comparator/overflow equality signals, one cycle when count equals the comparator at the prescaler point. They are pulse observations; the level-only CPU IRQ collector cannot directly consume them.",
+        "reset_domain": "local_reset",
+        "target": "soc_top"
+      }
+    ],
+    "module_name": "local_peripheral",
+    "parameter_evidence": [
+      {
+        "declaration": "parameter APB_ADDR_WIDTH = 12",
+        "name": "APB_ADDR_WIDTH",
+        "qualified_type": null,
+        "source_file": "src/apb_timer.sv",
+        "source_sha256": "22dce4e3ff8328bdd6e1621c20e2877e7f44cfecccc07203d09e994632cc1778"
+      },
+      {
+        "declaration": "parameter TIMER_CNT = 2",
+        "name": "TIMER_CNT",
+        "qualified_type": null,
+        "source_file": "src/apb_timer.sv",
+        "source_sha256": "22dce4e3ff8328bdd6e1621c20e2877e7f44cfecccc07203d09e994632cc1778"
+      }
+    ],
+    "plan_sha256": "60f7e2b67ba828bcf10a1bbbd929eefe8c99bcdbbd7b882b734055319986c66a",
+    "ports": [
+      {
+        "bit_hi": 11,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "timer.bus",
+        "physical_port": "PADDR",
+        "role": "paddr",
+        "width": 12,
+        "wrapper_name": "lh_p_2_11_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "timer.bus",
+        "physical_port": "PENABLE",
+        "role": "penable",
+        "width": 1,
+        "wrapper_name": "lh_p_3_0_0"
+      },
+      {
+        "bit_hi": 31,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "timer.bus",
+        "physical_port": "PRDATA",
+        "role": "prdata",
+        "width": 32,
+        "wrapper_name": "lh_p_4_31_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "timer.bus",
+        "physical_port": "PREADY",
+        "role": "pready",
+        "width": 1,
+        "wrapper_name": "lh_p_5_0_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "timer.bus",
+        "physical_port": "PSEL",
+        "role": "psel",
+        "width": 1,
+        "wrapper_name": "lh_p_6_0_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "timer.bus",
+        "physical_port": "PSLVERR",
+        "role": "pslverr",
+        "width": 1,
+        "wrapper_name": "lh_p_7_0_0"
+      },
+      {
+        "bit_hi": 31,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "timer.bus",
+        "physical_port": "PWDATA",
+        "role": "pwdata",
+        "width": 32,
+        "wrapper_name": "lh_p_8_31_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "timer.bus",
+        "physical_port": "PWRITE",
+        "role": "pwrite",
+        "width": 1,
+        "wrapper_name": "lh_p_9_0_0"
+      },
+      {
+        "bit_hi": 3,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "observe",
+        "endpoint_id": null,
+        "physical_port": "irq_o",
+        "role": null,
+        "width": 4,
+        "wrapper_name": "lh_p_10_3_0"
+      }
+    ],
+    "reset_assertion": "active_high",
+    "schema_version": "local_harness_abi.v1"
+  },
+  "structural_build": {
+    "defines": [],
+    "include_roots": [],
+    "lint_argv": [
+      "verilator",
+      "--lint-only",
+      "-Wno-fatal",
+      "--top-module",
+      "local_peripheral",
+      "third_party/soc-pulp-apb-timer/src/apb_timer.sv",
+      "third_party/soc-pulp-apb-timer/src/timer.sv"
+    ],
+    "parameter_evidence": [
+      {
+        "declaration": "parameter APB_ADDR_WIDTH = 12",
+        "name": "APB_ADDR_WIDTH",
+        "qualified_type": null,
+        "source_file": "src/apb_timer.sv",
+        "source_sha256": "22dce4e3ff8328bdd6e1621c20e2877e7f44cfecccc07203d09e994632cc1778"
+      },
+      {
+        "declaration": "parameter TIMER_CNT = 2",
+        "name": "TIMER_CNT",
+        "qualified_type": null,
+        "source_file": "src/apb_timer.sv",
+        "source_sha256": "22dce4e3ff8328bdd6e1621c20e2877e7f44cfecccc07203d09e994632cc1778"
+      }
+    ],
+    "parameter_overrides": {
+      "APB_ADDR_WIDTH": "12",
+      "TIMER_CNT": "2"
+    },
+    "profile_sha256": "7bb36b6dd56a0f4216dc6943016632d8d83b55ffe9dbb9c7744ed993182b6610",
+    "schema_version": "local_harness_build.v1",
+    "source_content_hash": "git:03eba2e6965f5363df12621882bc70498c551a73",
+    "source_files": [
+      "third_party/soc-pulp-apb-timer/src/apb_timer.sv",
+      "third_party/soc-pulp-apb-timer/src/timer.sv"
+    ],
+    "source_revision": "git:03eba2e6965f5363df12621882bc70498c551a73",
+    "status": "structural_only",
+    "wrapper_sha256": "7bffa340977a2c002abd0f43fc16b4fc06afe420f772ec9d31c5e31e905e38f3"
+  },
+  "wire_schema_version": "local_driver.v1"
+}

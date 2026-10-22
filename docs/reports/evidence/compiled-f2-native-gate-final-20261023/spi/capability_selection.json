@@ -1,0 +1,8 @@
+[
+  {
+    "instance_id": "peripheral",
+    "profile": "configs/peripherals/pulp_spi/local_component_profile.json",
+    "source": "declared-option",
+    "test_capability": "configs/scenarios/compiled-f4-obi-apb-spi-cv32e40p/test_capability.json"
+  }
+]

@@ -1,0 +1,3579 @@
+{
+  "adapted_endpoint_ids": [
+    "processor.data",
+    "processor.instruction"
+  ],
+  "adapter_sources": [
+    {
+      "path": "src/myfuzz/protocols/rtl/obi_processor_memory_adapter.sv",
+      "sha256": "59730c6742a85351d6e2cbf284d88185c874080274f323f2364268f2da3440df"
+    }
+  ],
+  "artifact_digest": "1169e7c79ae1fa9b9c7c01e6ad61876b506f73d7c2758236eac75a0262f4ad47",
+  "backend_ports": [
+    {
+      "channel": "d",
+      "direction": "output",
+      "name": "d_req_valid",
+      "role": "req_valid",
+      "width": 1
+    },
+    {
+      "channel": "d",
+      "direction": "input",
+      "name": "d_req_ready",
+      "role": "req_ready",
+      "width": 1
+    },
+    {
+      "channel": "d",
+      "direction": "output",
+      "name": "d_req_write",
+      "role": "req_write",
+      "width": 1
+    },
+    {
+      "channel": "d",
+      "direction": "output",
+      "name": "d_req_addr",
+      "role": "req_addr",
+      "width": 32
+    },
+    {
+      "channel": "d",
+      "direction": "output",
+      "name": "d_req_wdata",
+      "role": "req_wdata",
+      "width": 32
+    },
+    {
+      "channel": "d",
+      "direction": "output",
+      "name": "d_req_be",
+      "role": "req_be",
+      "width": 4
+    },
+    {
+      "channel": "d",
+      "direction": "input",
+      "name": "d_rsp_valid",
+      "role": "rsp_valid",
+      "width": 1
+    },
+    {
+      "channel": "d",
+      "direction": "output",
+      "name": "d_rsp_ready",
+      "role": "rsp_ready",
+      "width": 1
+    },
+    {
+      "channel": "d",
+      "direction": "input",
+      "name": "d_rsp_rdata",
+      "role": "rsp_rdata",
+      "width": 32
+    },
+    {
+      "channel": "d",
+      "direction": "input",
+      "name": "d_rsp_error",
+      "role": "rsp_error",
+      "width": 1
+    },
+    {
+      "channel": "i",
+      "direction": "output",
+      "name": "i_req_valid",
+      "role": "req_valid",
+      "width": 1
+    },
+    {
+      "channel": "i",
+      "direction": "input",
+      "name": "i_req_ready",
+      "role": "req_ready",
+      "width": 1
+    },
+    {
+      "channel": "i",
+      "direction": "output",
+      "name": "i_req_write",
+      "role": "req_write",
+      "width": 1
+    },
+    {
+      "channel": "i",
+      "direction": "output",
+      "name": "i_req_addr",
+      "role": "req_addr",
+      "width": 32
+    },
+    {
+      "channel": "i",
+      "direction": "output",
+      "name": "i_req_wdata",
+      "role": "req_wdata",
+      "width": 32
+    },
+    {
+      "channel": "i",
+      "direction": "output",
+      "name": "i_req_be",
+      "role": "req_be",
+      "width": 4
+    },
+    {
+      "channel": "i",
+      "direction": "input",
+      "name": "i_rsp_valid",
+      "role": "rsp_valid",
+      "width": 1
+    },
+    {
+      "channel": "i",
+      "direction": "output",
+      "name": "i_rsp_ready",
+      "role": "rsp_ready",
+      "width": 1
+    },
+    {
+      "channel": "i",
+      "direction": "input",
+      "name": "i_rsp_rdata",
+      "role": "rsp_rdata",
+      "width": 32
+    },
+    {
+      "channel": "i",
+      "direction": "input",
+      "name": "i_rsp_error",
+      "role": "rsp_error",
+      "width": 1
+    }
+  ],
+  "base_protocol_traces": {
+    "sample_group": "protocol_taps",
+    "sampling": "pre_post",
+    "schema_version": "ip_protocol_trace_set.v1",
+    "traces": [
+      {
+        "boundary": "cpu_physical_abi",
+        "clock_domain": "core",
+        "endpoint_id": "processor.data",
+        "max_outstanding": 1,
+        "max_wait_cycles": 16,
+        "protocol": "obi",
+        "sample_group": "protocol_taps",
+        "schema_version": "ip_protocol_trace.v1",
+        "signal_widths": {
+          "addr": 32,
+          "be": 4,
+          "gnt": 1,
+          "rdata": 32,
+          "req": 1,
+          "rvalid": 1,
+          "wdata": 32,
+          "we": 1
+        },
+        "signals": {
+          "addr": "trace_obi_d_addr",
+          "be": "trace_obi_d_be",
+          "gnt": "trace_obi_d_gnt",
+          "rdata": "trace_obi_d_rdata",
+          "req": "trace_obi_d_req",
+          "rvalid": "trace_obi_d_rvalid",
+          "wdata": "trace_obi_d_wdata",
+          "we": "trace_obi_d_we"
+        }
+      },
+      {
+        "boundary": "cpu_physical_abi",
+        "clock_domain": "core",
+        "endpoint_id": "processor.instruction",
+        "max_outstanding": 1,
+        "max_wait_cycles": 16,
+        "protocol": "obi",
+        "sample_group": "protocol_taps",
+        "schema_version": "ip_protocol_trace.v1",
+        "signal_widths": {
+          "addr": 32,
+          "gnt": 1,
+          "rdata": 32,
+          "req": 1,
+          "rvalid": 1
+        },
+        "signals": {
+          "addr": "trace_obi_i_addr",
+          "gnt": "trace_obi_i_gnt",
+          "rdata": "trace_obi_i_rdata",
+          "req": "trace_obi_i_req",
+          "rvalid": "trace_obi_i_rvalid"
+        }
+      }
+    ]
+  },
+  "boot_contract": {
+    "configured_boot_base": 65536,
+    "expected_first_fetch": null,
+    "first_fetch_verification": "runtime_observation_required"
+  },
+  "clock_schedule": {
+    "clock_edges_observed": "rising_edges_since_ready",
+    "clocks": [
+      {
+        "domain": "core",
+        "first_rising_fast_tick": 1,
+        "frequency_hz": 50000000,
+        "half_period_fast_ticks": 1,
+        "ratio": 1,
+        "signal": "clk"
+      }
+    ],
+    "fast_frequency_hz": 50000000,
+    "phase_policy": "all_low_then_half_period_toggle",
+    "primary_clock_domain": "core",
+    "primary_reset_domain": "sys_rst",
+    "resets": [
+      {
+        "domain": "sys_rst",
+        "polarity": "active_low",
+        "port": "rst_ni",
+        "signal": "reset",
+        "synchronous": false
+      }
+    ],
+    "schema_version": "local_clock_schedule.v1",
+    "startup_fast_ticks": 16
+  },
+  "cpp_sha256": "ef7e94b7b5960f988c10885655663a43ac1a8a7c5568b88bc1d3725ef3f749ef",
+  "driver_field_map": {
+    "irq_external": "rt_lh_p_34_11_11"
+  },
+  "driver_header_sources": [
+    {
+      "path": "src/myfuzz/local_harness/rtl/local_driver_v1.h",
+      "sha256": "1e72a2d2a8fce550c87e37cdf28bb3bb23a9954d150a89392fe75375fe9bbb8e"
+    },
+    {
+      "path": "src/myfuzz/scenario/rtl/local_command_replay.h",
+      "sha256": "6707578af002d5097c2df6595c22715367d080e2ef11598834bfc26f0292d24d"
+    }
+  ],
+  "driver_limits": {
+    "max_cached_bytes": 67108864,
+    "max_command_bytes": 1024,
+    "max_payload_json_bytes": 1048576,
+    "max_reply_line_bytes": 2097664,
+    "max_samples_per_command": 1,
+    "reply_reservation_bytes": 9560
+  },
+  "driver_reset": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "schema_version": "generated_local_reset.v1"
+  },
+  "driver_schema_version": "local_driver_generation.v1",
+  "driver_status": "generated",
+  "effective_max_wait_cycles": 16,
+  "kind": "obi_cpu",
+  "lint_argv": [
+    "verilator",
+    "--lint-only",
+    "-Wno-fatal",
+    "--top-module",
+    "local_runtime_processor",
+    "-Iexternal_designs/cv32e40p/rtl/include",
+    "-Iexternal_designs/cv32e40p/bhv",
+    "-Iexternal_designs/cv32e40p/bhv/include",
+    "-Iexternal_designs/cv32e40p/sva",
+    "external_designs/cv32e40p/rtl/include/cv32e40p_apu_core_pkg.sv",
+    "external_designs/cv32e40p/rtl/include/cv32e40p_fpu_pkg.sv",
+    "external_designs/cv32e40p/rtl/include/cv32e40p_pkg.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_if_stage.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_cs_registers.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_register_file_ff.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_load_store_unit.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_id_stage.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_aligner.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_decoder.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_compressed_decoder.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_fifo.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_prefetch_buffer.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_hwloop_regs.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_mult.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_int_controller.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_ex_stage.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_alu_div.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_alu.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_ff_one.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_popcnt.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_apu_disp.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_controller.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_obi_interface.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_prefetch_controller.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_sleep_unit.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_core.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_top.sv",
+    "external_designs/cv32e40p/bhv/cv32e40p_sim_clock_gate.sv",
+    "external_designs/cv32e40p/bhv/include/cv32e40p_tracer_pkg.sv",
+    "external_designs/cv32e40p/bhv/cv32e40p_tb_wrapper.sv",
+    "src/myfuzz/protocols/rtl/obi_processor_memory_adapter.sv"
+  ],
+  "module_name": "local_runtime_processor",
+  "physical_exports": [
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "encoding": "integer",
+      "endpoint_id": null,
+      "hex_digits": 1,
+      "physical_port": "apu_busy_o",
+      "role": null,
+      "runtime_name": "rt_lh_p_0_0_0",
+      "width": 1,
+      "wrapper_name": "lh_p_0_0_0"
+    },
+    {
+      "bit_hi": 14,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "encoding": "integer",
+      "endpoint_id": null,
+      "hex_digits": 4,
+      "physical_port": "apu_flags_o",
+      "role": null,
+      "runtime_name": "rt_lh_p_2_14_0",
+      "width": 15,
+      "wrapper_name": "lh_p_2_14_0"
+    },
+    {
+      "bit_hi": 5,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "encoding": "integer",
+      "endpoint_id": null,
+      "hex_digits": 2,
+      "physical_port": "apu_op_o",
+      "role": null,
+      "runtime_name": "rt_lh_p_4_5_0",
+      "width": 6,
+      "wrapper_name": "lh_p_4_5_0"
+    },
+    {
+      "bit_hi": 95,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "encoding": "fixed_width_hex",
+      "endpoint_id": null,
+      "hex_digits": 24,
+      "physical_port": "apu_operands_o",
+      "role": null,
+      "runtime_name": "rt_lh_p_5_95_0",
+      "width": 96,
+      "wrapper_name": "lh_p_5_95_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "encoding": "integer",
+      "endpoint_id": null,
+      "hex_digits": 1,
+      "physical_port": "apu_req_o",
+      "role": null,
+      "runtime_name": "rt_lh_p_6_0_0",
+      "width": 1,
+      "wrapper_name": "lh_p_6_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "encoding": "integer",
+      "endpoint_id": null,
+      "hex_digits": 1,
+      "physical_port": "core_sleep_o",
+      "role": null,
+      "runtime_name": "rt_lh_p_11_0_0",
+      "width": 1,
+      "wrapper_name": "lh_p_11_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "encoding": "integer",
+      "endpoint_id": null,
+      "hex_digits": 1,
+      "physical_port": "debug_halted_o",
+      "role": null,
+      "runtime_name": "rt_lh_p_20_0_0",
+      "width": 1,
+      "wrapper_name": "lh_p_20_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "encoding": "integer",
+      "endpoint_id": null,
+      "hex_digits": 1,
+      "physical_port": "debug_havereset_o",
+      "role": null,
+      "runtime_name": "rt_lh_p_21_0_0",
+      "width": 1,
+      "wrapper_name": "lh_p_21_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "encoding": "integer",
+      "endpoint_id": null,
+      "hex_digits": 1,
+      "physical_port": "debug_running_o",
+      "role": null,
+      "runtime_name": "rt_lh_p_23_0_0",
+      "width": 1,
+      "wrapper_name": "lh_p_23_0_0"
+    },
+    {
+      "bit_hi": 0,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "encoding": "integer",
+      "endpoint_id": null,
+      "hex_digits": 1,
+      "physical_port": "irq_ack_o",
+      "role": null,
+      "runtime_name": "rt_lh_p_33_0_0",
+      "width": 1,
+      "wrapper_name": "lh_p_33_0_0"
+    },
+    {
+      "bit_hi": 11,
+      "bit_lo": 11,
+      "direction": "input",
+      "disposition": "functional",
+      "encoding": "integer",
+      "endpoint_id": "processor.interrupts",
+      "hex_digits": 1,
+      "physical_port": "irq_i",
+      "role": "external",
+      "runtime_name": "rt_lh_p_34_11_11",
+      "width": 1,
+      "wrapper_name": "lh_p_34_11_11"
+    },
+    {
+      "bit_hi": 4,
+      "bit_lo": 0,
+      "direction": "output",
+      "disposition": "observe",
+      "encoding": "integer",
+      "endpoint_id": null,
+      "hex_digits": 2,
+      "physical_port": "irq_id_o",
+      "role": null,
+      "runtime_name": "rt_lh_p_35_4_0",
+      "width": 5,
+      "wrapper_name": "lh_p_35_4_0"
+    }
+  ],
+  "plan": {
+    "component_id": "cv32e40p",
+    "instance_id": "processor",
+    "parameter_source_sha256": {
+      "bhv/cv32e40p_sim_clock_gate.sv": "6ae2e47b98f8129b67a05494826002d3db71f80a89e9caf038c197df1d548759",
+      "bhv/cv32e40p_tb_wrapper.sv": "591124e7637913dacd62424a33910736cec555ad63c8b6c90fca2808a8f6816b",
+      "bhv/include/cv32e40p_tracer_pkg.sv": "44f2498df7c028cb07142c9eb875b8499fcc16866d2ff018deb33e1419ad212c",
+      "rtl/cv32e40p_aligner.sv": "c78cd8c09fee10e45536dc5b8d1fb17c3a130e2270168279fcaa43a19580e4f3",
+      "rtl/cv32e40p_alu.sv": "6eca8d4c2e299adcc498417220478360cc22898ba9037cdad6a1b81e80373c7b",
+      "rtl/cv32e40p_alu_div.sv": "11035bcbb28447fa5a3e40d5cad4f257e763f75e49664ce8098ab6247a9a57cb",
+      "rtl/cv32e40p_apu_disp.sv": "27931c8004e4d266c6ea02c9d5c19968c67d7e6ab86e57da4088531b13c8c48f",
+      "rtl/cv32e40p_compressed_decoder.sv": "db90df2f8737aff29d73b3d242dd33aeb6750ae69ae7eb8e118b531180945d7f",
+      "rtl/cv32e40p_controller.sv": "858b172963e17529de0b40a5be6ddfdadfc60bdca967819e4fc558b0ed6d7b87",
+      "rtl/cv32e40p_core.sv": "6a78a0d77d32e6795f63e5149f77b98320ce504c67c44a2e359c9aea70989224",
+      "rtl/cv32e40p_cs_registers.sv": "e2cec8f3d273748783275c60b1ec89101336608638d7e7783b03dd6b9dbb0345",
+      "rtl/cv32e40p_decoder.sv": "6e12f673e05380e34a35c38d8ee8b6878935d96b6f2dfda72c67f8a6e92a6e4e",
+      "rtl/cv32e40p_ex_stage.sv": "1510df315721b370c2d86b1c1d134a3ff6beefba2d072de7a4a611e3ecffb753",
+      "rtl/cv32e40p_ff_one.sv": "6b646e6aa931f8ab56b85ee27549a422450b456270a54d68a4130329823226b6",
+      "rtl/cv32e40p_fifo.sv": "d910cbd0751f38d349e8975de22b43d0a2937f9e905b0d9b82894fd83c53fe8a",
+      "rtl/cv32e40p_hwloop_regs.sv": "c2a0787c07bcd6c198b6338c4c6ee372b4bce96ec4a4def467ff0ae03da4e43a",
+      "rtl/cv32e40p_id_stage.sv": "98b246d9ada45a7073d217d5c3bbc86941ee76bb00e7e0edda61d3bbec83728e",
+      "rtl/cv32e40p_if_stage.sv": "e2d1cc9bc433a093938f2d4e4268c611f9a9bf199101e85114d417ff04597626",
+      "rtl/cv32e40p_int_controller.sv": "24df51d9cb33f5c8760a8cfbc7931aafc94c2ab0523c7df55b2635e7778af16f",
+      "rtl/cv32e40p_load_store_unit.sv": "857962513fc5bd3eb3d6b28c55fdfb15ef53f8ce8a59173a7d583efb8caee66f",
+      "rtl/cv32e40p_mult.sv": "6a0cf2f15c69886ad5497222aa203f6f5b1fdd004b32a4ab87b36a0960ba2254",
+      "rtl/cv32e40p_obi_interface.sv": "2b0a58e5c2f758dbe5f6e8f786c547da5508ce466007517434e2f7d817b758ed",
+      "rtl/cv32e40p_popcnt.sv": "7a2dbeded21929832b40fc8d068b35b7281c75a63c426feed207127d4da08e4e",
+      "rtl/cv32e40p_prefetch_buffer.sv": "a2fcbe6b783659ebecaf25d105f30c68af9b68c2850b833af64a2cec3ec29262",
+      "rtl/cv32e40p_prefetch_controller.sv": "66e6078ea3b3acd3ceea4b974c0488d25e02324935532de1f2d39cdc34c875a0",
+      "rtl/cv32e40p_register_file_ff.sv": "cd04d46afbf778ff3f1573bdd390784e5461a09b33fd670fa126ae7d3c433e89",
+      "rtl/cv32e40p_sleep_unit.sv": "1cf012a83b54472931ad9944e7774e311222641a0aa026229c19467f90bf5448",
+      "rtl/cv32e40p_top.sv": "2467f6b3c2745e687edad1a0c88ab5267b4ba8642c91e1fc0f282cf4223e5dc3",
+      "rtl/include/cv32e40p_apu_core_pkg.sv": "33d7c06b0fef3ae2c8814b040abe3cdaa23065cf12643de20e8275f44f97abe1",
+      "rtl/include/cv32e40p_fpu_pkg.sv": "ae738f408ba2ade41bfcf0488c8f611a2c39b26915191890dac907b8a7a518e5",
+      "rtl/include/cv32e40p_pkg.sv": "3fee39d262ef44bff6ee00b591fe08830e5e35cdd1b9e5eb9eb06da6f6525805"
+    },
+    "ports": [
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[apu_busy_o]",
+        "instance_id": "processor",
+        "port": "apu_busy_o",
+        "port_width": 1,
+        "reason": "Observe the physical APU busy status; FPU=0 leaves it inactive.",
+        "reset_domain": "local_reset",
+        "target": "observation"
+      },
+      {
+        "bits": {
+          "hi": 4,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[apu_flags_i]",
+        "instance_id": "processor",
+        "port": "apu_flags_i",
+        "port_width": 5,
+        "reason": "FPU=0 disables the APU/FPU extension; deterministic inactive flags.",
+        "reset_domain": "local_reset",
+        "target": "constant",
+        "value": 0
+      },
+      {
+        "bits": {
+          "hi": 14,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[apu_flags_o]",
+        "instance_id": "processor",
+        "port": "apu_flags_o",
+        "port_width": 15,
+        "reason": "Observe the physical APU flags without driving them.",
+        "reset_domain": "local_reset",
+        "target": "observation"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[apu_gnt_i]",
+        "instance_id": "processor",
+        "port": "apu_gnt_i",
+        "port_width": 1,
+        "reason": "FPU=0 disables the APU/FPU extension; no external APU response is accepted.",
+        "reset_domain": "local_reset",
+        "target": "constant",
+        "value": 0
+      },
+      {
+        "bits": {
+          "hi": 5,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[apu_op_o]",
+        "instance_id": "processor",
+        "port": "apu_op_o",
+        "port_width": 6,
+        "reason": "Observe the physical APU operation without driving it.",
+        "reset_domain": "local_reset",
+        "target": "observation"
+      },
+      {
+        "bits": {
+          "hi": 95,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[apu_operands_o]",
+        "instance_id": "processor",
+        "port": "apu_operands_o",
+        "port_width": 96,
+        "reason": "Observe the physical APU operands without driving them.",
+        "reset_domain": "local_reset",
+        "target": "observation"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[apu_req_o]",
+        "instance_id": "processor",
+        "port": "apu_req_o",
+        "port_width": 1,
+        "reason": "Observe the physical APU request; FPU=0 leaves it inactive.",
+        "reset_domain": "local_reset",
+        "target": "observation"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[apu_result_i]",
+        "instance_id": "processor",
+        "port": "apu_result_i",
+        "port_width": 32,
+        "reason": "FPU=0 disables the APU/FPU extension; deterministic inactive result.",
+        "reset_domain": "local_reset",
+        "target": "constant",
+        "value": 0
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[apu_rvalid_i]",
+        "instance_id": "processor",
+        "port": "apu_rvalid_i",
+        "port_width": 1,
+        "reason": "FPU=0 disables the APU/FPU extension; no external APU response is generated.",
+        "reset_domain": "local_reset",
+        "target": "constant",
+        "value": 0
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[boot_addr_i]",
+        "instance_id": "processor",
+        "port": "boot_addr_i",
+        "port_width": 32,
+        "reason": "The upstream IF stage aligns boot_addr_i to four bytes; 0x10000 is the configured local program base.",
+        "reset_domain": "local_reset",
+        "target": "constant",
+        "value": 65536
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "input",
+        "disposition": "functional",
+        "evidence": "component_profile.clocks[clk_i]",
+        "instance_id": "processor",
+        "port": "clk_i",
+        "port_width": 1,
+        "reason": "clock port distributed from the SoC clock input",
+        "reset_domain": "local_reset",
+        "role": "clock",
+        "target": "local_clock_reset"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[core_sleep_o]",
+        "instance_id": "processor",
+        "port": "core_sleep_o",
+        "port_width": 1,
+        "reason": "Observe the native sleep status.",
+        "reset_domain": "local_reset",
+        "target": "observation"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "processor.data",
+        "evidence": "elaborated_ports[data_addr_o]",
+        "instance_id": "processor",
+        "port": "data_addr_o",
+        "port_width": 32,
+        "reason": "bound to interface processor.data role addr",
+        "reset_domain": "local_reset",
+        "role": "addr",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 3,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "processor.data",
+        "evidence": "elaborated_ports[data_be_o]",
+        "instance_id": "processor",
+        "port": "data_be_o",
+        "port_width": 4,
+        "reason": "bound to interface processor.data role be",
+        "reset_domain": "local_reset",
+        "role": "be",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "processor.data",
+        "evidence": "elaborated_ports[data_gnt_i]",
+        "instance_id": "processor",
+        "port": "data_gnt_i",
+        "port_width": 1,
+        "reason": "bound to interface processor.data role gnt",
+        "reset_domain": "local_reset",
+        "role": "gnt",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "processor.data",
+        "evidence": "elaborated_ports[data_rdata_i]",
+        "instance_id": "processor",
+        "port": "data_rdata_i",
+        "port_width": 32,
+        "reason": "bound to interface processor.data role rdata",
+        "reset_domain": "local_reset",
+        "role": "rdata",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "processor.data",
+        "evidence": "elaborated_ports[data_req_o]",
+        "instance_id": "processor",
+        "port": "data_req_o",
+        "port_width": 1,
+        "reason": "bound to interface processor.data role req",
+        "reset_domain": "local_reset",
+        "role": "req",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "processor.data",
+        "evidence": "elaborated_ports[data_rvalid_i]",
+        "instance_id": "processor",
+        "port": "data_rvalid_i",
+        "port_width": 1,
+        "reason": "bound to interface processor.data role rvalid",
+        "reset_domain": "local_reset",
+        "role": "rvalid",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "processor.data",
+        "evidence": "elaborated_ports[data_wdata_o]",
+        "instance_id": "processor",
+        "port": "data_wdata_o",
+        "port_width": 32,
+        "reason": "bound to interface processor.data role wdata",
+        "reset_domain": "local_reset",
+        "role": "wdata",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "processor.data",
+        "evidence": "elaborated_ports[data_we_o]",
+        "instance_id": "processor",
+        "port": "data_we_o",
+        "port_width": 1,
+        "reason": "bound to interface processor.data role we",
+        "reset_domain": "local_reset",
+        "role": "we",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[debug_halted_o]",
+        "instance_id": "processor",
+        "port": "debug_halted_o",
+        "port_width": 1,
+        "reason": "Observe native debug halted status.",
+        "reset_domain": "local_reset",
+        "target": "observation"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[debug_havereset_o]",
+        "instance_id": "processor",
+        "port": "debug_havereset_o",
+        "port_width": 1,
+        "reason": "Observe native debug reset status.",
+        "reset_domain": "local_reset",
+        "target": "observation"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[debug_req_i]",
+        "instance_id": "processor",
+        "port": "debug_req_i",
+        "port_width": 1,
+        "reason": "Do not enter debug mode during the local program acceptance.",
+        "reset_domain": "local_reset",
+        "target": "constant",
+        "value": 0
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[debug_running_o]",
+        "instance_id": "processor",
+        "port": "debug_running_o",
+        "port_width": 1,
+        "reason": "Observe native debug running status.",
+        "reset_domain": "local_reset",
+        "target": "observation"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[dm_exception_addr_i]",
+        "instance_id": "processor",
+        "port": "dm_exception_addr_i",
+        "port_width": 32,
+        "reason": "Debug entry is disabled by debug_req_i; use the deterministic unused exception vector.",
+        "reset_domain": "local_reset",
+        "target": "constant",
+        "value": 0
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[dm_halt_addr_i]",
+        "instance_id": "processor",
+        "port": "dm_halt_addr_i",
+        "port_width": 32,
+        "reason": "Debug entry is disabled by debug_req_i; use the deterministic unused halt vector.",
+        "reset_domain": "local_reset",
+        "target": "constant",
+        "value": 0
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[fetch_enable_i]",
+        "instance_id": "processor",
+        "port": "fetch_enable_i",
+        "port_width": 1,
+        "reason": "Enable instruction fetch after reset release.",
+        "reset_domain": "local_reset",
+        "target": "constant",
+        "value": 1
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[hart_id_i]",
+        "instance_id": "processor",
+        "port": "hart_id_i",
+        "port_width": 32,
+        "reason": "This local harness represents one hart.",
+        "reset_domain": "local_reset",
+        "target": "constant",
+        "value": 0
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "processor.instruction",
+        "evidence": "elaborated_ports[instr_addr_o]",
+        "instance_id": "processor",
+        "port": "instr_addr_o",
+        "port_width": 32,
+        "reason": "bound to interface processor.instruction role addr",
+        "reset_domain": "local_reset",
+        "role": "addr",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "processor.instruction",
+        "evidence": "elaborated_ports[instr_gnt_i]",
+        "instance_id": "processor",
+        "port": "instr_gnt_i",
+        "port_width": 1,
+        "reason": "bound to interface processor.instruction role gnt",
+        "reset_domain": "local_reset",
+        "role": "gnt",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "processor.instruction",
+        "evidence": "elaborated_ports[instr_rdata_i]",
+        "instance_id": "processor",
+        "port": "instr_rdata_i",
+        "port_width": 32,
+        "reason": "bound to interface processor.instruction role rdata",
+        "reset_domain": "local_reset",
+        "role": "rdata",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "processor.instruction",
+        "evidence": "elaborated_ports[instr_req_o]",
+        "instance_id": "processor",
+        "port": "instr_req_o",
+        "port_width": 1,
+        "reason": "bound to interface processor.instruction role req",
+        "reset_domain": "local_reset",
+        "role": "req",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "processor.instruction",
+        "evidence": "elaborated_ports[instr_rvalid_i]",
+        "instance_id": "processor",
+        "port": "instr_rvalid_i",
+        "port_width": 1,
+        "reason": "bound to interface processor.instruction role rvalid",
+        "reset_domain": "local_reset",
+        "role": "rvalid",
+        "target": "local_protocol"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[irq_ack_o]",
+        "instance_id": "processor",
+        "port": "irq_ack_o",
+        "port_width": 1,
+        "reason": "Observe native interrupt acknowledgement.",
+        "reset_domain": "local_reset",
+        "target": "observation"
+      },
+      {
+        "bits": {
+          "hi": 10,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[irq_i]",
+        "instance_id": "processor",
+        "port": "irq_i",
+        "port_width": 32,
+        "reason": "The endpoint binds the machine-external line irq_i[11]; bits 0 through 10 remain inactive.",
+        "reset_domain": "local_reset",
+        "target": "constant",
+        "value": 0
+      },
+      {
+        "bits": {
+          "hi": 11,
+          "lo": 11
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "processor.interrupts",
+        "evidence": "elaborated_ports[irq_i]",
+        "instance_id": "processor",
+        "port": "irq_i",
+        "port_width": 32,
+        "reason": "bound to interface processor.interrupts role external",
+        "reset_domain": "local_reset",
+        "role": "external",
+        "target": "local_interrupt"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 12
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[irq_i]",
+        "instance_id": "processor",
+        "port": "irq_i",
+        "port_width": 32,
+        "reason": "The endpoint binds the machine-external line irq_i[11]; bits 12 through 31 remain inactive.",
+        "reset_domain": "local_reset",
+        "target": "constant",
+        "value": 0
+      },
+      {
+        "bits": {
+          "hi": 4,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[irq_id_o]",
+        "instance_id": "processor",
+        "port": "irq_id_o",
+        "port_width": 5,
+        "reason": "Observe the native interrupt identifier.",
+        "reset_domain": "local_reset",
+        "target": "observation"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[mtvec_addr_i]",
+        "instance_id": "processor",
+        "port": "mtvec_addr_i",
+        "port_width": 32,
+        "reason": "The current CPU memory acceptance program does not enable interrupts; the trap base remains a deterministic inactive environment value.",
+        "reset_domain": "local_reset",
+        "target": "constant",
+        "value": 0
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[pulp_clock_en_i]",
+        "instance_id": "processor",
+        "port": "pulp_clock_en_i",
+        "port_width": 1,
+        "reason": "COREV_CLUSTER=0 disables cluster clock gating; keep the clock enable asserted.",
+        "reset_domain": "local_reset",
+        "target": "constant",
+        "value": 1
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "input",
+        "disposition": "functional",
+        "evidence": "component_profile.resets[rst_ni]",
+        "instance_id": "processor",
+        "port": "rst_ni",
+        "port_width": 1,
+        "reason": "reset port distributed from the SoC reset input",
+        "reset_domain": "local_reset",
+        "role": "reset",
+        "target": "local_clock_reset"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[scan_cg_en_i]",
+        "instance_id": "processor",
+        "port": "scan_cg_en_i",
+        "port_width": 1,
+        "reason": "Keep scan clock-gating override inactive during functional execution.",
+        "reset_domain": "local_reset",
+        "target": "constant",
+        "value": 0
+      }
+    ],
+    "profile_path": "configs/cpus/cv32e40p/component_profile.json",
+    "profile_sha256": "21d04c8ad75d2e6cc1feff72b22dc1d7656b129cddd70d55bb981973d0db3e45",
+    "protocol_endpoint_ids": [
+      "processor.data",
+      "processor.instruction"
+    ],
+    "schema_version": "local_harness_plan.v1",
+    "scope": "single_component",
+    "source_content_hash": "git:6033d2b1be3295ec774d17ac4cf226faacfdeb08",
+    "source_files": [
+      "rtl/include/cv32e40p_apu_core_pkg.sv",
+      "rtl/include/cv32e40p_fpu_pkg.sv",
+      "rtl/include/cv32e40p_pkg.sv",
+      "rtl/cv32e40p_if_stage.sv",
+      "rtl/cv32e40p_cs_registers.sv",
+      "rtl/cv32e40p_register_file_ff.sv",
+      "rtl/cv32e40p_load_store_unit.sv",
+      "rtl/cv32e40p_id_stage.sv",
+      "rtl/cv32e40p_aligner.sv",
+      "rtl/cv32e40p_decoder.sv",
+      "rtl/cv32e40p_compressed_decoder.sv",
+      "rtl/cv32e40p_fifo.sv",
+      "rtl/cv32e40p_prefetch_buffer.sv",
+      "rtl/cv32e40p_hwloop_regs.sv",
+      "rtl/cv32e40p_mult.sv",
+      "rtl/cv32e40p_int_controller.sv",
+      "rtl/cv32e40p_ex_stage.sv",
+      "rtl/cv32e40p_alu_div.sv",
+      "rtl/cv32e40p_alu.sv",
+      "rtl/cv32e40p_ff_one.sv",
+      "rtl/cv32e40p_popcnt.sv",
+      "rtl/cv32e40p_apu_disp.sv",
+      "rtl/cv32e40p_controller.sv",
+      "rtl/cv32e40p_obi_interface.sv",
+      "rtl/cv32e40p_prefetch_controller.sv",
+      "rtl/cv32e40p_sleep_unit.sv",
+      "rtl/cv32e40p_core.sv",
+      "rtl/cv32e40p_top.sv",
+      "bhv/cv32e40p_sim_clock_gate.sv",
+      "bhv/include/cv32e40p_tracer_pkg.sv",
+      "bhv/cv32e40p_tb_wrapper.sv"
+    ],
+    "source_revision": "git:6033d2b1be3295ec774d17ac4cf226faacfdeb08",
+    "timing": {
+      "max_wait_cycles": 16,
+      "reset_assert_ticks": 8,
+      "reset_release_ticks": 8
+    },
+    "top": "cv32e40p_core"
+  },
+  "protocol_tap_ports": [
+    {
+      "direction": "output",
+      "endpoint_id": "processor.data",
+      "name": "trace_obi_d_req",
+      "role": "req",
+      "source_wire": "link_lh_p_16_0_0",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "endpoint_id": "processor.data",
+      "name": "trace_obi_d_addr",
+      "role": "addr",
+      "source_wire": "link_lh_p_12_31_0",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "endpoint_id": "processor.data",
+      "name": "trace_obi_d_gnt",
+      "role": "gnt",
+      "source_wire": "link_lh_p_14_0_0",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "endpoint_id": "processor.data",
+      "name": "trace_obi_d_rvalid",
+      "role": "rvalid",
+      "source_wire": "link_lh_p_17_0_0",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "endpoint_id": "processor.data",
+      "name": "trace_obi_d_rdata",
+      "role": "rdata",
+      "source_wire": "link_lh_p_15_31_0",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "endpoint_id": "processor.data",
+      "name": "trace_obi_d_we",
+      "role": "we",
+      "source_wire": "link_lh_p_19_0_0",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "endpoint_id": "processor.data",
+      "name": "trace_obi_d_wdata",
+      "role": "wdata",
+      "source_wire": "link_lh_p_18_31_0",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "endpoint_id": "processor.data",
+      "name": "trace_obi_d_be",
+      "role": "be",
+      "source_wire": "link_lh_p_13_3_0",
+      "width": 4
+    },
+    {
+      "direction": "output",
+      "endpoint_id": "processor.instruction",
+      "name": "trace_obi_i_req",
+      "role": "req",
+      "source_wire": "link_lh_p_31_0_0",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "endpoint_id": "processor.instruction",
+      "name": "trace_obi_i_addr",
+      "role": "addr",
+      "source_wire": "link_lh_p_28_31_0",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "endpoint_id": "processor.instruction",
+      "name": "trace_obi_i_gnt",
+      "role": "gnt",
+      "source_wire": "link_lh_p_29_0_0",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "endpoint_id": "processor.instruction",
+      "name": "trace_obi_i_rvalid",
+      "role": "rvalid",
+      "source_wire": "link_lh_p_32_0_0",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "endpoint_id": "processor.instruction",
+      "name": "trace_obi_i_rdata",
+      "role": "rdata",
+      "source_wire": "link_lh_p_30_31_0",
+      "width": 32
+    }
+  ],
+  "runtime_ports": [
+    {
+      "direction": "input",
+      "name": "clk",
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "name": "reset",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_0_0_0",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_2_14_0",
+      "width": 15
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_4_5_0",
+      "width": 6
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_5_95_0",
+      "width": 96
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_6_0_0",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_11_0_0",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_20_0_0",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_21_0_0",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_23_0_0",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_33_0_0",
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "name": "rt_lh_p_34_11_11",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "rt_lh_p_35_4_0",
+      "width": 5
+    },
+    {
+      "direction": "output",
+      "name": "trace_obi_d_req",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "trace_obi_d_addr",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "name": "trace_obi_d_gnt",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "trace_obi_d_rvalid",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "trace_obi_d_rdata",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "name": "trace_obi_d_we",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "trace_obi_d_wdata",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "name": "trace_obi_d_be",
+      "width": 4
+    },
+    {
+      "direction": "output",
+      "name": "d_req_valid",
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "name": "d_req_ready",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "d_req_write",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "d_req_addr",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "name": "d_req_wdata",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "name": "d_req_be",
+      "width": 4
+    },
+    {
+      "direction": "input",
+      "name": "d_rsp_valid",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "d_rsp_ready",
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "name": "d_rsp_rdata",
+      "width": 32
+    },
+    {
+      "direction": "input",
+      "name": "d_rsp_error",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "trace_obi_i_req",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "trace_obi_i_addr",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "name": "trace_obi_i_gnt",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "trace_obi_i_rvalid",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "trace_obi_i_rdata",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "name": "i_req_valid",
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "name": "i_req_ready",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "i_req_write",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "i_req_addr",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "name": "i_req_wdata",
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "name": "i_req_be",
+      "width": 4
+    },
+    {
+      "direction": "input",
+      "name": "i_rsp_valid",
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "name": "i_rsp_ready",
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "name": "i_rsp_rdata",
+      "width": 32
+    },
+    {
+      "direction": "input",
+      "name": "i_rsp_error",
+      "width": 1
+    }
+  ],
+  "runtime_sv_sha256": "9e560389b8f4cce5a4629ba294c13bd2a420297d39d5c20f5b2e6c1966f6cc7e",
+  "schema_version": "local_runtime_artifact.v1",
+  "selected_template": {
+    "contract": {
+      "dut_semantics_verified": false,
+      "generation_stage": "source_admitted_runtime_top",
+      "protocol_capability_claim": false,
+      "schema_version": "local_generated_executor_contract.v1",
+      "scope": "generated_executor_only",
+      "template_id": "local.generated.obi_cpu",
+      "template_version": "1",
+      "variant_id": "obi_cpu"
+    },
+    "contract_sha256": "4a41fb11a3b1de3dbbd3eedfd606c8914156524fc080913cbf0cfa920f0e8f1a",
+    "dut_semantics_verified": false,
+    "executor": {
+      "binding": {
+        "adapter_sources": [
+          {
+            "path": "src/myfuzz/protocols/rtl/obi_processor_memory_adapter.sv",
+            "sha256": "59730c6742a85351d6e2cbf284d88185c874080274f323f2364268f2da3440df"
+          }
+        ],
+        "boot_contract": {
+          "configured_boot_base": 65536,
+          "expected_first_fetch": null,
+          "first_fetch_verification": "runtime_observation_required"
+        },
+        "clock_schedule": {
+          "clock_edges_observed": "rising_edges_since_ready",
+          "clocks": [
+            {
+              "domain": "core",
+              "first_rising_fast_tick": 1,
+              "frequency_hz": 50000000,
+              "half_period_fast_ticks": 1,
+              "ratio": 1,
+              "signal": "clk"
+            }
+          ],
+          "fast_frequency_hz": 50000000,
+          "phase_policy": "all_low_then_half_period_toggle",
+          "primary_clock_domain": "core",
+          "primary_reset_domain": "sys_rst",
+          "resets": [
+            {
+              "domain": "sys_rst",
+              "polarity": "active_low",
+              "port": "rst_ni",
+              "signal": "reset",
+              "synchronous": false
+            }
+          ],
+          "schema_version": "local_clock_schedule.v1",
+          "startup_fast_ticks": 16
+        },
+        "declared_profile_facts": {
+          "address_width": 32,
+          "byte_enable": true,
+          "data_width": 32,
+          "error_response": false,
+          "max_outstanding": 1
+        },
+        "effective_max_wait_cycles": 16,
+        "endpoints": [
+          {
+            "endpoint_id": "processor.data",
+            "function": "data_memory_master",
+            "protocol": [
+              "obi",
+              "1"
+            ],
+            "roles": [
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "data_addr_o",
+                "port_width": 32,
+                "raw_hi": 31,
+                "raw_lo": 0,
+                "role": "addr",
+                "width": 32
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "data_be_o",
+                "port_width": 4,
+                "raw_hi": 3,
+                "raw_lo": 0,
+                "role": "be",
+                "width": 4
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "data_gnt_i",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "gnt",
+                "width": 1
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "data_rdata_i",
+                "port_width": 32,
+                "raw_hi": 31,
+                "raw_lo": 0,
+                "role": "rdata",
+                "width": 32
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "data_req_o",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "req",
+                "width": 1
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "data_rvalid_i",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "rvalid",
+                "width": 1
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "data_wdata_o",
+                "port_width": 32,
+                "raw_hi": 31,
+                "raw_lo": 0,
+                "role": "wdata",
+                "width": 32
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "data_we_o",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "we",
+                "width": 1
+              }
+            ]
+          },
+          {
+            "endpoint_id": "processor.instruction",
+            "function": "instruction_memory_master",
+            "protocol": [
+              "obi",
+              "1"
+            ],
+            "roles": [
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "instr_addr_o",
+                "port_width": 32,
+                "raw_hi": 31,
+                "raw_lo": 0,
+                "role": "addr",
+                "width": 32
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "instr_gnt_i",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "gnt",
+                "width": 1
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "instr_rdata_i",
+                "port_width": 32,
+                "raw_hi": 31,
+                "raw_lo": 0,
+                "role": "rdata",
+                "width": 32
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "instr_req_o",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "req",
+                "width": 1
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "instr_rvalid_i",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "rvalid",
+                "width": 1
+              }
+            ]
+          }
+        ],
+        "implementation_sources": [
+          {
+            "path": "src/myfuzz/local_harness/runtime_renderer.py",
+            "sha256": "ededda67ad7e8eb797219649556e0be4ebe4a08394fe0f93dd8e8a4e49b7eb23"
+          },
+          {
+            "path": "src/myfuzz/local_harness/template_contracts.py",
+            "sha256": "34a74ae2fbff14b69bca50ec4770afe897652c51e77fdcd832543e0cd58c5637"
+          }
+        ],
+        "parameter_overrides": {
+          "COREV_CLUSTER": "0",
+          "COREV_PULP": "0",
+          "FPU": "0",
+          "FPU_ADDMUL_LAT": "0",
+          "FPU_OTHERS_LAT": "0",
+          "NUM_MHPMCOUNTERS": "1",
+          "ZFINX": "0"
+        },
+        "physical_input_policy": {},
+        "profile_sha256": "21d04c8ad75d2e6cc1feff72b22dc1d7656b129cddd70d55bb981973d0db3e45",
+        "runtime_sv_sha256": "9e560389b8f4cce5a4629ba294c13bd2a420297d39d5c20f5b2e6c1966f6cc7e"
+      },
+      "contract": {
+        "dut_semantics_verified": false,
+        "generation_stage": "source_admitted_runtime_top",
+        "protocol_capability_claim": false,
+        "schema_version": "local_generated_executor_contract.v1",
+        "scope": "generated_executor_only",
+        "template_id": "local.generated.obi_cpu",
+        "template_version": "1",
+        "variant_id": "obi_cpu"
+      },
+      "contract_sha256": "4a41fb11a3b1de3dbbd3eedfd606c8914156524fc080913cbf0cfa920f0e8f1a",
+      "dut_semantics_verified": false,
+      "identity_sha256": "f63eff8d3204c832d92a3846e247e935a13943cd9150a0c0f1dfba5a796f3498",
+      "protocol_templates": [
+        {
+          "binding": {
+            "address_width": 32,
+            "data_width": 32,
+            "endpoint_id": "processor.data",
+            "function": "data_memory_master",
+            "protocol": [
+              "obi",
+              "1"
+            ],
+            "roles": [
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "data_addr_o",
+                "port_width": 32,
+                "raw_hi": 31,
+                "raw_lo": 0,
+                "role": "addr",
+                "width": 32
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "data_be_o",
+                "port_width": 4,
+                "raw_hi": 3,
+                "raw_lo": 0,
+                "role": "be",
+                "width": 4
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "data_gnt_i",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "gnt",
+                "width": 1
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "data_rdata_i",
+                "port_width": 32,
+                "raw_hi": 31,
+                "raw_lo": 0,
+                "role": "rdata",
+                "width": 32
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "data_req_o",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "req",
+                "width": 1
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "data_rvalid_i",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "rvalid",
+                "width": 1
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "data_wdata_o",
+                "port_width": 32,
+                "raw_hi": 31,
+                "raw_lo": 0,
+                "role": "wdata",
+                "width": 32
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "data_we_o",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "we",
+                "width": 1
+              }
+            ],
+            "selection_mode": "explicit",
+            "typed_profile_facts": {
+              "address_width": 32,
+              "byte_enable": true,
+              "data_width": 32,
+              "error_response": false,
+              "max_outstanding": 1
+            }
+          },
+          "contract": {
+            "dut_semantics_verified": false,
+            "host_to_device_roles": [
+              "addr",
+              "be",
+              "req",
+              "wdata",
+              "we"
+            ],
+            "limits": {
+              "address_width_max": 64,
+              "address_width_min": 1,
+              "backend_error_policy": "fail_stop_no_error_pin_to_raise",
+              "byte_enable": true,
+              "clock_crossing": false,
+              "completion": "grant_then_response",
+              "error_policy": "cpu_cannot_represent_a_bus_error_adapter_must_fail_stop",
+              "error_response": false,
+              "max_field_width": 4096,
+              "max_outstanding": 1,
+              "max_wait_cycles_limit": 1024,
+              "outstanding_scope": "endpoint",
+              "partial_write": true,
+              "pipelining": false,
+              "supported_data_widths": [
+                32
+              ],
+              "write": true
+            },
+            "optional_profile_facts": {},
+            "optional_role_groups": [],
+            "optional_roles": [],
+            "protocol": [
+              "obi",
+              "1"
+            ],
+            "required_profile_facts": {
+              "error_response": false
+            },
+            "required_roles": [
+              "addr",
+              "be",
+              "gnt",
+              "rdata",
+              "req",
+              "rvalid",
+              "wdata",
+              "we"
+            ],
+            "role_shapes": {
+              "addr": {
+                "width": "address_width"
+              },
+              "be": {
+                "width": "data_width/8"
+              },
+              "gnt": {
+                "width": 1
+              },
+              "rdata": {
+                "width": "data_width"
+              },
+              "req": {
+                "width": 1
+              },
+              "rvalid": {
+                "width": 1
+              },
+              "wdata": {
+                "width": "data_width"
+              },
+              "we": {
+                "width": 1
+              }
+            },
+            "runtime_effective": false,
+            "schema_version": "local_protocol_template_contract.v1",
+            "semantic_selection": "shape",
+            "side": "cpu",
+            "template_id": "cpu.obi",
+            "template_version": "1",
+            "variant_id": "read-write-no-error-pins"
+          },
+          "contract_sha256": "73cb04f9e569313528407f17cf1c92e1739cc7d877e09e66c95cf4d15e8fb2cb",
+          "dut_semantics_verified": false,
+          "runtime_effective": false,
+          "schema_version": "local_protocol_template_selection.v1"
+        },
+        {
+          "binding": {
+            "address_width": 32,
+            "data_width": 32,
+            "endpoint_id": "processor.instruction",
+            "function": "instruction_memory_master",
+            "protocol": [
+              "obi",
+              "1"
+            ],
+            "roles": [
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "instr_addr_o",
+                "port_width": 32,
+                "raw_hi": 31,
+                "raw_lo": 0,
+                "role": "addr",
+                "width": 32
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "instr_gnt_i",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "gnt",
+                "width": 1
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "instr_rdata_i",
+                "port_width": 32,
+                "raw_hi": 31,
+                "raw_lo": 0,
+                "role": "rdata",
+                "width": 32
+              },
+              {
+                "direction": "output",
+                "member_path": [],
+                "physical_port": "instr_req_o",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "req",
+                "width": 1
+              },
+              {
+                "direction": "input",
+                "member_path": [],
+                "physical_port": "instr_rvalid_i",
+                "port_width": 1,
+                "raw_hi": 0,
+                "raw_lo": 0,
+                "role": "rvalid",
+                "width": 1
+              }
+            ],
+            "selection_mode": "explicit",
+            "typed_profile_facts": {
+              "address_width": 32,
+              "byte_enable": true,
+              "data_width": 32,
+              "error_response": false,
+              "max_outstanding": 1
+            }
+          },
+          "contract": {
+            "dut_semantics_verified": false,
+            "host_to_device_roles": [
+              "addr",
+              "req"
+            ],
+            "limits": {
+              "address_width_max": 64,
+              "address_width_min": 1,
+              "backend_error_policy": "fail_stop_no_error_pin_to_raise",
+              "byte_enable": false,
+              "clock_crossing": false,
+              "completion": "grant_then_response",
+              "error_policy": "cpu_cannot_represent_a_bus_error_adapter_must_fail_stop",
+              "error_response": false,
+              "max_field_width": 4096,
+              "max_outstanding": 1,
+              "max_wait_cycles_limit": 1024,
+              "outstanding_scope": "endpoint",
+              "partial_write": false,
+              "pipelining": false,
+              "supported_data_widths": [
+                32
+              ],
+              "write": false
+            },
+            "optional_profile_facts": {},
+            "optional_role_groups": [],
+            "optional_roles": [],
+            "protocol": [
+              "obi",
+              "1"
+            ],
+            "required_profile_facts": {
+              "error_response": false
+            },
+            "required_roles": [
+              "addr",
+              "gnt",
+              "rdata",
+              "req",
+              "rvalid"
+            ],
+            "role_shapes": {
+              "addr": {
+                "width": "address_width"
+              },
+              "gnt": {
+                "width": 1
+              },
+              "rdata": {
+                "width": "data_width"
+              },
+              "req": {
+                "width": 1
+              },
+              "rvalid": {
+                "width": 1
+              }
+            },
+            "runtime_effective": false,
+            "schema_version": "local_protocol_template_contract.v1",
+            "semantic_selection": "shape",
+            "side": "cpu",
+            "template_id": "cpu.obi",
+            "template_version": "1",
+            "variant_id": "read-only-no-error-pins"
+          },
+          "contract_sha256": "64abfd2571b98827bf4fcda49b81b0e8aa063225e12044f913dcda60973d066f",
+          "dut_semantics_verified": false,
+          "runtime_effective": false,
+          "schema_version": "local_protocol_template_selection.v1"
+        }
+      ],
+      "runtime_effective": false,
+      "schema_version": "local_generated_executor_selection.v1"
+    },
+    "runtime_effective": false,
+    "schema_version": "local_generated_template_selection.v1"
+  },
+  "source_verification": {
+    "elaboration": {
+      "closure_files": 31,
+      "closure_roots": [
+        "external_designs/cv32e40p"
+      ],
+      "elaboration_status": "elaboration_verified",
+      "lint": {
+        "errors": 0,
+        "exit_code": 0,
+        "warnings": 64
+      },
+      "tool": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+      "top_module": "cv32e40p_core"
+    },
+    "elaboration_status": "elaboration_verified",
+    "id": "cv32e40p",
+    "lock_sha256": "4caf0ae616e99e3c7cac76a1b04daca41af9bcef0eee3b6b0923fb6bd7e2a29e",
+    "parse_status": "parameterized_ports_pending_elaboration",
+    "runtime_status": "runtime_unverified",
+    "schema_version": "local_source_lock_verification.v1",
+    "selected_content_hash": "sha256:ebc28bb5e5ad525476c61923419225d82f1af8bd222ffc2d39d5d1b8ea8d570b",
+    "selected_files": 32,
+    "source_status": "source_verified"
+  },
+  "status": "driver_generated",
+  "structural_abi": {
+    "dispositions": [
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[apu_busy_o]",
+        "instance_id": "processor",
+        "port": "apu_busy_o",
+        "port_width": 1,
+        "reason": "Observe the physical APU busy status; FPU=0 leaves it inactive.",
+        "reset_domain": "local_reset",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 4,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[apu_flags_i]",
+        "instance_id": "processor",
+        "port": "apu_flags_i",
+        "port_width": 5,
+        "reason": "FPU=0 disables the APU/FPU extension; deterministic inactive flags.",
+        "reset_domain": "local_reset",
+        "target": "const",
+        "value": 0
+      },
+      {
+        "bits": {
+          "hi": 14,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[apu_flags_o]",
+        "instance_id": "processor",
+        "port": "apu_flags_o",
+        "port_width": 15,
+        "reason": "Observe the physical APU flags without driving them.",
+        "reset_domain": "local_reset",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[apu_gnt_i]",
+        "instance_id": "processor",
+        "port": "apu_gnt_i",
+        "port_width": 1,
+        "reason": "FPU=0 disables the APU/FPU extension; no external APU response is accepted.",
+        "reset_domain": "local_reset",
+        "target": "const",
+        "value": 0
+      },
+      {
+        "bits": {
+          "hi": 5,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[apu_op_o]",
+        "instance_id": "processor",
+        "port": "apu_op_o",
+        "port_width": 6,
+        "reason": "Observe the physical APU operation without driving it.",
+        "reset_domain": "local_reset",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 95,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[apu_operands_o]",
+        "instance_id": "processor",
+        "port": "apu_operands_o",
+        "port_width": 96,
+        "reason": "Observe the physical APU operands without driving them.",
+        "reset_domain": "local_reset",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[apu_req_o]",
+        "instance_id": "processor",
+        "port": "apu_req_o",
+        "port_width": 1,
+        "reason": "Observe the physical APU request; FPU=0 leaves it inactive.",
+        "reset_domain": "local_reset",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[apu_result_i]",
+        "instance_id": "processor",
+        "port": "apu_result_i",
+        "port_width": 32,
+        "reason": "FPU=0 disables the APU/FPU extension; deterministic inactive result.",
+        "reset_domain": "local_reset",
+        "target": "const",
+        "value": 0
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[apu_rvalid_i]",
+        "instance_id": "processor",
+        "port": "apu_rvalid_i",
+        "port_width": 1,
+        "reason": "FPU=0 disables the APU/FPU extension; no external APU response is generated.",
+        "reset_domain": "local_reset",
+        "target": "const",
+        "value": 0
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[boot_addr_i]",
+        "instance_id": "processor",
+        "port": "boot_addr_i",
+        "port_width": 32,
+        "reason": "The upstream IF stage aligns boot_addr_i to four bytes; 0x10000 is the configured local program base.",
+        "reset_domain": "local_reset",
+        "target": "const",
+        "value": 65536
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "input",
+        "disposition": "functional",
+        "evidence": "component_profile.clocks[clk_i]",
+        "instance_id": "processor",
+        "port": "clk_i",
+        "port_width": 1,
+        "reason": "clock port distributed from the SoC clock input",
+        "reset_domain": "local_reset",
+        "role": "clock",
+        "target": "clock_reset"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[core_sleep_o]",
+        "instance_id": "processor",
+        "port": "core_sleep_o",
+        "port_width": 1,
+        "reason": "Observe the native sleep status.",
+        "reset_domain": "local_reset",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "processor.data",
+        "evidence": "elaborated_ports[data_addr_o]",
+        "instance_id": "processor",
+        "port": "data_addr_o",
+        "port_width": 32,
+        "reason": "bound to interface processor.data role addr",
+        "reset_domain": "local_reset",
+        "role": "addr",
+        "target": "processor_adapter"
+      },
+      {
+        "bits": {
+          "hi": 3,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "processor.data",
+        "evidence": "elaborated_ports[data_be_o]",
+        "instance_id": "processor",
+        "port": "data_be_o",
+        "port_width": 4,
+        "reason": "bound to interface processor.data role be",
+        "reset_domain": "local_reset",
+        "role": "be",
+        "target": "processor_adapter"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "processor.data",
+        "evidence": "elaborated_ports[data_gnt_i]",
+        "instance_id": "processor",
+        "port": "data_gnt_i",
+        "port_width": 1,
+        "reason": "bound to interface processor.data role gnt",
+        "reset_domain": "local_reset",
+        "role": "gnt",
+        "target": "processor_adapter"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "processor.data",
+        "evidence": "elaborated_ports[data_rdata_i]",
+        "instance_id": "processor",
+        "port": "data_rdata_i",
+        "port_width": 32,
+        "reason": "bound to interface processor.data role rdata",
+        "reset_domain": "local_reset",
+        "role": "rdata",
+        "target": "processor_adapter"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "processor.data",
+        "evidence": "elaborated_ports[data_req_o]",
+        "instance_id": "processor",
+        "port": "data_req_o",
+        "port_width": 1,
+        "reason": "bound to interface processor.data role req",
+        "reset_domain": "local_reset",
+        "role": "req",
+        "target": "processor_adapter"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "processor.data",
+        "evidence": "elaborated_ports[data_rvalid_i]",
+        "instance_id": "processor",
+        "port": "data_rvalid_i",
+        "port_width": 1,
+        "reason": "bound to interface processor.data role rvalid",
+        "reset_domain": "local_reset",
+        "role": "rvalid",
+        "target": "processor_adapter"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "processor.data",
+        "evidence": "elaborated_ports[data_wdata_o]",
+        "instance_id": "processor",
+        "port": "data_wdata_o",
+        "port_width": 32,
+        "reason": "bound to interface processor.data role wdata",
+        "reset_domain": "local_reset",
+        "role": "wdata",
+        "target": "processor_adapter"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "processor.data",
+        "evidence": "elaborated_ports[data_we_o]",
+        "instance_id": "processor",
+        "port": "data_we_o",
+        "port_width": 1,
+        "reason": "bound to interface processor.data role we",
+        "reset_domain": "local_reset",
+        "role": "we",
+        "target": "processor_adapter"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[debug_halted_o]",
+        "instance_id": "processor",
+        "port": "debug_halted_o",
+        "port_width": 1,
+        "reason": "Observe native debug halted status.",
+        "reset_domain": "local_reset",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[debug_havereset_o]",
+        "instance_id": "processor",
+        "port": "debug_havereset_o",
+        "port_width": 1,
+        "reason": "Observe native debug reset status.",
+        "reset_domain": "local_reset",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[debug_req_i]",
+        "instance_id": "processor",
+        "port": "debug_req_i",
+        "port_width": 1,
+        "reason": "Do not enter debug mode during the local program acceptance.",
+        "reset_domain": "local_reset",
+        "target": "const",
+        "value": 0
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[debug_running_o]",
+        "instance_id": "processor",
+        "port": "debug_running_o",
+        "port_width": 1,
+        "reason": "Observe native debug running status.",
+        "reset_domain": "local_reset",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[dm_exception_addr_i]",
+        "instance_id": "processor",
+        "port": "dm_exception_addr_i",
+        "port_width": 32,
+        "reason": "Debug entry is disabled by debug_req_i; use the deterministic unused exception vector.",
+        "reset_domain": "local_reset",
+        "target": "const",
+        "value": 0
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[dm_halt_addr_i]",
+        "instance_id": "processor",
+        "port": "dm_halt_addr_i",
+        "port_width": 32,
+        "reason": "Debug entry is disabled by debug_req_i; use the deterministic unused halt vector.",
+        "reset_domain": "local_reset",
+        "target": "const",
+        "value": 0
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[fetch_enable_i]",
+        "instance_id": "processor",
+        "port": "fetch_enable_i",
+        "port_width": 1,
+        "reason": "Enable instruction fetch after reset release.",
+        "reset_domain": "local_reset",
+        "target": "const",
+        "value": 1
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[hart_id_i]",
+        "instance_id": "processor",
+        "port": "hart_id_i",
+        "port_width": 32,
+        "reason": "This local harness represents one hart.",
+        "reset_domain": "local_reset",
+        "target": "const",
+        "value": 0
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "processor.instruction",
+        "evidence": "elaborated_ports[instr_addr_o]",
+        "instance_id": "processor",
+        "port": "instr_addr_o",
+        "port_width": 32,
+        "reason": "bound to interface processor.instruction role addr",
+        "reset_domain": "local_reset",
+        "role": "addr",
+        "target": "processor_adapter"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "processor.instruction",
+        "evidence": "elaborated_ports[instr_gnt_i]",
+        "instance_id": "processor",
+        "port": "instr_gnt_i",
+        "port_width": 1,
+        "reason": "bound to interface processor.instruction role gnt",
+        "reset_domain": "local_reset",
+        "role": "gnt",
+        "target": "processor_adapter"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "processor.instruction",
+        "evidence": "elaborated_ports[instr_rdata_i]",
+        "instance_id": "processor",
+        "port": "instr_rdata_i",
+        "port_width": 32,
+        "reason": "bound to interface processor.instruction role rdata",
+        "reset_domain": "local_reset",
+        "role": "rdata",
+        "target": "processor_adapter"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "processor.instruction",
+        "evidence": "elaborated_ports[instr_req_o]",
+        "instance_id": "processor",
+        "port": "instr_req_o",
+        "port_width": 1,
+        "reason": "bound to interface processor.instruction role req",
+        "reset_domain": "local_reset",
+        "role": "req",
+        "target": "processor_adapter"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "processor.instruction",
+        "evidence": "elaborated_ports[instr_rvalid_i]",
+        "instance_id": "processor",
+        "port": "instr_rvalid_i",
+        "port_width": 1,
+        "reason": "bound to interface processor.instruction role rvalid",
+        "reset_domain": "local_reset",
+        "role": "rvalid",
+        "target": "processor_adapter"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[irq_ack_o]",
+        "instance_id": "processor",
+        "port": "irq_ack_o",
+        "port_width": 1,
+        "reason": "Observe native interrupt acknowledgement.",
+        "reset_domain": "local_reset",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 12
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[irq_i]",
+        "instance_id": "processor",
+        "port": "irq_i",
+        "port_width": 32,
+        "reason": "The endpoint binds the machine-external line irq_i[11]; bits 12 through 31 remain inactive.",
+        "reset_domain": "local_reset",
+        "target": "const",
+        "value": 0
+      },
+      {
+        "bits": {
+          "hi": 11,
+          "lo": 11
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "processor.interrupts",
+        "evidence": "elaborated_ports[irq_i]",
+        "instance_id": "processor",
+        "port": "irq_i",
+        "port_width": 32,
+        "reason": "bound to interface processor.interrupts role external",
+        "reset_domain": "local_reset",
+        "role": "external",
+        "target": "interrupt_controller"
+      },
+      {
+        "bits": {
+          "hi": 10,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[irq_i]",
+        "instance_id": "processor",
+        "port": "irq_i",
+        "port_width": 32,
+        "reason": "The endpoint binds the machine-external line irq_i[11]; bits 0 through 10 remain inactive.",
+        "reset_domain": "local_reset",
+        "target": "const",
+        "value": 0
+      },
+      {
+        "bits": {
+          "hi": 4,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "output",
+        "disposition": "observe",
+        "evidence": "component_profile.port_actions[irq_id_o]",
+        "instance_id": "processor",
+        "port": "irq_id_o",
+        "port_width": 5,
+        "reason": "Observe the native interrupt identifier.",
+        "reset_domain": "local_reset",
+        "target": "soc_top"
+      },
+      {
+        "bits": {
+          "hi": 31,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[mtvec_addr_i]",
+        "instance_id": "processor",
+        "port": "mtvec_addr_i",
+        "port_width": 32,
+        "reason": "The current CPU memory acceptance program does not enable interrupts; the trap base remains a deterministic inactive environment value.",
+        "reset_domain": "local_reset",
+        "target": "const",
+        "value": 0
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[pulp_clock_en_i]",
+        "instance_id": "processor",
+        "port": "pulp_clock_en_i",
+        "port_width": 1,
+        "reason": "COREV_CLUSTER=0 disables cluster clock gating; keep the clock enable asserted.",
+        "reset_domain": "local_reset",
+        "target": "const",
+        "value": 1
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "direction": "input",
+        "disposition": "functional",
+        "evidence": "component_profile.resets[rst_ni]",
+        "instance_id": "processor",
+        "port": "rst_ni",
+        "port_width": 1,
+        "reason": "reset port distributed from the SoC reset input",
+        "reset_domain": "local_reset",
+        "role": "reset",
+        "target": "clock_reset"
+      },
+      {
+        "bits": {
+          "hi": 0,
+          "lo": 0
+        },
+        "clock_domain": "local_clock",
+        "component_id": "cv32e40p",
+        "coverage_loss": "port is held at a fixed value; behaviour reachable only through other values of this port is not exercised",
+        "direction": "input",
+        "disposition": "constant",
+        "evidence": "component_profile.port_actions[scan_cg_en_i]",
+        "instance_id": "processor",
+        "port": "scan_cg_en_i",
+        "port_width": 1,
+        "reason": "Keep scan clock-gating override inactive during functional execution.",
+        "reset_domain": "local_reset",
+        "target": "const",
+        "value": 0
+      }
+    ],
+    "module_name": "local_processor",
+    "parameter_evidence": [
+      {
+        "declaration": "parameter COREV_CLUSTER = 0",
+        "name": "COREV_CLUSTER",
+        "qualified_type": null,
+        "source_file": "rtl/cv32e40p_core.sv",
+        "source_sha256": "6a78a0d77d32e6795f63e5149f77b98320ce504c67c44a2e359c9aea70989224"
+      },
+      {
+        "declaration": "parameter COREV_PULP = 0",
+        "name": "COREV_PULP",
+        "qualified_type": null,
+        "source_file": "rtl/cv32e40p_core.sv",
+        "source_sha256": "6a78a0d77d32e6795f63e5149f77b98320ce504c67c44a2e359c9aea70989224"
+      },
+      {
+        "declaration": "parameter FPU = 0",
+        "name": "FPU",
+        "qualified_type": null,
+        "source_file": "rtl/cv32e40p_core.sv",
+        "source_sha256": "6a78a0d77d32e6795f63e5149f77b98320ce504c67c44a2e359c9aea70989224"
+      },
+      {
+        "declaration": "parameter FPU_ADDMUL_LAT = 0",
+        "name": "FPU_ADDMUL_LAT",
+        "qualified_type": null,
+        "source_file": "rtl/cv32e40p_core.sv",
+        "source_sha256": "6a78a0d77d32e6795f63e5149f77b98320ce504c67c44a2e359c9aea70989224"
+      },
+      {
+        "declaration": "parameter FPU_OTHERS_LAT = 0",
+        "name": "FPU_OTHERS_LAT",
+        "qualified_type": null,
+        "source_file": "rtl/cv32e40p_core.sv",
+        "source_sha256": "6a78a0d77d32e6795f63e5149f77b98320ce504c67c44a2e359c9aea70989224"
+      },
+      {
+        "declaration": "parameter NUM_MHPMCOUNTERS = 1",
+        "name": "NUM_MHPMCOUNTERS",
+        "qualified_type": null,
+        "source_file": "rtl/cv32e40p_core.sv",
+        "source_sha256": "6a78a0d77d32e6795f63e5149f77b98320ce504c67c44a2e359c9aea70989224"
+      },
+      {
+        "declaration": "parameter ZFINX = 0",
+        "name": "ZFINX",
+        "qualified_type": null,
+        "source_file": "rtl/cv32e40p_core.sv",
+        "source_sha256": "6a78a0d77d32e6795f63e5149f77b98320ce504c67c44a2e359c9aea70989224"
+      }
+    ],
+    "plan_sha256": "4c22c9233412147fbc03404f32840a3b230568a04aa308ddd26250c2eeff0c9e",
+    "ports": [
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "observe",
+        "endpoint_id": null,
+        "physical_port": "apu_busy_o",
+        "role": null,
+        "width": 1,
+        "wrapper_name": "lh_p_0_0_0"
+      },
+      {
+        "bit_hi": 14,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "observe",
+        "endpoint_id": null,
+        "physical_port": "apu_flags_o",
+        "role": null,
+        "width": 15,
+        "wrapper_name": "lh_p_2_14_0"
+      },
+      {
+        "bit_hi": 5,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "observe",
+        "endpoint_id": null,
+        "physical_port": "apu_op_o",
+        "role": null,
+        "width": 6,
+        "wrapper_name": "lh_p_4_5_0"
+      },
+      {
+        "bit_hi": 95,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "observe",
+        "endpoint_id": null,
+        "physical_port": "apu_operands_o",
+        "role": null,
+        "width": 96,
+        "wrapper_name": "lh_p_5_95_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "observe",
+        "endpoint_id": null,
+        "physical_port": "apu_req_o",
+        "role": null,
+        "width": 1,
+        "wrapper_name": "lh_p_6_0_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "observe",
+        "endpoint_id": null,
+        "physical_port": "core_sleep_o",
+        "role": null,
+        "width": 1,
+        "wrapper_name": "lh_p_11_0_0"
+      },
+      {
+        "bit_hi": 31,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "processor.data",
+        "physical_port": "data_addr_o",
+        "role": "addr",
+        "width": 32,
+        "wrapper_name": "lh_p_12_31_0"
+      },
+      {
+        "bit_hi": 3,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "processor.data",
+        "physical_port": "data_be_o",
+        "role": "be",
+        "width": 4,
+        "wrapper_name": "lh_p_13_3_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "processor.data",
+        "physical_port": "data_gnt_i",
+        "role": "gnt",
+        "width": 1,
+        "wrapper_name": "lh_p_14_0_0"
+      },
+      {
+        "bit_hi": 31,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "processor.data",
+        "physical_port": "data_rdata_i",
+        "role": "rdata",
+        "width": 32,
+        "wrapper_name": "lh_p_15_31_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "processor.data",
+        "physical_port": "data_req_o",
+        "role": "req",
+        "width": 1,
+        "wrapper_name": "lh_p_16_0_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "processor.data",
+        "physical_port": "data_rvalid_i",
+        "role": "rvalid",
+        "width": 1,
+        "wrapper_name": "lh_p_17_0_0"
+      },
+      {
+        "bit_hi": 31,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "processor.data",
+        "physical_port": "data_wdata_o",
+        "role": "wdata",
+        "width": 32,
+        "wrapper_name": "lh_p_18_31_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "processor.data",
+        "physical_port": "data_we_o",
+        "role": "we",
+        "width": 1,
+        "wrapper_name": "lh_p_19_0_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "observe",
+        "endpoint_id": null,
+        "physical_port": "debug_halted_o",
+        "role": null,
+        "width": 1,
+        "wrapper_name": "lh_p_20_0_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "observe",
+        "endpoint_id": null,
+        "physical_port": "debug_havereset_o",
+        "role": null,
+        "width": 1,
+        "wrapper_name": "lh_p_21_0_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "observe",
+        "endpoint_id": null,
+        "physical_port": "debug_running_o",
+        "role": null,
+        "width": 1,
+        "wrapper_name": "lh_p_23_0_0"
+      },
+      {
+        "bit_hi": 31,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "processor.instruction",
+        "physical_port": "instr_addr_o",
+        "role": "addr",
+        "width": 32,
+        "wrapper_name": "lh_p_28_31_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "processor.instruction",
+        "physical_port": "instr_gnt_i",
+        "role": "gnt",
+        "width": 1,
+        "wrapper_name": "lh_p_29_0_0"
+      },
+      {
+        "bit_hi": 31,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "processor.instruction",
+        "physical_port": "instr_rdata_i",
+        "role": "rdata",
+        "width": 32,
+        "wrapper_name": "lh_p_30_31_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "functional",
+        "endpoint_id": "processor.instruction",
+        "physical_port": "instr_req_o",
+        "role": "req",
+        "width": 1,
+        "wrapper_name": "lh_p_31_0_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "processor.instruction",
+        "physical_port": "instr_rvalid_i",
+        "role": "rvalid",
+        "width": 1,
+        "wrapper_name": "lh_p_32_0_0"
+      },
+      {
+        "bit_hi": 0,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "observe",
+        "endpoint_id": null,
+        "physical_port": "irq_ack_o",
+        "role": null,
+        "width": 1,
+        "wrapper_name": "lh_p_33_0_0"
+      },
+      {
+        "bit_hi": 11,
+        "bit_lo": 11,
+        "direction": "input",
+        "disposition": "functional",
+        "endpoint_id": "processor.interrupts",
+        "physical_port": "irq_i",
+        "role": "external",
+        "width": 1,
+        "wrapper_name": "lh_p_34_11_11"
+      },
+      {
+        "bit_hi": 4,
+        "bit_lo": 0,
+        "direction": "output",
+        "disposition": "observe",
+        "endpoint_id": null,
+        "physical_port": "irq_id_o",
+        "role": null,
+        "width": 5,
+        "wrapper_name": "lh_p_35_4_0"
+      }
+    ],
+    "reset_assertion": "active_high",
+    "schema_version": "local_harness_abi.v1"
+  },
+  "structural_build": {
+    "defines": [],
+    "include_roots": [
+      "external_designs/cv32e40p/rtl/include",
+      "external_designs/cv32e40p/bhv",
+      "external_designs/cv32e40p/bhv/include",
+      "external_designs/cv32e40p/sva"
+    ],
+    "lint_argv": [
+      "verilator",
+      "--lint-only",
+      "-Wno-fatal",
+      "--top-module",
+      "local_processor",
+      "-Iexternal_designs/cv32e40p/rtl/include",
+      "-Iexternal_designs/cv32e40p/bhv",
+      "-Iexternal_designs/cv32e40p/bhv/include",
+      "-Iexternal_designs/cv32e40p/sva",
+      "external_designs/cv32e40p/rtl/include/cv32e40p_apu_core_pkg.sv",
+      "external_designs/cv32e40p/rtl/include/cv32e40p_fpu_pkg.sv",
+      "external_designs/cv32e40p/rtl/include/cv32e40p_pkg.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_if_stage.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_cs_registers.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_register_file_ff.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_load_store_unit.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_id_stage.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_aligner.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_decoder.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_compressed_decoder.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_fifo.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_prefetch_buffer.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_hwloop_regs.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_mult.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_int_controller.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_ex_stage.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_alu_div.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_alu.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_ff_one.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_popcnt.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_apu_disp.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_controller.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_obi_interface.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_prefetch_controller.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_sleep_unit.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_core.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_top.sv",
+      "external_designs/cv32e40p/bhv/cv32e40p_sim_clock_gate.sv",
+      "external_designs/cv32e40p/bhv/include/cv32e40p_tracer_pkg.sv",
+      "external_designs/cv32e40p/bhv/cv32e40p_tb_wrapper.sv"
+    ],
+    "parameter_evidence": [
+      {
+        "declaration": "parameter COREV_CLUSTER = 0",
+        "name": "COREV_CLUSTER",
+        "qualified_type": null,
+        "source_file": "rtl/cv32e40p_core.sv",
+        "source_sha256": "6a78a0d77d32e6795f63e5149f77b98320ce504c67c44a2e359c9aea70989224"
+      },
+      {
+        "declaration": "parameter COREV_PULP = 0",
+        "name": "COREV_PULP",
+        "qualified_type": null,
+        "source_file": "rtl/cv32e40p_core.sv",
+        "source_sha256": "6a78a0d77d32e6795f63e5149f77b98320ce504c67c44a2e359c9aea70989224"
+      },
+      {
+        "declaration": "parameter FPU = 0",
+        "name": "FPU",
+        "qualified_type": null,
+        "source_file": "rtl/cv32e40p_core.sv",
+        "source_sha256": "6a78a0d77d32e6795f63e5149f77b98320ce504c67c44a2e359c9aea70989224"
+      },
+      {
+        "declaration": "parameter FPU_ADDMUL_LAT = 0",
+        "name": "FPU_ADDMUL_LAT",
+        "qualified_type": null,
+        "source_file": "rtl/cv32e40p_core.sv",
+        "source_sha256": "6a78a0d77d32e6795f63e5149f77b98320ce504c67c44a2e359c9aea70989224"
+      },
+      {
+        "declaration": "parameter FPU_OTHERS_LAT = 0",
+        "name": "FPU_OTHERS_LAT",
+        "qualified_type": null,
+        "source_file": "rtl/cv32e40p_core.sv",
+        "source_sha256": "6a78a0d77d32e6795f63e5149f77b98320ce504c67c44a2e359c9aea70989224"
+      },
+      {
+        "declaration": "parameter NUM_MHPMCOUNTERS = 1",
+        "name": "NUM_MHPMCOUNTERS",
+        "qualified_type": null,
+        "source_file": "rtl/cv32e40p_core.sv",
+        "source_sha256": "6a78a0d77d32e6795f63e5149f77b98320ce504c67c44a2e359c9aea70989224"
+      },
+      {
+        "declaration": "parameter ZFINX = 0",
+        "name": "ZFINX",
+        "qualified_type": null,
+        "source_file": "rtl/cv32e40p_core.sv",
+        "source_sha256": "6a78a0d77d32e6795f63e5149f77b98320ce504c67c44a2e359c9aea70989224"
+      }
+    ],
+    "parameter_overrides": {
+      "COREV_CLUSTER": "0",
+      "COREV_PULP": "0",
+      "FPU": "0",
+      "FPU_ADDMUL_LAT": "0",
+      "FPU_OTHERS_LAT": "0",
+      "NUM_MHPMCOUNTERS": "1",
+      "ZFINX": "0"
+    },
+    "profile_sha256": "21d04c8ad75d2e6cc1feff72b22dc1d7656b129cddd70d55bb981973d0db3e45",
+    "schema_version": "local_harness_build.v1",
+    "source_content_hash": "git:6033d2b1be3295ec774d17ac4cf226faacfdeb08",
+    "source_files": [
+      "external_designs/cv32e40p/rtl/include/cv32e40p_apu_core_pkg.sv",
+      "external_designs/cv32e40p/rtl/include/cv32e40p_fpu_pkg.sv",
+      "external_designs/cv32e40p/rtl/include/cv32e40p_pkg.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_if_stage.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_cs_registers.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_register_file_ff.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_load_store_unit.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_id_stage.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_aligner.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_decoder.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_compressed_decoder.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_fifo.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_prefetch_buffer.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_hwloop_regs.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_mult.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_int_controller.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_ex_stage.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_alu_div.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_alu.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_ff_one.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_popcnt.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_apu_disp.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_controller.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_obi_interface.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_prefetch_controller.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_sleep_unit.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_core.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_top.sv",
+      "external_designs/cv32e40p/bhv/cv32e40p_sim_clock_gate.sv",
+      "external_designs/cv32e40p/bhv/include/cv32e40p_tracer_pkg.sv",
+      "external_designs/cv32e40p/bhv/cv32e40p_tb_wrapper.sv"
+    ],
+    "source_revision": "git:6033d2b1be3295ec774d17ac4cf226faacfdeb08",
+    "status": "structural_only",
+    "wrapper_sha256": "3cb0adfcdf85916219fe7bdd26efd1968287b474b36b93838c674c7954408233"
+  },
+  "wire_schema_version": "local_driver.v1"
+}

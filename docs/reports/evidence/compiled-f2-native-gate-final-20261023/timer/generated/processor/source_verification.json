@@ -1,0 +1,26 @@
+{
+  "elaboration": {
+    "closure_files": 70,
+    "closure_roots": [
+      "third_party/rfuzz/upstream/ibex"
+    ],
+    "elaboration_status": "elaboration_verified",
+    "lint": {
+      "errors": 0,
+      "exit_code": 0,
+      "log": "runs/soc-source-elaboration/ibex/ibex-obi-local-lint.log",
+      "warnings": 3
+    },
+    "tool": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+    "top_module": "ibex_top"
+  },
+  "elaboration_status": "elaboration_verified",
+  "id": "ibex_obi_local",
+  "lock_sha256": "4caf0ae616e99e3c7cac76a1b04daca41af9bcef0eee3b6b0923fb6bd7e2a29e",
+  "parse_status": "parameterized_ports_pending_elaboration",
+  "runtime_status": "runtime_unverified",
+  "schema_version": "local_source_lock_verification.v1",
+  "selected_content_hash": "sha256:f9c48430be4904095cd1cb069de7ddd9bad82667683b3876e2f43d79895b66a8",
+  "selected_files": 43,
+  "source_status": "source_verified"
+}

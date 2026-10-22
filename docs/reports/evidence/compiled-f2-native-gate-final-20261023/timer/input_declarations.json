@@ -1,0 +1,81 @@
+{
+  "capabilities": {
+    "/home/qinkejiu/myfuzz/configs/scenarios/compiled-f4-obi-apb-timer/test_capability.json": {
+      "component_id": "pulp_timer",
+      "endpoint_capabilities": [
+        {
+          "endpoint_id": "timer.bus",
+          "operations": [
+            "request",
+            "accept",
+            "response",
+            "read",
+            "write",
+            "wait",
+            "error"
+          ]
+        }
+      ],
+      "observation_mappings": [],
+      "profile_fingerprint": "sha256:29d755de593c02d3771c08363e150ce25133cf341d7d204878647277c6ca46c2",
+      "register_aliases": [],
+      "register_semantics": [
+        {
+          "access": "rw",
+          "evidence_ref": "rtl:third_party/soc-pulp-apb-timer/src/timer.sv@03eba2e6965f5363df12621882bc70498c551a73:71,89-97,113-121,130-139;sha256=d352fc4476da83658d361e8f500b5a73f857f0a11e9436ab47d5bf0ba0bc7fce",
+          "field": "value",
+          "lsb": 0,
+          "read_mask": 4294967295,
+          "register": "TIMER0_CTRL",
+          "reset_value": 0,
+          "side_effect": "none",
+          "width": 32,
+          "write_mask": 4294967295
+        }
+      ],
+      "schema_version": "ip_test_capability.v3"
+    }
+  },
+  "compose": {
+    "cpu": {
+      "data_endpoint": "processor.data",
+      "instance_id": "processor",
+      "request": "requests/processor.json"
+    },
+    "devices": [
+      {
+        "base": 1073745920,
+        "bus_endpoint": "timer.bus",
+        "device_id": "peripheral",
+        "instance_id": "peripheral",
+        "request": "requests/peripheral.json",
+        "size": 4096
+      }
+    ],
+    "memory": [
+      {
+        "base": 65536,
+        "component_instance": "processor",
+        "execute": true,
+        "initialization_policy": "preload",
+        "read": true,
+        "resource_id": "ram",
+        "size": 196608,
+        "write": true
+      }
+    ],
+    "schema_version": "harness_compose.v1"
+  },
+  "records": [
+    "04100040"
+  ],
+  "supplement": {
+    "ownership": {
+      "fields": [],
+      "owners": []
+    },
+    "physical_port_map": [],
+    "request_supplements": {},
+    "schema_version": "compiled_execution_file_supplement.v1"
+  }
+}
