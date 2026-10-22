@@ -70,7 +70,10 @@ class AxilUartRuntimeAcceptance(unittest.TestCase):
             self.assertEqual([65], session.peer.captured)
             self.assertEqual(90, outputs[-1]['serial_rx_word'])
             self.assertEqual(1, outputs[-1]['serial_rx_read'])
-            self.assertTrue(any(row['uart_rx_int'] for row in outputs))
+            irq_levels = [row['uart_rx_int'] for row in outputs]
+            transitions = [level for index, level in enumerate(irq_levels)
+                           if index == 0 or level != irq_levels[index - 1]]
+            self.assertEqual([0, 1, 0], transitions)
             self.assertEqual(65, outputs[-1]['serial_tx_last'])
             self.assertEqual(1, outputs[-1]['serial_tx_count'])
             self.assertEqual(0, session.pending_responses)

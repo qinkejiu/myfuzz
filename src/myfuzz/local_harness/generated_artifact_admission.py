@@ -83,8 +83,19 @@ def load_generated_artifacts(*, generated_root: Path,
     if directory.is_symlink() or not directory.is_dir():
         _refuse('generated-artifact-directory-invalid', '/generated')
     document = _document(directory / 'harness_set.json', '/harness_set')
+    schema = document.get('schema_version')
+    wiring = document.get('wiring')
+    route_bearing = (
+        (isinstance(wiring, dict)
+            and (wiring.get('schema_version') == 'wiring_contract.v2'
+                 or 'dma_master_routes' in wiring))
+        or 'dma_master_routes' in document
+    )
+    if route_bearing:
+        _refuse('generated-artifact-route-intent-unsupported',
+                '/wiring/dma_master_routes')
     rows = document.get('components')
-    if (document.get('schema_version') != 'harness_set.v1'
+    if (schema != 'harness_set.v1'
             or type(rows) is not list or not rows):
         _refuse('generated-artifact-set-invalid', '/harness_set')
     result = {}

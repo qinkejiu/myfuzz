@@ -25,7 +25,8 @@ import pytest
 from myfuzz.integration.dma_prefix_replay import (
     compare_dma_prefix, prefix_reference)
 from myfuzz.integration.dma_uart_descriptor_runtime import (
-    DescriptorCase, DescriptorResult, replay_descriptor_cases,
+    DescriptorCase, DescriptorResult, _descriptor_case_replay_difference,
+    replay_descriptor_cases,
     run_descriptor_cases)
 from myfuzz.scenario.contracts import ResourceBudget
 from myfuzz.scenario.uart_fifo_authority import ACCEPTED, ACCEPTED_CHAIN
@@ -143,7 +144,10 @@ def test_accepted_uart_fifo_authority_and_typed_prefix_replay(tmp_path):
         json.loads(json.dumps(result.to_document())))
     fresh = replay_descriptor_cases(loaded, cache_dir=cache)
     _save(evidence, 'fresh', fresh.to_document())
-    assert fresh.cases == result.cases
+    case_difference = _descriptor_case_replay_difference(result.cases,
+        fresh.cases, reference_execution_ids=result.execution_ids,
+        actual_execution_ids=fresh.execution_ids)
+    assert case_difference is None, case_difference
     assert fresh.local_ticks == result.local_ticks
     assert fresh.plan.commands == result.plan.commands
     assert fresh.identities == result.identities

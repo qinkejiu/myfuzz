@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 _RULE_KINDS = frozenset(("DATA_BINDING", "EVENT_ORDER",
                          "ENV_PRECONDITION", "PERSISTENT_STATE_RULE",
-                         "BASELINE_GROUPING"))
+                         "BASELINE_GROUPING", "DMA_MASTER_TRANSFER"))
 _EDGE_WORK_LIMIT = 1_000_000
 
 
@@ -36,10 +36,17 @@ class FuzzableSource:
     width: int
     directions: tuple[str, ...]
     kind: str = "source"
+    image_address: int | None = None
 
     def __post_init__(self) -> None:
         if self.kind not in ("source", "memory_image"):
             raise ValueError("only fuzzable source nodes may be mutation sources")
+        if self.kind == 'memory_image':
+            if (self.image_address is not None
+                    and (type(self.image_address) is not int or self.image_address < 0)):
+                raise ValueError('memory image source address is invalid')
+        elif self.image_address is not None:
+            raise ValueError('physical input source cannot name an image address')
         if not self.source_id or not self.component or not self.port:
             raise ValueError("source identity is required")
         if (isinstance(self.bit_offset, bool) or not isinstance(self.bit_offset, int)
@@ -90,7 +97,8 @@ class SourceBindings:
             raise ValueError("duplicate source binding")
 
     def validate(self, graph: DependencyGraph, ownership: OwnershipMap,
-                 genomes: tuple[ScenarioGenome, ...]) -> None:
+                 genomes: tuple[ScenarioGenome, ...], *,
+                 image_genomes: dict[str, tuple[ScenarioGenome, ...]] | None = None) -> None:
         entries = {item.source_id: item for item in self.entries}
         if set(entries) != set(graph.sources):
             raise ValueError("graph source lacks trusted binding")
@@ -100,7 +108,9 @@ class SourceBindings:
             if ((entry.kind, entry.component, entry.port, entry.bit_offset,
                  entry.width) !=
                     (source.kind, source.component, source.port,
-                     source.bit_offset, source.width)):
+                     source.bit_offset, source.width)
+                    or (source.image_address is not None
+                        and entry.image_address != source.image_address)):
                 raise ValueError("graph source disagrees with trusted binding")
             if source.width > 8192:
                 raise ValueError("source binding width exceeds decoder bound")
@@ -114,20 +124,21 @@ class SourceBindings:
                 expected = f"initial_image:{source.component}:{source.port}"
                 if entry.owner_ref != expected:
                     raise ValueError("memory image binding owner is invalid")
-                for genome in genomes:
-                    image = next((item for item in genome.initial_images
-                                  if item.component == source.component
-                                  and item.image_id == source.port), None)
-                    if image is not None:
-                        if image.address != entry.image_address:
-                            raise ValueError("memory image binding address differs")
-                        if source.bit_offset + source.width > len(image.data) * 8:
-                            raise ValueError("memory image binding exceeds initial image")
-                if not any(any(image.component == source.component
-                               and image.image_id == source.port
-                               for image in genome.initial_images)
-                           for genome in genomes):
+                relevant_genomes = (genomes if image_genomes is None else
+                                    image_genomes.get(source_id, genomes))
+                if not relevant_genomes:
                     raise ValueError("memory image binding has no initial image")
+                for genome in relevant_genomes:
+                    images = tuple(item for item in genome.initial_images
+                                   if item.component == source.component
+                                   and item.image_id == source.port)
+                    if len(images) != 1:
+                        raise ValueError("memory image binding requires unique initial image")
+                    image = images[0]
+                    if image.address != entry.image_address:
+                        raise ValueError("memory image binding address differs")
+                    if source.bit_offset + source.width > len(image.data) * 8:
+                        raise ValueError("memory image binding exceeds initial image")
             key = (source.kind, source.component, source.port)
             interval = (source.bit_offset, source.bit_offset + source.width)
             if any(interval[0] < end and start < interval[1]
@@ -219,6 +230,8 @@ class DependencyGraph:
         if self.rules != expected:
             raise ValueError('edge graph rules changed after construction')
         sources = []
+        address_bound = any(getattr(source, 'image_address', None) is not None
+                            for source in self.sources.values())
         for key, source in self.sources.items():
             if (key != source.source_id or type(key) is not str or not key
                     or type(source.component) is not str or not source.component
@@ -232,27 +245,37 @@ class DependencyGraph:
                 raise ValueError('invalid edge graph source identity')
             sources.append({'source_id': source.source_id, 'component': source.component,
                 'port': source.port, 'bit_offset': source.bit_offset, 'width': source.width,
-                'directions': list(source.directions), 'kind': source.kind})
+                'directions': list(source.directions), 'kind': source.kind,
+                **({'image_address': getattr(source, 'image_address', None)}
+                   if address_bound else {})})
         rules = [{'rule_index': index, 'target': rule.target,
                   'prerequisites': list(rule.prerequisites), 'kind': rule.kind}
                  for index, rule in enumerate(self._ordered_rules)]
         edges = [DependencyEdge(index, child_index, child, rule.target, rule.kind).document()
                  for index, rule in enumerate(self._ordered_rules)
                  for child_index, child in enumerate(rule.prerequisites)]
-        return {'schema_version': 'dependency_edge_graph.v1',
+        return {'schema_version': ('dependency_edge_graph.v2' if address_bound
+                                   else 'dependency_edge_graph.v1'),
                 'sources': sources, 'rules': rules, 'edges': edges}
 
     @classmethod
     def from_edge_document(cls, document, *, source_factory=FuzzableSource):
         """Strict roundtrip; online sources require their explicit source factory."""
         if (type(document) is not dict or set(document) != {'schema_version', 'sources', 'rules', 'edges'}
-                or document['schema_version'] != 'dependency_edge_graph.v1'
+                or document['schema_version'] not in ('dependency_edge_graph.v1',
+                                                       'dependency_edge_graph.v2')
                 or any(type(document[name]) is not list for name in ('sources', 'rules', 'edges'))):
             raise ValueError('invalid dependency edge graph document')
         try:
+            has_image_address = document['schema_version'] == 'dependency_edge_graph.v2'
             sources = []
             for row in document['sources']:
-                if type(row) is not dict or set(row) != {'source_id', 'component', 'port', 'bit_offset', 'width', 'directions', 'kind'} or type(row['directions']) is not list:
+                expected_source_fields = {'source_id', 'component', 'port',
+                    'bit_offset', 'width', 'directions', 'kind'}
+                if has_image_address:
+                    expected_source_fields.add('image_address')
+                if (type(row) is not dict or set(row) != expected_source_fields
+                        or type(row['directions']) is not list):
                     raise ValueError('invalid dependency edge source document')
                 sources.append(source_factory(**{**row, 'directions': tuple(row['directions'])}))
             rules = []

@@ -967,6 +967,25 @@ def _wiring_fixed_inputs(generated_root) -> list:
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
         _refuse('wiring-contract-unreadable', '/wiring',
                 {'path': str(path), 'error': str(error)})
+    if isinstance(document, Mapping) and (
+            document.get('schema_version') == 'wiring_contract.v2'
+            or 'dma_master_routes' in document):
+        _refuse('wiring-contract-route-intent-unsupported',
+                '/dma_master_routes')
+    required = {'schema_version', 'delivery', 'global_interconnect',
+                'cycle_accurate', 'cpu', 'windows'}
+    optional = {'resources', 'fixed_inputs'}
+    if (not isinstance(document, Mapping)
+            or document.get('schema_version') != 'wiring_contract.v1'
+            or not required.issubset(document)
+            or set(document) - required - optional):
+        _refuse('wiring-contract-fields-invalid', '/wiring',
+                {'schema_version': (document.get('schema_version')
+                                    if isinstance(document, Mapping) else None),
+                 'missing': sorted(required - set(document))
+                            if isinstance(document, Mapping) else sorted(required),
+                 'unknown': sorted(set(document) - required - optional)
+                            if isinstance(document, Mapping) else []})
     rows = document.get('fixed_inputs', []) if isinstance(document, Mapping) else None
     if not isinstance(rows, list):
         _refuse('wiring-contract-fixed-inputs-invalid', '/fixed_inputs',
@@ -1025,8 +1044,9 @@ def load_compiled_session_inputs(*,generated_root,base_dir,request,compiled):
     family's ownership table.  Every external pin source of the one executable
     F4 path becomes one owned input exactly as D3 declares it; the CPU MMIO
     stream source is CPU-driven and is not an independent environment input.
-    A fixed/literal wiring input is refused here instead of being silently
-    dropped from the ownership map.
+    Fixed physical inputs come only from the loaded, reconstructed D2
+    artifacts; a fixed/literal wiring input is still refused instead of being
+    silently dropped from the ownership map.
     """
     from .generated_artifact_admission import load_generated_artifacts,GeneratedArtifactRefused
     from myfuzz.scenario.ownership import InputField,InputOwner,compile_ownership
@@ -1034,6 +1054,7 @@ def load_compiled_session_inputs(*,generated_root,base_dir,request,compiled):
         artifacts=load_generated_artifacts(generated_root=generated_root,base_dir=base_dir)
     except GeneratedArtifactRefused as error:
         _refuse(error.code,error.pointer,error.detail)
+    _refuse_compiled_wiring_fixed_inputs(generated_root,request)
     fixed=_wiring_fixed_inputs(generated_root)
     if fixed:
         _refuse('compiled-rfuzz-fixed-input-unsupported','/wiring/fixed_inputs',
@@ -1048,6 +1069,7 @@ def load_compiled_session_inputs(*,generated_root,base_dir,request,compiled):
                             'executor is selected only for a compiled F4 target'})
     path=paths[0]
     fields=[];owners=[]
+    physical={}
     for source in path.get('sources',()):
         if source.get('kind')!='external_pin':
             continue
@@ -1062,19 +1084,146 @@ def load_compiled_session_inputs(*,generated_root,base_dir,request,compiled):
         fields.append(dict(component_id=component,port=port,width=width))
         owners.append(dict(component_id=component,port=port,bit_offset=bit,
             width=width,kind='source',producer_ref=source['source_id']))
+        physical[(component,port)]=port
+
+    fixed_input_identity=[]
+    seen_fixed=set()
+    for component,artifact in sorted(artifacts.items()):
+        runtime_document=artifact.runtime_document
+        rows=runtime_document.get('fixed_physical_inputs',[])
+        if type(rows) is not list:
+            _refuse('compiled-rfuzz-fixed-artifact-input-invalid',
+                    '/artifacts/'+component+'/fixed_physical_inputs',
+                    {'requires':'a list of fixed physical input rows'})
+        for index,row in enumerate(rows):
+            pointer='/artifacts/'+component+'/fixed_physical_inputs/'+str(index)
+            if type(row) is not dict:
+                _refuse('compiled-rfuzz-fixed-artifact-input-invalid',pointer,
+                        {'row':row})
+            endpoint=row.get('endpoint_id');role=row.get('role')
+            runtime_name=row.get('runtime_name');width=row.get('width')
+            value=row.get('value')
+            input_name=row.get('input_name')
+            if input_name is None and type(endpoint) is str and type(role) is str:
+                input_name=endpoint+'.'+role
+            if (type(endpoint) is not str or not endpoint
+                    or type(role) is not str or not role
+                    or type(input_name) is not str or not input_name
+                    or type(runtime_name) is not str or not runtime_name
+                    or type(width) is not int or not 1<=width<=64
+                    or type(value) is not int or not 0<=value<2**width):
+                _refuse('compiled-rfuzz-fixed-artifact-input-invalid',pointer,
+                        {'row':row})
+            key=(component,input_name)
+            if key in seen_fixed:
+                _refuse('compiled-rfuzz-fixed-artifact-input-invalid',pointer,
+                        {'duplicate_input':list(key)})
+            seen_fixed.add(key)
+            exports=[item for item in runtime_document.get('physical_exports',())
+                     if item.get('endpoint_id')==endpoint
+                     and item.get('role')==role]
+            if (len(exports)!=1 or exports[0].get('direction')!='input'
+                    or exports[0].get('runtime_name')!=runtime_name
+                    or exports[0].get('width')!=width
+                    or type(exports[0].get('physical_port')) is not str
+                    or not exports[0]['physical_port']):
+                _refuse('compiled-rfuzz-fixed-artifact-input-invalid',pointer,
+                        {'requires':'one matching physical input export',
+                         'matches':exports})
+            physical_port=exports[0]['physical_port']
+            fields.append(dict(component_id=component,port=input_name,width=width))
+            owners.append(dict(component_id=component,port=input_name,
+                bit_offset=0,width=width,kind='fixed',
+                producer_ref='profile_constant'))
+            physical[key]=physical_port
+            fixed_input_identity.append(dict(component_id=component,
+                input_name=input_name,endpoint_id=endpoint,role=role,
+                runtime_name=runtime_name,physical_port=physical_port,
+                width=width,value=value,
+                artifact_digest=runtime_document['artifact_digest']))
     ownership=compile_ownership(
         tuple(InputField(**row) for row in fields),
         tuple(InputOwner(**row) for row in owners))
     document={'schema_version':'compiled_rfuzz_ownership.v1',
-        'basis':('D3 external_pin sources of the one executable F4 path; no '
+        'basis':('D3 external_pin sources of the one executable F4 path and '
+                 'fixed physical inputs from validated D2 artifacts; no '
                  'runtime family ownership claim is read'),
         'path_id':path['path_id'],'fields':fields,'owners':owners,
+        'fixed_input_identity':fixed_input_identity,
         'physical_port_map':[{'component_id':row['component_id'],
-            'port':row['port'],'physical_port':row['port']} for row in fields]}
+            'port':row['port'],'physical_port':physical[(row['component_id'],
+                row['port'])]} for row in fields]}
     _write(Path(generated_root).parent/'compiled_ownership.v1.json',document)
-    physical={(row['component_id'],row['port']):row['port'] for row in fields}
     return artifacts,dict(request=request,compiled=compiled,
         ownership=ownership,physical_port_map=physical)
+
+
+def _refuse_compiled_wiring_fixed_inputs(generated_root,request):
+    """Reject fixed wiring declarations from each persisted/typed D2 view.
+
+    The compiled route has no owner contract for composition-level constants.
+    Its request object, generated harness-set summary, and separate wiring
+    contract are independent representations, so none may be ignored merely
+    because another copy is empty. Fixed physical inputs inside reconstructed
+    component artifacts remain a separate, supported D2 declaration.
+    """
+    wiring=getattr(request,'wiring',None)
+    typed_fixed=getattr(wiring,'fixed_inputs',None)
+    if type(typed_fixed) is not tuple:
+        _refuse('compiled-rfuzz-wiring-fixed-inputs-invalid',
+                '/request/wiring/fixed_inputs',
+                {'requires':'a typed wiring request with a tuple of fixed inputs'})
+    if typed_fixed:
+        _refuse('compiled-rfuzz-fixed-input-unsupported',
+                '/request/wiring/fixed_inputs',
+                {'rows':typed_fixed,'requires':'the compiled RFuzz route has no '
+                 'declared owner for a fixed/literal wiring input'})
+    wiring_document=getattr(wiring,'document',None)
+    if not isinstance(wiring_document,Mapping):
+        _refuse('compiled-rfuzz-wiring-fixed-inputs-invalid',
+                '/request/wiring/document',
+                {'requires':'the typed wiring request document'})
+    document_fixed=wiring_document.get('fixed_inputs',[])
+    if type(document_fixed) is not list:
+        _refuse('compiled-rfuzz-wiring-fixed-inputs-invalid',
+                '/request/wiring/document/fixed_inputs',
+                {'requires':'a list of fixed wiring inputs'})
+    if document_fixed:
+        _refuse('compiled-rfuzz-fixed-input-unsupported',
+                '/request/wiring/document/fixed_inputs',
+                {'rows':document_fixed,'requires':'the compiled RFuzz route has no '
+                 'declared owner for a fixed/literal wiring input'})
+
+    harness_path=Path(generated_root)/'harness_set.json'
+    try:
+        if harness_path.is_symlink() or not harness_path.is_file():
+            _refuse('compiled-rfuzz-harness-wiring-invalid',
+                    '/harness_set/wiring',{'path':str(harness_path)})
+        harness=json.loads(harness_path.read_text(encoding='utf-8'))
+    except (OSError,UnicodeError,json.JSONDecodeError) as error:
+        _refuse('compiled-rfuzz-harness-wiring-invalid',
+                '/harness_set/wiring',{'path':str(harness_path),
+                                      'error':str(error)})
+    inline_wiring=(harness.get('wiring') if isinstance(harness,Mapping) else None)
+    if not isinstance(inline_wiring,Mapping):
+        _refuse('compiled-rfuzz-harness-wiring-invalid',
+                '/harness_set/wiring',
+                {'requires':'an inline wiring contract'})
+    if inline_wiring.get('schema_version')!='wiring_contract.v1':
+        _refuse('compiled-rfuzz-harness-wiring-invalid',
+                '/harness_set/wiring/schema_version',
+                {'expected':'wiring_contract.v1',
+                 'observed':inline_wiring.get('schema_version')})
+    inline_fixed=inline_wiring.get('fixed_inputs',[])
+    if type(inline_fixed) is not list:
+        _refuse('compiled-rfuzz-harness-wiring-invalid',
+                '/harness_set/wiring/fixed_inputs',
+                {'requires':'a list of fixed wiring inputs'})
+    if inline_fixed:
+        _refuse('compiled-rfuzz-fixed-input-unsupported',
+                '/harness_set/wiring/fixed_inputs',
+                {'rows':inline_fixed,'requires':'the compiled RFuzz route has no '
+                 'declared owner for a fixed/literal wiring input'})
 
 
 def run_compiled_session(*,artifacts,compiled_inputs,base_dir,cache_dir,run_id,
@@ -1532,7 +1681,21 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
                                     'started_utc': summary['started_utc'],
                                     'output': str(output)}))
 
+    verified_build_output_hashes = {}
+
     def finish():
+        for name, expected in verified_build_output_hashes.items():
+            path = output/name
+            if not path.is_file() or _sha256_file(path) != expected:
+                refuse('session', 'compiled-build-saved-output-changed', '/session', {'file':name})
+        build_join_path = output / 'compiled_f4_build_join.v1.json'
+        if build_join_path.is_file():
+            try:
+                build_document = json.loads(build_join_path.read_text(encoding='utf-8'))
+            except (OSError, ValueError) as error:
+                build_document = None
+                refuse('session', 'compiled-build-join-invalid', '/session', str(error))
+            record('compiled_f4_build_join', build_join_path, build_document)
         # ``finish`` is the one place the verdict is decided: a refusal anywhere,
         # or any *requested* stage that is not ``ok``, means the run is refused.
         # A refused driver stage therefore also makes the run refused, and a
@@ -1847,6 +2010,10 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
                         search_seed=search_seed,
                         max_runs_per_batch=max_runs_per_batch,
                         rounds_per_case=rounds_per_case)
+                from myfuzz.integration.compiled_rfuzz import verify_saved_compiled_f4_build_outputs
+                verified_build_output_hashes.update(verify_saved_compiled_f4_build_outputs(
+                    output, outcome=outcome, harness_set=harness_document,
+                    manifest=json.loads((output/'session'/'online_session_manifest.json').read_text(encoding='utf-8'))))
                 if outcome['live'].client_returncode != 0:
                     raise ValueError(
                         'compiled-rfuzz-client-returncode:'

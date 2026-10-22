@@ -460,7 +460,9 @@ class ScenarioRfuzzExecutor:
                  candidate_exploration: bool = False,
                  candidate_exploration_max_cases: int = 65536,
                  classified_feedback: bool = False,
-                 classified_feedback_max_records: int = 4096) -> None:
+                 classified_feedback_max_records: int = 4096,
+                 dma_intent_binding=None,
+                 dma_artifact_links: Mapping[str, dict] | None = None) -> None:
         if type(candidate_exploration) is not bool:
             raise ValueError('candidate exploration switch must be boolean')
         if candidate_exploration and online_decoder is None:
@@ -658,11 +660,69 @@ class ScenarioRfuzzExecutor:
         self._prepared_runtime_paths = None
         self._runtime_declaration_document = None
         self._runtime_source_owners = {}
+        self._dma_intent_binding = None
+        self._dma_artifact_links = None
+        self._dma_bound_credentials: dict[str, dict] = {}
+        self._dma_replay_expected_credentials: dict[str, dict] | None = None
+        if (dma_intent_binding is None) != (dma_artifact_links is None):
+            raise ValueError("DMA binding declaration and artifact links must be supplied together")
+        if dma_intent_binding is not None:
+            from myfuzz.scenario.dma_intent_topology_binding import PreparedDmaIntentBinding
+            if not isinstance(dma_intent_binding, PreparedDmaIntentBinding):
+                raise ValueError("DMA intent binding must be a prepared declaration")
+            if not isinstance(dma_artifact_links, Mapping):
+                raise ValueError("DMA artifact links must be an instance mapping")
+            self._dma_intent_binding = PreparedDmaIntentBinding.from_document(
+                dma_intent_binding.document())
+            self._dma_artifact_links = dma_artifact_links
+        elif session is not None:
+            session_binding = getattr(session, "dma_binding_document", None)
+            if callable(session_binding):
+                session_declaration = session_binding()
+                if session_declaration is not None:
+                    from myfuzz.scenario.dma_intent_topology_binding import PreparedDmaIntentBinding
+                    session_links = getattr(session, "dma_binding_artifact_links", None)
+                    session_links = session_links() if callable(session_links) else None
+                    if not isinstance(session_links, Mapping):
+                        raise ValueError("configured online DMA binding has no artifact links")
+                    self._dma_intent_binding = PreparedDmaIntentBinding.from_document(
+                        session_declaration)
+                    self._dma_artifact_links = session_links
         if self.runtime_contract is not None:
             from myfuzz.scenario.runtime_path_contract import PreparedRuntimePathContract
             self._prepared_runtime_paths = PreparedRuntimePathContract(
                 runtime_decoder.graph, self.runtime_contract, runtime_decoder.runtime_paths)
             self._runtime_declaration_document = self._prepared_runtime_paths.document()
+            if (self._dma_intent_binding is not None
+                    and self._dma_intent_binding.document().get("prepared_runtime_paths")
+                        != self._runtime_declaration_document):
+                raise ValueError("DMA intent binding differs from prepared runtime paths")
+            if self._dma_intent_binding is not None:
+                from myfuzz.local_harness.dma_artifact_endpoint_links import (
+                    parse_dma_artifact_endpoint_links,
+                )
+                declaration_document = self._dma_intent_binding.document()
+                expected_instances = {route.initiator_component
+                    for route in self.runtime_contract.dma_master_routes}
+                if set(self._dma_artifact_links) != expected_instances:
+                    raise ValueError("DMA artifact link instance set differs from routes")
+                parsed_links = {
+                    instance_id: parse_dma_artifact_endpoint_links(document).document()
+                    for instance_id, document in self._dma_artifact_links.items()
+                }
+                routes_by_key = {route.key: route
+                    for route in self.runtime_contract.dma_master_routes}
+                for row in declaration_document["route_links"]:
+                    route = routes_by_key[(row["rule_index"], row["prerequisite_index"])]
+                    endpoint = row["endpoint_link"]
+                    physical_links = parsed_links[route.initiator_component]["links"]
+                    if (len(physical_links) != 1
+                            or endpoint["artifact_link_provider_id"]
+                                != parsed_links[route.initiator_component]["provider_id"]
+                            or endpoint["artifact_link_id"] != physical_links[0]["link_id"]
+                            or endpoint["artifact_endpoint_id"] != physical_links[0]["endpoint_id"]
+                            or endpoint["template_binding"] != physical_links[0]["template_binding"]):
+                        raise ValueError("DMA route declaration differs from artifact link evidence")
             for direction, path in runtime_decoder.runtime_paths:
                 for source_id in path.source_ids:
                     source = runtime_decoder.graph.sources[source_id]
@@ -677,11 +737,25 @@ class ScenarioRfuzzExecutor:
                 if (session_document is None or session_contract != self.runtime_contract
                         or session_document.get("graph_sha256") != self.runtime_contract.graph_sha256
                         or session_document.get("contract_sha256") != self.runtime_contract.identity_sha256
+                        or session_document.get("schema_version") != (
+                            "runtime_path_compilation.v2"
+                            if self.runtime_contract.dma_master_routes else
+                            "runtime_path_compilation.v1")
+                        or session_document.get("declaration")
+                            != self._runtime_declaration_document
                         or set(getattr(session, "runtime_path_ids", ()))
                         != set(self._prepared_runtime_paths.path_ids)):
                     raise ValueError("runtime paths must be configured on the session before begin")
                 for path_id in self._prepared_runtime_paths.path_ids:
                     self._validate_runtime_source_owners(path_id, session.runner, runtime_decoder)
+                if self._dma_intent_binding is not None:
+                    session_binding = getattr(session, "dma_binding_document", None)
+                    session_credential = getattr(session, "dma_binding_compilation_document", None)
+                    if (not callable(session_binding)
+                            or session_binding() != self._dma_intent_binding.document()
+                            or not callable(session_credential)
+                            or session_credential() is None):
+                        raise ValueError("DMA binding must be configured on the online session first")
         if self.classified_feedback or self.candidate_exploration:
             from .classified_feedback import OnlineClassifiedFeedback
             self._classified_feedback = OnlineClassifiedFeedback(self,
@@ -789,13 +863,32 @@ class ScenarioRfuzzExecutor:
         def inspect(runner):
             try:
                 self._validate_runtime_source_owners(path_id, runner, self.decoder)
-                compiled = self._prepared_runtime_paths.bind(runner, path_ids=(path_id,))
+                if self._dma_intent_binding is None:
+                    compiled = self._prepared_runtime_paths.bind(runner, path_ids=(path_id,))
+                    binding_document = None
+                else:
+                    from myfuzz.scenario.dma_intent_topology_binding import bind_dma_intent_topology
+                    bound = bind_dma_intent_topology(
+                        self._dma_intent_binding, runner,
+                        artifact_links=self._dma_artifact_links,
+                        path_ids=(path_id,))
+                    compiled = bound.runtime_compilation
+                    binding_document = bound.document()
                 document = compiled.document()
                 document["declaration"] = self._runtime_declaration_document
                 previous = self.fresh_runtime_path_documents.get(path_id)
                 if previous is not None and previous != document:
                     raise ValueError("fresh runtime path topology changed during run")
                 self.fresh_runtime_path_documents[path_id] = document
+                if binding_document is not None:
+                    saved = self._dma_replay_expected_credentials
+                    expected = saved.get(path_id) if saved is not None else None
+                    if expected is not None and expected != binding_document:
+                        raise ValueError("fresh DMA topology binding differs from replay credential")
+                    previous_binding = self._dma_bound_credentials.get(path_id)
+                    if previous_binding is not None and previous_binding != binding_document:
+                        raise ValueError("fresh DMA topology binding changed during run")
+                    self._dma_bound_credentials[path_id] = binding_document
             except Exception:
                 self._session_stop_reason = "runtime_path_environment_error"
                 raise
@@ -814,22 +907,77 @@ class ScenarioRfuzzExecutor:
             if actual != expected:
                 raise ValueError("runtime path source ownership producer mismatch")
 
-    def _install_runtime_replay_identity(self, record: dict | None) -> None:
+    def _install_runtime_replay_identity(self, record: dict | None,
+                                         dma_binding_payload=None) -> None:
         """Validate saved declarations before a replay factory is called."""
         if self._prepared_runtime_paths is None:
+            if dma_binding_payload is not None:
+                raise ValueError("legacy decoder cannot claim a DMA topology binding")
             if record is not None and record != {"status": "legacy_unchecked",
                                                  "declaration": None, "compiled": {}}:
                 raise ValueError("legacy decoder cannot claim runtime path preflight")
             return
+        if (dma_binding_payload is None and getattr(self, "replay_only", False)
+                and self._dma_intent_binding is not None):
+            raise ValueError("fresh replay DMA binding wrapper is missing")
+        if dma_binding_payload is not None:
+            from myfuzz.scenario.dma_intent_topology_binding import PreparedDmaIntentBinding
+            declaration = getattr(dma_binding_payload, "declaration", None)
+            credentials = getattr(dma_binding_payload, "binding_compilations", None)
+            if (not isinstance(declaration, PreparedDmaIntentBinding)
+                    or type(credentials) not in (tuple, list)):
+                raise ValueError("fresh replay DMA binding material is invalid")
+            if declaration.document().get("prepared_runtime_paths") != self._runtime_declaration_document:
+                raise ValueError("fresh replay DMA binding declaration differs from decoder")
+            expected_ids = set(self._prepared_runtime_paths.path_ids)
+            credential_map = {}
+            for row in credentials:
+                if (not isinstance(row, dict)
+                        or set(row) != {"selection_id", "credential"}
+                        or type(row["selection_id"]) is not str
+                        or row["selection_id"] in credential_map):
+                    raise ValueError("fresh replay DMA binding selection rows are invalid")
+                credential_map[row["selection_id"]] = row["credential"]
+            if set(credential_map) != expected_ids:
+                raise ValueError("fresh replay DMA binding selection set differs from decoder")
+            normalized_credentials = {}
+            common_links = None
+            for selection_id, credential in credential_map.items():
+                if not isinstance(credential, dict):
+                    raise ValueError("fresh replay DMA binding credential is invalid")
+                normalized = json.loads(json.dumps(credential, sort_keys=True,
+                    separators=(",", ":"), ensure_ascii=False, allow_nan=False))
+                links = normalized.get("artifact_links")
+                if common_links is None:
+                    common_links = links
+                elif links != common_links:
+                    raise ValueError("fresh replay DMA artifact links differ between selections")
+                normalized_credentials[selection_id] = normalized
+            self._dma_intent_binding = declaration
+            self._dma_artifact_links = {
+                row["instance_id"]: row["endpoint_links"] for row in common_links
+            } if common_links is not None else None
+            if not isinstance(self._dma_artifact_links, dict):
+                raise ValueError("fresh replay DMA artifact links are missing")
+            self._dma_replay_expected_credentials = normalized_credentials
         if (not isinstance(record, dict) or set(record) != {"status", "declaration", "compiled"}
                 or record["status"] != "contract_preflight"
                 or record["declaration"] != self._runtime_declaration_document
                 or not isinstance(record["compiled"], dict)):
             raise ValueError("fresh replay runtime path declaration mismatch")
+        expected_schema = ("runtime_path_compilation.v2"
+                           if self.runtime_contract.dma_master_routes else
+                           "runtime_path_compilation.v1")
+        if (self.runtime_contract.dma_master_routes
+                and set(record["compiled"])
+                    != set(self._prepared_runtime_paths.path_ids)):
+            raise ValueError(
+                "fresh replay runtime path selected topology identity is missing")
+        from myfuzz.scenario.runtime_edge_index import RuntimeEdgeIndex
         for path_id, document in record["compiled"].items():
             direction, path = self._prepared_runtime_paths.resolve_path_id(path_id)
             if (not isinstance(document, dict)
-                    or document.get("schema_version") != "runtime_path_compilation.v1"
+                    or document.get("schema_version") != expected_schema
                     or document.get("graph_sha256") != self.runtime_contract.graph_sha256
                     or document.get("contract_sha256") != self.runtime_contract.identity_sha256
                     or document.get("declaration") != self._runtime_declaration_document
@@ -839,6 +987,24 @@ class ScenarioRfuzzExecutor:
                         document.get("topology"), sort_keys=True, separators=(",", ":"),
                         ensure_ascii=False, allow_nan=False).encode()).hexdigest()):
                 raise ValueError("fresh replay compiled runtime path identity mismatch")
+            try:
+                RuntimeEdgeIndex(document, self.runtime_contract.document())
+            except ValueError as exc:
+                raise ValueError(
+                    "fresh replay compiled runtime path identity mismatch") from exc
+            replay_credentials = getattr(
+                self, "_dma_replay_expected_credentials", None)
+            if replay_credentials is not None:
+                credential = replay_credentials[path_id]
+                compilation = {key: value for key, value in document.items()
+                               if key != "declaration"}
+                if (credential.get("runtime_compilation_sha256")
+                        != hashlib.sha256(json.dumps(compilation, sort_keys=True,
+                            separators=(",", ":"), ensure_ascii=False,
+                            allow_nan=False).encode()).hexdigest()
+                        or credential.get("topology_sha256")
+                            != document.get("topology_sha256")):
+                    raise ValueError("fresh replay DMA credential/runtime compilation mismatch")
         self.fresh_runtime_path_documents = json.loads(json.dumps(record["compiled"]))
 
     def _validate_online_runtime_selection(self, case, selected) -> None:

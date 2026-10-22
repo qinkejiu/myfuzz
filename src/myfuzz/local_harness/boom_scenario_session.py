@@ -1,7 +1,8 @@
 """ScenarioRunner transport adapter for the isolated coherent BOOM simulator.
 
-RAM stays in the native coherent manager. Its observations do not create
-PersistentMemory commits, ISA retirement evidence, or source authority.
+Cached RAM stays in the native coherent manager. An explicit opt-in service
+handles only the pinned uncached data spans through actual MemoryService
+receipts; native RAM observations carry no host memory or retirement authority.
 """
 from __future__ import annotations
 
@@ -16,6 +17,8 @@ from myfuzz.scenario.coherent_event_stream import CoherentAcceptedEventStream
 from myfuzz.scenario.ledger import TransactionKey, TransactionLedger
 from myfuzz.scenario.router import DataflowRouter
 from .boom_cpu_session import GeneratedBoomCpuSession
+from .boom_shared_memory import (BoomSharedMemoryService,
+                                 validate_boom_external_request)
 
 
 class GeneratedBoomScenarioSession:
@@ -35,7 +38,8 @@ class GeneratedBoomScenarioSession:
                  program: bytes, source_component: str = 'cpu',
                  program_address: int = 0x80000000,
                  observed_ram_addresses: tuple[int, ...] = (),
-                 command_timeout_seconds: float = 10.0):
+                 command_timeout_seconds: float = 10.0,
+                 shared_memory_service: BoomSharedMemoryService | None = None):
         if type(router) is not DataflowRouter or len(router.windows) != 1:
             raise ValueError('BOOM adapter requires one declared router window')
         window = router.windows[0]
@@ -57,7 +61,23 @@ class GeneratedBoomScenarioSession:
             raise ValueError('invalid native RAM observation addresses')
         self.output, self.repo = output.resolve(), repo.resolve()
         self.router = router
-        self.mmio_ledger = TransactionLedger()
+        self.shared_memory_service = shared_memory_service
+        self.mmio_ledger = (TransactionLedger() if shared_memory_service is None
+                            else self._validate_shared_service().service.ledger)
+        self._shared_binding = (None if shared_memory_service is None else
+            (shared_memory_service, shared_memory_service.memory, router, window, window.target,
+             window.target.memory_service))
+        if shared_memory_service is not None:
+            shared_memory_service.validate_fresh()
+            # Existing Runner APIs drain actual service events and identify
+            # memory by object. Default register-only sessions have neither.
+            self.service = shared_memory_service.service
+            self.memory = shared_memory_service.memory
+        self._shared_source_identity = (None if shared_memory_service is None else
+            shared_memory_service.contract.authenticate_source(self.repo))
+        if shared_memory_service is not None and any(
+                0x4000 <= address < 0x5000 for address in observed_ram_addresses):
+            raise ValueError('shared external page is not native RAM observation storage')
         self.source_component = source_component
         self._program = program
         self._program_address = program_address
@@ -67,6 +87,9 @@ class GeneratedBoomScenarioSession:
         self._case_id = None
         self._started = False
         self._active = None
+        self._pending_terminal_updates = {}
+        self._cleanup_terminal = False
+        self._accepted_sequence = 0
         self.local_ticks = 0
         self.reset_epoch = 0
         self.last_samples = ()
@@ -83,7 +106,7 @@ class GeneratedBoomScenarioSession:
         self._artifact = json.loads((self.output / 'session-artifact.json').read_text())
 
     def identity_document(self):
-        return {'schema_version': 'boom_scenario_session.v1',
+        document = {'schema_version': 'boom_scenario_session.v1',
                 'source_component': self.source_component,
                 'runtime_kind': self.artifact_kind,
                 'native_artifact': deepcopy(self._artifact),
@@ -96,6 +119,38 @@ class GeneratedBoomScenarioSession:
                 'memory_commit_authority': False, 'isa_retirement_authority': False,
                 'runtime_verified': False, 'generic_router_admitted': False,
                 'defer_mmio': True}
+        if self.shared_memory_service is not None:
+            document.update(schema_version='boom_scenario_shared_memory_session.v1',
+                shared_memory=self.shared_memory_service.identity_document(),
+                shared_memory_source=deepcopy(self._shared_source_identity),
+                external_range=self.shared_memory_service.contract.external_range)
+        return document
+
+    def _validate_shared_service(self):
+        shared = self.shared_memory_service
+        if type(shared) is not BoomSharedMemoryService:
+            raise ValueError('exact BOOM shared service required')
+        shared.validate_binding()
+        window, = self.router.windows
+        target_service = getattr(window.target, 'memory_service', None)
+        from myfuzz.scenario.memory_service import MemoryService
+        if (window.device_id != 'dma' or (window.base, window.base + window.size)
+                != shared.contract.control_range
+                or type(target_service) is not MemoryService
+                or target_service.memory is not shared.memory
+                or getattr(window.target, 'routed_register_access_enabled', False) is not True
+                or getattr(window.target, 'master_targets', None) != ()):
+            raise ValueError('BOOM DMA router requires exact control span and same RAM object')
+        pinned = getattr(self, '_shared_binding', None)
+        if pinned is not None and any(actual is not expected for actual, expected in zip(
+                (shared, shared.memory, self.router, window, window.target, target_service), pinned)):
+            raise ValueError('BOOM shared/router memory binding changed')
+        if getattr(self, 'mmio_ledger', shared.service.ledger) is not shared.service.ledger:
+            raise ValueError('BOOM CPU memory/control ledger binding changed')
+        if (getattr(self, 'service', shared.service) is not shared.service
+                or getattr(self, 'memory', shared.memory) is not shared.memory):
+            raise ValueError('BOOM Runner shared memory/service binding changed')
+        return shared
 
     @property
     def process(self):
@@ -103,11 +158,26 @@ class GeneratedBoomScenarioSession:
 
     @property
     def pending_responses(self):
+        shared = self.shared_memory_service
+        unfinished = (0 if shared is None else sum(
+            record['status'] == 'service_complete_d_pending' for record in shared.records))
         return max(int(self._active is not None),
+                   unfinished, len(self._pending_terminal_updates),
+                   int(bool(self.mmio_ledger.unresolved_keys)),
+                   int(any(item[0] is self.mmio_ledger for item in self.router._queued)),
                    0 if self._native is None else self._native.pending_responses)
 
+    @property
+    def pending_terminal_updates(self):
+        """Detached diagnostics for revoked work whose terminal update failed."""
+        return tuple(dict(source_transaction=asdict(key),
+            native_request=deepcopy(item['active']['request']),
+            previous_status=item['previous_status'], reason=item['reason'],
+            last_error=item.get('last_error'), effect_may_have_occurred=True)
+            for key, item in self._pending_terminal_updates.items())
+
     def begin_case(self, testcase_id: str):
-        if self._started or self._native is not None or self._case_id is not None:
+        if self._cleanup_terminal or self._started or self._native is not None or self._case_id is not None:
             raise RuntimeError('BOOM adapter testcase already started')
         if type(testcase_id) is not str or not testcase_id:
             raise ValueError('testcase identity required')
@@ -115,21 +185,33 @@ class GeneratedBoomScenarioSession:
         self._started = True
         window = self.router.windows[0]
         try:
+            external_range = (window.base, window.base + window.size)
+            if self.shared_memory_service is not None:
+                shared = self._validate_shared_service()
+                shared.validate_fresh()
+                self._shared_source_identity = shared.contract.authenticate_source(self.repo)
+                external_range = shared.contract.external_range
             self._native = GeneratedBoomCpuSession(self.output, repo=self.repo,
                 command_timeout_seconds=self._timeout,
-                external_range=(window.base, window.base + window.size))
+                external_range=external_range)
             self._native.begin_case(testcase_id)
             self.reset_epoch = self._native.reset_epoch
+            if self.shared_memory_service is not None:
+                self.shared_memory_service.bind(execution_id=self._native.execution_id,
+                    testcase_id=testcase_id, source_component=self.source_component,
+                    reset_epoch=self.reset_epoch)
             self._native.load_program(self._program, address=self._program_address)
-        except BaseException:
-            if self._native is not None:
-                self._native.close()
-            self._native = None
-            self._case_id = None
+        except BaseException as primary:
+            try:
+                self._abort_pending('startup_failure')
+            except BaseException as cleanup:
+                raise primary from cleanup
+            finally:
+                self._case_id = None
             raise
 
     def _require_running(self):
-        if self._native is None or self._case_id is None or self.process is None:
+        if self._cleanup_terminal or self._native is None or self._case_id is None or self.process is None:
             raise RuntimeError('BOOM adapter testcase is not running')
 
     def _event(self, kind, **payload):
@@ -141,49 +223,54 @@ class GeneratedBoomScenarioSession:
             'source_authority': False, **payload})
 
     def _validate_request(self, request):
-        fields = {'opcode': 3, 'param': 3, 'size': 4, 'source': 3,
-                  'address': 32, 'mask': 8, 'data': 64,
-                  'request_sequence': 64, 'reset_epoch': 64}
-        if not isinstance(request, dict) or request.get('channel') != 'A':
-            raise ValueError('accepted BOOM A request required')
-        for field, width in fields.items():
-            value = request.get(field)
-            if type(value) is not int or not 0 <= value < 1 << width:
-                raise ValueError('invalid BOOM request field: ' + field)
+        validate_boom_external_request(request, reset_epoch=self.reset_epoch)
         address = request['address']
-        # RegisterTarget accepts 32-bit words. Reject unsupported widths before
-        # router enqueue, not after the target might have had a register effect.
-        if (request['opcode'] not in (0, 1, 4) or request['param'] != 0
-                or request['size'] != 2 or address % 4
-                or request['mask'] != 15 << (address & 7)
-                or request['request_sequence'] < 1
-                or request['reset_epoch'] != self.reset_epoch
-                or not self.router.owns(address)
-                or not self.router.owns(address + 3)):
+        if self.shared_memory_service is not None:
+            shared = self._validate_shared_service()
+            if shared.contract.contains_data(address):
+                return 'memory'
+        if not self.router.owns(address) or not self.router.owns(address + 3):
             raise ValueError('unsupported BOOM register transfer shape')
+        return 'control'
 
     def _enqueue(self, request):
-        self._validate_request(request)
+        if self._cleanup_terminal:
+            raise RuntimeError('BOOM external cleanup is terminal; fresh sessions required')
+        try:
+            route = self._validate_request(request)
+        except (ValueError, RuntimeError):
+            self._event('boom_external_request_refused',
+                native_request=deepcopy(request), effect_may_have_occurred=False,
+                recovery='abort_and_replay_testcase')
+            raise
         if self._active is not None:
             if self._active['request'] != request:
                 raise RuntimeError('BOOM external identity changed while pending')
             return
+        if request['request_sequence'] != self._accepted_sequence + 1:
+            raise ValueError('BOOM external native acceptance sequence is not consecutive')
         key = TransactionKey(self._native.execution_id, self._case_id,
             self.source_component, self.reset_epoch, 'coherent-A-uncached',
             request['request_sequence'])
-        active = {'request': deepcopy(request), 'key': key, 'status': 'target_pending'}
+        active = {'request': deepcopy(request), 'key': key, 'status': 'target_pending',
+                  'route': route}
         self._active = active
+        self._accepted_sequence = request['request_sequence']
+        request = active['request']
         execution, epoch = self._native.execution_id, self.reset_epoch
 
         def complete(response):
-            self._require_running()
             if (self._active is not active or self._native.execution_id != execution
                     or self.reset_epoch != epoch or active['status'] != 'target_pending'):
                 raise RuntimeError('stale/duplicate BOOM router callback')
+            self._require_running()
+            if self.shared_memory_service is not None:
+                self._validate_shared_service()
             if (not isinstance(response, tuple) or len(response) != 2
                     or type(response[0]) is not int or not 0 <= response[0] < 1 << 64
                     or type(response[1]) is not int or response[1] != 0):
                 raise ValueError('unsupported BOOM target response')
+            active['status'] = 'd_submitting'
             self._native.respond_external(source=request['source'], size=request['size'],
                 request_sequence=request['request_sequence'], reset_epoch=epoch,
                 data=response[0])
@@ -191,6 +278,19 @@ class GeneratedBoomScenarioSession:
             self._event('boom_external_d_offered', source_transaction=asdict(key),
                         response_data=response[0])
 
+        if route == 'memory':
+            self._event('boom_external_a_memory_accepted', source_transaction=asdict(key),
+                        native_request=deepcopy(request))
+            response = self.shared_memory_service.execute(key, request)
+            self._event('boom_external_memory_service_complete',
+                source_transaction=asdict(key),
+                service_record=deepcopy(self.shared_memory_service.records[-1]))
+            complete((response, 0))
+            return
+        active.update(control_window=self.router.windows[0], control_ledger=self.mmio_ledger,
+            control_payload=dict(device_id=self.router.windows[0].device_id,
+                address=request['address'], write=request['opcode'] != 4,
+                wdata=request['data'], be=request['mask'], beat_bytes=8))
         fresh = self.router.enqueue(self.mmio_ledger, key, address=request['address'],
             write=request['opcode'] != 4, wdata=request['data'], be=request['mask'],
             beat_bytes=8, callback=complete)
@@ -231,6 +331,8 @@ class GeneratedBoomScenarioSession:
                         raise RuntimeError('BOOM accepted external D mismatch')
                     self._event('boom_external_d_accepted',
                         source_transaction=asdict(active['key']), native_response=deepcopy(event))
+                    if active['route'] == 'memory':
+                        self.shared_memory_service.finish(active['key'], status='d_accepted')
                     self._active = None
             if observation['external_request'] is not None:
                 self._enqueue(observation['external_request'])
@@ -242,9 +344,85 @@ class GeneratedBoomScenarioSession:
             outputs.update({'ram_' + format(address, 'x'): self._native.read64(address)
                             for address in self._ram_addresses})
             return outputs
-        except BaseException:
-            self._native.close()
+        except BaseException as primary:
+            try:
+                self._abort_pending('step_failure')
+            except BaseException as cleanup:
+                raise primary from cleanup
             raise
+
+    def _abort_pending(self, reason):
+        """Revoke first, then attempt every cleanup without losing failures."""
+        self._cleanup_terminal = True
+        active, self._active = self._active, None
+        previous = None if active is None else active['status']
+        if active is not None:
+            active['status'] = 'cancelled'
+        errors = []
+        try:
+            self.router.cancel_for_ledger(self.mmio_ledger)
+        except BaseException as error:
+            errors.append(error)
+            if active is not None and active['route'] == 'control':
+                # Router only replaces its queue after all ledger cancellations
+                # succeed. A retained queue must become undrainable before a
+                # future target step, rather than relying on the late callback.
+                try:
+                    ledger, key = active['control_ledger'], active['key']
+                    entry = ledger._entries.get(key)
+                    if entry is None or entry.status not in ('cancelled', 'complete'):
+                        ledger.cancel_accepted(key, active['control_payload'])
+                    if ledger.target_ready(key):
+                        raise RuntimeError('BOOM control cancellation left target ready')
+                except BaseException as fallback:
+                    errors.append(fallback)
+                    try:
+                        active['control_window'].target.close()
+                    except BaseException as target_close:
+                        errors.append(target_close)
+        if (active is not None and active['route'] == 'memory'
+                and active['key'] in self.shared_memory_service.receipts):
+            self._pending_terminal_updates.setdefault(active['key'], dict(
+                active=active, previous_status=previous, reason=reason))
+        for key, item in tuple(self._pending_terminal_updates.items()):
+            try:
+                records = [record for record in self.shared_memory_service.records
+                           if record['source_transaction'] == asdict(key)]
+                if len(records) != 1:
+                    raise RuntimeError('BOOM pending terminal update lost its service record')
+                if records[0]['status'] == 'service_complete_d_pending':
+                    self.shared_memory_service.finish(key, status='cancelled')
+                if records[0]['status'] not in ('cancelled', 'd_accepted'):
+                    raise RuntimeError('BOOM terminal update did not resolve its service record')
+                del self._pending_terminal_updates[key]
+            except BaseException as error:
+                item['last_error'] = repr(error)
+                errors.append(error)
+        if active is not None and self._native is not None:
+            try:
+                self._event('boom_external_response_cancelled',
+                    source_transaction=asdict(active['key']),
+                    previous_status=previous, reason=reason,
+                    effect_may_have_occurred=(previous != 'target_pending'
+                        or active['key'] in self.mmio_ledger.uncertain_keys
+                        or (active['key'] in self.mmio_ledger._entries
+                            and self.mmio_ledger._entries[active['key']].status == 'complete')
+                        or active['key'] in getattr(self.shared_memory_service, 'receipts', {})))
+            except BaseException as error:
+                errors.append(error)
+        native = self._native
+        if native is not None:
+            try:
+                native.close()
+            except BaseException as error:
+                # Keep the handle reachable so end_case can retry cleanup.
+                errors.append(error)
+            else:
+                self._native = None
+        if len(errors) == 1:
+            raise errors[0]
+        if errors:
+            raise BaseExceptionGroup('BOOM external cleanup failures', errors)
 
     def begin_quiesce(self):
         self._require_running()
@@ -253,11 +431,18 @@ class GeneratedBoomScenarioSession:
 
     def reset_local(self):
         self._require_running()
+        if self.shared_memory_service is not None:
+            primary = RuntimeError('BOOM shared reset requires fresh sessions and fresh memory')
+            try:
+                self._abort_pending('fresh_shared_memory_reset_required')
+            except BaseException as cleanup:
+                raise primary from cleanup
+            raise primary
         cancelled = self.pending_responses
-        targets = self.router.cancel_for_ledger(self.mmio_ledger)
-        if self.mmio_ledger.uncertain_keys:
-            raise RuntimeError('uncertain BOOM target effect requires testcase abort')
         try:
+            targets = self.router.cancel_for_ledger(self.mmio_ledger)
+            if self.mmio_ledger.uncertain_keys:
+                raise RuntimeError('uncertain BOOM target effect requires testcase abort')
             if self._active is not None:
                 self._event('boom_external_response_cancelled',
                     source_transaction=asdict(self._active['key']),
@@ -268,6 +453,7 @@ class GeneratedBoomScenarioSession:
                 execution_id=self._native.execution_id,
                 reset_epoch=self.reset_epoch, local_tick=self.local_ticks)
             self._active = None
+            self._accepted_sequence = 0
             self._quiescing = False
             self.last_samples = ()
             self._native.load_program(self._program, address=self._program_address)
@@ -276,23 +462,18 @@ class GeneratedBoomScenarioSession:
             return {'cancelled_responses': cancelled,
                     'cancelled_target_requests': tuple(str(key) for key in targets),
                     'cancelled_native_requests': result['cancelled_target_requests']}
-        except BaseException:
-            self._native.close()
+        except BaseException as primary:
+            try:
+                self._abort_pending('reset_failure')
+            except BaseException as cleanup:
+                raise primary from cleanup
             raise
 
     def end_case(self):
         try:
-            self.router.cancel_for_ledger(self.mmio_ledger)
-            if self._active is not None and self._native is not None:
-                self._event('boom_external_response_cancelled',
-                    source_transaction=asdict(self._active['key']),
-                    previous_status=self._active['status'], reason='end_case')
+            self._abort_pending('end_case')
         finally:
-            if self._native is not None:
-                self._native.close()
-            self._native = None
             self._case_id = None
-            self._active = None
 
     close = end_case
 

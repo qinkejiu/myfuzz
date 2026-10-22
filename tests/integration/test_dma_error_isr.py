@@ -415,6 +415,36 @@ def test_certifier_refuses_a_missing_error_witness(mutate, message):
         _certify(rows, case)
 
 
+def test_error_certificate_rejects_malformed_key_unjoined_response_and_dma_effect():
+    case, _status, rows = _sealed_error_case()
+    malformed = {'source_component': 'dma', 'channel_id': 'dma-memory',
+        'source_sequence': True}
+    request = next(row for row in rows
+        if row.get('kind') == 'dma_edge' and 'accepted' in row)
+    request['accepted']['transaction'] = malformed
+    request['environment_error_receipt']['source_transaction'] = malformed
+    error_response = next(row for row in rows
+        if row.get('kind') == 'dma_edge' and isinstance(row.get('response'), dict))
+    error_response['response']['transaction'] = malformed
+    with pytest.raises(RuntimeError, match='strict DMA TransactionKey'):
+        _certify(rows, case)
+
+    case, _status, rows = _sealed_error_case()
+    rows.append({'event_id': len(rows) + 1, 'kind': 'dma_edge',
+        'response': {'transaction': {**_transaction(77),
+            'testcase_id': 'unrelated'}, 'error': 1, 'rdata': 0}})
+    with pytest.raises(RuntimeError, match='unjoined DMA response'):
+        _certify(rows, case)
+
+    case, _status, rows = _sealed_error_case()
+    rows.append({'event_id': len(rows) + 1, 'kind': 'memory_write',
+        'component': 'dma', 'memory_id': 'ram', 'address': firmware.RESULT + 0x100,
+        'value': case.payload, 'width_bytes': 4, 'byte_enable': 15,
+        'generation': 0, 'version': [0, 99]})
+    with pytest.raises(RuntimeError, match='DMA RAM effect'):
+        _certify(rows, case)
+
+
 def _clear_error_receipt(rows):
     _row(rows, 'dma_edge')['environment_error_receipt']['error'] = 0
     return rows

@@ -91,6 +91,13 @@ def _canonical(value) -> bytes:
         ensure_ascii=False, allow_nan=False).encode('utf-8')
 
 
+def _same(left, right) -> bool:
+    try:
+        return _canonical(left) == _canonical(right)
+    except (TypeError, ValueError, RecursionError):
+        return False
+
+
 def _sha256_hex(document) -> str:
     return hashlib.sha256(_canonical(document)).hexdigest()
 
@@ -549,6 +556,19 @@ def _event_id(value, name):
     return value
 
 
+def _same_producer_step(left, right, name):
+    """Bind a target effect to the native scheduler step that accepted it."""
+    if type(left) is not dict or type(right) is not dict:
+        raise RuntimeError(f'{name} request/target rows must be journal objects')
+    left_step = _event_id(left.get('producer_event_id'),
+        f'{name} accepted request producer step')
+    right_step = _event_id(right.get('producer_event_id'),
+        f'{name} target effect producer step')
+    if left_step != right_step:
+        raise RuntimeError(f'{name} target effect was not produced by its accepted DMA step')
+    return left_step
+
+
 def _fifo_sample(access, phase, name):
     capture = (access.get('read_capture') or {}).get(phase) or {}
     value = capture.get('probe_uart_fifo_depth')
@@ -586,6 +606,83 @@ def _read_beat_fifo(event, payload, name):
         post_depth=post['probe_uart_fifo_depth'],
         read_value=access['read_value'], access_id=access.get('access_id'),
         tick=access.get('local_tick'))
+
+
+_DMA_KEY_FIELDS = ('execution_id', 'testcase_id', 'source_component',
+                   'source_epoch', 'channel_id', 'source_sequence')
+
+
+def _dma_key_document(value, name):
+    if (type(value) is not dict or set(value) != set(_DMA_KEY_FIELDS)
+            or any(type(value[field]) is not str or not value[field].strip()
+                   for field in ('execution_id', 'testcase_id',
+                                 'source_component', 'channel_id'))
+            or any(type(value[field]) is not int or not 0 <= value[field] < 1 << 64
+                   for field in ('source_epoch', 'source_sequence'))):
+        raise RuntimeError(f'{name} lacks one strict DMA TransactionKey')
+    if (value['source_component'] != 'dma' or value['channel_id'] != 'dma-memory'
+            or value['source_sequence'] < 1):
+        raise RuntimeError(f'{name} has a non-master DMA TransactionKey')
+    return dict(value)
+
+
+def _dma_route_match(edge_index, path_id, *, operation, target_kind,
+                     target_component, target_id, base, size, address,
+                     byte_enable, transaction_key, value=None):
+    routes = edge_index.dma_master_routes_for_path(path_id)
+    candidates = [route for route in routes
+        if route.operation == operation and route.target_kind == target_kind
+        and route.target_component == target_component
+        and route.target_id == target_id]
+    if len(candidates) != 1:
+        raise RuntimeError('selected path lacks one exact DMA target route')
+    route = candidates[0]
+    if route.base != base or route.size != size:
+        raise RuntimeError('observed DMA target aperture differs from its route')
+    matched = edge_index.match_dma_master_route(path_id,
+        initiator_component=route.initiator_component,
+        endpoint_id=route.endpoint_id, target_kind=route.target_kind,
+        target_component=route.target_component, target_id=route.target_id,
+        base=route.base, size=route.size, operation=operation,
+        address=address, byte_enable=byte_enable,
+        transaction_key=transaction_key, value=value)
+    if matched is None:
+        raise RuntimeError('DMA request does not match its selected typed route')
+    from dataclasses import asdict
+    return asdict(matched)
+
+
+def _response_for_key(rows, key, label, *, expected_error=0):
+    matches = [row for row in rows
+        if isinstance(row.get('response'), dict)
+        and _same(row['response'].get('transaction'), key)]
+    if len(matches) != 1:
+        raise RuntimeError(f'{label} must have exactly one native response')
+    row = matches[0]
+    response = row['response']
+    if (type(expected_error) is not int or expected_error not in (0, 1)
+            or type(response.get('error')) is not int
+            or response.get('error') != expected_error):
+        response_kind = 'error response' if expected_error == 1 else 'successful response'
+        raise RuntimeError(f'{label} native {response_kind} has the wrong status')
+    return row, response
+
+
+def _write_response_value_is_success(response):
+    value = response.get('rdata')
+    return value is None or (type(value) is int and value == 0)
+
+
+def _dma_memory_version(event, label):
+    generation = event.get('generation')
+    version = event.get('version')
+    if (type(generation) is not int or not 0 <= generation < 1 << 64
+            or type(version) is not tuple or len(version) != 2
+            or any(type(part) is not int or not 0 <= part < 1 << 64
+                   for part in version)
+            or version[0] != generation or version[1] == 0):
+        raise RuntimeError(f'{label} lacks one committed RAM memory version')
+    return version
 
 
 def _cpu_pop_fifo(event, payload, name):
@@ -728,13 +825,14 @@ def _certify_environment_error(witnesses, case, *, case_index, program,
         raise RuntimeError('rejected master request address differs from the declared target')
     if accepted.get('target_rejection') != 'declared_master_target_access':
         raise RuntimeError('rejected master request is not the declared target rejection')
-    if (isinstance(accepted.get('target_delivery'), dict)
-            or isinstance(request.get('target_delivery'), dict)):
+    if any(isinstance(event.get('target_delivery'), dict)
+            or isinstance((event.get('accepted') or {}).get('target_delivery'), dict)
+            for event in witnesses.dma_edges):
         raise RuntimeError('an environment-error request must have no target delivery')
-    key = accepted.get('transaction')
-    if (not isinstance(key, dict) or key.get('channel_id') != 'dma-memory'
-            or key.get('source_component') != 'dma'):
-        raise RuntimeError('rejected master request lacks the real DMA transaction identity')
+    key = _dma_key_document(accepted.get('transaction'),
+        'rejected master request')
+    if len(witnesses.responses) != 1:
+        raise RuntimeError('an environment-error case must not contain an unjoined DMA response')
 
     receipt_event = _one(witnesses.environment_errors,
         'illegal case needs exactly one real environment error receipt')
@@ -745,18 +843,15 @@ def _certify_environment_error(witnesses, case, *, case_index, program,
         op='master_environment_error', address=program['source'], write=False,
         byte_enable=15, reason='declared_master_target_access')
     for field, expected in expected_receipt.items():
-        if receipt.get(field) != expected:
+        if not _same(receipt.get(field), expected):
             raise RuntimeError(f'environment error receipt field {field} is not the declared rejection')
-    if receipt.get('source_transaction') != key:
+    if not _same(receipt.get('source_transaction'), key):
         raise RuntimeError('environment error receipt transaction differs from the real request')
 
-    response_events = [event for event in witnesses.error_responses
-                       if (event['response'].get('transaction') or {}) == key]
-    response_event = _one(response_events,
-        'illegal case needs exactly one real error response for the rejected request')
-    response = response_event['response']
+    response_event, response = _response_for_key(witnesses.responses, key,
+        'illegal case error beat', expected_error=1)
     response_id = _event_id(response_event.get('event_id'), 'error response')
-    if response.get('error') != 1 or response.get('rdata') != 0:
+    if type(response.get('rdata')) is not int or response.get('rdata') != 0:
         raise RuntimeError('real DMA error response is not the declared bus error')
     if response_id <= request_id:
         raise RuntimeError('DMA error response precedes its accepted master request')
@@ -790,6 +885,8 @@ def _certify_environment_error(witnesses, case, *, case_index, program,
                               if not settled_late(event))
     if real_dma_accesses:
         raise RuntimeError('an illegal DMA request must not pop the UART RX FIFO')
+    if any(event.get('component') == 'dma' for event in witnesses.memory_writes):
+        raise RuntimeError('an environment-error case must not commit RAM data or contain a DMA RAM effect')
     protected = ((SOURCE_RAM, SOURCE_RAM + 4 * DEST_WORDS),
                  (DESTINATION, DESTINATION + 4 * DEST_WORDS))
     for event in witnesses.memory_writes:
@@ -1044,7 +1141,8 @@ def _attach_source_authority(evidence, witnesses, case, *, action_ids,
 
 def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
                             action_ids=None, settled_access_ids=None,
-                            source_authority=None):
+                            source_authority=None, edge_index=None,
+                            path_id=None, topology_validator=None):
     """Join one real journal slice into a completed descriptor case.
 
     The expected program is derived from the declared case, never read back from
@@ -1065,6 +1163,44 @@ def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
                else frozenset(settled_access_ids))
     if any(not isinstance(item, str) or not item for item in settled):
         raise ValueError('settled CPU access ids must be nonempty strings')
+    if ((edge_index is None) != (path_id is None)
+            or edge_index is not None and not callable(
+                getattr(edge_index, 'match_dma_master_route', None))
+            or topology_validator is not None and not callable(topology_validator)):
+        raise ValueError('DMA route evidence requires one selected path and typed index')
+    if source_authority is not None and not isinstance(source_authority, dict):
+        raise ValueError('DMA source authority must be a document')
+    v2_source_authority = (source_authority is not None
+        and source_authority.get('installed') is True
+        and source_authority.get('schema_version') == 'dma_source_provenance.v2')
+    if v2_source_authority and edge_index is None:
+        raise ValueError('v2 source authority requires its compiled DMA route index')
+    if (v2_source_authority and (type(path_id) is not str or not path_id
+            or source_authority.get('path_id') != path_id)):
+        raise RuntimeError('selected DMA route path differs from installed v2 source authority')
+    if v2_source_authority:
+        if not callable(topology_validator):
+            raise ValueError('v2 DMA source authority requires a live topology validator')
+        index_document = (edge_index.document()
+            if callable(getattr(edge_index, 'document', None)) else None)
+        if (not isinstance(index_document, dict)
+                or getattr(edge_index, 'identity_sha256', None)
+                    != source_authority.get('edge_index_sha256')
+                or index_document.get('graph_sha256')
+                    != source_authority.get('graph_sha256')
+                or index_document.get('contract_sha256')
+                    != source_authority.get('contract_sha256')
+                or index_document.get('topology_sha256')
+                    != source_authority.get('topology_sha256')
+                or path_id not in index_document.get('path_ids', ())):
+            raise RuntimeError('v2 DMA source authority differs from its compiled route index')
+        selected_route_rows = [row for row in
+            index_document.get('dma_master_routes', ())
+            if isinstance(row, dict) and path_id in row.get('path_ids', ())]
+        if not _same(selected_route_rows, source_authority.get('dma_master_routes')):
+            raise RuntimeError('v2 DMA source authority route rows differ from its compiled index')
+    if topology_validator is not None:
+        topology_validator()
     accepted_ids = tuple(event.get('action_id') for event in witnesses.frames)
     if accepted_ids != ids:
         raise RuntimeError('case needs one matched native serial frame per descriptor/payload byte')
@@ -1177,6 +1313,10 @@ def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
         raise RuntimeError('case needs two real master beats per transferred word')
     beat_rows = []
     sequences = []
+    # Strict typed-route joins are emitted only for a route-bearing v2 run.
+    # Historical/diagnostic synthetic RX_TO_RAM journals retain their v1
+    # shape and cannot claim route evidence without the compiled edge index.
+    route_transfer = case.direction == 'RX_TO_RAM' and edge_index is not None
     for index in range(case.length):
         read_row = witnesses.beats[2 * index]
         write_row = witnesses.beats[2 * index + 1]
@@ -1187,50 +1327,172 @@ def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
         if (read.get('address') != program['source_words'][index]
                 or write.get('address') != program['destination_words'][index]):
             raise RuntimeError('DMA beat address differs from the decoded program')
-        read_key = read.get('transaction') or {}
-        write_key = write.get('transaction') or {}
-        if (read_key.get('channel_id') != 'dma-memory'
-                or read_key.get('source_component') != 'dma'
-                or any(read_key.get(field) != write_key.get(field)
-                       for field in ('execution_id', 'testcase_id', 'source_component',
-                                     'source_epoch', 'channel_id'))
-                or write_key.get('source_sequence') != read_key.get('source_sequence') + 1):
-            raise RuntimeError('DMA read/write beats are not adjacent master transactions')
+        if route_transfer:
+            read_key = _dma_key_document(read.get('transaction'), 'accepted DMA read')
+            write_key = _dma_key_document(write.get('transaction'), 'accepted DMA write')
+            if (any(read_key[field] != write_key[field]
+                    for field in _DMA_KEY_FIELDS if field != 'source_sequence')
+                    or write_key['source_sequence'] != read_key['source_sequence'] + 1):
+                raise RuntimeError('DMA read/write beats are not adjacent master transactions')
+        else:
+            read_key = read.get('transaction') or {}
+            write_key = write.get('transaction') or {}
+            if (read_key.get('channel_id') != 'dma-memory'
+                    or read_key.get('source_component') != 'dma'
+                    or any(read_key.get(field) != write_key.get(field)
+                           for field in ('execution_id', 'testcase_id', 'source_component',
+                                         'source_epoch', 'channel_id'))
+                    or write_key.get('source_sequence') != read_key.get('source_sequence') + 1):
+                raise RuntimeError('DMA read/write beats are not adjacent master transactions')
         sequences.extend((read_key['source_sequence'], write_key['source_sequence']))
-        if case.direction == 'RX_TO_RAM':
+        if route_transfer:
+            read_response_row, read_response = _response_for_key(
+                witnesses.responses, read_key, 'DMA read beat')
+            write_response_row, write_response = _response_for_key(
+                witnesses.responses, write_key, 'DMA write beat')
+            read_request_event_id = _event_id(read_row.get('event_id'),
+                'accepted DMA read request')
+            write_request_event_id = _event_id(write_row.get('event_id'),
+                'accepted DMA write request')
+            read_response_event_id = _event_id(read_response_row.get('event_id'),
+                'DMA read response')
+            write_response_event_id = _event_id(write_response_row.get('event_id'),
+                'DMA write response')
+            if (read_response_event_id <= read_request_event_id
+                    or write_response_event_id <= write_request_event_id):
+                raise RuntimeError('native DMA response does not follow its accepted request')
+        else:
+            read_request_event_id = _event_id(read_row.get('event_id'),
+                'DMA read beat')
+            write_request_event_id = _event_id(write_row.get('event_id'),
+                'DMA write beat')
+        if case.direction == 'RX_TO_RAM' and route_transfer:
+            fifo = _read_beat_fifo(read_row, case.payload, 'FIFO')
+            target_delivery = read.get('target_delivery')
+            access = (target_delivery.get('target_uart_access')
+                      if isinstance(target_delivery, dict) else None)
+            if (not isinstance(target_delivery, dict)
+                    or not _same(target_delivery, read_row.get('target_delivery'))
+                    or not _same(target_delivery.get('source_transaction'), read_key)
+                    or target_delivery.get('target_component') != 'uart'
+                    or target_delivery.get('address') != read.get('address')
+                    or target_delivery.get('offset') != UART_RDATA_OFFSET
+                    or target_delivery.get('write') is not False
+                    or target_delivery.get('byte_enable') != 15
+                    or not isinstance(access, dict)
+                    or access.get('access_id') != target_delivery.get('target_access_id')
+                    or access.get('status') != 'observed'
+                    or access.get('route_context_mode') != 'dma_master'
+                    or not _same(access.get('source_transaction'), read_key)
+                    or access.get('raw_offset') != UART_RDATA_OFFSET
+                    or access.get('write') is not False
+                    or access.get('byte_enable') != 15
+                    or access.get('address') != read.get('address')
+                    or access.get('read_value') != read_response.get('rdata')
+                    or target_delivery.get('value') != read_response.get('rdata')
+                    or access.get('window_base') != read.get('address') - UART_RDATA_OFFSET
+                    or type(access.get('window_size')) is not int):
+                raise RuntimeError('DMA UART target effect is not joined to its exact read request')
+            uart_rows = [event for event in witnesses.dma_rdata_accesses
+                if event.get('access_id') == access.get('access_id')]
+            uart_access = _one(uart_rows,
+                'DMA UART target access lacks exactly one real UART journal event')
+            if (not _same(uart_access.get('source_transaction'), read_key)
+                    or uart_access.get('read_value') != read_response.get('rdata')
+                    or uart_access.get('status') != 'observed'
+                    or uart_access.get('access_id') != access.get('access_id')
+                    or uart_access.get('address') != read.get('address')
+                    or uart_access.get('window_base') != access.get('window_base')
+                    or uart_access.get('window_size') != access.get('window_size')
+                    or uart_access.get('route_context_mode') != 'dma_master'):
+                raise RuntimeError('DMA UART target journal event differs from target receipt')
+            read_target_step = _same_producer_step(read_row, uart_access,
+                'DMA UART read')
+            read_data = read_response.get('rdata')
+            if type(read_data) is not int or read_data != case.payload:
+                raise RuntimeError('UART FIFO value differs from the native DMA response')
+            read_route = None
+            if edge_index is not None:
+                read_route = _dma_route_match(edge_index, path_id,
+                    operation='read', target_kind='peripheral',
+                    target_component='uart', target_id='uart',
+                    base=access['window_base'], size=access['window_size'],
+                    address=read['address'], byte_enable=read['byte_enable'],
+                    transaction_key=read_key)
+            route_read_evidence = dict(route_match=read_route,
+                request_event_id=read_request_event_id,
+                target_access_event_id=_event_id(uart_access.get('event_id'),
+                    'UART target access'),
+                producer_step_event_id=read_target_step,
+                response_event_id=read_response_event_id,
+                transaction_key=read_key, target_access_id=access['access_id'],
+                value=read_data)
+        elif case.direction == 'RX_TO_RAM':
             fifo = _read_beat_fifo(read_row, case.payload, 'FIFO')
             read_data = case.payload
+            route_read_evidence = None
         else:
             if isinstance(read.get('target_delivery'), dict):
                 raise RuntimeError('a RAM-sourced DMA read must not touch the UART target')
             responses = [event['response'] for event in witnesses.responses
                          if (event['response'].get('transaction') or {}).get(
                              'source_sequence') == read_key.get('source_sequence')]
-            response = _one(responses, 'RAM-sourced DMA read lacks exactly one response')
+            response = _one(responses,
+                'RAM-sourced DMA read lacks exactly one response')
             read_data = response.get('rdata')
             if read_data != case.payload:
                 raise RuntimeError('DMA RAM read data differs from the declared payload')
             fifo = None
+            route_read_evidence = None
         if case.direction == 'RAM_TO_TX':
             delivery = write.get('target_delivery')
-            if (not isinstance(delivery, dict)
-                    or delivery.get('write') is not True
+            if (not isinstance(delivery, dict) or delivery.get('write') is not True
                     or delivery.get('address') != UART_WDATA
                     or delivery.get('value') != case.payload):
                 raise RuntimeError('DMA UART WDATA write lacks a real target delivery')
         else:
-            if write.get('value') != case.payload:
+            if write.get('value') != case.payload or (route_transfer and
+                    not _write_response_value_is_success(write_response)):
                 raise RuntimeError('DMA RAM write value differs from the declared payload')
-        beat_rows.append(dict(index=index, source_address=read.get('address'),
+        route_write_evidence = None
+        if case.direction == 'RX_TO_RAM' and edge_index is not None:
+            write_routes = [route for route in
+                edge_index.dma_master_routes_for_path(path_id)
+                if route.operation == 'write'
+                and route.target_kind == 'persistent_memory'
+                and route.target_component == 'cpu' and route.target_id == 'ram']
+            if len(write_routes) != 1:
+                raise RuntimeError('selected path lacks one persistent RAM write route')
+            write_route = write_routes[0]
+            route_write_evidence = _dma_route_match(edge_index, path_id,
+                operation='write', target_kind='persistent_memory',
+                target_component='cpu', target_id='ram',
+                base=write_route.base, size=write_route.size,
+                address=write['address'], byte_enable=write['byte_enable'],
+                transaction_key=write_key, value=write['value'])
+        beat_document = dict(index=index, source_address=read.get('address'),
             destination_address=write.get('address'), value=case.payload,
-            read_data=read_data, read_event_id=_event_id(read_row.get('event_id'),
-                'DMA read beat'), write_event_id=_event_id(write_row.get('event_id'),
-                'DMA write beat'),
+            read_data=read_data, read_event_id=read_request_event_id,
+            write_event_id=write_request_event_id,
             source_sequence=read_key.get('source_sequence'),
-            write_sequence=write_key.get('source_sequence'), fifo=fifo))
+            write_sequence=write_key.get('source_sequence'), fifo=fifo)
+        if route_transfer:
+            beat_document['native_responses'] = dict(
+                read_event_id=read_response_event_id,
+                write_event_id=write_response_event_id)
+            if edge_index is not None:
+                beat_document['dma_routes'] = dict(source_read=route_read_evidence,
+                destination_write=dict(route_match=route_write_evidence,
+                    request_event_id=write_request_event_id,
+                    response_event_id=write_response_event_id,
+                    transaction_key=write_key,
+                    value=write.get('value')))
+        beat_rows.append(beat_document)
     if sequences != list(range(sequences[0], sequences[0] + len(sequences))) \
             or len(set(sequences)) != len(sequences):
         raise RuntimeError('DMA master transactions were repeated or reordered')
+    if route_transfer and len(witnesses.responses) != len(witnesses.beats):
+        raise RuntimeError('DMA accepted beats and native responses are not one-to-one')
 
     # -- real RAM destination commits and versions ---------------------------
     ram_writes = [event for event in witnesses.memory_writes
@@ -1243,6 +1505,37 @@ def certify_descriptor_case(witnesses, case, *, case_index, tx_captures=(),
     else:
         if len(ram_writes) != case.length:
             raise RuntimeError('case needs one real DMA RAM commit per transferred word')
+        if route_transfer:
+            for index, event in enumerate(ram_writes):
+                expected = _dma_key_document(
+                    witnesses.beats[2 * index + 1]['accepted'].get('transaction'),
+                    'accepted DMA destination write')
+                actual = _dma_key_document(event.get('transaction'),
+                    'persistent RAM write effect')
+                version = _dma_memory_version(event,
+                    'persistent RAM write effect')
+                if (not _same(actual, expected)
+                        or event.get('address') != program['destination_words'][index]
+                        or event.get('value') != case.payload
+                        or event.get('memory_id') != 'ram'
+                        or event.get('width_bytes') != 4
+                        or event.get('byte_enable') != 15
+                        or event['generation'] != version[0]):
+                    raise RuntimeError(
+                        'RAM target effect does not join the exact DMA write transaction')
+                if edge_index is not None:
+                    write_target_step = _same_producer_step(
+                        witnesses.beats[2 * index + 1], event,
+                        'DMA RAM write')
+                    effect = dict(event_id=_event_id(event.get('event_id'),
+                        'DMA RAM target effect'), transaction=actual,
+                        producer_step_event_id=write_target_step,
+                        address=event['address'], value=event['value'],
+                        memory_id=event['memory_id'], generation=event['generation'],
+                        width_bytes=event['width_bytes'], byte_enable=event['byte_enable'],
+                        version=list(version), byte_offset=event.get('byte_offset'))
+                    destination = beat_rows[index]['dma_routes']['destination_write']
+                    destination['target_effect'] = effect
         ram_commits = tuple(dict(address=event.get('address'), value=event.get('value'),
             version=list(event.get('version') or ()),
             event_id=_event_id(event.get('event_id'), 'DMA RAM commit'))
@@ -1636,6 +1929,10 @@ class DescriptorBoot:
             settled_access_ids=self.settled_access_ids)
         if source_authority is not None:
             certification['source_authority'] = source_authority
+        if self.source_provenance is not None:
+            certification.update(edge_index=self.source_provenance.edge_index,
+                path_id=self.source_provenance.paths.path_id,
+                topology_validator=self.source_provenance.validate_topology)
         evidence = certify_descriptor_case(extract_case_witnesses(rows),
             case, **certification)
         self.settled_access_ids.update(_settled_pop_access_ids(evidence))
@@ -1832,6 +2129,14 @@ def replay_descriptor_cases(reference: DescriptorResult, *, cache_dir: Path,
         budget=budget, factory=factory)
 
 
+def _descriptor_case_replay_difference(reference_case, actual_case, *,
+        reference_execution_ids, actual_execution_ids):
+    """Compare saved and fresh case certificates using typed replay rules."""
+    return first_replay_difference(reference_case, actual_case,
+        reference_execution_ids=reference_execution_ids,
+        actual_execution_ids=actual_execution_ids)
+
+
 def _source_runs(commands):
     """Maximal contiguous runs of source events: one run per executed case.
 
@@ -1990,7 +2295,11 @@ def _replay_descriptor_cases(reference, *, cache_dir, budget=None, factory=None)
                 case_index=position, tx_captures=tx_captures,
                 action_ids=tuple(expected_case['action_ids']),
                 settled_access_ids=settled_access_ids,
-                source_authority=authority)
+                source_authority=authority,
+                **(dict(edge_index=source_provenance.edge_index,
+                    path_id=source_provenance.paths.path_id,
+                    topology_validator=source_provenance.validate_topology)
+                    if source_provenance is not None else {}))
             settled_access_ids.update(_settled_pop_access_ids(case))
             case.update(_case_boundaries(commands=reference.plan.commands, rows=rows,
                 command_start=first,
@@ -2003,12 +2312,11 @@ def _replay_descriptor_cases(reference, *, cache_dir, budget=None, factory=None)
                 source_end_command=(following if following is not None
                                     else len(reference.plan.commands)),
                 source_count=spec.source_count)
-            if case != expected_case:
-                difference = first_replay_difference(expected_case, case,
-                    reference_execution_ids=reference.execution_ids,
-                    actual_execution_ids=actual.execution_ids)
-                detail = (f' at {difference["path"]}: {difference["reason"]}'
-                          if difference is not None else '')
+            difference = _descriptor_case_replay_difference(expected_case,
+                case, reference_execution_ids=reference.execution_ids,
+                actual_execution_ids=actual.execution_ids)
+            if difference is not None:
+                detail = f' at {difference["path"]}: {difference["reason"]}'
                 raise RuntimeError(
                     'replay per-case descriptor evidence differs' + detail)
             cases.append(case)

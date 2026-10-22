@@ -7,12 +7,69 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from copy import deepcopy
+from dataclasses import dataclass
 import hashlib
 import json
 from types import MappingProxyType
 
+from .ledger import TransactionKey
 from .runtime_path_contract import (
     PreparedRuntimePathContract, RuntimePathContract, _canonical, _digest)
+
+
+@dataclass(frozen=True)
+class DmaMasterRouteMatch:
+    """Immutable declaration identity returned for one exact DMA route query.
+
+    This is a route lookup result only. The supplied key still has to be joined
+    to the accepted native request, target operation, and response by the
+    caller before it can describe a runtime transfer.
+    """
+
+    route_sha256: str
+    edge_key: tuple[int, int]
+    source_node_id: str
+    target_node_id: str
+    path_id: str
+    initiator_component: str
+    endpoint_id: str
+    target_kind: str
+    target_component: str
+    target_id: str
+    base: int
+    size: int
+    operation: str
+    address: int
+    byte_enable: int
+    transaction_key: TransactionKey
+    target_identity_sha256: str
+
+
+@dataclass(frozen=True)
+class DmaMasterRouteIdentity:
+    """Detached immutable route declaration selected by one prepared path."""
+
+    route_sha256: str
+    edge_key: tuple[int, int]
+    source_node_id: str
+    target_node_id: str
+    path_id: str
+    initiator_component: str
+    endpoint_id: str
+    endpoint_identity_sha256: str
+    target_kind: str
+    target_component: str
+    target_id: str
+    base: int
+    size: int
+    operation: str
+    permissions: tuple[str, ...]
+    byte_enable: int
+    readable_offsets: tuple[int, ...]
+    writable_offsets: tuple[int, ...]
+    accepted_write_values_kind: str | None
+    accepted_write_values: tuple[int, ...]
+    target_identity_sha256: str
 
 
 def _row(value, fields):
@@ -135,36 +192,283 @@ def _validate_topology(topology, nodes, selected_node_ids, sources):
             raise ValueError('overlapping topology memory windows')
 
 
+def _validate_dma_route_rows(route_documents, topology_rows, edges, nodes, topology):
+    """Join v2 route snapshots to exact selected typed edges and topology facts."""
+    if type(route_documents) is not list or not route_documents:
+        raise ValueError('v2 runtime edge index requires declared DMA routes')
+    if type(topology_rows) is not list or len(topology_rows) != len(route_documents):
+        raise ValueError('compiled DMA route snapshot count differs from contract')
+    routes_by_key = {}
+    for route in route_documents:
+        if type(route) is not dict or 'identity_sha256' not in route:
+            raise ValueError('invalid canonical DMA route declaration')
+        key = route.get('rule_index'), route.get('prerequisite_index')
+        if (type(key[0]) is not int or key[0] < 0 or type(key[1]) is not int
+                or key[1] < 0 or key in routes_by_key):
+            raise ValueError('duplicate or invalid DMA route edge key')
+        selected = edges.get(key)
+        if selected is None:
+            raise ValueError('DMA route edge is absent from selected prepared paths')
+        edge = selected[0]
+        if (edge.get('kind') != 'DMA_MASTER_TRANSFER'
+                or edge.get('prerequisite') != route.get('source_node_id')
+                or edge.get('target') != route.get('target_node_id')):
+            raise ValueError('DMA route does not match selected typed graph edge')
+        declaration = route
+        source = nodes[edge['prerequisite']]
+        target = nodes[edge['target']]
+        if declaration.get('operation') == 'read':
+            expected = (source.component, target.component)
+        elif declaration.get('operation') == 'write':
+            expected = (target.component, source.component)
+        else:
+            raise ValueError('invalid DMA route operation')
+        if (declaration.get('target_component'),
+                declaration.get('initiator_component')) != expected:
+            raise ValueError('DMA route endpoint components differ from typed edge direction')
+        routes_by_key[key] = (route, selected[1])
+
+    seen = set()
+    row_keys = []
+    for row in topology_rows:
+        if type(row) is not dict or set(row) != {
+                'route', 'route_sha256', 'endpoint', 'target'}:
+            raise ValueError('invalid compiled DMA route topology row')
+        route = row['route']
+        if type(route) is not dict:
+            raise ValueError('invalid compiled DMA route document')
+        key = route.get('rule_index'), route.get('prerequisite_index')
+        declaration_and_paths = routes_by_key.get(key)
+        if declaration_and_paths is None or key in seen:
+            raise ValueError('unknown or ambiguous compiled DMA route row')
+        declaration, _path_ids = declaration_and_paths
+        if (_canonical(row['route']) != _canonical(declaration)
+                or row['route_sha256'] != declaration['identity_sha256']):
+            raise ValueError('compiled DMA route differs from contract declaration')
+        endpoint = row['endpoint']
+        if (type(endpoint) is not dict or set(endpoint) != {
+                'component', 'endpoint_id', 'identity_sha256'}
+                or any(type(endpoint[name]) is not str or not endpoint[name]
+                       for name in ('component', 'endpoint_id', 'identity_sha256'))
+                or endpoint != {
+                    'component': declaration['initiator_component'],
+                    'endpoint_id': declaration['endpoint_id'],
+                    'identity_sha256': declaration['endpoint_identity_sha256']}):
+            raise ValueError('compiled DMA endpoint identity differs from route declaration')
+        target = row['target']
+        target_fields = {'kind', 'component', 'id', 'base', 'size', 'permissions',
+                         'identity_sha256', 'identity'}
+        if type(target) is not dict or set(target) != target_fields:
+            raise ValueError('invalid compiled DMA target topology row')
+        if (any(type(target[name]) is not str or not target[name]
+                for name in ('kind', 'component', 'id', 'identity_sha256'))
+                or type(target['base']) is not int or type(target['size']) is not int
+                or type(target['permissions']) is not list
+                or any(type(value) is not str for value in target['permissions'])):
+            raise ValueError('invalid compiled DMA target field types')
+        expected_target = {
+            'kind': declaration['target_kind'],
+            'component': declaration['target_component'],
+            'id': declaration['target_id'],
+            'base': declaration['base'],
+            'size': declaration['size'],
+            'permissions': declaration['permissions'],
+            'identity_sha256': declaration['target_identity_sha256'],
+        }
+        if any(target.get(name) != value for name, value in expected_target.items()):
+            raise ValueError('compiled DMA target identity/aperture differs from route declaration')
+        if (type(target['identity']) is not dict
+                or _digest(target['identity']) != target['identity_sha256']):
+            raise ValueError('compiled DMA target full identity digest mismatch')
+        if target['kind'] == 'persistent_memory':
+            if set(target['identity']) != {
+                    'schema_version', 'memory_configuration', 'resource'}:
+                raise ValueError('invalid DMA RAM target identity schema')
+            resources = [row for row in topology['resources']
+                         if row['component'] == target['component']]
+            memory_configuration = target['identity'].get('memory_configuration')
+            resource_identity = target['identity'].get('resource')
+            if (target['identity'].get('schema_version')
+                    != 'persistent_memory_route_target.v1'
+                    or type(memory_configuration) is not dict
+                    or set(memory_configuration) != {'regions', 'initialization_seed',
+                        'initialization_algorithm', 'max_initialized_bytes'}
+                    or type(memory_configuration['initialization_seed']) is not int
+                    or type(memory_configuration['initialization_algorithm']) is not str
+                    or type(memory_configuration['max_initialized_bytes']) is not int
+                    or len(resources) != 1
+                    or type(memory_configuration['regions']) is not list
+                    or _canonical(memory_configuration['regions'])
+                       != _canonical(resources[0]['regions'])):
+                raise ValueError('DMA RAM target is absent from compiled resource topology')
+            regions = [region for region in resources[0]['regions']
+                       if region['memory_id'] == target['id']]
+            if len(regions) != 1:
+                raise ValueError('DMA RAM target resource identity is ambiguous')
+            region = regions[0]
+            bases = (region['base'], *region['aliases'])
+            if target['base'] not in bases or target['size'] != region['size']:
+                raise ValueError('DMA RAM aperture is outside its selected region aliases')
+            if (type(resource_identity) is not dict
+                    or set(resource_identity) != {'memory_id', 'base', 'size',
+                        'canonical_base', 'is_alias', 'readable', 'writable', 'region'}
+                    or type(resource_identity.get('base')) is not int
+                    or type(resource_identity.get('size')) is not int
+                    or type(resource_identity.get('canonical_base')) is not int
+                    or type(resource_identity.get('is_alias')) is not bool
+                    or type(resource_identity.get('readable')) is not bool
+                    or type(resource_identity.get('writable')) is not bool
+                    or resource_identity.get('memory_id') != target['id']
+                    or resource_identity.get('base') != target['base']
+                    or resource_identity.get('size') != target['size']
+                    or resource_identity.get('canonical_base') != region['base']
+                    or resource_identity.get('is_alias') is not (target['base'] != region['base'])
+                    or _canonical(resource_identity.get('region')) != _canonical(region)):
+                raise ValueError('DMA RAM selected aperture/resource identity mismatch')
+            permissions = set(target['permissions'])
+            expected_permissions = tuple(sorted(
+                (['read'] if region['readable'] else [])
+                + (['write'] if region['writable'] else [])))
+            if (resource_identity.get('readable') is not region['readable']
+                    or resource_identity.get('writable') is not region['writable']
+                    or tuple(sorted(permissions)) != expected_permissions):
+                raise ValueError('DMA RAM permissions exceed its selected region')
+        elif target['kind'] == 'peripheral':
+            identity = target['identity']
+            if set(identity) != {'schema_version', 'component', 'base', 'size',
+                    'writable_offsets', 'accepted_write_values', 'readable_offsets',
+                    'byte_enable', 'endpoint_identity'}:
+                raise ValueError('invalid DMA peripheral target identity schema')
+            accepted_values = declaration['accepted_write_values']
+            expected_window = {
+                'component': target['component'], 'base': target['base'],
+                'size': target['size'],
+                'writable_offsets': declaration['writable_offsets'],
+                'accepted_write_values': accepted_values,
+                'readable_offsets': declaration['readable_offsets'],
+                'byte_enable': declaration['byte_enable'],
+            }
+            expected_permissions = tuple(sorted(
+                (['read'] if declaration['readable_offsets'] else [])
+                + (['write'] if declaration['writable_offsets'] else [])))
+            if (identity.get('schema_version') != 'dma_master_target_window.v2'
+                    or type(identity.get('base')) is not int
+                    or type(identity.get('size')) is not int
+                    or type(identity.get('byte_enable')) is not int
+                    or type(identity.get('writable_offsets')) is not list
+                    or type(identity.get('readable_offsets')) is not list
+                    or any(type(value) is not int for value in
+                           (*identity['writable_offsets'], *identity['readable_offsets']))
+                    or type(identity.get('endpoint_identity')) is not dict
+                    or _canonical({name: identity.get(name)
+                                   for name in expected_window})
+                       != _canonical(expected_window)
+                    or tuple(declaration['permissions']) != expected_permissions):
+                raise ValueError('DMA peripheral window identity differs from route declaration')
+            if (('read' in declaration['permissions']
+                    and not declaration['readable_offsets'])
+                    or ('write' in declaration['permissions']
+                        and not declaration['writable_offsets'])):
+                raise ValueError('DMA peripheral permissions lack matching window offsets')
+        elif target['kind'] != 'peripheral':
+            raise ValueError('unknown DMA route target kind')
+        seen.add(key)
+        row_keys.append(key)
+    if seen != set(routes_by_key):
+        raise ValueError('compiled DMA route snapshot omitted a declared route')
+    if row_keys != sorted(row_keys):
+        raise ValueError('compiled DMA route snapshots are not in canonical edge order')
+
+
+def _transaction_key(value, initiator_component):
+    """Parse a live key or its detached journal form without bool/int aliasing."""
+    if type(value) is TransactionKey:
+        key = value
+    elif type(value) is dict and set(value) == {
+            'execution_id', 'testcase_id', 'source_component', 'source_epoch',
+            'channel_id', 'source_sequence'}:
+        if (any(type(value[name]) is not str or not value[name]
+                or value[name].strip() != value[name]
+                for name in ('execution_id', 'testcase_id', 'source_component', 'channel_id'))
+                or type(value['source_epoch']) is not int or value['source_epoch'] < 0
+                or type(value['source_sequence']) is not int or value['source_sequence'] < 0):
+            return None
+        try:
+            key = TransactionKey(value['execution_id'], value['testcase_id'],
+                value['source_component'], value['source_epoch'], value['channel_id'],
+                value['source_sequence'])
+        except (TypeError, ValueError):
+            return None
+    else:
+        return None
+    if (any(type(getattr(key, name)) is not str or not getattr(key, name)
+            or getattr(key, name).strip() != getattr(key, name)
+            for name in ('execution_id', 'testcase_id', 'source_component', 'channel_id'))
+            or type(key.source_epoch) is not int or key.source_epoch < 0
+            or type(key.source_sequence) is not int or key.source_sequence < 0):
+        return None
+    return key if key.source_component == initiator_component else None
+
+
 class RuntimeEdgeIndex:
     def __setattr__(self,name,value):
-        if name=='_source_owners' and hasattr(self,name):
-            raise AttributeError('compiled source-owner authority is immutable')
+        if (name == '_source_owners' and hasattr(self, name)
+                or name == '_dma_routes_by_key'
+                and isinstance(getattr(self, name, None), MappingProxyType)):
+            raise AttributeError('compiled runtime route authority is immutable')
         object.__setattr__(self,name,value)
 
     def __delattr__(self,name):
-        if name=='_source_owners':
-            raise AttributeError('compiled source-owner authority is immutable')
+        if (name == '_source_owners'
+                or name == '_dma_routes_by_key'
+                and isinstance(getattr(self, name, None), MappingProxyType)):
+            raise AttributeError('compiled runtime route authority is immutable')
         object.__delattr__(self,name)
 
-    def __init__(self, compiled_document: dict, contract_document: dict):
+    def __init__(self, compiled_document: dict, contract_document: dict,
+                 *, prepared=None):
         try:
-            self._initialize(compiled_document, contract_document)
+            self._initialize(compiled_document, contract_document,
+                             prepared=prepared)
         except (KeyError, TypeError, AttributeError, IndexError) as exc:
             raise ValueError('invalid runtime edge index documents') from exc
 
-    def _initialize(self, compiled, contract_document):
+    def _initialize(self, compiled, contract_document, *, prepared=None):
         required = {'schema_version', 'graph_sha256', 'contract_sha256',
                     'topology_sha256', 'topology', 'paths', 'proof_scope',
                     'runtime_causality_verified', 'resource_versions_verified', 'declaration'}
         if (type(compiled) is not dict or set(compiled) != required
-                or compiled['schema_version'] != 'runtime_path_compilation.v1'
+                or compiled['schema_version'] not in (
+                    'runtime_path_compilation.v1', 'runtime_path_compilation.v2')
                 or compiled['proof_scope'] != 'selected_declared_topology_only'
                 or compiled['runtime_causality_verified'] is not False
                 or compiled['resource_versions_verified'] is not False
                 or type(compiled['paths']) is not list or not compiled['paths']):
             raise ValueError('runtime edge index requires session compilation with declaration')
         contract = RuntimePathContract.from_document(contract_document)
-        prepared = PreparedRuntimePathContract.from_document(compiled['declaration'])
+        if prepared is None:
+            prepared = PreparedRuntimePathContract.from_document(
+                compiled['declaration'])
+        elif (type(prepared) is not PreparedRuntimePathContract
+                or _canonical(prepared.document())
+                   != _canonical(compiled['declaration'])):
+            raise ValueError(
+                'existing prepared runtime paths differ from compilation declaration')
+        else:
+            prepared.validate_cached_identity()
+        version_pair = (compiled['schema_version'], contract_document.get('schema_version'),
+                        compiled['declaration'].get('schema_version'))
+        if version_pair not in (
+                ('runtime_path_compilation.v1', 'runtime_path_contract.v1',
+                 'prepared_runtime_paths.v1'),
+                ('runtime_path_compilation.v2', 'runtime_path_contract.v2',
+                 'prepared_runtime_paths.v2')):
+            raise ValueError('runtime edge index schema versions are not a matching pair')
+        has_dma_routes = bool(contract.document().get('dma_master_routes', ()))
+        if (has_dma_routes != (compiled['schema_version'] == 'runtime_path_compilation.v2')
+                or has_dma_routes != (compiled['declaration']['schema_version']
+                                      == 'prepared_runtime_paths.v2')):
+            raise ValueError('runtime edge index v2 schema requires declared DMA routes')
         if (compiled['graph_sha256'] != contract.graph_sha256
                 or compiled['contract_sha256'] != contract.identity_sha256
                 or prepared.contract.document() != contract.document()
@@ -194,11 +498,17 @@ class RuntimeEdgeIndex:
         nodes = {node.node_id: node for node in contract.nodes}
         declarations = {edge.key: edge for edge in contract.edges}
         topology = compiled['topology']
-        if (type(topology) is not dict or set(topology) != {
-                'components', 'bindings', 'ownership_inputs', 'routers', 'resources'}
+        topology_fields = {'components', 'bindings', 'ownership_inputs', 'routers', 'resources'}
+        if has_dma_routes:
+            topology_fields.add('dma_master_routes')
+        if (type(topology) is not dict or set(topology) != topology_fields
                 or any(type(topology[key]) is not list for key in topology)):
             raise ValueError('invalid compiled topology')
         _validate_topology(topology, nodes, selected_node_ids, selected_sources)
+        route_documents = contract.document().get('dma_master_routes', [])
+        if has_dma_routes:
+            _validate_dma_route_rows(route_documents, topology['dma_master_routes'],
+                                     edges, nodes, topology)
         owners_by_endpoint={(r['component'],r['port']):r['owners']
                             for r in topology['ownership_inputs']}
         source_owners={};source_owner_rows=[]
@@ -228,10 +538,16 @@ class RuntimeEdgeIndex:
                             if edge.relation == 'mmio_route'}
         expected_resources = {edge.resource_component for edge in selected_declarations
                               if edge.relation == 'persistent_state'}
+        expected_resources.update(route['target_component'] for route in route_documents
+                                   if route['target_kind'] == 'persistent_memory')
         if ({row['initiator'] for row in topology['routers']} != expected_routers
                 or {row['component'] for row in topology['resources']} != expected_resources):
             raise ValueError('compiled router/resource selection mismatch')
         self._direct, self._irq, self._mmio = {}, {}, {}
+        self._dma_routes_by_key = {}
+        route_documents_by_key = {
+            (row['rule_index'], row['prerequisite_index']): row
+            for row in route_documents}
         identity_edges = []
         for key, (edge, path_ids) in sorted(edges.items()):
             declaration = declarations.get(key)
@@ -297,16 +613,38 @@ class RuntimeEdgeIndex:
                         {region['memory_id'] for region in resources[0]['regions']}):
                     raise ValueError('compiled persistent resource mismatch')
                 continue
+            elif declaration.relation == 'dma_master_route':
+                route = route_documents_by_key.get(key)
+                if route is None or edge['kind'] != 'DMA_MASTER_TRANSFER':
+                    raise ValueError('selected DMA route lacks its typed route declaration')
+                candidate['scope'] = 'dma_master_transfer'
+                candidate['route_sha256'] = route['identity_sha256']
+                candidate['edge_key'] = [key[0], key[1]]
+                self._dma_routes_by_key[key] = {
+                    **route, 'route_sha256': route['identity_sha256'],
+                    'edge_key': [key[0], key[1]],
+                    'path_ids': list(dict.fromkeys(path_ids)),
+                }
             else:
                 # Resource versions and causal order need separate runtime evidence.
                 continue
             identity_edges.append({**candidate, 'prerequisite': edge['prerequisite'], 'target': edge['target']})
-        self._document_bytes = _canonical({'schema_version': 'runtime_edge_index.v1',
+        if has_dma_routes and set(self._dma_routes_by_key) != set(route_documents_by_key):
+            raise ValueError('runtime edge index selected DMA route set differs from contract')
+        route_rows = {key: _canonical(value)
+                      for key, value in self._dma_routes_by_key.items()}
+        self._dma_routes_by_key = MappingProxyType(route_rows)
+        document = {'schema_version': ('runtime_edge_index.v2' if has_dma_routes
+                                       else 'runtime_edge_index.v1'),
             'graph_sha256': contract.graph_sha256, 'contract_sha256': contract.identity_sha256,
             'topology_sha256': compiled['topology_sha256'], 'compilation_sha256': _digest(compiled),
             'path_ids': [row['path_id'] for row in compiled['paths']], 'edges': identity_edges,
             'source_owner_refs': source_owner_rows,
-            'runtime_causality_verified': False, 'resource_versions_verified': False})
+            'runtime_causality_verified': False, 'resource_versions_verified': False}
+        if has_dma_routes:
+            document['dma_master_routes'] = [json.loads(self._dma_routes_by_key[key])
+                for key in sorted(self._dma_routes_by_key)]
+        self._document_bytes = _canonical(document)
 
     @property
     def identity_sha256(self) -> str:
@@ -314,6 +652,127 @@ class RuntimeEdgeIndex:
 
     def document(self) -> dict:
         return json.loads(self._document_bytes)
+
+    def dma_master_route(self, route_sha256, rule_index, prerequisite_index):
+        """Return one detached route identity only for its exact stable key."""
+        if (type(route_sha256) is not str or len(route_sha256) != 64
+                or any(char not in '0123456789abcdef' for char in route_sha256)
+                or type(rule_index) is not int or rule_index < 0
+                or type(prerequisite_index) is not int or prerequisite_index < 0):
+            return None
+        row = self._dma_routes_by_key.get((rule_index, prerequisite_index))
+        if row is None:
+            return None
+        value = json.loads(row)
+        return value if value['route_sha256'] == route_sha256 else None
+
+    @staticmethod
+    def _route_identity(row, path_id):
+        values = row.get('accepted_write_values')
+        if type(values) is dict and values.get('kind') == 'tuple':
+            values_kind = 'tuple'
+            values_tuple = tuple(values['values'])
+        elif type(values) is dict and values.get('kind') == 'range':
+            values_kind = 'range'
+            values_tuple = (values['start'], values['stop'], values['step'])
+        elif values is None:
+            values_kind, values_tuple = None, ()
+        else:
+            return None
+        return DmaMasterRouteIdentity(
+            route_sha256=row['identity_sha256'],
+            edge_key=(row['rule_index'], row['prerequisite_index']),
+            source_node_id=row['source_node_id'], target_node_id=row['target_node_id'],
+            path_id=path_id, initiator_component=row['initiator_component'],
+            endpoint_id=row['endpoint_id'],
+            endpoint_identity_sha256=row['endpoint_identity_sha256'],
+            target_kind=row['target_kind'], target_component=row['target_component'],
+            target_id=row['target_id'], base=row['base'], size=row['size'],
+            operation=row['operation'], permissions=tuple(row['permissions']),
+            byte_enable=row['byte_enable'],
+            readable_offsets=tuple(row['readable_offsets']),
+            writable_offsets=tuple(row['writable_offsets']),
+            accepted_write_values_kind=values_kind,
+            accepted_write_values=values_tuple,
+            target_identity_sha256=row['target_identity_sha256'])
+
+    def dma_master_routes_for_path(self, path_id):
+        """Return immutable route declarations selected by one graph path."""
+        if type(path_id) is not str or not path_id or path_id.strip() != path_id:
+            return ()
+        matches = []
+        for key in sorted(self._dma_routes_by_key):
+            row = json.loads(self._dma_routes_by_key[key])
+            if path_id not in row['path_ids']:
+                continue
+            identity = self._route_identity(row, path_id)
+            if identity is None:
+                return ()
+            matches.append(identity)
+        return tuple(matches)
+
+    def match_dma_master_route(self, path_id, *, initiator_component, endpoint_id,
+            target_kind, target_component, target_id, base, size, operation,
+            address, byte_enable, transaction_key, value=None):
+        """Join a native DMA beat to one selected static route declaration.
+
+        This only verifies that the beat identity fits the compiled route. The
+        accepted request, target effect, and native response must still be
+        independently joined by the caller under ``transaction_key``.
+        """
+        if (any(type(item) is not str or not item or item.strip() != item for item in
+                (path_id, initiator_component, endpoint_id, target_kind,
+                 target_component, target_id, operation))
+                or any(type(item) is not int or item < 0 for item in
+                       (base, size, address, byte_enable))
+                or size < 1 or operation not in ('read', 'write')):
+            return None
+        key = _transaction_key(transaction_key, initiator_component)
+        if key is None:
+            return None
+        matches = []
+        for identity in self.dma_master_routes_for_path(path_id):
+            if (identity.initiator_component != initiator_component
+                    or identity.endpoint_id != endpoint_id
+                    or identity.target_kind != target_kind
+                    or identity.target_component != target_component
+                    or identity.target_id != target_id
+                    or identity.base != base or identity.size != size
+                    or identity.operation != operation
+                    or operation not in identity.permissions
+                    or identity.byte_enable != byte_enable
+                    or address < base or address + 4 > base + size
+                    or address % 4):
+                continue
+            offset = address - base
+            constraints = (identity.readable_offsets if operation == 'read'
+                           else identity.writable_offsets)
+            if constraints and offset not in constraints:
+                continue
+            if operation == 'write':
+                if type(value) is not int or not 0 <= value <= 0xffffffff:
+                    continue
+                if identity.accepted_write_values_kind == 'tuple':
+                    if (identity.accepted_write_values
+                            and value not in identity.accepted_write_values):
+                        continue
+                elif identity.accepted_write_values_kind == 'range':
+                    start, stop, step = identity.accepted_write_values
+                    if step == 0 or value not in range(start, stop, step):
+                        continue
+            matches.append(identity)
+        if len(matches) != 1:
+            return None
+        route = matches[0]
+        return DmaMasterRouteMatch(route_sha256=route.route_sha256,
+            edge_key=route.edge_key, source_node_id=route.source_node_id,
+            target_node_id=route.target_node_id, path_id=path_id,
+            initiator_component=route.initiator_component, endpoint_id=route.endpoint_id,
+            target_kind=route.target_kind, target_component=route.target_component,
+            target_id=route.target_id, base=route.base, size=route.size,
+            operation=route.operation, address=address, byte_enable=byte_enable,
+            transaction_key=key,
+            target_identity_sha256=route.target_identity_sha256)
 
     def source_owner_ref(self,source_id,path_id,direction,component,port,bit_lo,width):
         """Resolve selected physical source authority, never physical consumption.

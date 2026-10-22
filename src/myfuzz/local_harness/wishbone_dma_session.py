@@ -5,10 +5,75 @@ target effects use only accepted RTL master payloads.
 """
 from dataclasses import asdict, dataclass
 from copy import deepcopy
+import json
 
 from .session import GeneratedLocalSession
 from myfuzz.scenario.ledger import TransactionKey, TransactionLedger
 from myfuzz.scenario.memory_service import MemoryService
+
+
+def _accepted_word_range_bounds(values):
+    """Return accepted range endpoints without iterating the range."""
+    if not isinstance(values, range) or not values:
+        return None
+    if values.step > 0:
+        last = values.start + ((values.stop - 1 - values.start) // values.step) * values.step
+    else:
+        step = -values.step
+        last = values.start - ((values.start - 1 - values.stop) // step) * step
+    return values.start, last
+
+
+def _valid_accepted_write_values(values):
+    if isinstance(values, tuple):
+        return all(type(value) is int and 0 <= value <= 0xffffffff
+                   for value in values)
+    if isinstance(values, range):
+        bounds = _accepted_word_range_bounds(values)
+        return (bounds is None or
+                (0 <= min(bounds) and max(bounds) <= 0xffffffff))
+    return False
+
+
+def dma_route_endpoint_identity_document(endpoint):
+    """Return stable route identity without asking a build/cache scanner."""
+    def pin_provider(document):
+        provider_identity = getattr(endpoint,
+            'dma_master_target_provider_identity_document', None)
+        if callable(provider_identity):
+            document['dma_master_target_provider'] = deepcopy(provider_identity())
+        return document
+
+    method = getattr(endpoint, 'dma_route_endpoint_identity_document', None)
+    if callable(method):
+        return pin_provider(deepcopy(method()))
+    artifact_document = getattr(endpoint, '_artifact_document', None)
+    if type(artifact_document) is dict:
+        artifact = getattr(endpoint, 'artifact', None)
+        current = getattr(artifact, 'runtime_document', artifact_document)
+        if current != artifact_document:
+            raise ValueError('route endpoint artifact changed after session creation')
+        return pin_provider(dict(schema_version='generated_local_route_endpoint.v1',
+            runtime_artifact=deepcopy(artifact_document)))
+    identity = getattr(endpoint, 'identity_document', None)
+    if not callable(identity):
+        raise ValueError('route endpoint has no stable identity document')
+    return pin_provider(deepcopy(identity()))
+
+
+def _canonical_dma_route_admission_identity(admission):
+    """Serialize a detached admission identity for the session's pin."""
+    identity = getattr(admission, 'identity_document', None)
+    if not callable(identity):
+        raise ValueError('DMA route admission must expose identity_document')
+    document = identity()
+    if type(document) is not dict or type(document.get('schema_version')) is not str:
+        raise ValueError('DMA route admission identity document is invalid')
+    try:
+        return json.dumps(document, sort_keys=True, separators=(',', ':'),
+            ensure_ascii=False, allow_nan=False).encode('utf-8')
+    except (TypeError, ValueError, UnicodeEncodeError) as error:
+        raise ValueError('DMA route admission identity document is not canonical JSON') from error
 
 
 @dataclass(frozen=True)
@@ -47,8 +112,7 @@ class MasterTargetWindow:
                          'read_register', None))))
                 or not isinstance(self.accepted_write_values, (tuple, range))
                 or bool(self.accepted_write_values) != bool(self.writable_offsets)
-                or any(type(value) is not int or not 0 <= value <= 0xffffffff
-                       for value in self.accepted_write_values)
+                or not _valid_accepted_write_values(self.accepted_write_values)
                 or type(self.byte_enable) is not int or self.byte_enable != 15
                 or not callable(getattr(self.endpoint, 'write_register', None))):
             raise ValueError('invalid DMA master target window')
@@ -71,6 +135,21 @@ class MasterTargetWindow:
             readable_offsets=list(self.readable_offsets),
             byte_enable=self.byte_enable,
             endpoint_identity=self.endpoint.identity_document())
+
+    def route_identity_document(self):
+        """Injective v2 identity, kept separate from the historical v1 form."""
+        values = self.accepted_write_values
+        accepted = ({'kind': 'range', 'start': values.start,
+                     'stop': values.stop, 'step': values.step}
+                    if isinstance(values, range) else
+                    {'kind': 'tuple', 'values': list(values)})
+        return dict(schema_version='dma_master_target_window.v2',
+            component=self.component, base=self.base, size=self.size,
+            writable_offsets=list(self.writable_offsets),
+            accepted_write_values=accepted,
+            readable_offsets=list(self.readable_offsets),
+            byte_enable=self.byte_enable,
+            endpoint_identity=dma_route_endpoint_identity_document(self.endpoint))
 
 
 class GeneratedWishboneDmaSession(GeneratedLocalSession):
@@ -113,29 +192,107 @@ class GeneratedWishboneDmaSession(GeneratedLocalSession):
         self._pending = None
         self._source_sequence = 0
         self._quiescing = False
+        self._dma_route_validator = None
+        self._dma_route_admission = None
+        self._dma_route_admission_identity = None
+
+    def configure_dma_route_validator(self, callback):
+        """Pin the compiled topology validator before this session starts."""
+        if not callable(callback):
+            raise ValueError('DMA route validator must be callable')
+        if self._dma_route_validator is not None:
+            raise ValueError('DMA route validator is already configured')
+        if (self._execution or self._process is not None or self._case_id is not None
+                or self.local_ticks != 0 or self.events):
+            raise ValueError('DMA route validator must be configured before startup')
+        self._dma_route_validator = callback
+
+    def configure_dma_route_admission(self, admission):
+        """Install a typed route-beat policy before the DMA process starts."""
+        if (not callable(getattr(admission, 'accepted', None))
+                or not callable(getattr(admission, 'completed', None))):
+            raise ValueError('DMA route admission must implement accepted/completed')
+        if self._dma_route_admission is not None:
+            raise ValueError('DMA route admission is already configured')
+        if (self._execution or self._process is not None or self._case_id is not None
+                or self.local_ticks != 0 or self.events):
+            raise ValueError('DMA route admission must be configured before startup')
+        identity_snapshot = _canonical_dma_route_admission_identity(admission)
+        self._dma_route_admission = admission
+        self._dma_route_admission_identity = identity_snapshot
+        topology_validator = self._dma_route_validator
+
+        def validate_pinned_route_admission():
+            if self._dma_route_admission is not admission:
+                raise ValueError('compiled DMA route admission changed')
+            if (_canonical_dma_route_admission_identity(admission)
+                    != self._dma_route_admission_identity):
+                raise ValueError('compiled DMA route admission identity changed')
+            if topology_validator is not None:
+                topology_validator()
+
+        self._dma_route_validator = validate_pinned_route_admission
+
+    def dma_route_endpoint_identity_document(self):
+        """Stable DMA master profile identity without build/cache inspection."""
+        self._check_artifact_stable()
+        return dict(schema_version='wishbone_dma_route_endpoint.v1',
+            runtime_artifact=deepcopy(self._artifact_document),
+            command_timeout_seconds=self.command_timeout_seconds,
+            source_component=self.source_component,
+            max_control_edges=self.max_control_edges,
+            max_events=self.max_events, address_shift=2,
+            byte_enable=15, max_outstanding=1)
+
+    def _validate_dma_route_topology(self):
+        if self._dma_route_validator is not None:
+            self._dma_route_validator()
 
     @property
     def pending_responses(self):
         return int(self._pending is not None)
 
     def begin_case(self, testcase_id):
+        self._validate_dma_route_topology()
         super().begin_case(testcase_id)
         self._pending = None
         self._source_sequence = 0
         self._quiescing = False
         self.events = []
+        if self._dma_route_admission is not None:
+            begin_case = getattr(self._dma_route_admission, 'begin_case', None)
+            if callable(begin_case):
+                begin_case(self._execution, self._case_id)
 
     def begin_quiesce(self):
         self._quiescing = True
 
     def _deliver_target(self, key, target, address, write, value):
         before_tick = target.endpoint.local_ticks
-        before_events = len(target.endpoint.uart_events)
+        before_events = GeneratedWishboneDmaSession._target_event_count(target.endpoint)
         rdata = 0
         observation = None
         route_mode = None
+        provider_receipt = None
         if write:
-            target.endpoint.write_register(address-target.base, value, be=15)
+            provider = getattr(target.endpoint, 'dma_master_target_access', None)
+            if callable(provider):
+                delivery_context = dict(source_transaction=asdict(key),
+                    device_id=target.component, address=address,
+                    offset=address-target.base, write=True, value=value, be=15,
+                    window_base=target.base, window_size=target.size)
+                provider_receipt = provider(key, address=address,
+                    offset=address-target.base, write=True, value=value,
+                    byte_enable=15, delivery_context=deepcopy(delivery_context))
+                self._validate_dma_master_target_provider_receipt(key,
+                    provider_receipt, address=address,
+                    offset=address-target.base, write=True, value=value,
+                    byte_enable=15)
+                rdata = provider_receipt['response']['rdata']
+                observation = provider_receipt['target_access']
+                route_mode = 'dma_master_target_access.v1'
+            else:
+                target.endpoint.write_register(address-target.base, value, be=15)
         else:
             master_access = (getattr(target.endpoint, 'master_target_access', None)
                 if getattr(target.endpoint, 'source_provenance_enabled', False)
@@ -185,14 +342,82 @@ class GeneratedWishboneDmaSession(GeneratedLocalSession):
             target_tick_before=before_tick,
             target_tick_after=target.endpoint.local_ticks,
             target_event_range=[before_events,
-                len(target.endpoint.uart_events)])
-        if not write:
+                GeneratedWishboneDmaSession._target_event_count(target.endpoint)])
+        if provider_receipt is not None:
+            target_receipt.update(target_access_id=provider_receipt['target_access_id'],
+                target_provider_receipt=deepcopy(provider_receipt),
+                target_route_context_mode=route_mode)
+        elif not write:
             target_receipt['target_access_id'] = observation['access_id']
             target_receipt['target_uart_access'] = observation
             target_receipt['target_route_context_mode'] = route_mode
         return rdata, target_receipt
 
+    @staticmethod
+    def _target_event_count(endpoint):
+        for name in ('uart_events', 'gpio_events'):
+            events = getattr(endpoint, name, None)
+            if isinstance(events, (tuple, list)):
+                return len(events)
+        return 0
+
+    @staticmethod
+    def _validate_dma_master_target_provider_receipt(key, receipt, *,
+            address, offset, write, value, byte_enable):
+        required = {'schema_version', 'status', 'source_transaction',
+            'request', 'response', 'target_access_id', 'target_access',
+            'target_request', 'target_response', 'target_effect'}
+        if (type(receipt) is not dict or set(receipt) != required
+                or receipt.get('schema_version') != 'dma_master_target_access.v1'
+                or receipt.get('status') != 'observed'):
+            raise RuntimeError('DMA target provider receipt schema/status mismatch')
+        key_document = asdict(key)
+
+        def exact_identity(left, right):
+            return (type(left) is dict and set(left) == set(right)
+                and all(type(left[name]) is type(expected)
+                        and left[name] == expected
+                        for name, expected in right.items()))
+
+        if not exact_identity(receipt.get('source_transaction'), key_document):
+            raise RuntimeError('DMA target provider transaction key mismatch')
+        expected_request = dict(address=address, offset=offset, write=write,
+            value=value if write else 0, byte_enable=byte_enable)
+        if not exact_identity(receipt.get('request'), expected_request):
+            raise RuntimeError('DMA target provider request mismatch')
+        response = receipt.get('response')
+        if (type(response) is not dict or set(response) != {'rdata', 'error'}
+                or type(response.get('rdata')) is not int
+                or not 0 <= response['rdata'] <= 0xffffffff
+                or type(response.get('error')) is not int
+                or response['error'] != 0):
+            raise RuntimeError('DMA target provider target response is invalid')
+        access_id = receipt.get('target_access_id')
+        if type(access_id) is not str or not access_id:
+            raise RuntimeError('DMA target provider target evidence lacks access identity')
+        for name in ('target_access', 'target_request', 'target_response'):
+            witness = receipt.get(name)
+            if (type(witness) is not dict or witness.get('status') != 'observed'
+                    or not exact_identity(witness.get('source_transaction'), key_document)):
+                raise RuntimeError('DMA target provider target evidence is incomplete')
+            if (type(witness.get('access_id')) is not str
+                    or witness['access_id'] != access_id):
+                raise RuntimeError(
+                    'DMA target provider target evidence access identity mismatch')
+        if receipt['target_access'].get('access_id') != access_id:
+            raise RuntimeError('DMA target provider target evidence access identity mismatch')
+        effect = receipt.get('target_effect')
+        if (type(effect) is not dict or effect.get('status') != 'observed'
+                or not exact_identity(effect.get('source_transaction'), key_document)
+                or not exact_identity(effect.get('request'), expected_request)):
+            raise RuntimeError('DMA target provider target effect is incomplete')
+        if (type(effect.get('access_id')) is not str
+                or effect['access_id'] != access_id):
+            raise RuntimeError(
+                'DMA target provider target evidence access identity mismatch')
+
     def step_local(self, *, cyc=0, stb=0, we=0, adr=0, data=0):
+        self._validate_dma_route_topology()
         if len(self.events) >= self.max_events:
             raise RuntimeError('DMA edge event capacity exhausted')
         pending = self._pending
@@ -224,6 +449,11 @@ class GeneratedWishboneDmaSession(GeneratedLocalSession):
             # propagate; they must never be disguised as a peripheral bus error.
             target = next((window for window in self.master_targets
                            if window.contains(address)), None)
+            admission = self._dma_route_admission
+            if admission is not None:
+                admission.accepted(key, address=address,
+                    write=bool(pre['mwb_we']), value=pre['mwb_dat_w'],
+                    byte_enable=15, target=target)
             invalid = False
             if target is None:
                 try:
@@ -256,6 +486,9 @@ class GeneratedWishboneDmaSession(GeneratedLocalSession):
                     key, rejected_payload, lambda: dict(source_transaction=asdict(key),
                         error=1, target_effect=False, **rejected_payload))
             else:
+                # Revalidate immediately before the configured target/service
+                # can observe this accepted native DMA request.
+                self._validate_dma_route_topology()
                 if target is not None:
                     write = bool(pre['mwb_we'])
                     target_payload = dict(op='master_target_write' if write
@@ -272,6 +505,8 @@ class GeneratedWishboneDmaSession(GeneratedLocalSession):
                     self.memory_service.write(key,address,pre['mwb_dat_w'],width_bytes=4,byte_enable=15)
                 else:
                     rdata = self.memory_service.read(key,address,width_bytes=4).value
+                if admission is not None:
+                    admission.completed(key, rdata=rdata, error=0)
             # This pinned RTL registers its last-write ACK predictor. Give the
             # observed end of a write burst one extra settling edge. Uniform
             # latency environments are not verified by this session contract.

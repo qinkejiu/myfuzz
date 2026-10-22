@@ -1,29 +1,124 @@
 """Runner drains archived real CPU taps; this is not a new RTL execution."""
 import copy
 import gzip
+import hashlib
 import json
 from dataclasses import replace
 from pathlib import Path
 import pytest
 from myfuzz.scenario.runner import ScenarioRunner
 from myfuzz.scenario.ownership import compile_ownership
+from myfuzz.local_harness.native_physical_observation import verify_cpu_obi_protocol_traces
 
 ROOT=Path(__file__).resolve().parents[2]
 SAVED=ROOT/'docs/reports/evidence/ibex-raw-obi-20261017/first.json.gz'
+SNAPSHOT=ROOT/'docs/reports/evidence/ibex-raw-obi-20261017/historical-provenance-bytes'
+SAVED_SHA256='dfe6ef46f0d378a2b76010abb7dc6cbcb816d81a889bd453939fe9f037c36f1d'
+PROVENANCE_PATHS={
+    ('source_verification','lock_sha256'):'configs/soc/sources.lock.json',
+    ('driver_header_sources',0,'sha256'):'src/myfuzz/local_harness/rtl/local_driver_v1.h',
+    ('selected_template','executor','binding','implementation_sources',0,'sha256'):'src/myfuzz/local_harness/runtime_renderer.py',
+    ('selected_template','executor','binding','implementation_sources',1,'sha256'):'src/myfuzz/local_harness/template_contracts.py',
+}
+DERIVED_PATHS={('selected_template','executor','identity_sha256'),('artifact_digest',)}
+
+
+def _sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def _digest(document, *, ascii_only):
+    return _sha(json.dumps(document,sort_keys=True,separators=(',', ':'),
+        ensure_ascii=ascii_only).encode())
+
+
+def _at(document,path):
+    for part in path:document=document[part]
+    return document
+
+
+def _changed_leaves(left,right,prefix=()):
+    assert type(left) is type(right),prefix
+    if isinstance(left,dict):
+        assert left.keys()==right.keys(),prefix
+        return {path for key in left for path in _changed_leaves(left[key],right[key],prefix+(key,))}
+    if isinstance(left,list):
+        assert len(left)==len(right),prefix
+        return {path for i in range(len(left)) for path in _changed_leaves(left[i],right[i],prefix+(i,))}
+    return {prefix} if left!=right else set()
+
+
+def _verify_document_digests(document):
+    executor=document['selected_template']['executor']
+    assert executor['identity_sha256']==_digest({k:v for k,v in executor.items()
+        if k!='identity_sha256'},ascii_only=True)
+    assert document['artifact_digest']==_digest({k:v for k,v in document.items()
+        if k!='artifact_digest'},ascii_only=False)
+
+
+def _load_saved():
+    raw=SAVED.read_bytes()
+    assert _sha(raw)==SAVED_SHA256,'archived raw fixture hash mismatch'
+    return json.loads(gzip.decompress(raw))
+
+
+def _verify_fixture_documents(current,historical):
+    manifest=json.loads((SNAPSHOT/'manifest.json').read_text())
+    assert manifest['schema_version']=='historical_obi_provenance_bytes.v1'
+    files={row['path']:row for row in manifest['files']}
+    assert set(files)==set(PROVENANCE_PATHS.values())
+    for field,path in PROVENANCE_PATHS.items():
+        row=files[path]
+        compressed=(SNAPSHOT/row['file']).read_bytes()
+        assert _sha(compressed)==row['compressed_sha256'],path
+        historical_sha=_sha(gzip.decompress(compressed))
+        assert historical_sha==row['sha256']==_at(historical,field),path
+        assert _sha((ROOT/path).read_bytes())==_at(current,field),path
+    for document in (current,historical):_verify_document_digests(document)
+    assert _changed_leaves(current,historical) <= set(PROVENANCE_PATHS)|DERIVED_PATHS
 
 
 @pytest.fixture(scope='module')
-def artifact():
+def current_artifact():
     from tests.local_harness.test_obi_cpu_protocol_taps import artifact
-    result=artifact()
-    saved=json.loads(gzip.decompress(SAVED.read_bytes()))
+    return artifact()
+
+
+@pytest.fixture(scope='module')
+def artifact(current_artifact):
+    result=current_artifact
+    saved=_load_saved()
     historical=saved['identity']['runtime_artifact']
-    # The repository lock may advance independently. Keep the archived source
-    # identity while proving all executable bytes and observation mappings match.
-    ignored={'source_verification','artifact_digest'}
-    assert {k:v for k,v in result.runtime_document.items() if k not in ignored}=={
-        k:v for k,v in historical.items() if k not in ignored}
-    return replace(result,runtime_document=historical,source_verification=historical['source_verification'])
+    # Current physical/SV/CPP mappings equal the archive. Host source bytes differ;
+    # these snapshots do not establish current native execution equivalence.
+    _verify_fixture_documents(result.runtime_document,historical)
+    assert _sha(result.runtime_sv.encode()) == historical['runtime_sv_sha256']
+    assert _sha(result.cpp_text.encode()) == historical['cpp_sha256']
+    replay_artifact=replace(result,runtime_document=historical,
+        source_verification=historical['source_verification'])
+    assert verify_cpu_obi_protocol_traces(replay_artifact)
+    return replay_artifact
+
+
+@pytest.mark.parametrize('side',('historical','current'))
+def test_archived_fixture_rejects_wrong_provenance_even_with_valid_derived_digests(current_artifact,artifact,side):
+    current=copy.deepcopy(current_artifact.runtime_document)
+    historical=copy.deepcopy(artifact.runtime_document)
+    changed=historical if side=='historical' else current
+    changed['selected_template']['executor']['binding']['implementation_sources'][0]['sha256']='0'*64
+    executor=changed['selected_template']['executor']
+    executor['identity_sha256']=_digest({k:v for k,v in executor.items() if k!='identity_sha256'},ascii_only=True)
+    changed['artifact_digest']=_digest({k:v for k,v in changed.items() if k!='artifact_digest'},ascii_only=False)
+    with pytest.raises(AssertionError,match='runtime_renderer.py'):
+        _verify_fixture_documents(current,historical)
+
+
+def test_archived_fixture_rejects_changed_physical_trace_mapping(current_artifact,artifact):
+    historical=copy.deepcopy(artifact.runtime_document)
+    historical['base_protocol_traces']['traces'][0]['signals']['req']='forged_req'
+    historical['artifact_digest']=_digest({k:v for k,v in historical.items() if k!='artifact_digest'},ascii_only=False)
+    with pytest.raises(AssertionError,match='base_protocol_traces'):
+        _verify_fixture_documents(current_artifact.runtime_document,historical)
 
 
 class SavedSampleSession:
@@ -50,7 +145,7 @@ class SavedSampleSession:
 
 
 def replay(artifact,*,tamper=False):
-    saved=json.loads(gzip.decompress(SAVED.read_bytes()))
+    saved=_load_saved()
     session=SavedSampleSession(artifact,saved['samples'])
     runner=ScenarioRunner(sessions={'renamed-session':session},
         ownership=compile_ownership((),()),bindings=())

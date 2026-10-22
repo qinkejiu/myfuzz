@@ -104,3 +104,30 @@ def test_selected_canonical_reprojection_refuses_rehashed_mutations(generated, m
 @pytest.mark.parametrize('override', [dict(endpoint_id='foreign.bus'), dict(contract_id='unknown'), dict(register='TIMER1_CTRL')])
 def test_unknown_selection_refused_before_generation(generated, override):
     with pytest.raises(ValueError): selected(generated, override)
+
+
+def test_spi_probe_uses_exact_source_hierarchy_and_digest():
+    import hashlib, json
+    from types import SimpleNamespace
+    from myfuzz.composition.component_profile import load_component_profile
+    from myfuzz.local_harness.apb_storage_probe_contract import generate_storage_probe
+    from myfuzz.local_harness.apb_storage_source_contract import select_apb_storage_source_contract
+    selector = dict(endpoint_id='spi.bus', contract_id='pulp-apb-spi.spicmd.source.v1', register='SPICMD')
+    profile = load_component_profile(ROOT/'configs/peripherals/pulp_spi/component_profile.json')
+    plan = SimpleNamespace(profile=profile,
+        request=SimpleNamespace(tuning=load_local_harness_tuning({'apb_storage_observations':[selector]})),
+        binding=SimpleNamespace(endpoints=profile.endpoints))
+    wires = {role:'apb_'+role for role in ('paddr','psel','penable','pwrite','pwdata','prdata','pready','pslverr')}
+    probe = generate_storage_probe(plan,wires,base_dir=ROOT)
+    assert probe['selection']==selector
+    assert probe['source_contract']==select_apb_storage_source_contract(profile,base_dir=ROOT,
+        selection={k:selector[k] for k in ('contract_id','register')})
+    assert probe['ports'][0]==dict(name='storage_value',direction='output',width=32,
+        role='value',expression='u_component.u_dut.u_axiregs.spi_cmd')
+    assert len(probe['ports'])==10
+    assert all(probe[k] is False for k in ('hierarchy_verified','native_verified','reset_authority','version_authority','source_authority'))
+    payload={k:v for k,v in probe.items() if k!='digest'}
+    digest=lambda d:hashlib.sha256(json.dumps(d,sort_keys=True,separators=(',',':'),allow_nan=False).encode()).hexdigest()
+    assert probe['digest']==digest(payload)
+    payload['source_contract']['decode']['mask']=0x1c
+    assert probe['digest']!=digest(payload)

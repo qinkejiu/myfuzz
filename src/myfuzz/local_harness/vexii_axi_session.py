@@ -13,6 +13,8 @@ from .session import GeneratedLocalSession
 from .vexii_axi_fields import SHAPES, STEP_PORTS
 from myfuzz.scenario.router import DataflowRouter
 from myfuzz.scenario.reduced_axi_events import ReducedAxiObserver
+from myfuzz.scenario.reduced_axi_stream_source import (ReducedAxiStreamExport,
+    observation_export_for, register_observation_export)
 
 
 class GeneratedReducedAxiCpuSession(GeneratedLocalSession):
@@ -40,6 +42,11 @@ class GeneratedReducedAxiCpuSession(GeneratedLocalSession):
         self.read_beats = self.write_beats = self.write_responses = 0
         self._clear()
 
+    @property
+    def router(self):
+        """Expose the existing queued-MMIO router to the standard scheduler."""
+        return self.mmio_router
+
     def queue_mmio(self, key, prefix, address, write, value, be, callback):
         router = getattr(self, 'mmio_router', None)
         if router is None or not router.owns(address):
@@ -54,10 +61,71 @@ class GeneratedReducedAxiCpuSession(GeneratedLocalSession):
         router = getattr(self, 'mmio_router', None)
         return () if router is None else router.cancel_for_ledger(self.service.ledger)
 
+    @property
+    def observation_stream_source(self):
+        export = observation_export_for(self)
+        return None if export is None else export.source
+
+    @property
+    def observation_stream_failure_evidence(self):
+        export = observation_export_for(self, diagnostic=True)
+        return None if export is None else copy.deepcopy(export.failure_evidence)
+
+    def admit_observation_stream(self, *, session_id, observer_stream_id, **limits):
+        """Opt in before first native begin/command; admission is irreversible."""
+        if (self.observation_stream_source is not None
+                or getattr(self, '_observation_started', False)
+                or self._axi_observer._record_count or self._axi_observer.scope is not None
+                or self._process is not None or self._execution):
+            raise ValueError('late or repeated observation stream admission')
+        self._observation_export = ReducedAxiStreamExport(self._axi_observer,
+            session_id=session_id, observer_stream_id=observer_stream_id,
+            artifact_digest=self._artifact_document['artifact_digest'],
+            source_component=self.source_component, **limits)
+        register_observation_export(self, self._observation_export)
+        return self._observation_export.source
+
+    def seal_observation_stream(self):
+        if self.observation_stream_source is None:
+            raise ValueError('observation stream not admitted')
+        return self._observation_export.seal()
+
+    def command(self, operation, fields):
+        self._observation_started = True
+        export = observation_export_for(self)
+        if export is None:
+            return super().command(operation, fields)
+        export.require_transport()
+        self._axi_observer.require_active()
+        sequence = self._sequence + 1
+        wire_command = (f'CMD {self._execution} {sequence:x} {operation}'
+            + ('' if not fields else ' ' + ' '.join(f'{v:x}' for v in fields)) + '\n')
+        try:
+            receipt = super().command(operation, fields)
+        except Exception as error:
+            def fail():
+                raise error
+            export.operation('receipt', dict(operation=operation,
+                command_fields=list(fields), wire_command=wire_command,
+                wire_reply=self._last_wire_reply, receipt=None), fail)
+            raise
+        try:
+            export.receipt(receipt, operation=operation, fields=fields,
+                wire_command=wire_command, wire_reply=self._last_wire_reply,
+                cumulative_after=self.local_ticks, tick_base=self._tick_base,
+                artifact_kind=self.artifact_kind)
+        except (ValueError, RuntimeError) as error:
+            raise ProtocolEnvironmentError(str(error)) from error
+        return receipt
+
     def _clear(self):
         if not hasattr(self, '_axi_observer'):
             self._axi_observer = ReducedAxiObserver(component_id=self.source_component)
             self.runtime_events = self._axi_observer.events
+        if (self.observation_stream_source is not None and
+                (any(any(v.values()) for v in self._axi_observer.pending.values())
+                 or getattr(self, 'pending_responses', 0))):
+            raise RuntimeError('cannot clear pending reduced AXI operations')
         self._state = {p: {'read': None, 'aw': None, 'w': None, 'b': None}
                        for p in SHAPES}
         self._sequences = {'i': 0, 'd': 0}
@@ -69,14 +137,41 @@ class GeneratedReducedAxiCpuSession(GeneratedLocalSession):
                 'cpu_service_schema_version': 'generated_reduced_dual_axi_queued_mmio.v2',
                 'source_component': self.source_component,
                 'axi_observation_contract': copy.deepcopy(self._axi_observer.contract),
+                'observation_stream_export': {'capability':'reduced_axi_receipt_lifecycle.v1',
+                    'state':'disabled' if self.observation_stream_source is None else self.observation_stream_source.state,
+                    'limits':None if self.observation_stream_source is None else copy.deepcopy(self._observation_export.limits),
+                    'terminal_failure_max_bytes':None if self.observation_stream_source is None else self._observation_export.max_terminal_bytes,
+                    'binding':None if self.observation_stream_source is None else self.observation_stream_source.identity_document()},
                 'transaction_execution_identity': 'native_session',
                 'mmio_delivery': 'externally_scheduled' if getattr(self, 'mmio_router', None) else 'disabled'}
 
     def begin_case(self, testcase_id):
-        super().begin_case(testcase_id)
-        self._clear()
-        self._axi_observer.begin_scope(execution_id=self._execution,
-            testcase_id=self._case_id, reset_epoch=self.reset_epoch)
+        self._observation_started = True
+        export = observation_export_for(self)
+        if export is not None:
+            export.require_transport()
+            if self._axi_observer.scope is not None:
+                raise ValueError('prior observation scope still open')
+        parent_begin = super().begin_case
+        def prepare():
+            parent_begin(testcase_id)
+            self._clear()
+            return dict(execution_id=self._execution,
+                testcase_id=self._case_id, reset_epoch=self.reset_epoch)
+        if export is None:
+            self._axi_observer.begin_scope(**prepare())
+        else:
+            export.begin(None, prepare=prepare, requested_testcase_id=testcase_id)
+
+    def end_case(self):
+        try:
+            export = observation_export_for(self)
+            if export is not None and export.source.state == 'active':
+                export.end(self._state)
+                self._state = {p: {'read': None, 'aw': None, 'w': None, 'b': None} for p in SHAPES}
+        finally:
+            # Integrity failure must still release the real child process.
+            super().end_case()
 
     @property
     def pending_responses(self):
@@ -87,12 +182,19 @@ class GeneratedReducedAxiCpuSession(GeneratedLocalSession):
         self._quiescing = True
 
     def reset_local(self):
-        self._axi_observer.end_scope()
+        export = observation_export_for(self)
+        if export is not None:
+            export.require_transport()
+        else:
+            self._axi_observer.end_scope()
         cancelled = self.pending_responses
         cancelled_targets = self.cancel_mmio()
-        self._clear()
-        super().reset_local()
-        return {'cancelled_responses': cancelled, 'cancelled_target_requests': cancelled_targets}
+        if export is None:
+            self._clear()
+        # Base reset invokes our end_case and begin_case exactly once.
+        result = super().reset_local()
+        return {**result, 'cancelled_responses': cancelled,
+                'cancelled_target_requests': cancelled_targets}
 
     def _key(self, prefix):
         if not self._case_id:
@@ -134,8 +236,22 @@ class GeneratedReducedAxiCpuSession(GeneratedLocalSession):
         return ()
 
     def step_local(self, inputs: Mapping[str, int]):
+        export = observation_export_for(self)
+        before = getattr(self, '_sequence', 0)
+        try:
+            return self._step_local_impl(inputs)
+        except Exception:
+            if export is not None and (self._sequence != before or self._axi_observer._failed):
+                export.session_failed = True
+                if export.outcome is None:
+                    export.outcome = 'observed_session_failure'
+            raise
+
+    def _step_local_impl(self, inputs: Mapping[str, int]):
         leading = self._step_inputs(inputs)
-        if self._axi_observer.scope is None:
+        if self.observation_stream_source is not None:
+            self._observation_export.require_active()
+        if self._axi_observer.scope is None and self.observation_stream_source is None:
             self._axi_observer.begin_scope(execution_id=self._execution,
                 testcase_id=self._case_id, reset_epoch=self.reset_epoch)
         try:
@@ -163,7 +279,8 @@ class GeneratedReducedAxiCpuSession(GeneratedLocalSession):
             raise ProtocolEnvironmentError('invalid reduced AXI physical observation')
         self.last_samples = tuple(copy.deepcopy(payload['samples']))
         try:
-            self._axi_observer.observe(self.last_samples[0])
+            if self.observation_stream_source is None:
+                self._axi_observer.observe(self.last_samples[0])
         except ValueError as exc:
             raise ProtocolEnvironmentError(str(exc)) from exc
         observed = {}

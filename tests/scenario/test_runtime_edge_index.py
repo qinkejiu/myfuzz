@@ -10,8 +10,10 @@ from myfuzz.scenario.dependency import DependencyGraph, DependencyRule, Fuzzable
 from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
 from myfuzz.scenario.router import DataflowRouter, DeviceWindow
 from myfuzz.scenario.runner import Binding
+from myfuzz.local_harness.wishbone_dma_session import MasterTargetWindow
 from myfuzz.scenario.runtime_path_contract import (
-    PreparedRuntimePathContract, RuntimeNode, RuntimeEdgeContract, RuntimePathContract)
+    DmaMasterRouteContract, PreparedRuntimePathContract, RuntimeNode,
+    RuntimeEdgeContract, RuntimePathContract)
 
 
 def digest(value):
@@ -57,6 +59,133 @@ def fixture(relation='direct_binding', width=4, kind='DATA_BINDING'):
 def index(*args, **kwargs):
     from myfuzz.scenario.runtime_edge_index import RuntimeEdgeIndex
     return RuntimeEdgeIndex(*args, **kwargs)
+
+
+class _RouteEndpoint:
+    def identity_document(self):
+        return {'component': 'uart', 'profile': 'edge-index-test-uart'}
+
+    def read_register(self, offset):
+        return 0
+
+    def write_register(self, offset, value, be=15):
+        return None
+
+
+class _DmaEndpoint:
+    def dma_route_endpoint_identity_document(self):
+        return {'schema_version': 'test-dma-route-endpoint.v1',
+                'component': 'dma', 'endpoint': 'wishbone-master', 'profile': 'test'}
+
+
+def dma_route_fixture():
+    """Build a route-bearing compile through the real contract compiler.
+
+    Kept module-level so saved-plan and replay tests can reuse the exact v2
+    contract/prepared/compilation pair instead of hand-authoring schemas.
+    """
+    from types import SimpleNamespace
+    from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
+    from myfuzz.scenario.dependency import DependencyGraph, DependencyRule, FuzzableSource
+
+    uart = _RouteEndpoint()
+    dma_endpoint = _DmaEndpoint()
+    dma = SimpleNamespace(master_targets=(), memory_service=None,
+        dma_route_endpoint_identity_document=dma_endpoint.dma_route_endpoint_identity_document,
+        configured_validator=None)
+    dma.configure_dma_route_validator = lambda callback: setattr(
+        dma, 'configured_validator', callback)
+    window = MasterTargetWindow('uart', 0x1000, 0x1000, uart, (), (),
+                                readable_offsets=(0x18,))
+    dma.master_targets = (window,)
+    graph = DependencyGraph(
+        sources=(FuzzableSource('uart-read-result', 'uart', 'rdata', 0, 8,
+                                ('IP_TO_IP',)),),
+        rules=(DependencyRule('dma-receive', ('uart-read-result',),
+                              'DMA_MASTER_TRANSFER'),))
+    nodes = (RuntimeNode('uart-read-result', 'uart', 'physical', 'rdata', 0, 8),
+             RuntimeNode('dma-receive', 'dma', 'logical'))
+    route = DmaMasterRouteContract(
+        rule_index=0, prerequisite_index=0,
+        source_node_id='uart-read-result', target_node_id='dma-receive',
+        initiator_component='dma', endpoint_id='wishbone-master',
+        endpoint_identity_sha256=digest(dma.dma_route_endpoint_identity_document()),
+        target_kind='peripheral', target_component='uart', target_id='uart',
+        base=0x1000, size=0x1000, operation='read', permissions=('read',),
+        byte_enable=15, readable_offsets=(0x18,), writable_offsets=(),
+        accepted_write_values=(),
+        target_identity_sha256=digest(window.route_identity_document()))
+    contract = RuntimePathContract(digest(graph.edge_document()), nodes,
+        (RuntimeEdgeContract(0, 0, 'dma_master_route'),),
+        dma_master_routes=(route,))
+    ownership = compile_ownership((InputField('uart', 'rdata', 8),),
+        (InputOwner('uart', 'rdata', 0, 8, 'source', 'uart.rdata'),))
+    runner = SimpleNamespace(sessions={'dma': dma, 'uart': uart},
+                             ownership=ownership, bindings=())
+    path = graph.edge_paths_to('dma-receive', direction='IP_TO_IP')[0]
+    prepared = PreparedRuntimePathContract(
+        graph, contract, (('IP_TO_IP', path),))
+    compiled = prepared.bind(runner).document()
+    compiled['declaration'] = prepared.document()
+    return compiled, contract.document()
+
+
+def dma_ram_route_fixture():
+    """Build one write route whose target is the shared RAM resource."""
+    from types import SimpleNamespace
+    from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
+    from myfuzz.scenario.dependency import DependencyGraph, DependencyRule, FuzzableSource
+    from myfuzz.scenario.ledger import TransactionLedger
+    from myfuzz.scenario.memory import MemoryRegion, PersistentMemory
+    from myfuzz.scenario.memory_service import MemoryService
+    from myfuzz.scenario.runtime_path_contract import persistent_memory_route_identity_document
+
+    dma_endpoint = _DmaEndpoint()
+    memory = PersistentMemory(regions=(MemoryRegion('ram', 0x1000, 0x1000),),
+        initialization_seed=1, max_initialized_bytes=4096)
+    service = MemoryService(memory, TransactionLedger())
+    dma = SimpleNamespace(master_targets=(), memory_service=service,
+        dma_route_endpoint_identity_document=dma_endpoint.dma_route_endpoint_identity_document,
+        configured_validator=None)
+    dma.configure_dma_route_validator = lambda callback: setattr(
+        dma, 'configured_validator', callback)
+    ram = SimpleNamespace(memory=memory)
+    graph = DependencyGraph(
+        sources=(FuzzableSource('dma-payload', 'dma', 'payload', 0, 32,
+                                ('IP_TO_IP',)),),
+        rules=(DependencyRule('ram-write-effect', ('dma-payload',),
+                              'DMA_MASTER_TRANSFER'),
+               DependencyRule('ram-version', ('ram-write-effect',),
+                              'PERSISTENT_STATE_RULE')))
+    nodes = (RuntimeNode('dma-payload', 'dma', 'physical', 'payload', 0, 32),
+             RuntimeNode('ram-write-effect', 'ram', 'logical'),
+             RuntimeNode('ram-version', 'ram', 'state'))
+    target_identity = persistent_memory_route_identity_document(
+        memory, memory_id='ram', base=0x1000, size=0x1000)
+    route = DmaMasterRouteContract(
+        rule_index=0, prerequisite_index=0,
+        source_node_id='dma-payload', target_node_id='ram-write-effect',
+        initiator_component='dma', endpoint_id='wishbone-master',
+        endpoint_identity_sha256=digest(dma.dma_route_endpoint_identity_document()),
+        target_kind='persistent_memory', target_component='ram', target_id='ram',
+        base=0x1000, size=0x1000, operation='write', permissions=('read', 'write'),
+        byte_enable=15, readable_offsets=(), writable_offsets=(),
+        accepted_write_values=(), target_identity_sha256=digest(target_identity))
+    contract = RuntimePathContract(digest(graph.edge_document()), nodes,
+        (RuntimeEdgeContract(0, 0, 'dma_master_route'),
+         RuntimeEdgeContract(1, 0, 'persistent_state',
+                             resource_component='ram', resource_id='ram')),
+        dma_master_routes=(route,))
+    ownership = compile_ownership((InputField('dma', 'payload', 32),),
+        (InputOwner('dma', 'payload', 0, 32, 'source', 'dma.payload'),))
+    runner = SimpleNamespace(sessions={'dma': dma, 'ram': ram},
+                             ownership=ownership, bindings=())
+    path = graph.edge_paths_to('ram-version', direction='IP_TO_IP')[0]
+    prepared = PreparedRuntimePathContract(
+        graph, contract, (('IP_TO_IP', path),))
+    compiled = prepared.bind(runner).document()
+    compiled['declaration'] = prepared.document()
+    return compiled, contract.document()
 
 
 class RuntimeEdgeIndexTests(unittest.TestCase):
@@ -256,3 +385,185 @@ class RuntimeEdgeIndexTests(unittest.TestCase):
             self.assertEqual([1, 2], [row['rule_index'] for row in subject.match_event(event)])
             self.assertEqual(1, len(subject.match_event(event)[0]['path_ids']))
         self.assertEqual(original, subject.document())
+
+    def test_existing_prepared_cache_must_match_its_frozen_declaration(self):
+        from dataclasses import replace
+        from types import MappingProxyType
+
+        compiled, contract = fixture()
+        prepared = PreparedRuntimePathContract.from_document(
+            compiled['declaration'])
+        path_id = prepared.path_ids[0]
+        selection = list(prepared._selections[path_id])
+        direction, source = selection[5][0]
+        selection[5] = ((direction, replace(source,
+            source_id='forged-source-id')),)
+        caches = dict(prepared._selections)
+        caches[path_id] = tuple(selection)
+        with self.assertRaises(TypeError):
+            prepared._selections[path_id] = tuple(selection)
+        object.__setattr__(prepared, '_selections', MappingProxyType(caches))
+
+        with self.assertRaises(ValueError):
+            index(compiled, contract, prepared=prepared)
+
+    def test_dma_master_routes_are_indexed_by_stable_route_and_selected_edge_identity(self):
+        compiled, contract = dma_route_fixture()
+        subject = index(compiled, contract)
+        document = subject.document()
+        route = contract['dma_master_routes'][0]
+        self.assertEqual('runtime_edge_index.v2', document['schema_version'])
+        self.assertEqual([route['identity_sha256']],
+                         [row['route_sha256'] for row in document['dma_master_routes']])
+        row = document['dma_master_routes'][0]
+        self.assertEqual([route['rule_index'], route['prerequisite_index']], row['edge_key'])
+        self.assertEqual(route['source_node_id'], row['source_node_id'])
+        self.assertEqual(route['target_node_id'], row['target_node_id'])
+        self.assertEqual(digest({key: value for key, value in route.items()
+                                 if key != 'identity_sha256'}), route['identity_sha256'])
+        self.assertEqual(compiled['topology_sha256'], document['topology_sha256'])
+        self.assertEqual(digest(compiled), document['compilation_sha256'])
+        resolved = subject.dma_master_route(
+            route['identity_sha256'], route['rule_index'], route['prerequisite_index'])
+        self.assertEqual(row, resolved)
+        resolved['path_ids'].clear()
+        self.assertEqual(row, subject.dma_master_route(
+            route['identity_sha256'], route['rule_index'], route['prerequisite_index']))
+        self.assertIsNone(subject.dma_master_route('0' * 64, 0, 0))
+        self.assertIsNone(subject.dma_master_route(route['identity_sha256'], 99, 0))
+
+    def test_v2_route_omission_or_schema_pair_mismatch_rejects(self):
+        compiled, contract = dma_route_fixture()
+        value = copy.deepcopy(compiled)
+        value['schema_version'] = 'runtime_path_compilation.v1'
+        with self.assertRaises(ValueError):
+            index(value, contract)
+        value = copy.deepcopy(compiled)
+        value['topology']['dma_master_routes'].clear()
+        value['topology_sha256'] = digest(value['topology'])
+        with self.assertRaises(ValueError):
+            index(value, contract)
+        value = copy.deepcopy(compiled)
+        value['declaration']['contract']['dma_master_routes'].clear()
+        with self.assertRaises(ValueError):
+            index(value, contract)
+
+    def test_v2_unknown_fields_and_ambiguous_route_rows_reject(self):
+        compiled, contract = dma_route_fixture()
+        value = copy.deepcopy(compiled)
+        value['unknown'] = True
+        with self.assertRaises(ValueError):
+            index(value, contract)
+        value = copy.deepcopy(compiled)
+        value['topology']['dma_master_routes'][0]['extra'] = True
+        value['topology_sha256'] = digest(value['topology'])
+        with self.assertRaises(ValueError):
+            index(value, contract)
+        value = copy.deepcopy(compiled)
+        value['topology']['dma_master_routes'].append(
+            copy.deepcopy(value['topology']['dma_master_routes'][0]))
+        value['topology_sha256'] = digest(value['topology'])
+        with self.assertRaises(ValueError):
+            index(value, contract)
+        value = copy.deepcopy(contract)
+        value['dma_master_routes'][0]['unknown'] = 1
+        with self.assertRaises(ValueError):
+            index(compiled, value)
+
+    def test_v2_wrong_selected_edge_and_topology_identity_reject(self):
+        compiled, contract = dma_route_fixture()
+        value = copy.deepcopy(compiled)
+        value['declaration']['selections'][0]['edges'][0]['target'] = 'wrong-target'
+        with self.assertRaises(ValueError):
+            index(value, contract)
+        value = copy.deepcopy(compiled)
+        value['topology']['dma_master_routes'][0]['endpoint']['identity_sha256'] = '0' * 64
+        value['topology_sha256'] = digest(value['topology'])
+        with self.assertRaises(ValueError):
+            index(value, contract)
+        value = copy.deepcopy(compiled)
+        value['topology']['dma_master_routes'][0]['target']['identity']['base'] += 4
+        value['topology_sha256'] = digest(value['topology'])
+        with self.assertRaises(ValueError):
+            index(value, contract)
+
+    def test_v2_ram_target_identity_is_joined_to_memory_resource_snapshot(self):
+        compiled, contract = dma_ram_route_fixture()
+        subject = index(compiled, contract)
+        route = contract['dma_master_routes'][0]
+        path_id = compiled['paths'][0]['path_id']
+        identity = subject.dma_master_routes_for_path(path_id)
+        self.assertEqual(1, len(identity))
+        self.assertEqual(0x1000, identity[0].base)
+        self.assertEqual('ram', identity[0].target_id)
+        self.assertEqual(route['identity_sha256'], identity[0].route_sha256)
+        key = {'execution_id': 'exec', 'testcase_id': 'case',
+            'source_component': 'dma', 'source_epoch': 0,
+            'channel_id': 'dma-memory', 'source_sequence': 1}
+        match = subject.match_dma_master_route(path_id,
+            initiator_component='dma', endpoint_id='wishbone-master',
+            target_kind='persistent_memory', target_component='ram',
+            target_id='ram', base=0x1000, size=0x1000, operation='write',
+            address=0x1004, byte_enable=15, transaction_key=key, value=0x12345678)
+        self.assertEqual(route['identity_sha256'], match.route_sha256)
+        self.assertIsNone(subject.match_dma_master_route(path_id,
+            initiator_component='dma', endpoint_id='wishbone-master',
+            target_kind='persistent_memory', target_component='ram',
+            target_id='ram', base=0x1000, size=0x1000, operation='write',
+            address=0x2000, byte_enable=15, transaction_key=key, value=0x12345678))
+
+        value = copy.deepcopy(compiled)
+        value['topology']['resources'][0]['regions'][0]['aliases'] = [0x2000]
+        value['topology_sha256'] = digest(value['topology'])
+        with self.assertRaises(ValueError):
+            index(value, contract)
+
+        value = copy.deepcopy(compiled)
+        value['topology']['dma_master_routes'][0]['target']['identity']['resource'][
+            'canonical_base'] += 4
+        value['topology_sha256'] = digest(value['topology'])
+        with self.assertRaises(ValueError):
+            index(value, contract)
+
+    def test_dma_master_route_does_not_fall_back_to_causal_mmio_or_binding_events(self):
+        compiled, contract = dma_route_fixture()
+        subject = index(compiled, contract)
+        self.assertEqual((), subject.match_event({'kind': 'dataflow_delivery',
+            'source': ['uart', 'rdata'], 'target': ['dma', 'receive'],
+            'source_bit_offset': 0, 'target_bit_offset': 0, 'width': 8}))
+        self.assertEqual((), subject.match_event({'kind': 'mmio_acceptance',
+            'source_transaction': {'source_component': 'dma'}, 'device_id': 'uart',
+            'address': 0x1018, 'write': False}))
+
+    def test_dma_master_route_lookup_checks_path_target_aperture_and_transaction_key(self):
+        from myfuzz.scenario.ledger import TransactionKey
+
+        compiled, contract = dma_route_fixture()
+        subject = index(compiled, contract)
+        route = contract['dma_master_routes'][0]
+        path_id = compiled['paths'][0]['path_id']
+        key = TransactionKey('exec', 'case', 'dma', 0, 'dma-memory', 1)
+        key_document = {'execution_id': key.execution_id,
+            'testcase_id': key.testcase_id, 'source_component': key.source_component,
+            'source_epoch': key.source_epoch, 'channel_id': key.channel_id,
+            'source_sequence': key.source_sequence}
+        kwargs = dict(path_id=path_id, initiator_component='dma',
+            endpoint_id='wishbone-master', target_kind='peripheral',
+            target_component='uart', target_id='uart', base=0x1000, size=0x1000,
+            operation='read', address=0x1018, byte_enable=15,
+            transaction_key=key_document)
+        match = subject.match_dma_master_route(**kwargs)
+        self.assertEqual(route['identity_sha256'], match.route_sha256)
+        self.assertEqual((route['rule_index'], route['prerequisite_index']),
+                         match.edge_key)
+        self.assertIsNone(subject.match_dma_master_route(**{**kwargs, 'path_id': '0' * 64}))
+        self.assertIsNone(subject.match_dma_master_route(**{**kwargs, 'address': 0x2000}))
+        self.assertIsNone(subject.match_dma_master_route(**{**kwargs, 'operation': 'write'}))
+        self.assertIsNone(subject.match_dma_master_route(**{**kwargs,
+            'transaction_key': {**key_document, 'source_component': 'other'}}))
+        self.assertIsNone(subject.match_dma_master_route(**{**kwargs,
+            'transaction_key': {'source_component': 'dma'}}))
+        self.assertIsNone(subject.match_dma_master_route(**{**kwargs,
+            'transaction_key': {**key_document, 'source_epoch': True}}))
+        self.assertIsNone(subject.match_dma_master_route(**{**kwargs,
+            'transaction_key': {**key_document, 'extra': 1}}))

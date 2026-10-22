@@ -222,9 +222,10 @@ def _run_scenario_rfuzz_live(*, executor: ScenarioRfuzzExecutor,
         from myfuzz.scenario.session_runtime import ScenarioSession
         if not isinstance(executor.session, ScenarioSession):
             raise ValueError("live continuous identity requires ScenarioSession; record-only sessions are unsupported")
+    dma_bound = getattr(executor, "_dma_intent_binding", None) is not None
     frozen_inputs = {
             "source_files": [{"path": name, "sha256": _sha256_file(_ROOT / name)}
-                             for name in _FRESH_RUNTIME_SOURCES],
+                             for name in _fresh_runtime_source_names(dma_bound=dma_bound)],
             "client": _rfuzz_client_identity(binary),
             "collector": collector_identity,
     }
@@ -572,6 +573,17 @@ _FRESH_RUNTIME_SOURCES = (
     "src/myfuzz/scenario/source_provenance.py",
 )
 
+_DMA_BOUND_RUNTIME_SOURCES = (
+    "src/myfuzz/local_harness/dma_artifact_endpoint_links.py",
+    "src/myfuzz/scenario/dma_binding_replay.py",
+    "src/myfuzz/scenario/dma_intent_topology_binding.py",
+    "src/myfuzz/scenario/dma_route_intent.py",
+)
+
+
+def _fresh_runtime_source_names(*, dma_bound: bool = False) -> tuple[str, ...]:
+    return _FRESH_RUNTIME_SOURCES + (_DMA_BOUND_RUNTIME_SOURCES if dma_bound else ())
+
 
 def _fresh_artifact_names(output: Path) -> set[str]:
     names = {"runner_manifest.json", "decoder_manifest.json", "targets.json",
@@ -580,6 +592,98 @@ def _fresh_artifact_names(output: Path) -> set[str]:
         names.update(path.relative_to(output).as_posix()
                      for path in (output / directory).rglob("*") if path.is_file())
     return names
+
+
+def _verify_instruction_image_material(decoder: dict, manifest: dict, plan: dict) -> None:
+    """Join explicit image sources across decoder, actual session and saved input."""
+    declared = decoder.get('instruction_image_bindings')
+    if declared is None:
+        if ('instruction_image_bindings' in manifest or 'instruction_image_bindings' in plan
+                or decoder.get('runtime_path_admission') is not None):
+            raise ValueError('instruction image declaration is missing from decoder')
+        return
+    from myfuzz.scenario.instruction_image_binding import InstructionImageSourceBinding
+    from myfuzz.scenario.runtime_path_contract import PreparedRuntimePathContract
+    from myfuzz.scenario.session_runtime import BoundOnlineInstruction
+    if type(declared) is not list or len(declared) != 1:
+        raise ValueError('compiled instruction image binding must be unique')
+    admission = decoder.get('runtime_path_admission')
+    if (type(admission) is not dict
+            or admission.get('schema_version') != 'compiled_F4_runtime_path_admission.v1'):
+        raise ValueError('compiled instruction image admission is missing')
+    body = {key:value for key,value in admission.items() if key != 'binding_sha256'}
+    if hashlib.sha256(_canonical_json(body)).hexdigest() != admission.get('binding_sha256'):
+        raise ValueError('compiled instruction image admission digest mismatch')
+    prepared = PreparedRuntimePathContract.from_document(admission.get('prepared'))
+    binding = InstructionImageSourceBinding.from_document(declared[0])
+    binding.validate_prepared(prepared)
+    from myfuzz.integration.compiled_candidate_layout import compile_candidate_layout
+    from myfuzz.scenario.compiled_online_decoder import _layout_document
+    selected_path = admission.get('selected_path')
+    if type(selected_path) is not dict:
+        raise ValueError('compiled instruction image selected path is missing')
+    layout = compile_candidate_layout(selected_path)
+    images = [row for row in selected_path['sources'] if row['kind']=='instruction_image']
+    streams = [row for row in selected_path['sources'] if row['kind']=='cpu_mmio_stream']
+    if len(images) != 1 or len(streams) != 1 or len(selected_path['sources']) != 2:
+        raise ValueError('compiled instruction image selected source shape mismatch')
+    image, stream = images[0], streams[0]
+    access = stream['register_access']
+    expected_sources = [{key:getattr(row,key) for key in (
+        'source_id','kind','component','endpoint_id','port','width','mask',
+        'minimum','maximum','alignment')} for row in layout.slices]
+    if (hashlib.sha256(_canonical_json(selected_path)).hexdigest() != admission.get('selected_path_sha256')
+            or selected_path.get('path_id') != decoder.get('path_id')
+            or _canonical_json(image) != _canonical_json(admission.get('instruction_image'))
+            or _canonical_json(stream) != _canonical_json(admission.get('cpu_mmio_stream'))
+            or _canonical_json(asdict(layout)) != _canonical_json(admission.get('candidate_layout'))
+            or _canonical_json(_layout_document(layout)) != _canonical_json(decoder.get('candidate_layout'))
+            or binding.logical_source_id != image.get('source_id')
+            or decoder.get('instruction_source_id') != binding.logical_source_id
+            or (image.get('component'), image.get('port'), image.get('range'), image.get('width'))
+                != (binding.component, binding.memory_id,
+                    [binding.base,binding.base+binding.size-1],binding.size*8)
+            or decoder.get('instruction_address_range') != [binding.base,binding.base+binding.size-4]
+            or decoder.get('source_id') != stream.get('source_id')
+            or (decoder.get('register'),decoder.get('register_offset'),decoder.get('address'))
+                != (access.get('register'),access.get('register_offset'),access.get('address'))
+            or decoder.get('source_values') != [row.source_id for row in layout.slices]
+            or _canonical_json(decoder.get('sources')) != _canonical_json(expected_sources)
+            or decoder.get('candidate_bytes') != layout.byte_length):
+        raise ValueError('compiled instruction image logical source/layout crosswalk mismatch')
+    expected = [binding.document()]
+    selection = prepared.document()['selections'][0]
+    expected_identity = {key:selection[key] for key in ('direction','path_id','source_ids','edges')}
+    target_node = next(node for node in prepared.contract.nodes if node.node_id == selection['target'])
+    if (prepared.path_ids != (binding.path_id,)
+            or _canonical_json(selected_path.get('runtime_path_identity')) != _canonical_json(expected_identity)
+            or selected_path.get('direction') != binding.direction
+            or selected_path.get('target') != {'node':selection['target'],'component':target_node.component}
+            or _canonical_json(manifest.get('instruction_image_bindings')) != _canonical_json(expected)
+            or _canonical_json(plan.get('instruction_image_bindings')) != _canonical_json(expected)
+            or _canonical_json(admission.get('source_binding')) != _canonical_json(binding.document())
+            or admission.get('compiled_document_sha256') != decoder.get('compiled_sha256')
+            or admission.get('graph_sha256') != prepared.contract.graph_sha256
+            or admission.get('contract_sha256') != prepared.contract.identity_sha256
+            or admission.get('path_mapping') != {'logical_path_id':decoder.get('path_id'),
+                                               'runtime_path_id':binding.path_id}
+            or _canonical_json(admission.get('runtime_path_identity')) != _canonical_json(expected_identity)
+            or _canonical_json(decoder.get('graph')) != _canonical_json(prepared.graph.edge_document())
+            or _canonical_json(decoder.get('runtime_contract')) != _canonical_json(prepared.contract.document())
+            or _canonical_json(decoder.get('path_mapping')) != _canonical_json(prepared.document()['selections'])
+            or admission.get('candidate_layout', {}).get('digest') != decoder.get('candidate_layout', {}).get('digest')
+            or _canonical_json(manifest.get('runtime_paths', {}).get('declaration')) != _canonical_json(prepared.document())
+            or _canonical_json(plan.get('runtime_paths')) != _canonical_json(manifest.get('runtime_paths'))
+            or type(plan.get('schema_version')) is not int or plan['schema_version'] not in (24,25)):
+        raise ValueError('compiled instruction image decoder/session/plan mismatch')
+    for case in plan.get('cases', ()):
+        raw = case.get('source')
+        if (case.get('path_id') != binding.path_id or case.get('direction') != binding.direction
+                or type(raw) is not dict or raw.get('kind') != 'bound_instruction'
+                or set(raw) != {'kind','source_id','action_id','component','address','data_hex'}):
+            raise ValueError('compiled instruction image saved case source mismatch')
+        source = BoundOnlineInstruction(**{key:value for key,value in raw.items() if key != 'kind'})
+        binding.validate_instruction(source, instruction_slots=plan.get('instruction_slots'))
 
 
 def _verify_runtime_path_material(record: dict | None, decoder: dict, *,
@@ -596,15 +700,27 @@ def _verify_runtime_path_material(record: dict | None, decoder: dict, *,
             or not isinstance(record["compiled"], dict)):
         raise ValueError("runtime path identity is missing or invalid")
     declaration = record["declaration"]
-    if (not isinstance(declaration, dict)
-            or set(declaration) != {"schema_version", "graph", "contract", "selections"}
-            or declaration["schema_version"] != "prepared_runtime_paths.v1"
-            or declaration["graph"] != decoder.get("graph")
-            or declaration["contract"] != contract
-            or declaration["selections"] != decoder.get("path_mapping")):
-        raise ValueError("runtime path saved declaration mismatch")
-    from myfuzz.scenario.runtime_path_contract import RuntimePathContract
+    from myfuzz.scenario.runtime_edge_index import RuntimeEdgeIndex
+    from myfuzz.scenario.runtime_path_contract import (
+        PreparedRuntimePathContract, RuntimePathContract,
+    )
     parsed = RuntimePathContract.from_document(contract)
+    prepared = PreparedRuntimePathContract.from_document(declaration)
+    schema_pair = (
+        parsed.document()["schema_version"], declaration.get("schema_version"),
+    )
+    expected_pair = (("runtime_path_contract.v2", "prepared_runtime_paths.v2")
+                     if parsed.dma_master_routes else
+                     ("runtime_path_contract.v1", "prepared_runtime_paths.v1"))
+    if (schema_pair != expected_pair
+            or prepared.contract.document() != parsed.document()
+            or _canonical_json(declaration.get("graph"))
+                != _canonical_json(decoder.get("graph"))
+            or _canonical_json(declaration.get("contract"))
+                != _canonical_json(contract)
+            or _canonical_json(declaration.get("selections"))
+                != _canonical_json(decoder.get("path_mapping"))):
+        raise ValueError("runtime path saved declaration mismatch")
     if parsed.graph_sha256 != hashlib.sha256(_canonical_json(decoder["graph"])).hexdigest():
         raise ValueError("runtime path graph digest mismatch")
     selections = {row["path_id"]: {"direction": row["direction"],
@@ -614,10 +730,16 @@ def _verify_runtime_path_material(record: dict | None, decoder: dict, *,
         raise ValueError("runtime path selected identity is duplicated")
     if session and set(record["compiled"]) != {"session"}:
         raise ValueError("runtime session topology identity is missing")
+    if (parsed.dma_master_routes and not session
+            and set(record["compiled"]) != set(selections)):
+        raise ValueError("runtime path selected topology identity is missing")
     for path_id, document in record["compiled"].items():
         expected_paths = list(selections.values()) if session else [selections.get(path_id)]
+        expected_compile_schema = ("runtime_path_compilation.v2"
+                                   if parsed.dma_master_routes else
+                                   "runtime_path_compilation.v1")
         if (not isinstance(document, dict)
-                or document.get("schema_version") != "runtime_path_compilation.v1"
+                or document.get("schema_version") != expected_compile_schema
                 or document.get("graph_sha256") != parsed.graph_sha256
                 or document.get("contract_sha256") != parsed.identity_sha256
                 or document.get("declaration") != declaration
@@ -625,6 +747,46 @@ def _verify_runtime_path_material(record: dict | None, decoder: dict, *,
                 or document.get("topology_sha256") != hashlib.sha256(
                     _canonical_json(document.get("topology"))).hexdigest()):
             raise ValueError("runtime path compiled topology identity mismatch")
+        try:
+            # This is the strict schema and route-edge check for the detached
+            # snapshot. It refuses v2 rows that are omitted, changed, or unknown.
+            RuntimeEdgeIndex(document, contract)
+        except ValueError as exc:
+            raise ValueError("runtime path compiled topology identity mismatch") from exc
+
+
+def _verify_dma_binding_compilations(payload, runtime_material: dict) -> None:
+    """Join detached binding credentials to already-validated runtime rows."""
+    if not isinstance(runtime_material, dict):
+        raise ValueError("DMA binding runtime material is missing")
+    declaration = getattr(payload, "declaration", None)
+    if (declaration is None
+            or declaration.document().get("prepared_runtime_paths")
+                != runtime_material.get("declaration")):
+        raise ValueError("DMA binding prepared declaration differs from runtime material")
+    rows = getattr(payload, "binding_compilations", None)
+    if type(rows) not in (tuple, list):
+        raise ValueError("DMA binding compilation rows are invalid")
+    credentials = {}
+    for row in rows:
+        if (type(row) is not dict or set(row) != {"selection_id", "credential"}
+                or type(row["selection_id"]) is not str
+                or row["selection_id"] in credentials):
+            raise ValueError("DMA binding compilation rows are invalid")
+        credentials[row["selection_id"]] = row["credential"]
+    compiled = runtime_material.get("compiled")
+    if not isinstance(compiled, dict) or set(compiled) != set(credentials):
+        raise ValueError("DMA binding selection set differs from compiled runtime material")
+    for selection_id, credential in credentials.items():
+        runtime_document = compiled[selection_id]
+        if type(runtime_document) is not dict or type(credential) is not dict:
+            raise ValueError("DMA binding runtime compilation row is invalid")
+        compilation = {key: value for key, value in runtime_document.items()
+                       if key != "declaration"}
+        compilation_sha256 = hashlib.sha256(_canonical_json(compilation)).hexdigest()
+        if (credential.get("runtime_compilation_sha256") != compilation_sha256
+                or credential.get("topology_sha256") != runtime_document.get("topology_sha256")):
+            raise ValueError("DMA binding credential differs from saved runtime compilation")
 
 
 def _write_fresh_run_identity(output: Path, *, executor: ScenarioRfuzzExecutor,
@@ -633,8 +795,10 @@ def _write_fresh_run_identity(output: Path, *, executor: ScenarioRfuzzExecutor,
                               frozen_inputs: dict | None = None) -> str:
     """Capture one actual runner and reference full decoder and evidence bodies."""
     runner = executor.fresh_manifest_document
+    dma_bound = getattr(executor, "_dma_intent_binding", None) is not None
+    source_names = _fresh_runtime_source_names(dma_bound=dma_bound)
     source_files = [{"path": name, "sha256": _sha256_file(_ROOT / name)}
-                    for name in _FRESH_RUNTIME_SOURCES]
+                    for name in source_names]
     if frozen_inputs is not None:
         if (frozen_inputs["source_files"] != source_files
                 or frozen_inputs["client"]["binary_sha256"] != _sha256_file(client_binary)):
@@ -677,10 +841,30 @@ def _write_fresh_run_identity(output: Path, *, executor: ScenarioRfuzzExecutor,
         "artifacts": {name: _sha256_file(output / name)
                       for name in sorted(_fresh_artifact_names(output))},
     }
+    if dma_bound:
+        expected_ids = set(executor._prepared_runtime_paths.path_ids)
+        if (set(executor._dma_bound_credentials) != expected_ids
+                or set(executor.fresh_runtime_path_documents) != expected_ids):
+            raise ValueError("fresh DMA binding does not cover every prepared selection")
+        identity["dma_binding_required"] = "p7_dma_bound_payload.v1"
     digest = hashlib.sha256(_canonical_json(identity)).hexdigest()
-    _write_online_artifact(output / "run_identity.json", _canonical_json({
+    inner_envelope = _canonical_json({
         "schema_version": "scenario_fresh_run_identity_envelope.v1",
-        "sha256": digest, "identity": identity}) + b"\n")
+        "sha256": digest, "identity": identity}) + b"\n"
+    if dma_bound:
+        # Preserve the exact ordinary fresh identity file bytes inside the
+        # wrapper; its legacy writer terminates this canonical JSON with LF.
+        from myfuzz.scenario.dma_binding_replay import encode_dma_bound_payload
+        saved = encode_dma_bound_payload(
+            inner_envelope, payload_kind="fresh_run_identity",
+            declaration=executor._dma_intent_binding,
+            binding_compilations=executor._dma_bound_credentials)
+        outer_document = json.loads(saved)
+        _write_online_artifact(output / "run_identity.json", saved)
+        executor._dma_saved_payload_identity = outer_document["identity_sha256"]
+        executor._dma_saved_payload_sha256 = outer_document["payload_sha256"]
+        return outer_document["identity_sha256"]
+    _write_online_artifact(output / "run_identity.json", inner_envelope)
     return digest
 
 
@@ -694,15 +878,38 @@ def _verify_fresh_run_identity(output: Path, *, checker=None, checker_config=Non
         if "run_identity_schema" in report or (output / "runner_manifest.json").exists():
             raise ValueError("fresh run identity is missing from a versioned bundle")
         return None
-    envelope = json.loads(path.read_bytes())
+    raw_envelope = path.read_bytes()
+    envelope = json.loads(raw_envelope)
+    dma_binding_payload = None
+    report_dma_bound = report.get("run_identity_schema") == "p7_dma_bound_payload.v1"
+    if report_dma_bound:
+        from myfuzz.scenario.dma_binding_replay import parse_dma_bound_payload
+        dma_binding_payload = parse_dma_bound_payload(
+            raw_envelope,
+            expected_identity_sha256=report.get("run_identity_sha256"))
+        inner_payload_sha256 = hashlib.sha256(dma_binding_payload.payload_bytes).hexdigest()
+        if (dma_binding_payload.payload_kind != "fresh_run_identity"
+                or report.get("run_identity_payload_sha256") != inner_payload_sha256
+                or report.get("run_identity_inner_schema") != "scenario_fresh_run_identity.v1"):
+            raise ValueError("fresh DMA bound payload report identity mismatch")
+        envelope = json.loads(dma_binding_payload.payload_bytes)
+    elif (isinstance(envelope, dict)
+            and envelope.get("schema_version") == "p7_dma_bound_payload.v1"):
+        raise ValueError("fresh DMA bound payload requires a report-pinned identity")
     identity = envelope.get("identity")
     if (envelope.get("schema_version") != "scenario_fresh_run_identity_envelope.v1"
             or not isinstance(identity, dict)
             or identity.get("schema_version") != "scenario_fresh_run_identity.v1"
             or hashlib.sha256(_canonical_json(identity)).hexdigest() != envelope.get("sha256")
-            or report.get("run_identity_sha256") != envelope.get("sha256")
-            or report.get("run_identity_schema") != identity["schema_version"]):
+            or (not report_dma_bound
+                and report.get("run_identity_sha256") != envelope.get("sha256"))
+            or (not report_dma_bound
+                and report.get("run_identity_schema") != identity["schema_version"])
+            or (report_dma_bound
+                and identity.get("dma_binding_required") != "p7_dma_bound_payload.v1")):
         raise ValueError("fresh run identity digest or schema mismatch")
+    if not report_dma_bound and identity.get("dma_binding_required") is not None:
+        raise ValueError("fresh run DMA binding wrapper is missing")
     artifacts = identity.get("artifacts")
     if not isinstance(artifacts, dict) or set(artifacts) != _fresh_artifact_names(output):
         raise ValueError("fresh run identity artifact list mismatch")
@@ -714,6 +921,8 @@ def _verify_fresh_run_identity(output: Path, *, checker=None, checker_config=Non
     runner = json.loads((output / "runner_manifest.json").read_bytes())
     decoder = json.loads((output / "decoder_manifest.json").read_bytes())
     _verify_runtime_path_material(identity.get("runtime_paths"), decoder)
+    if dma_binding_payload is not None:
+        _verify_dma_binding_compilations(dma_binding_payload, identity["runtime_paths"])
     genome_templates = [{"index": index, "target_id": item["target_id"],
                          "genome_sha256": hashlib.sha256(
                              _canonical_json(item["genome"])).hexdigest()}
@@ -730,7 +939,8 @@ def _verify_fresh_run_identity(output: Path, *, checker=None, checker_config=Non
     from myfuzz.scenario.evidence import _verify_evidence_host_identity
     _verify_evidence_host_identity(runner)
     sources = identity.get("source_files")
-    if (not isinstance(sources, list) or [item.get("path") for item in sources] != list(_FRESH_RUNTIME_SOURCES)
+    if (not isinstance(sources, list) or [item.get("path") for item in sources]
+            != list(_fresh_runtime_source_names(dma_bound=report_dma_bound))
             or any(item.get("sha256") != _sha256_file(_ROOT / item["path"]) for item in sources)):
         raise ValueError("fresh run runtime source identity mismatch")
     if identity.get("checker") != _fresh_checker_identity(
@@ -752,6 +962,8 @@ def _verify_fresh_run_identity(output: Path, *, checker=None, checker_config=Non
                     and row.get("manifest_sha256") is not None
                     and row.get("path_id") not in identity["runtime_paths"]["compiled"]):
                 raise ValueError("runtime path successful receipt topology identity is missing")
+    if dma_binding_payload is not None:
+        identity = {**identity, "_p7_dma_binding_payload": dma_binding_payload}
     return identity
 
 
@@ -1020,7 +1232,8 @@ def _write_online_run_identity(output: Path, *, session_manifest: dict,
                                client_binary: Path,
                                run_config: dict, frozen_inputs: dict | None = None,
                                execution_mode: str = "online_cases",
-                               decoder_checker: dict | None = None) -> str:
+                               decoder_checker: dict | None = None,
+                               dma_bound_payload: bytes | None = None) -> str:
     """Persist a canonical run identity and all evidence file digests."""
     output = Path(output)
     manifest_bytes = _canonical_json(session_manifest) + b"\n"
@@ -1028,7 +1241,23 @@ def _write_online_run_identity(output: Path, *, session_manifest: dict,
     if hashlib.sha256(_canonical_json(session_manifest)).hexdigest() != trace.manifest_sha256:
         raise ValueError("online session manifest does not match final trace")
     plan_path = output / "online_plan.json"
-    if not plan_path.is_file() or plan_path.read_bytes() != plan_bytes:
+    saved_plan = plan_path.read_bytes() if plan_path.is_file() else None
+    parsed_dma_payload = None
+    if dma_bound_payload is not None:
+        from myfuzz.scenario.dma_binding_replay import parse_dma_bound_payload
+        try:
+            outer_identity = json.loads(dma_bound_payload)["identity_sha256"]
+        except (ValueError, KeyError, TypeError) as error:
+            raise ValueError("online DMA bound plan envelope is invalid") from error
+        parsed_dma_payload = parse_dma_bound_payload(
+            dma_bound_payload, expected_identity_sha256=outer_identity)
+        if (parsed_dma_payload.payload_kind != "online_session_plan"
+                or parsed_dma_payload.payload_bytes != plan_bytes
+                or saved_plan != dma_bound_payload):
+            raise ValueError("online DMA bound plan was not saved exactly")
+    elif saved_plan != plan_bytes:
+        raise ValueError("online run plan was not saved exactly")
+    if not plan_path.is_file():
         raise ValueError("online run plan was not saved exactly")
     if hashlib.sha256(plan_bytes).hexdigest() != trace.genome_sha256:
         raise ValueError("online run plan does not match final trace")
@@ -1061,6 +1290,9 @@ def _write_online_run_identity(output: Path, *, session_manifest: dict,
                         if runtime_document is not None else
                         {"status": "legacy_unchecked", "declaration": None, "compiled": {}})
     _verify_runtime_path_material(runtime_material, decoder_document, session=True)
+    _verify_instruction_image_material(decoder_document, session_manifest, json.loads(plan_bytes))
+    if parsed_dma_payload is not None:
+        _verify_dma_binding_compilations(parsed_dma_payload, runtime_material)
     component_identity_sha256 = hashlib.sha256(
         _canonical_json(runner_identity)).hexdigest()
     run_identity = {
@@ -1117,6 +1349,13 @@ def _write_online_run_identity(output: Path, *, session_manifest: dict,
                   "manifest_sha256": trace.manifest_sha256,
                   "genome_sha256": trace.genome_sha256},
     }
+    if parsed_dma_payload is not None:
+        run_identity.update({
+            "dma_binding_required": "p7_dma_bound_payload.v1",
+            "dma_binding_identity_sha256": parsed_dma_payload.identity_sha256,
+            "dma_binding_payload_sha256": hashlib.sha256(
+                parsed_dma_payload.payload_bytes).hexdigest(),
+        })
     identity_sha256 = hashlib.sha256(_canonical_json(run_identity)).hexdigest()
     envelope = {"schema_version": "scenario_online_run_identity_envelope.v1",
                 "sha256": identity_sha256, "identity": run_identity}
@@ -1195,12 +1434,39 @@ def _verify_online_run_identity(output: Path, *, plan_path: Path,
     if hashlib.sha256(_canonical_json(identity)).hexdigest() != document["sha256"]:
         raise ValueError("online run identity digest mismatch")
     report_path = Path(output) / "report.json"
+    report = {}
     if report_path.is_file():
         report = json.loads(report_path.read_bytes())
         if report.get("online_run_identity_sha256") != document["sha256"]:
             raise ValueError("online run report identity mismatch")
     if identity.get("schema_version") != "scenario_online_run_identity.v1":
         raise ValueError("unsupported online run identity schema")
+    dma_binding_payload = None
+    dma_binding_required = identity.get("dma_binding_required")
+    report_dma_identity = report.get("dma_binding_identity_sha256")
+    report_dma_payload_sha = report.get("dma_binding_payload_sha256")
+    report_dma_required = report.get("dma_binding_required")
+    if dma_binding_required == "p7_dma_bound_payload.v1":
+        if (not report_path.is_file()
+                or report_dma_required != "p7_dma_bound_payload.v1"
+                or identity.get("dma_binding_identity_sha256") != report_dma_identity):
+            raise ValueError("online DMA binding schema or outer identity is not pinned by the report")
+        from myfuzz.scenario.dma_binding_replay import parse_dma_bound_payload
+        dma_binding_payload = parse_dma_bound_payload(
+            Path(plan_path).read_bytes(),
+            expected_identity_sha256=report_dma_identity)
+        if (dma_binding_payload.payload_kind != "online_session_plan"
+                or hashlib.sha256(dma_binding_payload.payload_bytes).hexdigest()
+                    != report_dma_payload_sha
+                or identity.get("dma_binding_payload_sha256") != report_dma_payload_sha
+                or hashlib.sha256(dma_binding_payload.payload_bytes).hexdigest()
+                    != trace.genome_sha256
+                or identity.get("genome", {}).get("plan_sha256") != trace.genome_sha256):
+            raise ValueError("online DMA binding payload identity mismatch")
+        identity = {**identity, "_p7_dma_binding_payload": dma_binding_payload}
+    elif (dma_binding_required is not None or report_dma_required is not None
+          or report_dma_identity is not None or report_dma_payload_sha is not None):
+        raise ValueError("online DMA binding wrapper or report identity is missing")
     candidate_config = identity.get('run_config', {}).get('candidate_exploration')
     candidate_report = (report.get('candidate_exploration') if report_path.is_file() else None)
     if candidate_config is not None or candidate_report is not None:
@@ -1285,7 +1551,9 @@ def _verify_online_run_identity(output: Path, *, plan_path: Path,
                 or not artifact.is_file() or not isinstance(expected, str)
                 or _sha256_file(artifact) != expected):
             raise ValueError(f"online run identity artifact mismatch: {name}")
-    plan_hash = _sha256_file(Path(plan_path))
+    plan_hash = (hashlib.sha256(dma_binding_payload.payload_bytes).hexdigest()
+                 if dma_binding_payload is not None
+                 else _sha256_file(Path(plan_path)))
     if (plan_hash != trace.genome_sha256
             or plan_hash != identity.get("genome", {}).get("plan_sha256")):
         raise ValueError("online run identity plan mismatch")
@@ -1309,7 +1577,9 @@ def _verify_online_run_identity(output: Path, *, plan_path: Path,
                          + ", ".join(drifted_sources))
     sources = identity.get("source_files", [])
     if sources and (not isinstance(sources, list)
-                   or [item.get("path") for item in sources] != list(_FRESH_RUNTIME_SOURCES)
+                   or [item.get("path") for item in sources]
+                        != list(_fresh_runtime_source_names(
+                            dma_bound=dma_binding_payload is not None))
                    or any(item.get("sha256") != _sha256_file(_ROOT / item["path"])
                           for item in sources)):
         raise ValueError("online transport source identity mismatch")
@@ -1317,6 +1587,11 @@ def _verify_online_run_identity(output: Path, *, plan_path: Path,
     targets_path = Path(output) / "targets.json"
     decoder_document = json.loads(decoder_path.read_bytes())
     _verify_runtime_path_material(identity.get("runtime_paths"), decoder_document, session=True)
+    _verify_instruction_image_material(decoder_document, manifest_document,
+        json.loads(dma_binding_payload.payload_bytes if dma_binding_payload is not None
+                   else Path(plan_path).read_bytes()))
+    if dma_binding_payload is not None:
+        _verify_dma_binding_compilations(dma_binding_payload, identity["runtime_paths"])
     runtime_document = manifest_document.get("runtime_paths")
     if runtime_document is not None and identity.get("runtime_paths", {}).get("compiled") != {
             "session": runtime_document}:
@@ -1504,12 +1779,17 @@ def run_scenario_rfuzz_live(*, executor: ScenarioRfuzzExecutor,
                     pass
             try:
                 if executor.session is None:
-                    report["run_identity_schema"] = "scenario_fresh_run_identity.v1"
                     report["run_identity_sha256"] = _write_fresh_run_identity(
                         output, executor=executor,
                         checker_identity=context["checker_identity"],
                         client_binary=context["binary"],
                         frozen_inputs=context["frozen_inputs"], run_config=config)
+                    if getattr(executor, "_dma_intent_binding", None) is not None:
+                        report["run_identity_schema"] = "p7_dma_bound_payload.v1"
+                        report["run_identity_inner_schema"] = "scenario_fresh_run_identity.v1"
+                        report["run_identity_payload_sha256"] = executor._dma_saved_payload_sha256
+                    else:
+                        report["run_identity_schema"] = "scenario_fresh_run_identity.v1"
                 else:
                     finish_error = None
                     phase_started = time.monotonic()
@@ -1526,10 +1806,23 @@ def run_scenario_rfuzz_live(*, executor: ScenarioRfuzzExecutor,
                     finally:
                         finalization_timing["session_finish"] = (
                             time.monotonic() - phase_started)
+                    dma_bound_payload = None
                     if plan_hex is not None:
                         phase_started = time.monotonic()
                         plan_bytes = bytes.fromhex(plan_hex)
-                        _write_online_artifact(output / "online_plan.json", plan_bytes)
+                        binding_declaration = executor.session.dma_binding_document()
+                        if binding_declaration is not None:
+                            from myfuzz.scenario.dma_binding_replay import encode_dma_bound_payload
+                            binding_credential = executor.session.dma_binding_compilation_document()
+                            if binding_credential is None:
+                                raise ValueError("online session DMA binding credential is missing")
+                            dma_bound_payload = encode_dma_bound_payload(
+                                plan_bytes, payload_kind="online_session_plan",
+                                declaration=binding_declaration,
+                                binding_compilations={"session": binding_credential})
+                            _write_online_artifact(output / "online_plan.json", dma_bound_payload)
+                        else:
+                            _write_online_artifact(output / "online_plan.json", plan_bytes)
                         finalization_timing["plan_write"] = (
                             time.monotonic() - phase_started)
                     if trace is not None:
@@ -1556,7 +1849,13 @@ def run_scenario_rfuzz_live(*, executor: ScenarioRfuzzExecutor,
                             client_binary=context["binary"], run_config=config,
                             frozen_inputs=context["frozen_inputs"],
                             execution_mode=report["execution_mode"],
-                            decoder_checker=context["checker_identity"])
+                            decoder_checker=context["checker_identity"],
+                            dma_bound_payload=dma_bound_payload)
+                        if dma_bound_payload is not None:
+                            outer_document = json.loads(dma_bound_payload)
+                            report["dma_binding_required"] = "p7_dma_bound_payload.v1"
+                            report["dma_binding_identity_sha256"] = outer_document["identity_sha256"]
+                            report["dma_binding_payload_sha256"] = outer_document["payload_sha256"]
                         finalization_timing["identity_write"] = (
                             time.monotonic() - phase_started)
                     if finish_error is not None:

@@ -1,6 +1,8 @@
 from dataclasses import replace
+from copy import deepcopy
 import unittest
-from myfuzz.local_harness import render_local_harness,render_local_runtime,verify_local_source_lock
+from myfuzz.local_harness import (load_local_harness_request, plan_local_harness,
+    render_local_harness, render_local_runtime, verify_local_source_lock)
 from tests.local_harness.test_renderer import real_plan,ROOT
 
 class NativeRuntimeTests(unittest.TestCase):
@@ -15,6 +17,25 @@ class NativeRuntimeTests(unittest.TestCase):
         self.assertEqual(artifact.runtime_document['selected_template']['contract']['template_id'],'cpu.native-memory')
         self.assertIn('native_completion_memory_adapter',artifact.runtime_sv)
         self.assertNotIn('ready_valid_processor_memory_adapter',artifact.runtime_sv)
+
+    def test_native_completion_admission_refuses_tap_name_width_and_source_drift(self):
+        from myfuzz.local_harness.native_contract import verify_native_completion_observation
+        request = load_local_harness_request(dict(schema_version='local_harness.v2',
+            profile_path='configs/cpus/picorv32/component_profile.json',
+            instance_id='native_cpu', reset_assert_ticks=8, reset_release_ticks=8,
+            max_wait_cycles=16,
+            tuning={'raw_tick_stream': [{'sampling': 'pre_post'}]}))
+        plan = plan_local_harness(request, base_dir=ROOT)
+        artifact = render_local_runtime(plan, render_local_harness(plan),
+            verify_local_source_lock(plan.profile, base_dir=ROOT), base_dir=ROOT)
+        self.assertTrue(verify_native_completion_observation(artifact))
+        for field, value in (('name', 'cpu_native_trace_guessed'),
+                             ('width', 2), ('source_wire', 'm_rsp_rdata')):
+            document = deepcopy(artifact.runtime_document)
+            document['protocol_tap_ports'][0][field] = value
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                verify_native_completion_observation(
+                    replace(artifact, runtime_document=document))
 
     def test_native_driver_contains_bounded_memory_operation(self):
         from myfuzz.local_harness.driver_renderer import render_local_driver

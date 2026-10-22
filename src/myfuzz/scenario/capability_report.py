@@ -261,6 +261,16 @@ def _validate_compiled_paths(document: Mapping):
 
 
 def _validate_harness_set(document: Mapping) -> list:
+    wiring = document.get('wiring')
+    route_bearing = (
+        (isinstance(wiring, Mapping)
+            and (wiring.get('schema_version') == 'wiring_contract.v2'
+                 or 'dma_master_routes' in wiring))
+        or 'dma_master_routes' in document
+    )
+    if route_bearing:
+        _refuse('capability-report-route-intent-unsupported',
+                '/wiring/dma_master_routes')
     if document.get('schema_version') != HARNESS_SET_SCHEMA_VERSION:
         _refuse('unsupported-harness-set-schema', '/schema_version',
                 {'expected': HARNESS_SET_SCHEMA_VERSION,

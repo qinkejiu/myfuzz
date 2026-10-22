@@ -1,6 +1,6 @@
 """Native-only current-value witnesses. Pure reducers and JSON are not authority."""
 from copy import deepcopy
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 import sys
 from pathlib import Path
 import hashlib
@@ -18,6 +18,40 @@ _STARTUP_KEYS=frozenset({'contract','ports','page_count','next_page','pages','re
 
 _WIDTHS = MappingProxyType(dict(value=32, reset=1, paddr=12, psel=1, penable=1,
                pwrite=1, pwdata=32, prdata=32, pready=1, pslverr=1))
+
+from myfuzz.local_harness import apb_storage_source_contract as _source_contract_module
+
+_SOURCE_FUNCTIONS = MappingProxyType({name:(getattr(_source_contract_module,name),
+    getattr(_source_contract_module,name).__code__) for name in (
+        'validate_apb_storage_source_contract', '_require_registered_document',
+        '_registered_document')})
+
+
+@dataclass(frozen=True, slots=True)
+class _StorageFacts:
+    digest: str
+    register: str
+    width: int
+    reset_value: int
+    write_mask: int
+    address_width: int
+    decode_mask: int
+    decode_value: int
+
+
+def _source_facts(document=None):
+    """Pure closed-registry facts; this never grants native authority."""
+    if document is None:
+        document = _SOURCE_FUNCTIONS['_registered_document'][0]()
+    contract = _SOURCE_FUNCTIONS['_require_registered_document'][0](document)
+    register, decode = contract['register'], contract['decode']
+    return _StorageFacts(contract['digest'], register['name'], register['width'],
+        register['reset_value'], register['write_mask'], decode['address_width'],
+        decode['mask'], decode['value'])
+
+
+def storage_version_basis(register):
+    return f'all_measured_{register.rsplit("_", 1)[-1]}_alias_writes_since_first_command'
 
 
 def validate_storage_startup_receipt(receipt, *, execution, sequence, contract,
@@ -74,14 +108,18 @@ def _canonical(value):
     return json.dumps(value,sort_keys=True,separators=(',',':'),allow_nan=False)
 
 
-def reduce_storage_samples(samples, *, previous=None, first_tick=1, max_samples=65536):
+def reduce_storage_samples(samples, *, previous=None, first_tick=1, max_samples=65536,
+                           source_contract=None):
     """Isolated source-equation calculation; cannot create or consume tokens."""
     if (type(samples) is not list or not samples or type(max_samples) is not int
             or not 1 <= max_samples <= 65536 or not 1 <= len(samples) <= max_samples or type(first_tick) is not int or first_tick < 1):
         raise ValueError('storage-sample-capacity-or-shape')
     if previous is not None and (type(previous) is not dict or set(previous)-{'tick','value','reset_waveform_observed','sequence'} or any(type(previous.get(k)) is not int for k in ('tick','value')) or type(previous.get('reset_waveform_observed')) is not bool):raise ValueError('storage-previous-shape')
+    facts=_source_facts(source_contract)
+    widths=dict(_WIDTHS,value=facts.width,paddr=facts.address_width,
+                pwdata=facts.width,prdata=facts.width)
     state=deepcopy(previous);writes=[]
-    names={'storage_'+role for role in _WIDTHS}
+    names={'storage_'+role for role in widths}
     for index,sample in enumerate(samples):
         if (type(sample) is not dict or not {'local_tick','pre','post'}<=set(sample)
                 or any(type(sample[phase]) is not dict or 'storage_probes' not in sample[phase] for phase in ('pre','post'))):raise ValueError('storage-raw-sample-shape')
@@ -91,15 +129,16 @@ def reduce_storage_samples(samples, *, previous=None, first_tick=1, max_samples=
         pre=sample['pre']['storage_probes'];post=sample['post']['storage_probes']
         for group in (pre,post):
             if type(group) is not dict or set(group)!=names:raise ValueError('storage-probe-shape')
-            if any(type(group['storage_'+role]) is not int or not 0<=group['storage_'+role]<(1<<width) for role,width in _WIDTHS.items()):raise ValueError('storage-probe-width')
+            if any(type(group['storage_'+role]) is not int or not 0<=group['storage_'+role]<(1<<width) for role,width in widths.items()):raise ValueError('storage-probe-width')
             if group['storage_pready']!=1 or group['storage_pslverr']!=0:raise ValueError('storage-physical-error')
         old,new=pre['storage_value'],post['storage_value']
         if state is not None and old!=state['value']:raise ValueError('storage-value-discontinuity')
         reset=pre['storage_reset']
         if reset!=post['storage_reset']:raise ValueError('storage-reset-phase-uncertain')
-        write=all(pre['storage_'+role]==1 for role in ('psel','penable','pwrite')) and (pre['storage_paddr']&0x1c)==4
-        expected_value=0 if reset else pre['storage_pwdata'] if write else old
-        if (reset and old!=0) or new!=expected_value:raise ValueError('storage-source-equation')
+        write=all(pre['storage_'+role]==1 for role in ('psel','penable','pwrite')) and (pre['storage_paddr']&facts.decode_mask)==facts.decode_value
+        expected_value=(facts.reset_value if reset else
+            (old & ~facts.write_mask) | (pre['storage_pwdata'] & facts.write_mask) if write else old)
+        if (reset and old!=facts.reset_value) or new!=expected_value:raise ValueError('storage-source-equation')
         if write and not reset:
             writes.append(dict(tick=tick,raw_address=pre['storage_paddr'],before=old,after=new,sample_index=index,phase='pre'))
         state=dict(tick=tick,value=new,reset_waveform_observed=bool(reset or state and state['reset_waveform_observed']))
@@ -153,6 +192,8 @@ _SCOPE_VALIDATOR=(validate_storage_scope,validate_storage_scope.__code__)
 _AUTHORITIES=WeakKeyDictionary();_LIVE=WeakKeyDictionary();_TOKENS=WeakKeyDictionary()
 _REGISTRIES=(_AUTHORITIES,_LIVE,_TOKENS)
 _REDUCER=(reduce_storage_samples,reduce_storage_samples.__code__)
+_FACT_FUNCTIONS=MappingProxyType({name:(value,value.__code__) for name,value in (
+    ('_source_facts',_source_facts),('storage_version_basis',storage_version_basis))})
 
 
 class ApbStorageRegisterVersionAuthority:
@@ -166,12 +207,30 @@ class ApbStorageRegisterVersionAuthority:
                 or any(type(v) is not int or not 1<=v<=65536 for v in (max_samples,max_writes,max_tokens))):
             raise ValueError('storage-version-fresh-exact-producer-required')
         _NATIVE_RESET_CHECK_PRODUCERS[0](target)
-        if target._native_reset_observation is None:target.configure_native_reset_observation()
         self.target=target;self.artifact=target.artifact
+        contract=self._source_contract()
+        if target._native_reset_observation is None:target.configure_native_reset_observation()
         _AUTHORITIES[target]=self;_TOKENS[self]={}
         _LIVE[self]=dict(bad=False,state=None,scope=None,pending=None,writes=[],samples=0,
                          limits=(max_samples,max_writes,max_tokens),startup=None,
-                         last_wire_sequence=0)
+                         last_wire_sequence=0,source_contract=_canonical(contract),
+                         source_facts=_source_facts(contract),
+                         source_base=str(target.base_dir.absolute()))
+
+    def _source_contract(self):
+        if self.target.artifact.runtime_document!=self.target._artifact_document:
+            raise ValueError('storage-version-source-contract-drift')
+        document=self.target._artifact_document.get('storage_observation')
+        if type(document) is not dict:raise ValueError('storage-version-source-contract-required')
+        contract=_SOURCE_FUNCTIONS['validate_apb_storage_source_contract'][0](
+            document.get('source_contract'),self.artifact.plan.profile,
+            base_dir=self.target.base_dir)
+        selection=document.get('selection')
+        if (type(selection) is not dict
+                or selection.get('contract_id')!=contract['contract_id']
+                or selection.get('register')!=contract['register']['name']):
+            raise ValueError('storage-version-source-contract-drift')
+        return contract
 
     def _validate(self,*,native=False):
         from myfuzz.local_harness.session import _NATIVE_RESET_CHECK_PRODUCERS,_NATIVE_RESET_NATIVE_ELIGIBLE
@@ -184,11 +243,21 @@ class ApbStorageRegisterVersionAuthority:
                 or validate_storage_scope is not _SCOPE_VALIDATOR[0] or validate_storage_scope.__code__ is not _SCOPE_VALIDATOR[1]
                 or validate_routed_context is not _ROUTED_VALIDATOR[0] or validate_routed_context.__code__ is not _ROUTED_VALIDATOR[1]
                 or reduce_storage_samples is not _REDUCER[0] or reduce_storage_samples.__code__ is not _REDUCER[1]
+                or any(getattr(_source_contract_module,name) is not value or value.__code__ is not code
+                       for name,(value,code) in _SOURCE_FUNCTIONS.items())
+                or any(globals().get(name) is not value or value.__code__ is not code
+                       for name,(value,code) in _FACT_FUNCTIONS.items())
                 or any(globals().get(name) is not value or value.__code__ is not code
                        for name,(value,code) in _STARTUP_LOCAL_FUNCTIONS.items())
                 or any(getattr(_startup_helper(),name) is not value or value.__code__ is not code
                        for name,(value,code) in _startup_helper_functions().items())):
             raise ValueError('storage-version-authority-drift-or-revoked')
+        contract=self._source_contract()
+        live=_LIVE[self]
+        if (_canonical(contract)!=live['source_contract']
+                or _source_facts(contract)!=live['source_facts']
+                or str(self.target.base_dir.absolute())!=live['source_base']):
+            raise ValueError('storage-version-source-contract-drift')
         _NATIVE_RESET_CHECK_PRODUCERS[0](self.target)
         self.target._native_reset_observation.validate()
         self._check_startup(_LIVE[self])
@@ -460,7 +529,8 @@ class ApbStorageRegisterVersionAuthority:
                 first_command_sequence=receipt.sequence,first_command_tick=receipt.tick_before,
                 readback_not_storage=True,grants_reset_prerequisite=False)
         remaining=live['limits'][0]-live['samples']
-        state,writes=_REDUCER[0](rows,previous=live['state'],first_tick=pending[3]+1,max_samples=remaining)
+        state,writes=_REDUCER[0](rows,previous=live['state'],first_tick=pending[3]+1,
+            max_samples=remaining,source_contract=json.loads(live['source_contract']))
         accepted=[r['pre']['storage_probes'] for r in rows if all(r['pre']['storage_probes']['storage_'+k]==1 for k in ('psel','penable','pready'))]
         if operation=='ACCESS_APB3_REG':
             if (len(accepted)!=1 or accepted[0]['storage_paddr']!=fields[1] or accepted[0]['storage_pwrite']!=fields[0]
@@ -491,17 +561,18 @@ class ApbStorageRegisterVersionAuthority:
                 raise ValueError('storage-startup-handoff-incomplete')
             _SCOPE_VALIDATOR[0](state,live['scope'],process=t.process,execution=t._execution,epoch=t.reset_epoch,
                 tick_base=t._tick_base,sequence=t._sequence,tick=t.local_ticks)
-            if (register!='TIMER0_CTRL' or type(reset_epoch) is not int or reset_epoch!=t.reset_epoch
+            facts=live['source_facts']
+            if (register!=facts.register or type(reset_epoch) is not int or reset_epoch!=t.reset_epoch
                     or state is None or live['pending'] is not None or live['scope']!=(t.process,t._execution,t.reset_epoch,t._tick_base)
                     or t.process is None or t.process.poll() is not None or state['sequence']!=t._sequence):raise ValueError('storage-version-current-state-unavailable')
             if len(_TOKENS[self])>=live['limits'][2]:raise ValueError('storage-version-token-capacity')
             doc=t._artifact_document;probe=doc['storage_observation']
             token=object();_TOKENS[self][token]=dict(register=register,value=state['value'],local_tick=state['tick'],
                 write_history_sha256=hashlib.sha256(json.dumps(live['writes'],sort_keys=True,separators=(',',':'),allow_nan=False).encode()).hexdigest(),
-                field_version=len(live['writes']),write_count=len(live['writes']),version_basis='all_measured_CTRL_alias_writes_since_first_command',
+                field_version=len(live['writes']),write_count=len(live['writes']),version_basis=storage_version_basis(facts.register),
                 reset_epoch=reset_epoch,command_sequence=state['sequence'],pid=t.process.pid,execution=t._execution,
                 build_identity_sha256=live['build_digest'],producer_source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-                artifact_digest=doc['artifact_digest'],source_contract_digest=probe['source_contract']['digest'],probe_digest=probe['digest'],
+                artifact_digest=doc['artifact_digest'],source_contract_digest=facts.digest,probe_digest=probe['digest'],
                 reset_waveform_observed=state['reset_waveform_observed'],grants_reset_prerequisite=False,
                 history_scope='complete_commands_since_first_measured_state_not_unobserved_startup',routed_context_authenticated=False)
             return token

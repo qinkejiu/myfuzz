@@ -775,6 +775,8 @@ def test_a_non_default_rounds_per_case_requires_the_compiled_executor(tmp_path):
 
 
 def test_rounds_per_case_reaches_the_compiled_session(monkeypatch, tmp_path):
+    from contextlib import nullcontext
+    from myfuzz.integration import compiled_rfuzz
     from myfuzz.local_harness import auto_harness_test as driver
     from myfuzz.local_harness import compiled_execution_projection as projection
 
@@ -784,6 +786,16 @@ def test_rounds_per_case_reaches_the_compiled_session(monkeypatch, tmp_path):
     cache = tmp_path / 'cache'
     cache.mkdir()
     captured: dict = {}
+    verified = []
+    # This argument-forwarding fixture never starts a native worker.
+    monkeypatch.setattr(driver, '_heavy_worker_lock', lambda base: nullcontext())
+
+    def fake_saved_output_verification(output_dir, **kwargs):
+        verified.append((output_dir, kwargs))
+        return {}
+
+    monkeypatch.setattr(compiled_rfuzz, 'verify_saved_compiled_f4_build_outputs',
+                        fake_saved_output_verification)
 
     monkeypatch.setattr(
         driver, 'load_compiled_session_inputs',
@@ -803,6 +815,8 @@ def test_rounds_per_case_reaches_the_compiled_session(monkeypatch, tmp_path):
         captured.update(kwargs)
         session = Path(kwargs['session_dir'])
         session.mkdir(parents=True)
+        (session / 'online_session_manifest.json').write_text('{}\n',
+                                                            encoding='utf-8')
         (session / 'report.json').write_text(json.dumps({
             'tests': 1, 'statuses': {'certified': 1},
             'execution_status': 'complete', 'elapsed_seconds': 0.1,
@@ -834,6 +848,10 @@ def test_rounds_per_case_reaches_the_compiled_session(monkeypatch, tmp_path):
         compose=ROOT / TIMER_COMPOSE, output=output, base_dir=ROOT,
         executor='compiled-f4-rfuzz', client_binary=client, cache_dir=cache,
         budget_seconds=1, max_tests=2, rounds_per_case=32)
+    assert len(verified) == 1
+    assert verified[0][0] == output
+    assert verified[0][1]['manifest'] == {}
+    assert summary['executor']['status'] == 'ok', summary['refusals']
     assert captured['rounds_per_case'] == 32
     assert summary['rounds_per_case'] == 32
     assert summary['executor']['detail']['rounds_per_case'] == 32

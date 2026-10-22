@@ -127,7 +127,8 @@ def _clock_edges_through(row: dict[str, object], fast_tick: int) -> int:
 
 
 def _payload(encoded: str, *, kind: str, before: int, after: int,
-             clock_schedule: object = None) -> dict[str, object]:
+             clock_schedule: object = None,
+             native_taps: dict[str, int] | None = None) -> dict[str, object]:
     if (not encoded or len(encoded) > 2 * MAX_PAYLOAD_JSON_BYTES
             or len(encoded) % 2 or re.fullmatch(r'[0-9a-f]+', encoded) is None):
         raise ValueError('invalid-driver-payload-hex')
@@ -160,6 +161,12 @@ def _payload(encoded: str, *, kind: str, before: int, after: int,
     multi_clock = len(clock_rows) > 1
     if len(samples) != after - before:
         raise ValueError('driver-sample-count-mismatch')
+    if native_taps is not None and (
+            kind != 'native_memory_cpu' or type(native_taps) is not dict
+            or not native_taps or any(type(name) is not str or not name
+                or type(width) is not int or not 1 <= width <= 64
+                for name, width in native_taps.items())):
+        raise ValueError('invalid-expected-native-taps')
     for index, sample in enumerate(samples, start=before + 1):
         expected_sample_keys = ({'local_tick', 'pre', 'post', 'clock_edges'}
                                 if multi_clock else {'local_tick', 'pre', 'post'})
@@ -167,6 +174,14 @@ def _payload(encoded: str, *, kind: str, before: int, after: int,
                 or type(sample['local_tick']) is not int or sample['local_tick'] != index
                 or not isinstance(sample['pre'], dict) or not isinstance(sample['post'], dict)):
             raise ValueError('invalid-driver-sample')
+        if native_taps is not None:
+            for phase in ('pre', 'post'):
+                taps = sample[phase].get('protocol_taps')
+                if (type(taps) is not dict or set(taps) != set(native_taps)
+                        or any(type(taps[name]) is not int
+                            or not 0 <= taps[name] < 1 << width
+                            for name, width in native_taps.items())):
+                    raise ValueError('invalid-driver-native-taps')
         if multi_clock:
             edges = sample['clock_edges']
             domains = {row['domain'] for row in clock_rows}
@@ -186,7 +201,8 @@ def _payload(encoded: str, *, kind: str, before: int, after: int,
 
 def parse_driver_receipt(line: str, *, execution: str, sequence: int,
                          current_tick: int, kind: str, cached: bool = False,
-                         clock_schedule: object = None) -> DriverReceipt:
+                         clock_schedule: object = None,
+                         native_taps: dict[str, int] | None = None) -> DriverReceipt:
     if (_EXECUTION.fullmatch(execution) is None or type(sequence) is not int or sequence < 1
             or type(current_tick) is not int or current_tick < 0 or type(cached) is not bool):
         raise ValueError('invalid-expected-driver-identity')
@@ -200,7 +216,7 @@ def parse_driver_receipt(line: str, *, execution: str, sequence: int,
         if after < before or (before != current_tick if not cached else after > current_tick):
             raise ValueError('driver-reply-tick-mismatch')
         payload = _payload(parts[5], kind=kind, before=before, after=after,
-                           clock_schedule=clock_schedule)
+                           clock_schedule=clock_schedule, native_taps=native_taps)
         return DriverReceipt('result', execution, sequence, before, after,
                              0 if cached else after - before, payload=payload)
     parts = _tokens(line, 6)

@@ -53,6 +53,11 @@ HOST_SOURCE_PATHS = (
 # v1 is the historical 34-file path contract. New generated semantics belong
 # to v2, together with their exact per-harness source/build snapshots.
 HARNESS_HOST_SOURCE_PATHS = HOST_SOURCE_PATHS + (
+    'src/myfuzz/scenario/reduced_axi_runner_stream.py',
+    'src/myfuzz/scenario/reduced_axi_journal.py',
+    'src/myfuzz/scenario/reduced_axi_stream_source.py',
+    'src/myfuzz/scenario/observation_stream.py',
+    'src/myfuzz/scenario/reduced_axi_events.py',
     'src/myfuzz/scenario/uart_retired_read.py',
     'src/myfuzz/scenario/uart_operand_seed.py',
     'src/myfuzz/scenario/uart_operand_use.py',
@@ -90,6 +95,9 @@ HARNESS_HOST_SOURCE_PATHS = HOST_SOURCE_PATHS + (
     'src/myfuzz/scenario/native_cpu_events.py',
     'src/myfuzz/scenario/native_replay_identity.py',
     'src/myfuzz/scenario/native_instruction_source_binding.py',
+    # Native source completion policy, typed issuance consumer and full replay.
+    'src/myfuzz/scenario/native_instruction_bus_completion.py',
+    'src/myfuzz/scenario/session_runtime.py',
 )
 
 

@@ -166,6 +166,134 @@ def test_master_target_delivery_preserves_native_step_receipt(artifact, tmp_path
     assert session.memory_service.events == []
 
 
+def test_dma_master_target_v2_identity_is_injective_and_leaves_legacy_document(artifact, tmp_path):
+    class Target:
+        def identity_document(self):
+            return {'component': 'target'}
+
+        def write_register(self, offset, value, *, be):
+            pass
+
+    target = Target()
+    stepped = MasterTargetWindow('uart', 0x50000000, 0x1000, target,
+        (0x1c,), range(0, 256, 2))
+    other_step = MasterTargetWindow('uart', 0x50000000, 0x1000, target,
+        (0x1c,), range(0, 256, 4))
+    tuple_values = MasterTargetWindow('uart', 0x50000000, 0x1000, target,
+        (0x1c,), tuple(range(0, 256, 2)))
+
+    legacy = stepped.identity_document()
+    assert legacy['accepted_write_values'] == [0, 255]
+    assert stepped.route_identity_document()['accepted_write_values'] == {
+        'kind': 'range', 'start': 0, 'stop': 256, 'step': 2}
+    assert stepped.route_identity_document() != other_step.route_identity_document()
+    assert stepped.route_identity_document() != tuple_values.route_identity_document()
+
+    class CachedEndpoint:
+        _artifact_document = {'kind': 'pinned-profile'}
+        artifact = type('Artifact', (), {'runtime_document': _artifact_document})()
+
+        def identity_document(self):
+            raise AssertionError('v2 identity must not inspect build/cache files')
+
+        def write_register(self, offset, value, *, be):
+            pass
+
+    cached = MasterTargetWindow('uart', 0x50000000, 0x1000,
+        CachedEndpoint(), (0x1c,), (1,))
+    assert cached.route_identity_document()['endpoint_identity'] == {
+        'schema_version': 'generated_local_route_endpoint.v1',
+        'runtime_artifact': {'kind': 'pinned-profile'}}
+
+
+def test_dma_route_validator_is_one_time_and_runs_before_step_command(artifact, tmp_path, monkeypatch):
+    from unittest.mock import Mock
+    from myfuzz.local_harness.wire import DriverReceipt
+
+    memory = PersistentMemory(initialization_seed=1, max_initialized_bytes=16,
+        regions=(MemoryRegion('ram', 0x1000, 16),))
+    session = GeneratedWishboneDmaSession(artifact, base_dir=ROOT,
+        cache_dir=tmp_path, memory=memory)
+    validate = Mock()
+    session.configure_dma_route_validator(validate)
+    with pytest.raises(ValueError, match='already configured'):
+        session.configure_dma_route_validator(validate)
+
+    session._execution = 'software-contract'
+    session._case_id = 'validator'
+    command_calls = []
+    def command(op, fields):
+        command_calls.append(op)
+        return DriverReceipt('result', 'software-contract', 1, 0, 1, 1,
+            payload={'observations': {'backend': {'mwb_stb': 0}},
+                     'pre_backend': dict(mwb_cyc=0, mwb_stb=0, mwb_we=0,
+                                         mwb_adr=0, mwb_dat_w=0)})
+    monkeypatch.setattr(session, 'command', command)
+    session.step_local()
+
+    assert command_calls == ['STEP_WB_DMA']
+    validate.assert_called_once_with()
+
+
+def test_dma_route_validator_rechecks_immediately_before_target_effect(artifact, tmp_path, monkeypatch):
+    from myfuzz.local_harness.wire import DriverReceipt
+
+    order = []
+    class Target:
+        local_ticks = 0
+        uart_events = ()
+
+        def identity_document(self):
+            return {'component': 'target'}
+
+        def write_register(self, offset, value, *, be):
+            order.append('target-effect')
+            self.local_ticks += 1
+            self.uart_events = ({'tick': self.local_ticks},)
+
+    memory = PersistentMemory(initialization_seed=1, max_initialized_bytes=16,
+        regions=(MemoryRegion('ram', 0x1000, 16),))
+    window = MasterTargetWindow('uart', 0x50000000, 0x1000, Target(),
+        (0x1c,), (0xa5,))
+    session = GeneratedWishboneDmaSession(artifact, base_dir=ROOT,
+        cache_dir=tmp_path, memory=memory, master_targets=(window,))
+    def validate():
+        order.append('validate')
+    session.configure_dma_route_validator(validate)
+    session._execution = 'software-contract'
+    session._case_id = 'validator-effect'
+
+    def command(op, fields):
+        order.append('native-step')
+        payload = {'observations': {'backend': {'mwb_stb': 0}},
+            'pre_backend': dict(mwb_cyc=1, mwb_stb=1, mwb_we=1,
+                                mwb_adr=0x5000001c >> 2, mwb_dat_w=0xa5)}
+        return DriverReceipt('result', 'software-contract', 1, 0, 1, 1,
+            payload=payload)
+    monkeypatch.setattr(session, 'command', command)
+
+    session.step_local()
+
+    assert order == ['validate', 'native-step', 'validate', 'target-effect']
+
+
+def test_dma_route_validator_runs_before_case_process_start(artifact, tmp_path, monkeypatch):
+    from myfuzz.local_harness.session import GeneratedLocalSession
+
+    order = []
+    session = GeneratedWishboneDmaSession(artifact, base_dir=ROOT,
+        cache_dir=tmp_path,
+        memory=PersistentMemory(initialization_seed=1, max_initialized_bytes=16,
+            regions=(MemoryRegion('ram', 0x1000, 16),)))
+    session.configure_dma_route_validator(lambda: order.append('validate'))
+    monkeypatch.setattr(GeneratedLocalSession, 'begin_case',
+        lambda _self, _testcase_id: order.append('start-process'))
+
+    session.begin_case('admit')
+
+    assert order == ['validate', 'start-process']
+
+
 def test_master_uart_rdata_uses_target_receipt_as_actual_ack_data(artifact, tmp_path, monkeypatch):
     from myfuzz.local_harness.wire import DriverReceipt
     from myfuzz.scenario.ledger import TransactionKey

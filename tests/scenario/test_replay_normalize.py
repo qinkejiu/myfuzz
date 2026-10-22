@@ -2,10 +2,12 @@
 import pytest
 
 from myfuzz.scenario.replay_normalize import (
-    EXECUTION_ROLES, FIELD_RULES, FORBIDDEN_REWRITE_SCOPES, NORMALIZER_RULES,
+    EXECUTION_ROLES, GPIO_DMA_EXECUTION_ROLES, FIELD_RULES,
+    FORBIDDEN_REWRITE_SCOPES, NORMALIZER_RULES,
     RETAINED_FIELDS, PrefixDivergence, assert_prefix_equal,
     first_difference, first_difference_normalized, first_replay_difference,
-    normalize_execution_identities, normalized_digest)
+    first_gpio_dma_replay_difference, normalize_execution_identities,
+    normalize_gpio_dma_execution_identities, normalized_digest)
 
 IDS = {'cpu': 'a' * 32, 'dma': 'b' * 32, 'uart': 'c' * 32, 'runner': 'd' * 32}
 FRESH = {'cpu': '1' * 32, 'dma': '2' * 32, 'uart': '3' * 32, 'runner': '4' * 32}
@@ -193,6 +195,40 @@ def test_execution_ids_must_be_the_four_distinct_native_uuids():
     with pytest.raises(ValueError):
         first_replay_difference([], [], reference_execution_ids=IDS,
             actual_execution_ids={'cpu': 'not-hex'})
+
+
+def test_gpio_dma_normalizer_uses_only_cpu_dma_gpio_and_runner_ids():
+    reference_ids = {'cpu': 'a' * 32, 'dma': 'b' * 32,
+        'gpio': 'c' * 32, 'runner': 'd' * 32}
+    actual_ids = {'cpu': '1' * 32, 'dma': '2' * 32,
+        'gpio': '3' * 32, 'runner': '4' * 32}
+    reference = [{'kind': 'gpio_apb_access', 'execution_id': reference_ids['gpio'],
+        'value': 'payload-' + reference_ids['gpio'],
+        'writer_event_id': _ledger(reference_ids['dma'])}]
+    actual = [{'kind': 'gpio_apb_access', 'execution_id': actual_ids['gpio'],
+        'value': 'payload-' + actual_ids['gpio'],
+        'writer_event_id': _ledger(actual_ids['dma'])}]
+
+    assert set(GPIO_DMA_EXECUTION_ROLES) == {'cpu', 'dma', 'gpio', 'runner'}
+    assert normalize_gpio_dma_execution_identities(reference,
+        reference_ids)[0]['execution_id'] == 'execution:gpio'
+    assert first_gpio_dma_replay_difference(reference, actual,
+        reference_execution_ids=reference_ids,
+        actual_execution_ids=actual_ids)['path'] == [0, 'value']
+    reference[0]['value'] = 'same-payload'
+    actual[0]['value'] = 'same-payload'
+    assert first_gpio_dma_replay_difference(reference, actual,
+        reference_execution_ids=reference_ids,
+        actual_execution_ids=actual_ids) is None
+    edge_reference = {'events': [_state_edge(reference_ids['dma'],
+        reference_ids['gpio'])]}
+    edge_actual = {'events': [_state_edge(actual_ids['dma'],
+        actual_ids['gpio'])]}
+    assert first_gpio_dma_replay_difference(edge_reference, edge_actual,
+        reference_execution_ids=reference_ids,
+        actual_execution_ids=actual_ids) is None
+    with pytest.raises(ValueError, match='exactly'):
+        normalize_gpio_dma_execution_identities([], IDS)
 
 
 def test_prefix_divergence_carries_the_first_difference_record():

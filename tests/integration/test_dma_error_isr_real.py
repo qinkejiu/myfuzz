@@ -29,7 +29,8 @@ from pathlib import Path
 import pytest
 
 from myfuzz.integration.dma_uart_descriptor_runtime import (
-    DescriptorCase, DescriptorResult, replay_descriptor_cases,
+    DescriptorCase, DescriptorResult, _descriptor_case_replay_difference,
+    replay_descriptor_cases,
     run_descriptor_cases)
 from myfuzz.scenario.contracts import ResourceBudget
 from myfuzz.scenario.ibex_dma_uart_descriptor import (
@@ -242,7 +243,10 @@ def test_error_isr_valid_and_invalid_cases_one_boot_and_fresh_replay(tmp_path):
         json.loads(json.dumps(result.to_document())))
     fresh = replay_descriptor_cases(loaded, cache_dir=cache)
     _save(evidence, 'fresh', fresh.to_document())
-    assert fresh.cases == result.cases
+    case_difference = _descriptor_case_replay_difference(result.cases,
+        fresh.cases, reference_execution_ids=result.execution_ids,
+        actual_execution_ids=fresh.execution_ids)
+    assert case_difference is None, case_difference
     # S4 typed prefix comparison: every real event/tick/case of every prefix.
     from myfuzz.integration.dma_prefix_replay import (
         compare_dma_prefix, prefix_reference)

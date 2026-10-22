@@ -43,7 +43,7 @@ def _review(compose, *, repository, compose_base):
 
 def configure_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument('--compose', type=Path, required=True,
-                        help='harness_compose.v1 declaration')
+                        help='harness_compose.v1 or route-bearing v2 declaration')
     parser.add_argument('--output', type=Path, required=True,
                         help='new directory for the generated harness set')
     parser.add_argument('--build-cache', type=Path,

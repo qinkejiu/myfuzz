@@ -31,7 +31,7 @@ class EdgeAwareDecoderTests(unittest.TestCase):
 
     def test_genome_distinct_or_ids_cached_mutation_and_roundtrip_replay_only(self):
         decoder, _, _ = self.fixture()
-        self.assertEqual('scenario_rfuzz_decoder.v3', decoder.document()['schema_version'])
+        self.assertEqual('scenario_rfuzz_decoder.v4', decoder.document()['schema_version'])
         with patch.object(DependencyGraph, 'edge_paths_to', side_effect=AssertionError('hot path traversal')), patch.object(DependencyGraph, 'paths_to', side_effect=AssertionError('legacy traversal')), patch.object(DependencyGraph, 'path_identity', side_effect=AssertionError('hot hash')), patch.object(SourceBindings, 'validate', side_effect=AssertionError('hot bindings')):
             first = decoder.decode((bytes((1, 0, 0, 0, 0, 1, 0, 0)),))
             second = decoder.decode((bytes((1, 1, 0, 0, 0, 1, 0, 0)),))
@@ -44,6 +44,41 @@ class EdgeAwareDecoderTests(unittest.TestCase):
         self.assertTrue(restored.from_document_replay_only)
         self.assertFalse(restored.trusted_for_search)
         self.assertEqual(first, restored.decode((bytes((1, 0, 0, 0, 0, 1, 0, 0)),)))
+
+    def test_historical_v2_v3_mixed_templates_replay_without_invented_images(self):
+        for runtime in (False, True):
+            with self.subTest(runtime=runtime):
+                edge_decoder, graph, ownership = self.fixture()
+                decoder = GenomeRecordDecoder(graph=graph, ownership=ownership,
+                    templates=edge_decoder.templates,
+                    source_bindings=edge_decoder.source_bindings,
+                    runtime_contract=contract(graph) if runtime else None)
+                document = decoder.document()
+                document['schema_version'] = ('scenario_rfuzz_decoder.v3'
+                                              if runtime else 'scenario_rfuzz_decoder.v2')
+                for key in ('sources', 'source_bindings'):
+                    for row in document.get(key, ()):
+                        row.pop('image_address', None)
+                self.assertEqual([], document['templates'][1]['genome']['initial_images'])
+                restored = GenomeRecordDecoder.from_document(document)
+                for record in (bytes((0, 0, 0, 20, 0, 1, 0, 0)),
+                               bytes((1, 0, 0, 0, 0, 1, 0, 0))):
+                    self.assertEqual(decoder.decode((record,)), restored.decode((record,)))
+
+    def test_relevant_template_missing_or_ambiguous_image_is_rejected(self):
+        for runtime in (False, True):
+            for duplicate in (False, True):
+                with self.subTest(runtime=runtime, duplicate=duplicate):
+                    decoder, graph, ownership = self.fixture()
+                    template = decoder.templates[0]
+                    bad = replace(template.genome)
+                    object.__setattr__(bad, 'initial_images',
+                        template.genome.initial_images * 2 if duplicate else ())
+                    with self.assertRaises(ValueError):
+                        GenomeRecordDecoder(graph=graph, ownership=ownership,
+                            templates=(replace(template, genome=bad), decoder.templates[1]),
+                            source_bindings=decoder.source_bindings,
+                            runtime_contract=contract(graph) if runtime else None)
 
     def test_external_graph_and_ownership_mutation_cannot_change_frozen_decoder(self):
         decoder, graph, ownership = self.fixture()
@@ -60,6 +95,11 @@ class EdgeAwareDecoderTests(unittest.TestCase):
 
     def test_contract_hash_and_noncanonical_new_document_rejected(self):
         decoder, _, _ = self.fixture()
+        doc = decoder.document()
+        self.assertIsNone(doc['source_bindings'][1]['image_address'])
+        doc['source_bindings'][1].pop('image_address')
+        with self.assertRaises(ValueError):
+            GenomeRecordDecoder.from_document(doc)
         doc = decoder.document()
         doc['runtime_contract']['graph_sha256'] = '0' * 64
         with self.assertRaises(ValueError):

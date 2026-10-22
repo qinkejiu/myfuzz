@@ -402,7 +402,7 @@ class DeferredNativeMemorySession(GeneratedNativeMemorySession):
             raise ProtocolEnvironmentError('native command handshake observation mismatch')
         self.last_samples = tuple(copy.deepcopy(payload['samples']))
         self._observe_verified_memory_edge(receipt)
-        self._record_native_bus_receipt(receipt, pending)
+        observed_key = self._record_native_bus_receipt(receipt, pending)
         accepted = int(bool(pre['m_req_valid'] and pre['m_req_ready']))
         consumed = int(bool(pre['m_rsp_valid'] and pre['m_rsp_ready']))
         if consumed:
@@ -421,9 +421,19 @@ class DeferredNativeMemorySession(GeneratedNativeMemorySession):
                 self._abort()
                 raise ProtocolEnvironmentError('native unaligned or incomplete read')
             self._sequence_memory += 1
-            key = TransactionKey('local-execution', self._case_id,
-                                 self.artifact.plan.request.instance_id,
-                                 self.reset_epoch, 'memory', self._sequence_memory)
+            if self._native_bus_observer is not None:
+                key = observed_key
+                if (type(key) is not TransactionKey
+                        or key != TransactionKey('local-execution', self._case_id,
+                            self.artifact.plan.request.instance_id, self.reset_epoch,
+                            'memory', self._sequence_memory)):
+                    self._abort()
+                    raise ProtocolEnvironmentError(
+                        'native observer accepted key differs from service request')
+            else:
+                key = TransactionKey('local-execution', self._case_id,
+                    self.artifact.plan.request.instance_id, self.reset_epoch,
+                    'memory', self._sequence_memory)
             try:
                 response = self._service_accepted_request(key, address, write, be, value)
             except (ValueError, RuntimeError) as error:

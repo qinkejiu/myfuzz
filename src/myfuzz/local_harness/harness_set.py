@@ -24,6 +24,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 import copy
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -65,6 +66,11 @@ def _json_bytes(value):
                        allow_nan=False) + '\n').encode('utf-8')
 
 
+def _static_sha256(value):
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'),
+                                     ensure_ascii=False, allow_nan=False).encode()).hexdigest()
+
+
 def _require(document, keys, pointer, optional=()):
     """A compose document is a closed declaration, not an open bag.
 
@@ -97,16 +103,23 @@ def load_compose(path, *, base_dir):
     document = json.loads(Path(path).read_text(encoding='utf-8'))
     if not isinstance(document, dict):
         _refuse('compose-document-required', '')
-    top = _require(document, {'schema_version', 'cpu', 'devices'},
-                   '', optional={'memory', 'fixed_inputs'})
-    if top['schema_version'] != 'harness_compose.v1':
+    version = document.get('schema_version')
+    if version == 'harness_compose.v1':
+        top = _require(document, {'schema_version', 'cpu', 'devices'},
+                       '', optional={'memory', 'fixed_inputs'})
+    elif version == 'harness_compose.v2':
+        top = _require(document, {'schema_version', 'cpu', 'devices',
+                                  'dma_master_routes', 'dma_master_route_bindings'},
+                       '', optional={'memory', 'fixed_inputs'})
+    else:
         _refuse('compose-schema-version', '/schema_version',
-                {'expected': 'harness_compose.v1',
-                 'observed': top['schema_version']})
+                {'expected': ['harness_compose.v1', 'harness_compose.v2'],
+                 'observed': version})
     if not isinstance(top['cpu'], Mapping):
         _refuse('compose-cpu-object-required', '/cpu')
     cpu = _require(dict(top['cpu']),
-                   {'instance_id', 'request', 'data_endpoint'}, '/cpu')
+                   {'instance_id', 'request', 'data_endpoint'}, '/cpu',
+                   optional={'template'} if version == 'harness_compose.v2' else ())
     cpu['instance_id'] = _text(cpu['instance_id'], '/cpu/instance_id')
     cpu['request'] = _text(cpu['request'], '/cpu/request')
     cpu['data_endpoint'] = _text(cpu['data_endpoint'], '/cpu/data_endpoint')
@@ -120,7 +133,8 @@ def load_compose(path, *, base_dir):
             _refuse('compose-device-object-required', pointer)
         row = _require(dict(raw),
                        {'device_id', 'instance_id', 'request', 'bus_endpoint',
-                        'base', 'size'}, pointer)
+                        'base', 'size'}, pointer,
+                       optional={'template'} if version == 'harness_compose.v2' else ())
         row['device_id'] = _text(row['device_id'], pointer + '/device_id')
         row['instance_id'] = _text(row['instance_id'], pointer + '/instance_id')
         row['request'] = _text(row['request'], pointer + '/request')
@@ -134,6 +148,10 @@ def load_compose(path, *, base_dir):
         if row['size'] == 0:
             _refuse('compose-window-empty', pointer + '/size')
         rows.append(row)
+    for row, pointer in [(cpu, '/cpu')] + [
+            (row, f'/devices/{index}') for index, row in enumerate(rows)]:
+        if 'template' in row:
+            row['template'] = _template_declaration(row['template'], pointer + '/template')
     seen = set()
     for row in rows:
         if row['device_id'] in seen:
@@ -146,7 +164,58 @@ def load_compose(path, *, base_dir):
         cpu['fixed_inputs'] = _fixed_inputs(
             top['fixed_inputs'],
             instances={cpu['instance_id']} | {row['instance_id'] for row in rows})
+    if version == 'harness_compose.v2':
+        from myfuzz.scenario.dma_route_intent import (
+            parse_dma_master_route_intents, dma_master_route_intents_document)
+        try:
+            routes = parse_dma_master_route_intents(
+                top['dma_master_routes'], pointer='/dma_master_routes')
+        except ValueError as error:
+            _refuse('compose-dma-route-invalid', '/dma_master_routes',
+                    {'error': str(error)})
+        if not routes:
+            _refuse('compose-dma-routes-required', '/dma_master_routes/routes')
+        cpu['dma_master_routes'] = dma_master_route_intents_document(routes)
+        cpu['dma_master_route_bindings'] = _route_binding_declarations(
+            top['dma_master_route_bindings'], cpu['dma_master_routes']['routes'])
     return cpu
+
+
+def _route_binding_declarations(raw, route_rows):
+    if not isinstance(raw, list):
+        _refuse('compose-dma-route-bindings-array-required',
+                '/dma_master_route_bindings')
+    route_targets = {row['route_id']: row['target']['kind'] for row in route_rows}
+    bindings = {}
+    for index, item in enumerate(raw):
+        pointer = f'/dma_master_route_bindings/{index}'
+        if not isinstance(item, Mapping):
+            _refuse('compose-dma-route-binding-object-required', pointer)
+        route_id = _text(item.get('route_id'), pointer + '/route_id')
+        if route_id not in route_targets or route_id in bindings:
+            _refuse('compose-dma-route-binding-id-invalid', pointer + '/route_id',
+                    {'route_id': route_id})
+        peripheral = route_targets[route_id] == 'peripheral'
+        _require(item, {'route_id', 'initiator_template'} |
+                 ({'target_template'} if peripheral else set()), pointer)
+        row = {'route_id': route_id}
+        for name in ('initiator_template', 'target_template'):
+            if name not in item:
+                continue
+            row[name] = _template_declaration(item[name], pointer + '/' + name)
+        bindings[route_id] = row
+    if set(bindings) != set(route_targets):
+        _refuse('compose-dma-route-binding-missing', '/dma_master_route_bindings',
+                {'missing': sorted(set(route_targets) - set(bindings))})
+    return [bindings[key] for key in sorted(bindings)]
+
+
+def _template_declaration(raw, pointer):
+    if not isinstance(raw, Mapping):
+        _refuse('compose-template-object-required', pointer)
+    _require(raw, {'template_id', 'template_version', 'variant_id'}, pointer)
+    return {key: _text(raw[key], pointer + '/' + key)
+            for key in ('template_id', 'template_version', 'variant_id')}
 
 
 #: The closed vocabulary of one declared constant input range.
@@ -293,7 +362,150 @@ def _memory(cpu_instance_id, devices, raw):
     return resources
 
 
-def _admit_endpoints(plan, instance_id, declared_role, endpoint_id, pointer):
+def _endpoint_capabilities(plan, endpoint):
+    capabilities = dict(plan.profile.capabilities)
+    if endpoint.function in ('memory_master', 'processor_memory_master',
+                             'instruction_memory_master', 'data_memory_master'):
+        for source, destination in (
+                ('master_address_width', 'address_width'),
+                ('master_address_units', 'address_units'),
+                ('master_has_error', 'has_error'),
+                ('master_byte_enable', 'byte_enable')):
+            if source in capabilities:
+                capabilities[destination] = capabilities[source]
+    return capabilities
+
+
+def _select_endpoint(plan, endpoint, selection, pointer):
+    try:
+        return select_template_contract(endpoint, _endpoint_capabilities(plan, endpoint),
+                                        **(selection or {}))
+    except ValueError as error:
+        _refuse('dma-route-template-not-admitted', pointer,
+                {'endpoint_id': endpoint.endpoint_id, 'error': str(error)})
+
+
+def _profile_endpoint_sha256(plan, endpoint_id):
+    return _static_sha256({'profile_fingerprint': plan.profile.profile_fingerprint,
+                           'endpoint_id': endpoint_id})
+
+
+def _binding_endpoint(plan, endpoint, selected):
+    return {'profile_endpoint_sha256':
+            _profile_endpoint_sha256(plan, endpoint.endpoint_id),
+            'template_id': selected.contract.template_id,
+            'template_version': selected.contract.template_version,
+            'variant_id': selected.contract.variant_id,
+            'contract_sha256': selected.contract.identity_sha256,
+            'selection_sha256': selected.identity_sha256}
+
+
+def _preflight_dma_routes(cpu, plans):
+    routes = cpu['dma_master_routes']['routes']
+    declarations = {row['route_id']: row for row in cpu['dma_master_route_bindings']}
+    ordered = [cpu] + list(cpu['devices'])
+    instances = [row['instance_id'] for row in ordered]
+    if len(instances) != len(set(instances)):
+        _refuse('dma-route-instance-ambiguous', '/devices')
+    result = []
+    for index, route in enumerate(routes):
+        pointer = f'/dma_master_routes/routes/{index}'
+        initiator_id = route['initiator_instance']
+        if initiator_id not in plans:
+            _refuse('dma-route-initiator-undeclared',
+                    pointer + '/initiator_instance', {'instance_id': initiator_id})
+        initiator_plan = plans[initiator_id]
+        initiator = next((endpoint for endpoint in initiator_plan.binding.endpoints
+                          if endpoint.endpoint_id == route['initiator_endpoint_id']), None)
+        if initiator is None:
+            _refuse('dma-route-initiator-endpoint-undeclared',
+                    pointer + '/initiator_endpoint_id')
+        if initiator.function not in ('memory_master', 'processor_memory_master',
+                                      'instruction_memory_master', 'data_memory_master'):
+            _refuse('dma-route-initiator-not-master',
+                    pointer + '/initiator_endpoint_id',
+                    {'function': initiator.function})
+        declaration = declarations[route['route_id']]
+        selected = _select_endpoint(initiator_plan, initiator,
+                                    declaration['initiator_template'],
+                                    f'/dma_master_route_bindings/{index}/initiator_template')
+        capabilities = _endpoint_capabilities(initiator_plan, initiator)
+        if capabilities.get('master_fixed_byte_enable', route['byte_enable']) != route['byte_enable']:
+            _refuse('dma-route-byte-enable-mismatch', pointer + '/byte_enable')
+        binding = {'route_id': route['route_id'],
+                   'initiator': _binding_endpoint(initiator_plan, initiator, selected)}
+        target = route['target']
+        if target['kind'] == 'peripheral':
+            matches = [row for row in cpu['devices']
+                       if row['device_id'] == target['device_id'] and
+                       row['instance_id'] == target['component_instance']]
+            if len(matches) != 1:
+                _refuse('dma-route-target-window-undeclared', pointer + '/target')
+            window = matches[0]
+            target_plan = plans[window['instance_id']]
+            endpoint = next((item for item in target_plan.binding.endpoints
+                             if item.endpoint_id == target['endpoint_id']), None)
+            if endpoint is None or endpoint.function != 'mmio_slave':
+                _refuse('dma-route-target-not-slave', pointer + '/target/endpoint_id')
+            if target['endpoint_id'] != window['bus_endpoint']:
+                _refuse('dma-route-target-endpoint-mismatch', pointer + '/target/endpoint_id')
+            if not window['base'] <= route['base'] or route['base'] + route['size'] > window['base'] + window['size']:
+                _refuse('dma-route-aperture-outside-target', pointer + '/base')
+            for permission in route['permissions']:
+                if target_plan.profile.capabilities.get(permission) is not True:
+                    _refuse('dma-route-target-permission-unsupported',
+                            pointer + '/permissions', {'permission': permission})
+            registers = ({register.offset: register
+                          for register in target_plan.profile.address.registers}
+                         if target_plan.profile.address is not None else {})
+            for permission, field in (('read', 'readable_offsets'),
+                                      ('write', 'writable_offsets')):
+                for offset in route[field]:
+                    register_offset = route['base'] - window['base'] + offset
+                    register = registers.get(register_offset)
+                    if register is None:
+                        _refuse('dma-route-target-register-undeclared',
+                                pointer + '/' + field,
+                                {'offset': offset, 'register_offset': register_offset})
+                    if permission == 'read' and register.access not in ('ro', 'rw'):
+                        _refuse('dma-route-target-register-permission',
+                                pointer + '/' + field, {'offset': offset})
+                    if permission == 'write' and register.access not in ('wo', 'rw'):
+                        _refuse('dma-route-target-register-permission',
+                                pointer + '/' + field, {'offset': offset})
+            selected_target = _select_endpoint(
+                target_plan, endpoint, declaration['target_template'],
+                f'/dma_master_route_bindings/{index}/target_template')
+            binding['target'] = _binding_endpoint(target_plan, endpoint, selected_target)
+        else:
+            matches = [row for row in cpu['memory']
+                       if row['resource_id'] == target['resource_id'] and
+                       row['component_instance'] == target['component_instance']]
+            if len(matches) != 1:
+                _refuse('dma-route-target-resource-undeclared', pointer + '/target')
+            resource = matches[0]
+            if not resource['base'] <= route['base'] or route['base'] + route['size'] > resource['base'] + resource['size']:
+                _refuse('dma-route-aperture-outside-target', pointer + '/base')
+            for permission in route['permissions']:
+                if resource.get(permission) is not True:
+                    _refuse('dma-route-target-permission-unsupported',
+                            pointer + '/permissions', {'permission': permission})
+            normalized = {key: resource[key] for key in
+                          ('resource_id', 'component_instance', 'base', 'size',
+                           'read', 'write', 'execute')}
+            if resource['initialization_policy'] is not None:
+                normalized['initialization_policy'] = resource['initialization_policy']
+            binding['target'] = {
+                'kind': 'persistent_memory',
+                'owner_profile_fingerprint':
+                    plans[resource['component_instance']].profile.profile_fingerprint,
+                'resource_sha256': _static_sha256(normalized)}
+        result.append(binding)
+    return result
+
+
+def _admit_endpoints(plan, instance_id, declared_role, endpoint_id, pointer,
+                     selection=None):
     """Match the declared endpoint to a template, or refuse by name.
 
     ``declared_role`` names what the compose document says this endpoint is for
@@ -308,7 +520,8 @@ def _admit_endpoints(plan, instance_id, declared_role, endpoint_id, pointer):
                  'declared': sorted(row.endpoint_id
                                     for row in plan.binding.endpoints)})
     try:
-        selected = select_template_contract(endpoint, plan.profile.capabilities)
+        selected = select_template_contract(
+            endpoint, _endpoint_capabilities(plan, endpoint), **(selection or {}))
     except ValueError as error:
         _refuse('protocol-shape-not-admitted', pointer,
                 {'instance_id': instance_id, 'endpoint_id': endpoint_id,
@@ -420,11 +633,15 @@ def generate_harness_set(compose, *, base_dir, output_root, compose_base=None,
         if 'data_endpoint' in row:
             admitted.append(_admit_endpoints(
                 plan, row['instance_id'], 'cpu-data', row['data_endpoint'],
-                '/cpu/data_endpoint'))
+                '/cpu/data_endpoint', row.get('template')))
         else:
             admitted.append(_admit_endpoints(
                 plan, row['instance_id'], 'device-bus', row['bus_endpoint'],
-                f"/devices/{cpu['devices'].index(row)}/bus_endpoint"))
+                f"/devices/{cpu['devices'].index(row)}/bus_endpoint",
+                row.get('template')))
+
+    route_bindings = (_preflight_dma_routes(cpu, plans)
+                      if 'dma_master_routes' in cpu else None)
 
     if review is not None:
         blocking = [component for component in review['components']
@@ -498,8 +715,14 @@ def generate_harness_set(compose, *, base_dir, output_root, compose_base=None,
         # a composition without one keeps producing the exact old bytes.
         if cpu.get('fixed_inputs'):
             wiring['fixed_inputs'] = [dict(row) for row in cpu['fixed_inputs']]
+        if route_bindings is not None:
+            wiring['schema_version'] = 'wiring_contract.v2'
+            wiring['dma_master_routes'] = cpu['dma_master_routes']
+            wiring['dma_master_routes_sha256'] = _static_sha256(cpu['dma_master_routes'])
+            wiring['dma_master_route_bindings'] = route_bindings
         document = {
-            'schema_version': HARNESS_SET_SCHEMA_VERSION,
+            'schema_version': ('harness_set.v2' if route_bindings is not None
+                               else HARNESS_SET_SCHEMA_VERSION),
             'tier': GENERATED_TIER,
             'tier_scope': 'harnesses were generated and admitted by template',
             'not_claimed': ['cross_component_accepted', 'rtl_operational',

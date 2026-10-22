@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import copy
+from dataclasses import dataclass, field
 from contextlib import contextmanager
 from contextvars import ContextVar
 import errno
@@ -18,6 +19,7 @@ import shutil
 import signal
 import subprocess
 import tempfile
+import time
 
 from .renderer import _sha
 from .runtime_artifact import LocalRuntimeArtifact
@@ -39,6 +41,15 @@ _PREPARED_CACHE_LIMIT = 16
 
 class LocalHarnessBuildError(RuntimeError):
     """Admission, build, timeout or cache integrity failed."""
+
+    def __init__(self, *args, preparation_observation=None):
+        super().__init__(*args)
+        self._preparation_observation = copy.deepcopy(preparation_observation)
+
+    @property
+    def preparation_observation(self):
+        return copy.deepcopy(self._preparation_observation)
+
 
 
 def _canonical(value):
@@ -546,23 +557,53 @@ def _compile(argv, directory):
         raise LocalHarnessBuildError('verilator-build-failed:' + (stdout + stderr)[-6000:])
 
 
-def build_local_harness(artifact: LocalRuntimeArtifact, *, base_dir: Path, cache_dir: Path) -> Path:
+def _build_local_harness(artifact, *, base_dir, cache_dir, observation=None):
     """Build a snapshot with one worker; atomically publish only verified output."""
     try:
+        if observation is not None:
+            observation['failure_stage'] = 'admission'
         identity, snapshots = _prepare(artifact, base_dir)
+        if observation is not None:
+            observation['failure_stage'] = 'cache_directory_preparation'
         cache = Path(cache_dir).resolve()
         cache.mkdir(parents=True, exist_ok=True)
         final = cache / identity['build_digest']
+        if observation is not None:
+            observation['failure_stage'] = 'cache_validation'
+        if observation is not None and final.is_symlink():
+            raise LocalHarnessBuildError('receipt-cache-integrity-failed:cache directory symlink')
         if final.exists():
-            return _validate_cache(final, identity)
+            if observation is not None:
+                manifest_path = final / 'manifest.json'
+                observation['manifest_path'] = str(manifest_path)
+                if manifest_path.is_file():
+                    observation['manifest_sha256'] = _digest(manifest_path.read_bytes())
+            binary = _validate_cache(final, identity)
+            if observation is not None:
+                observation['outcome'] = 'cache_hit'
+            return binary
+        if observation is not None:
+            observation['failure_stage'] = 'staging'
         stage = Path(tempfile.mkdtemp(prefix='.' + identity['build_digest'] + '-', dir=cache))
         try:
+            if observation is not None:
+                observation['failure_stage'] = 'materialization'
             for name, raw in snapshots.items():
                 path = stage / 'inputs' / name
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes(raw)
             argv = [token.replace('{BUILD}', str(stage)) for token in identity['build_argv']]
-            _compile(argv, stage)
+            if observation is not None:
+                observation.update(failure_stage='compile', compiled_this_invocation=True,
+                                   actual_build_argv=argv, compile_seconds_reason=None)
+            compile_started = time.monotonic()
+            try:
+                _compile(argv, stage)
+            finally:
+                if observation is not None:
+                    observation['compile_seconds'] = time.monotonic() - compile_started
+            if observation is not None:
+                observation['failure_stage'] = 'output_validation'
             binary = stage / 'obj/harness'
             if not binary.is_file() or not os.access(binary, os.X_OK):
                 raise LocalHarnessBuildError('build-executable-missing')
@@ -570,16 +611,32 @@ def build_local_harness(artifact: LocalRuntimeArtifact, *, base_dir: Path, cache
             manifest = dict(schema_version='local_harness_build_cache.v1', identity=identity,
                             binary_sha256=_digest((stage / 'harness').read_bytes()), actual_build_argv=argv)
             (stage / 'manifest.json').write_bytes(_canonical(manifest))
+            if observation is not None:
+                observation['failure_stage'] = 'identity_revalidation'
             if local_build_identity(artifact, base_dir=base_dir) != identity:
                 raise LocalHarnessBuildError('build-inputs-changed-during-build')
+            if observation is not None:
+                observation['failure_stage'] = 'staged_cache_validation'
             _validate_cache(stage, identity)
+            if observation is not None:
+                observation['failure_stage'] = 'publication'
             try:
                 stage.rename(final)
             except OSError as error:
                 if error.errno not in (errno.EEXIST, errno.ENOTEMPTY) or not final.exists():
                     raise
-                return _validate_cache(final, identity)
-            return _validate_cache(final, identity)
+                if observation is not None:
+                    observation['failure_stage'] = 'winning_cache_validation'
+                binary = _validate_cache(final, identity)
+                if observation is not None:
+                    observation['outcome'] = 'compiled_race_reused'
+                return binary
+            if observation is not None:
+                observation['failure_stage'] = 'published_cache_validation'
+            binary = _validate_cache(final, identity)
+            if observation is not None:
+                observation['outcome'] = 'compiled_published'
+            return binary
         finally:
             if stage.exists():
                 shutil.rmtree(stage)
@@ -587,3 +644,121 @@ def build_local_harness(artifact: LocalRuntimeArtifact, *, base_dir: Path, cache
         raise
     except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError, ImportError) as error:
         raise LocalHarnessBuildError('local-build-failed:' + str(error)) from error
+
+
+def build_local_harness(artifact: LocalRuntimeArtifact, *, base_dir: Path, cache_dir: Path) -> Path:
+    """Build with the existing Path contract and cache compatibility."""
+    return _build_local_harness(artifact, base_dir=base_dir, cache_dir=cache_dir)
+
+
+def _receipt_cache(binary, identity, cache_dir):
+    """Validate the stricter receipt cache contract without altering legacy caches."""
+    try:
+        cache = Path(cache_dir).resolve()
+        expected = cache / identity['build_digest'] / 'harness'
+        if binary != expected or binary.parent.is_symlink() or binary.resolve() != expected:
+            raise ValueError('unexpected executable path')
+        directory = binary.parent
+        manifest_path = directory / 'manifest.json'
+        if manifest_path.is_symlink() or not manifest_path.is_file():
+            raise ValueError('manifest path differs')
+        raw = manifest_path.read_bytes()
+        manifest = json.loads(raw)
+        if (type(manifest) is not dict
+                or manifest.get('schema_version') != 'local_harness_build_cache.v1'
+                or type(manifest.get('identity')) is not dict
+                or type(manifest.get('binary_sha256')) is not str
+                or not _HEX.fullmatch(manifest['binary_sha256'])
+                or type(manifest.get('actual_build_argv')) is not list
+                or not manifest['actual_build_argv']
+                or any(type(token) is not str for token in manifest['actual_build_argv'])):
+            raise ValueError('unexpected cache manifest schema')
+        if (identity.get('schema_version') != 'local_harness_build_identity.v1'
+                or identity.get('build_digest') != _digest(_canonical(
+                    {key: value for key, value in identity.items() if key != 'build_digest'}))):
+            raise ValueError('unexpected build identity schema')
+        for item in identity['inputs']:
+            materialized = directory / 'inputs' / item['path']
+            if any(parent.is_symlink() for parent in
+                   (materialized, *materialized.parents[:len(materialized.parts) - len(directory.parts)])):
+                raise ValueError('materialized input symlink')
+        _validate_cache(directory, identity)
+        # Pin the same bytes which were parsed and validated, refusing concurrent changes.
+        if manifest_path.read_bytes() != raw:
+            raise ValueError('manifest changed during validation')
+        return manifest, raw
+    except LocalHarnessBuildError:
+        raise
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+        raise LocalHarnessBuildError('receipt-cache-integrity-failed:' + str(error)) from error
+
+
+@dataclass(frozen=True)
+class LocalHarnessBuildResult:
+    """A pinned preparation; saved receipts alone cannot authorize a launch."""
+
+    binary_path: Path
+    _receipt_bytes: bytes = field(repr=False)
+    _observation_bytes: bytes = field(repr=False)
+    _manifest_sha256: str = field(repr=False)
+
+    @property
+    def receipt_sha256(self) -> str:
+        return _digest(self._receipt_bytes)
+
+    def receipt_document(self) -> dict:
+        return json.loads(self._receipt_bytes)
+
+    def observation_document(self) -> dict:
+        return json.loads(self._observation_bytes)
+
+    def validate_current(self, artifact, *, base_dir, cache_dir) -> Path:
+        identity = local_build_identity(artifact, base_dir=base_dir)
+        try:
+            receipt = self.receipt_document()
+            if (type(receipt) is not dict
+                    or set(receipt) != {'schema_version', 'artifact_digest', 'build_digest',
+                                       'build_identity', 'binary_sha256'}
+                    or receipt['schema_version'] != 'local_harness_built_receipt.v1'
+                    or type(receipt['build_identity']) is not dict
+                    or any(type(receipt[key]) is not str or not _HEX.fullmatch(receipt[key])
+                           for key in ('artifact_digest', 'build_digest', 'binary_sha256'))
+                    or self._receipt_bytes != _canonical(receipt)):
+                raise ValueError('unexpected built receipt schema')
+        except (ValueError, KeyError, TypeError) as error:
+            raise LocalHarnessBuildError('built-receipt-schema-mismatch:' + str(error)) from error
+        if (_canonical(identity) != _canonical(receipt['build_identity'])
+                or identity['artifact_digest'] != receipt['artifact_digest']
+                or identity['build_digest'] != receipt['build_digest']):
+            raise LocalHarnessBuildError('built-receipt-current-identity-mismatch')
+        manifest, raw = _receipt_cache(self.binary_path, identity, cache_dir)
+        if (_digest(raw) != self._manifest_sha256
+                or manifest['binary_sha256'] != receipt['binary_sha256']):
+            raise LocalHarnessBuildError('built-receipt-pinned-cache-mismatch')
+        return self.binary_path
+
+
+def build_local_harness_with_receipt(artifact, *, base_dir, cache_dir) -> LocalHarnessBuildResult:
+    """Prepare and pin a validated executable, retaining actual branch diagnostics."""
+    started = time.monotonic()
+    observation = dict(schema_version='local_harness_build_preparation.v1',
+                       outcome=None, compiled_this_invocation=False,
+                       compile_seconds=None, compile_seconds_reason='not_compiled_this_invocation',
+                       actual_build_argv=None, failure_stage='admission')
+    try:
+        binary = _build_local_harness(artifact, base_dir=base_dir, cache_dir=cache_dir,
+                                     observation=observation)
+        observation['failure_stage'] = 'receipt_validation'
+        identity = local_build_identity(artifact, base_dir=base_dir)
+        manifest, raw = _receipt_cache(binary, identity, cache_dir)
+        receipt = dict(schema_version='local_harness_built_receipt.v1',
+                       artifact_digest=identity['artifact_digest'], build_digest=identity['build_digest'],
+                       build_identity=identity, binary_sha256=manifest['binary_sha256'])
+        observation.update(manifest_path=str(binary.parent / 'manifest.json'),
+                           manifest_sha256=_digest(raw), failure_stage=None,
+                           preparation_seconds=time.monotonic() - started)
+        return LocalHarnessBuildResult(binary, _canonical(receipt), _canonical(observation), _digest(raw))
+    except (LocalHarnessBuildError, OSError, ValueError, KeyError, TypeError,
+            subprocess.SubprocessError, ImportError) as error:
+        observation.update(preparation_seconds=time.monotonic() - started, error=str(error))
+        raise LocalHarnessBuildError(str(error), preparation_observation=observation) from error

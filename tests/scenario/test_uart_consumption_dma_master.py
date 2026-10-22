@@ -16,6 +16,8 @@ from myfuzz.scenario.memory import MemoryRegion, PersistentMemory
 from myfuzz.scenario.ownership import (InputField, InputOwner, compile_ownership)
 from myfuzz.scenario.router import DataflowRouter, DeviceWindow
 from myfuzz.scenario.runner import Binding
+from myfuzz.scenario.ledger import TransactionLedger
+from myfuzz.scenario.memory_service import MemoryService
 from myfuzz.scenario.source_provenance import AdmissionRegistry, SourceAdmission
 from myfuzz.scenario.uart_consumption import UartConsumptionTracker
 
@@ -48,6 +50,16 @@ class _SessionFake:
         self.router = router
         self.routed_register_access_enabled = True
 
+    def identity_document(self):
+        return {'component': 'fake-session'}
+
+    def dma_route_endpoint_identity_document(self):
+        return {'schema_version': 'fake_dma_route_endpoint.v1',
+                'source_component': 'dma', 'fake': True}
+
+    def configure_dma_route_validator(self, callback):
+        self._dma_route_validator = callback
+
 
 class _RunnerFake:
     def __init__(self):
@@ -56,6 +68,8 @@ class _RunnerFake:
         self.uart = _UartFake()
         self.cpu = _SessionFake(memory=memory)
         self.dma = _SessionFake()
+        self.dma.memory_service = MemoryService(memory, TransactionLedger())
+        self.dma.source_component = 'dma'
         self.sessions = {'cpu': self.cpu, 'dma': self.dma, 'uart': self.uart}
         self.cpu.router = DataflowRouter((
             DeviceWindow('dma', DMA_BASE, 16, self.dma),
@@ -183,7 +197,7 @@ def _read_event(*, mode, tamper=None, edge_index=True):
         key = dict(execution_id='a' * 32, testcase_id='A',
             source_component='cpu', source_epoch=0, channel_id='data',
             source_sequence=1)
-    window_base = 0x40000000
+    window_base = 0x50000000
     address = window_base + 0x18
     window_size = 0x1000
     value = 0
@@ -195,7 +209,7 @@ def _read_event(*, mode, tamper=None, edge_index=True):
     # A wrong declared window is a mismatch between the measured access context
     # and the DMA session's delivery evidence; both are real journal fields.
     if tamper == 'window_base':
-        delivery['window_base'] = 0x50000000
+        delivery['window_base'] = 0x50001000
     if tamper == 'window_size':
         delivery['window_size'] = 0x800
     context = dict(access_id='access', source_transaction=key, raw_offset=24,
@@ -263,8 +277,12 @@ def test_dma_master_pop_is_accepted_with_the_dma_channel_identity():
     assert proof['source_transaction']['source_component'] == 'dma'
     assert proof['path_id'] == provenance.paths.path_id
     assert proof['graph_path_certified'] is True
-    assert proof['window_base'] == 0x40000000
+    assert proof['window_base'] == 0x50000000
     assert proof['window_size'] == 0x1000
+    route_match = proof['dma_master_route_match']
+    assert route_match['route_sha256'] == \
+        provenance.edge_index.dma_master_routes_for_path(provenance.paths.path_id)[0].route_sha256
+    assert route_match['edge_key'] == (3, 0)
 
 
 @pytest.mark.parametrize('tamper, reason', [

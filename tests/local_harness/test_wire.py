@@ -1,12 +1,18 @@
 """Strict host parsing of versioned generated-driver receipts."""
 import json
 import unittest
+from copy import deepcopy
 
 from myfuzz.local_harness.wire import parse_driver_ready, parse_driver_receipt
 
 
 EXECUTION = '0123456789abcdef0123456789abcdef'
 DIGEST = 'a' * 64
+NATIVE_TAPS = {
+    'cpu_native_trace_valid': 1, 'cpu_native_trace_addr': 32,
+    'cpu_native_trace_wdata': 32, 'cpu_native_trace_wstrb': 4,
+    'cpu_native_trace_ready': 1, 'cpu_native_trace_rdata': 32,
+}
 
 
 def result_payload(ticks=(1,)):
@@ -23,6 +29,58 @@ def result_line(payload, before=0, after=1):
 
 
 class GeneratedWireTests(unittest.TestCase):
+    def test_native_tap_contract_accepts_exact_pre_and_post_values(self):
+        payload = result_payload()
+        payload['kind'] = 'native_memory_cpu'
+        taps = {name: (1 << width) - 1 for name, width in NATIVE_TAPS.items()}
+        for phase in ('pre', 'post'):
+            payload['samples'][0][phase]['protocol_taps'] = dict(taps)
+        receipt = parse_driver_receipt(result_line(payload), execution=EXECUTION,
+            sequence=1, current_tick=0, kind='native_memory_cpu', native_taps=NATIVE_TAPS)
+        self.assertEqual(taps, receipt.payload['samples'][0]['pre']['protocol_taps'])
+
+    def test_native_tap_contract_refuses_missing_extra_or_invalid_values_in_each_phase(self):
+        payload = result_payload()
+        payload['kind'] = 'native_memory_cpu'
+        for phase in ('pre', 'post'):
+            payload['samples'][0][phase]['protocol_taps'] = {name: 0 for name in NATIVE_TAPS}
+        mutations = (
+            lambda taps: taps.pop('cpu_native_trace_ready'),
+            lambda taps: taps.update(cpu_native_trace_alias=0),
+            lambda taps: taps.update(cpu_native_trace_valid=True),
+            lambda taps: taps.update(cpu_native_trace_valid=2),
+            lambda taps: taps.update(cpu_native_trace_addr=1 << 32),
+            lambda taps: taps.update(cpu_native_trace_wstrb=16),
+            lambda taps: taps.update(cpu_native_trace_rdata='0'),
+        )
+        for phase in ('pre', 'post'):
+            for mutation in mutations:
+                broken = deepcopy(payload)
+                mutation(broken['samples'][0][phase]['protocol_taps'])
+                with self.subTest(phase=phase, mutation=mutation), self.assertRaises(ValueError):
+                    parse_driver_receipt(result_line(broken), execution=EXECUTION,
+                        sequence=1, current_tick=0, kind='native_memory_cpu',
+                        native_taps=NATIVE_TAPS)
+            broken = deepcopy(payload)
+            del broken['samples'][0][phase]['protocol_taps']
+            with self.subTest(phase=phase, mutation='group absent'), self.assertRaises(ValueError):
+                parse_driver_receipt(result_line(broken), execution=EXECUTION,
+                    sequence=1, current_tick=0, kind='native_memory_cpu',
+                    native_taps=NATIVE_TAPS)
+
+    def test_native_tap_contract_preserves_legacy_and_error_receipts(self):
+        payload = result_payload()
+        payload['kind'] = 'native_memory_cpu'
+        parse_driver_receipt(result_line(payload), execution=EXECUTION, sequence=1,
+            current_tick=0, kind='native_memory_cpu')
+        parse_driver_receipt(result_line(result_payload()), execution=EXECUTION,
+            sequence=1, current_tick=0, kind='apb_gpio')
+        receipt = parse_driver_receipt(
+            f'ERROR {EXECUTION} 1 0 protocol_environment driver_fault',
+            execution=EXECUTION, sequence=1, current_tick=0,
+            kind='native_memory_cpu', native_taps=NATIVE_TAPS)
+        self.assertEqual('error', receipt.status)
+
     def test_ready_requires_exact_artifact_and_reset_ticks(self):
         receipt = parse_driver_ready(f'READY local_driver.v1 {DIGEST} 8 4',
                                      digest=DIGEST, assert_ticks=8, release_ticks=4)

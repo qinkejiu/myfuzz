@@ -132,7 +132,10 @@ def replay_candidate_exploration_files(output_dir: Path, *,
         if hashlib.sha256(raw).hexdigest() != identity['artifacts'].get(name):
             raise ValueError('candidate replay artifact changed after verification: ' + name)
         return raw
-    plan_raw = artifact('online_plan.json')
+    saved_plan_raw = artifact('online_plan.json')
+    dma_binding_payload = identity.get('_p7_dma_binding_payload')
+    plan_raw = (dma_binding_payload.payload_bytes if dma_binding_payload is not None
+                else saved_plan_raw)
     plan = json.loads(plan_raw)
     decoder_document = json.loads(artifact('decoder_manifest.json'))
     target_document = json.loads(artifact('targets.json'))
@@ -204,6 +207,17 @@ def replay_candidate_exploration_files(output_dir: Path, *,
                 or executor._selection_uses or executor._selection_gains or executor._target_hits
                 or any(states(executor)[k]['cases'] != 0 for k in channels)):
             raise ValueError('candidate replay requires fresh initial executor state')
+        if dma_binding_payload is not None:
+            expected_rows = {
+                row['selection_id']: row['credential']
+                for row in dma_binding_payload.binding_compilations
+            }
+            if (set(expected_rows) != {'session'}
+                    or executor.session.dma_binding_document()
+                        != dma_binding_payload.declaration.document()
+                    or executor.session.dma_binding_compilation_document()
+                        != expected_rows['session']):
+                raise ValueError('candidate replay DMA topology binding mismatch')
         if ('online_assembly' in config
                 and _canonical(executor.online_assembly_configuration())
                 != _canonical(config['online_assembly'])):
@@ -218,7 +232,8 @@ def replay_candidate_exploration_files(output_dir: Path, *,
                 or _canonical([vars(t) for t in executor.targets]) != _canonical(target_document)
                 or _canonical(_online_manifest(executor.session.runner, executor.session.checker,
                     runtime_paths=executor.session.runtime_path_document,
-                    checker_configuration_only=executor.session._checker_configuration_only)) != _canonical(session_manifest)
+                    checker_configuration_only=executor.session._checker_configuration_only,
+                    dma_binding_required=dma_binding_payload is not None)) != _canonical(session_manifest)
                 or _fresh_checker_identity(executor.checker, config=executor.checker_config,
                     identity_target=executor.checker_identity_target) != identity.get('decoder_checker')):
             raise ValueError('candidate replay factory configuration mismatch')
@@ -316,7 +331,9 @@ def replay_scenario_rfuzz_continuous(
             decoder_checker, config=checker_config, identity_target=checker_identity_target):
         raise ValueError("continuous decoder checker identity mismatch")
     return ContinuousReplayResult(replay_online_session(
-        plan_path.read_bytes(), factory, reference, checker=session_checker))
+        plan_path.read_bytes(), factory, reference, checker=session_checker,
+        expected_dma_binding_identity_sha256=(identity.get("dma_binding_identity_sha256")
+            if identity.get("_p7_dma_binding_payload") is not None else None)))
 
 
 def _canonical(value) -> bytes:
@@ -414,7 +431,9 @@ def replay_scenario_rfuzz_corpus(
     if run_identity is not None:
         executor._observe_fresh_identity(json.loads(
             (output / "runner_manifest.json").read_bytes()))
-        executor._install_runtime_replay_identity(run_identity.get("runtime_paths"))
+        executor._install_runtime_replay_identity(
+            run_identity.get("runtime_paths"),
+            dma_binding_payload=run_identity.get("_p7_dma_binding_payload"))
     original: dict[str, dict] = {}
     with (output / "receipts.jsonl").open(encoding="utf-8") as handle:
         for line in handle:

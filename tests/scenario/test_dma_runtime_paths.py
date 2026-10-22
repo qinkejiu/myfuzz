@@ -12,6 +12,8 @@ from myfuzz.scenario.router import DataflowRouter, DeviceWindow
 from myfuzz.scenario.runner import Binding
 from myfuzz.scenario.runtime_path_contract import (
     PreparedRuntimePathContract, RuntimeEdgeContract, RuntimePathContract, _digest)
+from myfuzz.scenario.ledger import TransactionLedger
+from myfuzz.scenario.memory_service import MemoryService
 
 UART_BASE = 0x50000000
 UART_SIZE = 0x1000
@@ -48,6 +50,18 @@ class _SessionFake:
         self.router = router
         self.routed_register_access_enabled = True
 
+    def identity_document(self):
+        return {'component': getattr(self, 'component', 'session'), 'fake': True}
+
+    def dma_route_endpoint_identity_document(self):
+        return {'schema_version': 'fake_dma_route_endpoint.v1',
+                'source_component': 'dma', 'fake': True}
+
+    def configure_dma_route_validator(self, callback):
+        if getattr(self, '_validator', None) is not None:
+            raise ValueError('DMA route validator already configured')
+        self._validator = callback
+
 
 class _RunnerFake:
     def __init__(self, *, producer='external-serial-byte'):
@@ -56,6 +70,8 @@ class _RunnerFake:
         self.uart = _UartFake()
         self.cpu = _SessionFake(memory=memory)
         self.dma = _SessionFake()
+        self.dma.memory_service = MemoryService(memory, TransactionLedger())
+        self.dma.source_component = 'dma'
         self.sessions = {'cpu': self.cpu, 'dma': self.dma, 'uart': self.uart}
         self.cpu.router = DataflowRouter((
             DeviceWindow('dma', DMA_BASE, 16, self.dma),
@@ -84,33 +100,40 @@ class _RunnerFake:
 
 
 def test_declared_graph_resolves_to_one_declared_source_path():
-    paths = compile_dma_runtime_paths()
+    paths = compile_dma_runtime_paths(_RunnerFake())
     assert paths.direction == 'IP_TO_CPU'
     assert paths.path.source_ids == (SOURCE_NODE,)
     assert paths.path.target == 'cpu.isr'
-    assert [edge.rule_index for edge in paths.path.edges] == list(range(len(RULES)))
-    assert len(paths.path.edges) == len(RULES) == 9
+    assert sorted({edge.rule_index for edge in paths.path.edges}) == list(range(len(RULES)))
+    assert len(paths.path.edges) == len(RULES) + 1 == 13
+    assert [route.key for route in paths.contract.dma_master_routes] == [(3, 0), (7, 0)]
+    assert paths.contract.document()['schema_version'] == 'runtime_path_contract.v2'
+    assert paths.contract.dma_master_routes[0].operation == 'read'
+    assert paths.contract.dma_master_routes[0].source_node_id == 'uart.fifo_entry'
+    assert paths.contract.dma_master_routes[1].operation == 'write'
+    assert paths.contract.dma_master_routes[1].target_node_id == 'ram.master_write'
     document = paths.document()
     assert document['graph_sha256'] == _digest(paths.graph.edge_document())
     assert document['contract_sha256'] == paths.contract.identity_sha256
     # Recompiling is deterministic: no host identity enters the declaration.
-    assert compile_dma_runtime_paths().path_id == paths.path_id
+    assert compile_dma_runtime_paths(_RunnerFake()).path_id == paths.path_id
     assert {node.node_id for node in NODES} == {
         node.node_id for node in paths.contract.nodes}
 
 
-def test_missing_edge_declaration_is_refused_at_bind():
-    paths = compile_dma_runtime_paths()
-    edges = tuple(edge for edge in paths.contract.edges if edge.key != (7, 0))
-    contract = RuntimePathContract(paths.contract.graph_sha256, NODES, edges)
-    prepared = PreparedRuntimePathContract(paths.graph, contract,
-        ((paths.direction, paths.path),))
-    with pytest.raises(ValueError, match='lacks contract'):
-        prepared.bind(_RunnerFake())
+def test_missing_dma_route_declaration_is_refused_at_prepare():
+    paths = compile_dma_runtime_paths(_RunnerFake())
+    edges = tuple(edge for edge in paths.contract.edges if edge.key != (3, 0))
+    routes = tuple(route for route in paths.contract.dma_master_routes
+                   if route.key != (3, 0))
+    contract = RuntimePathContract(paths.contract.graph_sha256, NODES, edges, routes)
+    with pytest.raises(ValueError, match='selected DMA master edges'):
+        PreparedRuntimePathContract(paths.graph, contract,
+            ((paths.direction, paths.path),))
 
 
 def test_wrong_relation_is_refused():
-    paths = compile_dma_runtime_paths()
+    paths = compile_dma_runtime_paths(_RunnerFake())
     wrong = tuple(
         RuntimeEdgeContract(edge.rule_index, edge.prerequisite_index,
             'persistent_state', resource_component='cpu', resource_id='ram')
@@ -123,7 +146,7 @@ def test_wrong_relation_is_refused():
 
 
 def test_wrong_graph_digest_is_refused():
-    paths = compile_dma_runtime_paths()
+    paths = compile_dma_runtime_paths(_RunnerFake())
     contract = RuntimePathContract('0' * 64, NODES, paths.contract.edges)
     with pytest.raises(ValueError, match='graph digest mismatch'):
         PreparedRuntimePathContract(paths.graph, contract,
@@ -131,7 +154,7 @@ def test_wrong_graph_digest_is_refused():
 
 
 def test_missing_node_declaration_is_refused():
-    paths = compile_dma_runtime_paths()
+    paths = compile_dma_runtime_paths(_RunnerFake())
     nodes = tuple(node for node in NODES if node.node_id != SOURCE_NODE)
     contract = RuntimePathContract(paths.contract.graph_sha256, nodes,
         paths.contract.edges)

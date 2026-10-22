@@ -188,6 +188,15 @@ class DependencyMutationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "outside memory image"):
             mutate_genome(genome, plan, graph, self._ownership(), bit_index=0)
 
+    def test_dma_master_transfer_is_a_closed_graph_rule_kind(self):
+        rule = DependencyRule("dma.receive", ("uart.rdata",),
+                              "DMA_MASTER_TRANSFER")
+        graph = DependencyGraph(sources=(), rules=(rule,))
+        self.assertEqual("DMA_MASTER_TRANSFER",
+                         graph.edge_document()["edges"][0]["kind"])
+        with self.assertRaises(ValueError):
+            DependencyRule("bad", ("uart.rdata",), "dma_master_transfer")
+
     @staticmethod
     def _ownership():
         return compile_ownership((), ())

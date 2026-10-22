@@ -21,9 +21,14 @@ class ReducedAxiObserver:
             raise ValueError('reduced_axi_budget_invalid')
         self.component_id = component_id
         self.events = []
+        self._emit_listener = None
         self.scope = None
         self.max_edges, self.max_bytes = max_edges, max_bytes
         self._edges = self._bytes = self._scopes = 0
+        # Runner may drain this list in place into its EventJournal. Raw refs
+        # therefore use the observer's lifetime record index, not its current
+        # buffer length.
+        self._record_count = 0
         self.max_scopes = max_scopes
         self._budget_exhausted = False
         self.contract = {
@@ -66,6 +71,9 @@ class ReducedAxiObserver:
                  'authority': 'observation_only', 'runtime_accepted': False,
                  'semantic_accepted': False, **copy.deepcopy(fields)}
         self.events.append(event)
+        self._record_count += 1
+        if self._emit_listener is not None:
+            self._emit_listener(event, self._record_count)
         return event
 
     def end_scope(self):
@@ -110,7 +118,7 @@ class ReducedAxiObserver:
     def observe(self, sample):
         self.require_active()
         # Keep the original failure edge even when shape or budgets fail.
-        raw_ref = len(self.events) + 1
+        raw_ref = self._record_count + 1
         self._emit('reduced_axi_raw', raw_event_ref=raw_ref, raw_sample=sample)
         self._edges += 1
         try:

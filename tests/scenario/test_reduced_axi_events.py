@@ -149,6 +149,132 @@ def test_runner_imports_runtime_stream_once_and_retains_raw_refs():
  assert runner._events[-1]['cancelled']['i']['read']
 
 
+def _journal_runner(o):
+    from types import SimpleNamespace
+    from myfuzz.scenario.runner import ScenarioRunner
+    from myfuzz.scenario.ownership import compile_ownership
+
+    runner = ScenarioRunner(
+        sessions={'renamed': SimpleNamespace(runtime_events=o.events)},
+        ownership=compile_ownership((), ()), bindings=())
+    runner._events.enable_journal(chunk_size=2)
+    return runner
+
+
+def _drain_observer(runner, o, expected):
+    expected.extend(copy.deepcopy(o.events))
+    # Scheduler/other component records use the journal's separate ID space.
+    runner._events.append({'event_id': len(runner._events) + 1,
+                           'kind': 'test_interleaved_boundary'})
+    runner._append_external_events('renamed', len(runner._events))
+    assert o.events == []
+    count = len(runner._events)
+    runner._append_external_events('renamed', count)
+    assert len(runner._events) == count
+
+
+def _assert_journal_observer_references(runner, expected):
+    events = list(runner._events)
+    assert [row['event_id'] for row in events] == list(range(1, len(events) + 1))
+    observed = [row for row in events
+                if row.get('schema_version') == 'reduced_axi_observation.v1']
+    detached = [{key: value for key, value in row.items()
+                 if key not in ('event_id', 'producer_event_id', 'component')}
+                for row in observed]
+    assert detached == expected
+    raw = {}
+    last_ref = 0
+    for row in observed:
+        scope = tuple(sorted(row['scope'].items()))
+        if row['kind'] == 'reduced_axi_raw':
+            ref = row['raw_event_ref']
+            assert type(ref) is int and ref > last_ref
+            last_ref = ref
+            assert ref not in raw
+            raw[ref] = row
+            # Interleaved journal records make local refs distinct from IDs.
+            assert ref != row['event_id']
+        refs = list(row.get('raw_event_refs', ()))
+        refs.extend(row.get('request_refs', ()))
+        for state in row.get('pending_request_refs', {}).values():
+            for pending in state.values():
+                if pending is not None:
+                    refs.extend(pending['refs'])
+        for ref in refs:
+            source = raw[ref]
+            assert source['event_id'] < row['event_id']
+            assert tuple(sorted(source['scope'].items())) == scope
+            assert source['component_id'] == row['component_id']
+        assert row['authority'] == 'observation_only'
+        assert row['runtime_accepted'] is row['semantic_accepted'] is False
+    return observed
+
+
+@pytest.mark.parametrize('order', ['aw_before_w', 'w_before_aw', 'same_edge'])
+def test_event_journal_drain_preserves_outstanding_read_and_write_refs(order):
+    aw = dict(d_awvalid=1, d_awready=1, d_awid=1, d_awsize=2)
+    w = dict(d_wvalid=1, d_wready=1, d_wlast=1, d_wstrb=15)
+    first = aw if order == 'aw_before_w' else w
+    second = w if order == 'aw_before_w' else aw
+    samples = [edge(i_arvalid=1, i_arready=1, i_arid=1, i_arsize=2,
+                    **({**aw, **w} if order == 'same_edge' else first)),
+               edge(2, i_rvalid=1, i_rready=1, i_rid=1, i_rlast=1,
+                    **({} if order == 'same_edge' else second)),
+               edge(3, d_bvalid=1, d_bready=1, d_bid=1)]
+    o = observer()
+    o.begin_scope(execution_id='exec', testcase_id='case', reset_epoch=0)
+    runner, expected = _journal_runner(o), []
+    try:
+        for sample in samples:
+            o.observe(sample)
+            _drain_observer(runner, o, expected)
+        records = _assert_journal_observer_references(runner, expected)
+        assert next(row for row in records
+                    if row['kind'] == 'reduced_axi_write_join')['aw_w_order'] == order
+        assert sum(row['kind'] == 'reduced_axi_complete' for row in records) == 2
+        assert not any(any(state.values()) for state in o.pending.values())
+    finally:
+        runner._events._records.close()
+
+
+def test_event_journal_drain_keeps_reset_cancellation_refs_and_lifetime_numbering():
+    o = run(edge(i_arvalid=1, i_arready=1, i_arsize=2,
+                 d_wvalid=1, d_wready=1, d_wlast=1))
+    runner, expected = _journal_runner(o), []
+    try:
+        _drain_observer(runner, o, expected)
+        o.begin_scope(execution_id='exec', testcase_id='next', reset_epoch=1)
+        _drain_observer(runner, o, expected)
+        with pytest.raises(ValueError, match='orphan_r'):
+            o.observe(edge(i_rvalid=1, i_rready=1, i_rlast=1))
+        _drain_observer(runner, o, expected)
+        records = _assert_journal_observer_references(runner, expected)
+        reset = next(row for row in records if row['kind'] == 'reduced_axi_reset')
+        assert reset['cancelled']['i']['read'] and reset['cancelled']['d']['w']
+        assert records[-1]['kind'] == 'reduced_axi_violation'
+        assert records[-1]['scope']['reset_epoch'] == 1
+    finally:
+        runner._events._records.close()
+
+
+@pytest.mark.parametrize('name', SHA)
+def test_saved_native_observer_prefix_matches_with_per_sample_event_journal_drain(name):
+    document = saved(name)
+    o = observer()
+    o.begin_scope(execution_id=document['execution'], testcase_id='case', reset_epoch=0)
+    runner, expected = _journal_runner(o), []
+    try:
+        for sample in document['samples']:
+            o.observe(sample)
+            _drain_observer(runner, o, expected)
+        # Compare to a separate observer without any producer-list draining.
+        buffered = replay(name)
+        assert expected == buffered.events
+        _assert_journal_observer_references(runner, expected)
+    finally:
+        runner._events._records.close()
+
+
 def test_scope_budget_bounds_reset_only_stream():
  o=observer(max_scopes=1)
  o.begin_scope(execution_id='one',testcase_id='case',reset_epoch=0)

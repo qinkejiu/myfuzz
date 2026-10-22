@@ -4,10 +4,10 @@ The plan's rule is *refuse first, then generate*: a profile that does not state
 what the harness would need must produce a located, machine-readable review row
 rather than a harness that merely looks runnable.  This module therefore never
 guesses a semantic fact.  In particular an interrupt's polarity, hold and clear
-behaviour are only ever *read* from the profile; an endpoint whose role happens
-to be called ``irq`` is not evidence of anything (the plan forbids inferring
-them from a port name), so an undeclared interrupt is reported as `missing`
-rather than assumed.
+behaviour must be declared; an endpoint whose role happens to be called ``irq``
+is not evidence of polarity (the plan forbids inferring it from a port name).
+One registered RX source also has a narrowly checked RTL polarity cone.  An
+undeclared interrupt is reported as `missing`.
 
 Every dimension is judged with the authority the generator itself uses, never
 with a second copy of the rule:
@@ -26,9 +26,9 @@ with a second copy of the rule:
     request fact, so the probe below passes the schedule's own ratio ceiling and
     nothing this module reports depends on them.
 ``interrupt``
-    Only the declared interrupt records are read; nothing is inferred from a
-    port name, and an interrupt-source endpoint with no declared form is
-    refused instead of being driven on an assumption.
+    The interrupt records are required.  A registered RX source is additionally
+    checked against authenticated RTL bytes; nothing is inferred from a port
+    name.  An interrupt-source endpoint with no declared form is refused.
 
 Every check reports one of:
 
@@ -37,8 +37,7 @@ Every check reports one of:
 ``missing``
     the fact is absent. Generation must not proceed on a guess.
 ``conflict``
-    the fact is declared twice, or in a way that contradicts another declared
-    fact, so the profile is internally inconsistent.
+    the fact contradicts another declaration or a supported source fact.
 ``unsupported``
     the fact is declared but this local harness has no admitted path for it.
 
@@ -52,6 +51,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 import json
 from pathlib import Path
+import re
 
 from myfuzz.composition.component_profile import (
     FUNCTION_DIRECTIONS, POLARITIES, ComponentProfileError, load_component_profile,
@@ -83,15 +83,24 @@ SUPPORTED_RESET_POLARITIES = POLARITIES
 #: admitted path for - ``unsupported`` - rather than something to approximate.
 SUPPORTED_INTERRUPT_TRIGGERS = ('level', 'pulse')
 
+# This narrow source rule covers one registered, independently readable IRQ
+# cone.  Other IRQ declarations retain the declaration-only review below.
+_AXIL_UART_SOURCE = ('third_party/soc-zipcpu-wbuart',
+                     'git:f43a6b83c3a70fb2ac0696a45c5545b233fb860b',
+                     'axiluart')
+
 #: How each interrupt-form gap classifies. A gap that names something the
 #: profile never declared is `missing`; one that contradicts another declaration
-#: is `conflict`; one that is declared but has no admitted path is `unsupported`.
+#: or a verified source fact is `conflict`; one without an admitted proof or path
+#: is `unsupported`.
 _INTERRUPT_GAP_STATUS = {
     'interrupt-endpoint-unknown': 'conflict',
     'interrupt-endpoint-function-mismatch': 'conflict',
     'interrupt-form-field-missing': 'missing',
     'interrupt-role-undeclared': 'missing',
     'interrupt-trigger-unsupported': 'unsupported',
+    'interrupt-polarity-source-unverified': 'unsupported',
+    'interrupt-polarity-source-conflict': 'conflict',
 }
 
 #: The one transport the local harness binds as an external serial peer today.
@@ -346,15 +355,57 @@ def review_endpoints(plan):
                                               if endpoint.protocol is not None)})
 
 
-def review_interrupts(profile):
+def _axil_uart_rx_source_polarity(profile, base_dir):
+    """Prove the RX output's asserted level from authenticated source bytes.
+
+    The pinned top wires the RX interrupt to FIFO status bit zero.  With the
+    RXFIFO=1 instance, that bit is ``!will_underflow``: reset makes it zero and
+    a received write makes it one.  A changed pin or expression has no oracle.
+    """
+    from myfuzz.composition.source_crawler import _pinned_source_reader
+
+    locator = profile.source
+    if (locator.source_root, locator.revision, locator.top_module) != _AXIL_UART_SOURCE:
+        return None
+    files = ('rtl/axiluart.v', 'rtl/ufifo.v')
+    if not set(files).issubset(locator.files):
+        return None
+    root, _, read = _pinned_source_reader(locator, base_dir=Path(base_dir))
+
+    def compact(relative):
+        source = read(root / relative).decode('utf-8')
+        source = re.sub(r'/\*.*?\*/|//[^\n]*', '', source, flags=re.DOTALL)
+        return re.sub(r'\s+', '', source)
+
+    top, fifo = (compact(relative) for relative in files)
+    status_assignments = re.findall(r'assigno_status=\{([^{}]*)\};', fifo)
+    status_fields = (status_assignments[0].split(',')
+                     if len(status_assignments) == 1
+                     and fifo.count('assigno_status=') == 1 else ())
+    if not all((
+        'ufifo#(.LGFLEN(LCLLGFLEN),.RXFIFO(1))rxfifo(' in top,
+        ',rxf_status,rx_fifo_err);' in top,
+        'assigno_uart_rx_int=rxf_status[0];' in top,
+        'outputwire[15:0]o_status,outputwireo_err' in fifo,
+        status_fields == ['lglen', 'w_fill', 'w_half_full',
+                          '(RXFIFO!=0)?!will_underflow:!will_overflow'],
+        "if(i_reset)will_underflow<=1'b1;elseif(i_wr)will_underflow<=1'b0;" in fifo,
+    )):
+        return None
+    return 'active_high'
+
+
+def review_interrupts(profile, *, base_dir):
     """Interrupt form is declared or absent - never inferred from a role name.
 
     This is the plan's explicit requirement: polarity, whether the line is held
     or pulsed, and how it is cleared must all be stated, because the harness
     drives a real line and a wrong assumption produces a wrong result rather
-    than a refusal.  Every fact below comes from an ``interrupts`` record; a
+    than a refusal.  The required form comes from an ``interrupts`` record; a
     port whose name contains ``irq`` produces no claim at all, and an
-    interrupt-source endpoint that no record covers is refused.
+    interrupt-source endpoint that no record covers is refused.  The one
+    source-backed RX rule below is selected by its registered source and
+    bound physical port, never by a port-name guess.
     """
     sources = tuple(getattr(profile, 'interrupts', ()) or ())
     endpoints = {endpoint.endpoint_id: endpoint
@@ -401,6 +452,32 @@ def review_interrupts(profile):
                          'trigger': trigger,
                          'supported': list(SUPPORTED_INTERRUPT_TRIGGERS)})
             continue
+        if (profile.source.source_root == _AXIL_UART_SOURCE[0]
+                and profile.source.top_module == _AXIL_UART_SOURCE[2]
+                and role == 'rx'):
+            fields = [field for field in endpoints[endpoint_id].fields
+                      if field.role == role]
+            physical = tuple(fields[0].aliases) if len(fields) == 1 else ()
+            try:
+                proved = (_axil_uart_rx_source_polarity(profile, base_dir)
+                          if physical == ('o_uart_rx_int',) else None)
+            except (OSError, UnicodeError, ValueError):
+                proved = None
+            if proved is None:
+                gaps.append({**row,
+                             'code': 'interrupt-polarity-source-unverified',
+                             'pointer': _pointer('interrupts', index, 'polarity'),
+                             'physical_port': physical,
+                             'source_revision': profile.source.revision})
+            elif source.polarity != proved:
+                gaps.append({**row,
+                             'code': 'interrupt-polarity-source-conflict',
+                             'pointer': _pointer('interrupts', index, 'polarity'),
+                             'physical_port': physical[0],
+                             'declared': source.polarity,
+                             'source_polarity': proved,
+                             'source_revision': profile.source.revision,
+                             'source_files': ['rtl/axiluart.v', 'rtl/ufifo.v']})
     undeclared = sorted((endpoint.endpoint_id, field.role)
                         for endpoint in profile.endpoints
                         if endpoint.function == 'interrupt_source'
@@ -412,6 +489,10 @@ def review_interrupts(profile):
                                for item in undeclared],
                      'pointer': _pointer('interrupts')})
     if gaps:
+        if len(gaps) == 1 and gaps[0]['code'].startswith('interrupt-polarity-source-'):
+            gap = gaps[0]
+            return _row('interrupt', _INTERRUPT_GAP_STATUS[gap['code']],
+                        gap['code'], gap['pointer'], gap)
         return _row('interrupt', _worst_status(_INTERRUPT_GAP_STATUS[gap['code']]
                                                for gap in gaps),
                     'interrupt-form-incomplete', _pointer('interrupts'),
@@ -708,7 +789,7 @@ def review_component(profile, *, base_dir, profile_path=None, document=None):
         rows.append(review_clock_schedule(_Planned(profile, schedule)))
     rows.append(review_reset_schedule(_Planned(profile)))
     rows.append(review_endpoints(_Planned(profile)))
-    rows.append(review_interrupts(profile))
+    rows.append(review_interrupts(profile, base_dir=base_dir))
     rows.append(review_interrupt_entry(profile, document))
     rows.append(review_serial_peer(profile))
     rows.append(review_address_window(_Planned(profile)))

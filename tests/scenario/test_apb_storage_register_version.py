@@ -2,6 +2,204 @@
 import pytest
 
 
+@pytest.fixture(scope='module', params=(
+    ('pulp_timer/component_profile.json', 'timer.bus', 'pulp-apb-timer.ctrl0.source.v1', 'TIMER0_CTRL'),
+    ('pulp_spi/local_component_profile.json', 'spi.bus', 'pulp-apb-spi.spicmd.source.v1', 'SPICMD'),
+))
+def registered_storage_artifact(request):
+    """Real generated source/probe artifact; no native process or authority."""
+    from pathlib import Path
+    from myfuzz.local_harness import (
+        load_local_harness_request, plan_local_harness, render_local_harness,
+        verify_local_source_lock, render_local_runtime, render_local_driver)
+    root = Path(__file__).resolve().parents[2]
+    from myfuzz.composition.component_profile import load_component_profile
+    profile, endpoint, contract, register = request.param
+    component = load_component_profile(root/f'configs/peripherals/{profile}')
+    fixed = [dict(endpoint_id=e.endpoint_id, role=f.role, value=0)
+             for e in component.endpoints if e.protocol is None
+             for f in e.fields if f.direction == 'input']
+    harness = load_local_harness_request(dict(schema_version='local_harness.v2',
+        profile_path=f'configs/peripherals/{profile}',
+        instance_id='peripheral', reset_assert_ticks=2, reset_release_ticks=2,
+        max_wait_cycles=16, tuning=dict(fixed_inputs=fixed, endpoint_policies=[dict(
+            endpoint_id=endpoint, template_id='target.apb3', template_version='1',
+            variant_id='full-word', max_outstanding=1)],
+            apb_storage_observations=[dict(endpoint_id=endpoint,
+                contract_id=contract, register=register)])))
+    plan = plan_local_harness(harness, base_dir=root)
+    artifact = render_local_runtime(plan, render_local_harness(plan),
+        verify_local_source_lock(plan.profile, base_dir=root), base_dir=root)
+    return render_local_driver(artifact, base_dir=root)
+
+
+def test_registered_decode_drives_every_physical_sample(registered_storage_artifact):
+    from myfuzz.scenario.apb_storage_register_version import reduce_storage_samples
+    contract = registered_storage_artifact.runtime_document['storage_observation']['source_contract']
+    decode = contract['decode']
+    writes = 0
+    for address in range(1 << decode['address_width']):
+        matches = address & decode['mask'] == decode['value']
+        state, rows = reduce_storage_samples([sample(address=address, write=1,
+            new=27 if matches else 9)], source_contract=contract)
+        assert state['value'] == (27 if matches else 9)
+        assert bool(rows) == matches
+        writes += len(rows)
+    assert writes == decode['raw_address_alias_count']
+
+
+def test_registered_reset_equation_and_read_hold(registered_storage_artifact):
+    from myfuzz.scenario.apb_storage_register_version import reduce_storage_samples
+    contract = registered_storage_artifact.runtime_document['storage_observation']['source_contract']
+    offset = contract['register']['canonical_offset']
+    state, writes = reduce_storage_samples([
+        sample(old=0, new=0, address=offset, write=1, reset=1),
+        sample(tick=2, old=0, new=27, address=offset, write=1),
+        sample(tick=3, old=27, new=27, address=offset)], source_contract=contract)
+    assert state == dict(tick=3, value=27, reset_waveform_observed=True)
+    assert len(writes) == 1 and writes[0]['raw_address'] == offset
+
+
+@pytest.mark.parametrize('mutation', ('register', 'digest', 'mask', 'decode_value', 'reset'))
+def test_reducer_cannot_redefine_registered_source(registered_storage_artifact, mutation):
+    from copy import deepcopy
+    from myfuzz.scenario.apb_storage_register_version import reduce_storage_samples
+    contract = deepcopy(registered_storage_artifact.runtime_document['storage_observation']['source_contract'])
+    if mutation == 'register': contract['register']['name'] = 'FORGED'
+    elif mutation == 'digest': contract['digest'] = '0' * 64
+    elif mutation == 'mask': contract['decode']['mask'] = 0
+    elif mutation == 'decode_value': contract['decode']['value'] = 0
+    else: contract['register']['reset_value'] = 9
+    with pytest.raises(ValueError):
+        reduce_storage_samples([sample()], source_contract=contract)
+
+
+@pytest.mark.parametrize('when', ('attachment', 'lifetime'))
+@pytest.mark.parametrize('mutation', ('register', 'digest', 'mask', 'decode_value', 'reset', 'cross_contract'))
+def test_authority_revalidates_source_contract(registered_storage_artifact, tmp_path, when, mutation):
+    from copy import deepcopy
+    from dataclasses import replace
+    from pathlib import Path
+    from myfuzz.local_harness.apb3_register_session import GeneratedApb3RegisterSession
+    from myfuzz.scenario.apb_storage_register_version import ApbStorageRegisterVersionAuthority
+    from myfuzz.local_harness.apb_storage_source_contract import select_apb_storage_source_contract
+    from myfuzz.composition.component_profile import load_component_profile
+    root = Path(__file__).resolve().parents[2]
+    artifact = replace(registered_storage_artifact,
+        runtime_document=deepcopy(registered_storage_artifact.runtime_document))
+    target = GeneratedApb3RegisterSession(artifact, base_dir=root, cache_dir=tmp_path)
+    authority = ApbStorageRegisterVersionAuthority(target) if when == 'lifetime' else None
+    document = target._artifact_document
+    contract = document['storage_observation']['source_contract']
+    if mutation == 'register': contract['register']['name'] = 'FORGED'
+    elif mutation == 'digest': contract['digest'] = '0' * 64
+    elif mutation == 'mask': contract['decode']['mask'] = 0
+    elif mutation == 'decode_value': contract['decode']['value'] = 0
+    elif mutation == 'reset': contract['register']['reset_value'] = 9
+    else:
+        other = ('pulp_spi', 'pulp-apb-spi.spicmd.source.v1', 'SPICMD') if contract['register']['name'] == 'TIMER0_CTRL' else ('pulp_timer', 'pulp-apb-timer.ctrl0.source.v1', 'TIMER0_CTRL')
+        document['storage_observation']['source_contract'] = select_apb_storage_source_contract(
+            load_component_profile(root/f'configs/peripherals/{other[0]}/component_profile.json'),
+            base_dir=root, selection=dict(contract_id=other[1], register=other[2]))
+    # Mutating both serialized copies must still fail against code-owned facts.
+    artifact.runtime_document['storage_observation'] = deepcopy(document['storage_observation'])
+    with pytest.raises(ValueError):
+        if authority is None: ApbStorageRegisterVersionAuthority(target)
+        else: authority.writes()
+
+
+def test_contract_drift_permanently_revokes_the_authority(registered_storage_artifact, tmp_path):
+    from copy import deepcopy
+    from dataclasses import replace
+    from pathlib import Path
+    from myfuzz.local_harness.apb3_register_session import GeneratedApb3RegisterSession
+    from myfuzz.scenario.apb_storage_register_version import ApbStorageRegisterVersionAuthority
+    artifact = replace(registered_storage_artifact,
+        runtime_document=deepcopy(registered_storage_artifact.runtime_document))
+    target = GeneratedApb3RegisterSession(artifact,
+        base_dir=Path(__file__).resolve().parents[2], cache_dir=tmp_path)
+    authority = ApbStorageRegisterVersionAuthority(target)
+    saved = deepcopy(target._artifact_document['storage_observation'])
+    for document in (artifact.runtime_document, target._artifact_document):
+        document['storage_observation']['source_contract']['digest'] = '0' * 64
+    with pytest.raises(ValueError): authority.writes()
+    for document in (artifact.runtime_document, target._artifact_document):
+        document['storage_observation'] = deepcopy(saved)
+    with pytest.raises(ValueError, match='incomplete|revoked'): authority.writes()
+
+
+def test_authority_captures_immutable_registered_facts(registered_storage_artifact, tmp_path):
+    from dataclasses import FrozenInstanceError
+    from pathlib import Path
+    from myfuzz.local_harness.apb3_register_session import GeneratedApb3RegisterSession
+    from myfuzz.scenario import apb_storage_register_version as module
+    target = GeneratedApb3RegisterSession(registered_storage_artifact,
+        base_dir=Path(__file__).resolve().parents[2], cache_dir=tmp_path)
+    authority = module.ApbStorageRegisterVersionAuthority(target)
+    contract = registered_storage_artifact.runtime_document['storage_observation']['source_contract']
+    facts = module._LIVE[authority]['source_facts']
+    assert (facts.digest, facts.register, facts.width, facts.reset_value,
+            facts.write_mask, facts.decode_mask, facts.decode_value) == (
+        contract['digest'], contract['register']['name'], contract['register']['width'],
+        contract['register']['reset_value'], contract['register']['write_mask'],
+        contract['decode']['mask'], contract['decode']['value'])
+    with pytest.raises(FrozenInstanceError): facts.register = 'FORGED'
+
+
+def test_authority_rereads_source_bytes_during_its_lifetime(
+        registered_storage_artifact, tmp_path, monkeypatch):
+    from pathlib import Path
+    from myfuzz.local_harness.apb3_register_session import GeneratedApb3RegisterSession
+    from myfuzz.scenario.apb_storage_register_version import ApbStorageRegisterVersionAuthority
+    root = Path(__file__).resolve().parents[2]
+    target = GeneratedApb3RegisterSession(registered_storage_artifact,
+        base_dir=root, cache_dir=tmp_path)
+    authority = ApbStorageRegisterVersionAuthority(target)
+    contract = registered_storage_artifact.runtime_document['storage_observation']['source_contract']
+    path = root/contract['source']['root']/next(iter(contract['source']['files']))
+    original = Path.read_bytes
+    # Substitute only the reviewed RTL read; never alter shared source bytes.
+    def changed_bytes(self):
+        raw = original(self)
+        return raw + b'\n// changed source\n' if self == path else raw
+    monkeypatch.setattr(Path, 'read_bytes', changed_bytes)
+    with pytest.raises(ValueError): authority.writes()
+
+
+def test_registered_native_write_version_and_single_use(registered_storage_artifact, tmp_path):
+    """Actual native process: source descriptions and fabricated receipts cannot pass."""
+    from pathlib import Path
+    from myfuzz.local_harness.apb3_register_session import GeneratedApb3RegisterSession
+    from myfuzz.scenario.apb_storage_register_version import ApbStorageRegisterVersionAuthority
+    target = GeneratedApb3RegisterSession(registered_storage_artifact,
+        base_dir=Path(__file__).resolve().parents[2], cache_dir=tmp_path/'native-cache')
+    authority = ApbStorageRegisterVersionAuthority(target)
+    contract = registered_storage_artifact.runtime_document['storage_observation']['source_contract']
+    register = contract['register']['name']
+    offset = contract['register']['canonical_offset']
+    try:
+        target.begin_case('registered-storage-native')
+        target.step_local({})
+        initial = authority.consume(authority.issue(register=register, reset_epoch=0))
+        assert initial['value'] == contract['register']['reset_value']
+        assert initial['write_count'] == initial['field_version'] == 0
+        target.write_register(offset, 0xdecafbad)
+        target.write_register(offset + contract['decode']['alias_period_bytes'], 0xdecafbad)
+        assert target.read_register(offset) == 0xdecafbad
+        token = authority.issue(register=register, reset_epoch=0)
+        witness = authority.consume(token)
+        assert witness['register'] == register
+        assert witness['source_contract_digest'] == contract['digest']
+        assert witness['value'] == 0xdecafbad
+        assert witness['write_count'] == witness['field_version'] == 2
+        assert witness['grants_reset_prerequisite'] is False
+        assert [row['raw_address'] for row in authority.writes()] == [
+            offset, offset + contract['decode']['alias_period_bytes']]
+        with pytest.raises(ValueError, match='token-invalid'): authority.consume(token)
+    finally:
+        target.end_case()
+
+
 def sample(tick=1,old=9,new=9,address=4,write=0,reset=0,wdata=27):
     pre=dict(storage_value=old,storage_reset=reset,storage_paddr=address,storage_psel=write,storage_penable=write,storage_pwrite=write,storage_pwdata=wdata,storage_prdata=0,storage_pready=1,storage_pslverr=0)
     return dict(local_tick=tick,pre={'storage_probes':pre},post={'storage_probes':dict(pre,storage_value=new)})

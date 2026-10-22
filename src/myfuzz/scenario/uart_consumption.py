@@ -442,7 +442,9 @@ class UartConsumptionTracker:
         if pending.get('read') and not pending.get('read_proven'):
             pending['read_proven']=True
             mode=pending['read'].get('route_context_mode')
-            certified=self.edge_index is not None and mode in ('router','dma_master')
+            certified=(self.edge_index is not None and mode in ('router','dma_master')
+                and (mode != 'dma_master' or
+                     isinstance(pending['read'].get('dma_master_route_match'), dict)))
             out.append(self._record(e,'uart_consumption_match',status='accepted',
                 proof_scope='uart_fifo_read_consumption',
                 **dict(common,graph_path_certified=certified,
@@ -546,12 +548,41 @@ class UartConsumptionTracker:
                 request_event=e['actual_request_event_id'],response_event=e['actual_response_event_id']),)
         if entry is None or entry['entry_id']!=pending['entry']['entry_id'] or value!=entry['value']:
             return self._fail(e,'uart_read_entry_identity_mismatch')
+        dma_route_match = None
+        if mode == 'dma_master':
+            if self.edge_index is None:
+                return self._fail(e, 'uncompiled_dma_master_route')
+            frame = s['frames'].get(pending['token']['input_ref']['frame_id'], {})
+            source_admission = frame.get('admission')
+            path_id = (source_admission.get('path_id')
+                       if isinstance(source_admission, dict) else None)
+            routes = self.edge_index.dma_master_routes_for_path(path_id)
+            candidates = [route for route in routes
+                if route.operation == 'read' and route.target_kind == 'peripheral'
+                and route.target_component == e['component']]
+            if len(candidates) != 1:
+                return self._fail(e, 'unmatched_dma_master_route')
+            route = candidates[0]
+            matched = self.edge_index.match_dma_master_route(path_id,
+                initiator_component=route.initiator_component,
+                endpoint_id=route.endpoint_id,
+                target_kind=route.target_kind,
+                target_component=route.target_component,
+                target_id=route.target_id, base=base, size=size,
+                operation='read', address=address,
+                byte_enable=e['byte_enable'],
+                transaction_key=e['source_transaction'])
+            if matched is None:
+                return self._fail(e, 'unmatched_dma_master_route')
+            from dataclasses import asdict
+            dma_route_match = asdict(matched)
         pending['read']=dict(pop_event=pop['event_id'],access_event=e['event_id'],
             access_id=e['access_id'],source_transaction=deepcopy(e['source_transaction']),
             request_event=e['actual_request_event_id'],response_event=e['actual_response_event_id'],
             request_tick=e['request_tick'],response_tick=e['response_tick'],read_value=value,
             route_context_mode=mode,address=address,window_base=base,window_size=size,
-            delivery_context=deepcopy(delivery))
+            delivery_context=deepcopy(delivery),
+            dma_master_route_match=deepcopy(dma_route_match))
         return tuple(self._promote(e,s,pending))
 
     @staticmethod

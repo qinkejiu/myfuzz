@@ -294,6 +294,28 @@ class CompiledRfuzzExecutor(ScenarioRfuzzExecutor):
         self.checker_identity_target = None
         self.runtime_contract = None
         self.runtime_path_status = 'legacy_unchecked'
+        self._prepared_runtime_paths = None
+        self._runtime_declaration_document = None
+        self.fresh_runtime_path_documents = {}
+        admission = decoder.runtime_path_admission
+        if admission is not None:
+            admission.validate_cached_identity()
+            if (self.session is None
+                    or self.session.runtime_contract != admission.prepared.contract
+                    or self.session.runtime_path_document is None
+                    or self.session.runtime_path_document['declaration'] != admission.prepared.document()
+                    or self.session.instruction_image_binding_documents !=
+                        (admission.instruction_binding.document(),)):
+                raise ValueError('compiled-rfuzz-runtime-path-session-mismatch')
+            if getattr(runtime, 'runtime_path_admission', None) is None or (
+                    runtime.runtime_path_admission.document() != admission.document()):
+                raise ValueError('compiled-rfuzz-runtime-path-admission-mismatch')
+            self.runtime_contract = self.session.runtime_contract
+            self.runtime_path_status = 'contract_preflight'
+            self._prepared_runtime_paths = admission.prepared
+            self._runtime_declaration_document = admission.prepared.document()
+        elif self.session is not None:
+            raise ValueError('compiled-rfuzz-runtime-path-admission-required')
         self.replay_only = False
         self.feedback_interval = feedback_interval
         self.closed_loop_energy = False
@@ -816,6 +838,30 @@ def fresh_verification_document(envelope, plan, *, session_dir=None) -> dict:
     return document
 
 
+def verify_saved_compiled_f4_build_outputs(output_dir, *, outcome, harness_set, manifest):
+    """Check persisted documents against same-call values before publishing hashes."""
+    from .compiled_f4_build_join import verify_compiled_f4_build_material
+    output = Path(output_dir)
+    replay = {key:value for key,value in outcome['replay'].items()
+              if key not in ('actual_prefix','actual_events')}
+    replay['actual_event_count'] = len(outcome['replay'].get('actual_events') or ())
+    expected = {'compiled_f4_build_join.v1.json':outcome['build_join'],
+                'compiled_f4_prefix.json':outcome['plan'],
+                'compiled_f4_replay.json':replay}
+    saved = {}; hashes = {}
+    for name, document in expected.items():
+        raw = (output/name).read_bytes()
+        parsed = json.loads(raw)
+        if _canonical(parsed) != _canonical(document):
+            raise ValueError('compiled-F4-saved-build-output-mismatch:'+name)
+        saved[name] = parsed
+        hashes[name] = sha256(raw).hexdigest()
+    verify_compiled_f4_build_material(saved['compiled_f4_build_join.v1.json'],
+        harness_set=harness_set,manifest=manifest,
+        prefix=saved['compiled_f4_prefix.json'],replay=saved['compiled_f4_replay.json'])
+    return hashes
+
+
 def run_compiled_f4_rfuzz_session(*, artifacts, compiled_inputs, base_dir,
                                   cache_dir, run_id, session_dir, output_dir,
                                   client_binary, budget_seconds, max_tests,
@@ -842,13 +888,37 @@ def run_compiled_f4_rfuzz_session(*, artifacts, compiled_inputs, base_dir,
     # every record the transport can still admit before that stop.
     limit = min(max_tests * COMPILED_CANDIDATE_CYCLES
                 + COMPILED_CANDIDATE_CYCLES, 65536)
+    from .compiled_f4_build_join import (
+        build_compiled_f4_build_join, verify_compiled_f4_build_join)
+    from .compiled_f4 import _diagnostic_build_snapshot
     runtime = None
     error = None
+    build_evidence = {'original':{}, 'fresh':{}}
+    def save_original_build(snapshot):
+        build_evidence['original'] = snapshot
+    def make_build_join(failure=None):
+        binding = None
+        if runtime is not None:
+            try:
+                binding = runtime.execution_binding.document()
+            except BaseException as export_error:
+                if failure is None:
+                    raise
+                failure.add_note('compiled-F4 execution binding export: ' + repr(export_error))
+            build_evidence['original'] = _diagnostic_build_snapshot(runtime,
+                previous=build_evidence['original'], error=failure)
+        return build_compiled_f4_build_join(artifacts=artifacts,
+            execution_binding=binding,
+            compiled_document_sha256=compiled_document_sha256(compiled_inputs['compiled']),
+            runtime_path_id=binding.get('runtime_path_id') if binding else None,
+            logical_path_id=binding.get('path_id') if binding else None,
+            original=build_evidence['original'], fresh=build_evidence['fresh'], error=failure)
     try:
         runtime = CompiledF4Runtime(
             artifacts=artifacts, compiled_inputs=compiled_inputs,
             base_dir=Path(base_dir), cache_dir=cache, run_id=run_id,
-            rounds_per_case=rounds_per_case, max_cases=limit)
+            rounds_per_case=rounds_per_case, max_cases=limit,
+            build_audit_sink=save_original_build)
         executor = build_compiled_rfuzz_executor(runtime, run_id=run_id)
         live = run_scenario_rfuzz_live(
             executor=executor, client_binary=Path(client_binary),
@@ -859,6 +929,10 @@ def run_compiled_f4_rfuzz_session(*, artifacts, compiled_inputs, base_dir,
         _write_json(output / 'compiled_f4_prefix.json', plan)
 
         def save_replay(envelope):
+            if envelope.get('original_build') is not None:
+                build_evidence['original'] = envelope['original_build']
+            if envelope.get('fresh_build') is not None:
+                build_evidence['fresh'] = envelope['fresh_build']
             summary = {key: value for key, value in envelope.items()
                        if key not in ('actual_prefix', 'actual_events')}
             summary['actual_event_count'] = len(envelope.get('actual_events') or ())
@@ -877,18 +951,32 @@ def run_compiled_f4_rfuzz_session(*, artifacts, compiled_inputs, base_dir,
         join = join_compiled_receipts(session / 'receipts.jsonl',
                                       compiled_inputs['compiled'])
         _write_json(output / 'compiled_receipt_join.v1.json', join)
+        build_join = make_build_join()
+        verify_compiled_f4_build_join(build_join, artifacts=artifacts,
+            execution_binding=runtime.execution_binding.document(),
+            original=build_evidence['original'], fresh=build_evidence['fresh'])
+        _write_json(output / 'compiled_f4_build_join.v1.json', build_join)
         return {
             'live': live, 'plan': plan, 'replay': replay,
             'verification': verification, 'join': join,
-            'executor': executor, 'runtime': runtime,
+            'executor': executor, 'runtime': runtime, 'build_join':build_join,
         }
     except BaseException as exc:
         error = exc
         raise
     finally:
-        if runtime is not None and not runtime.finished:
-            try:
-                runtime.finish()
-            except BaseException:
-                if error is None:
-                    raise
+        try:
+            if runtime is not None and not runtime.finished:
+                try:
+                    runtime.finish()
+                except BaseException as cleanup:
+                    if error is None:
+                        error = cleanup
+                        raise
+                    error.add_note('compiled-F4 runtime cleanup: '+repr(cleanup))
+        finally:
+            if error is not None:
+                try:
+                    _write_json(output / 'compiled_f4_build_join.v1.json', make_build_join(error))
+                except BaseException as audit_error:
+                    error.add_note('compiled-F4 refused build join: '+repr(audit_error))

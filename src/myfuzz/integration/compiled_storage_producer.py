@@ -413,8 +413,7 @@ def _generic_apb_document(*, artifacts, compiled_inputs, path, image, stream, ac
             or register['width'] != contract['width']):
         raise ValueError('compiled-F4-producer-register-mismatch')
     decode = registered['decode']
-    if (decode.get('mask') != 0x1c or decode.get('value') != 4
-            or apb_storage_address_matches(registered, access['register_offset']) is not True):
+    if apb_storage_address_matches(registered, access['register_offset']) is not True:
         raise ValueError('compiled-F4-producer-decode-mismatch')
     protocol = _endpoint_protocol(artifact, target_endpoint)
     producer = dict(

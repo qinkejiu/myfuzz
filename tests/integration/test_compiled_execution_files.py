@@ -102,19 +102,90 @@ def exact_hop_fixture():
         step('data',rvalid=1,rdata=0 if write else 85)
         joins.append(dict(delivery_event=delivery,acceptance_event=accepted,native_APB_event=delivery,
                           source_transaction=key('data',index+1)))
-    return dict(events=events,declaration=dict(code_hex=code.hex(),candidate=dict(value=85)),
-        image=dict(component=cpu,port='ram'),stream=dict(register_access=dict(source_component=cpu,
+    result_address=0x100fc
+    ram_acceptance=step('data',req=1,gnt=1,addr=result_address,we=1,wdata=85,be=15)
+    ram_event=len(events)+1
+    events.append(dict(event_id=ram_event,kind='memory_write',component=cpu,
+        memory_id='ram',generation=0,address=result_address,byte_offset=0xfc,
+        width_bytes=4,byte_enable=15,value=85,version=[0,2],
+        producer_event_id=ram_acceptance,transaction=key('data',3)))
+    step('data',rvalid=1,rdata=0)
+    return dict(events=events,declaration=dict(code_hex=code.hex(),
+        candidate=dict(value=85),result_address=result_address),
+        image=dict(component=cpu,port='ram',range=[0x10000,0x100ff]),stream=dict(register_access=dict(source_component=cpu,
             device_id='peripheral',register_offset=4,address=target)),traces=traces,address=address,
         source_event_id=source_id,joins=joins,declared_edges=[dict(relation='persistent_state'),dict(relation='mmio_route')],
-        instruction_snapshots=snapshots)
+        instruction_snapshots=snapshots,ram_event_id=ram_event)
 
 
 def test_exact_native_hop_consumer_accepts_complete_synthetic_contract():
     from myfuzz.integration.compiled_f4 import check_f4_exact_hops
     proof=check_f4_exact_hops(**exact_hop_fixture())
+    assert proof['schema_version']=='compiled_F4_exact_hops.v2'
     assert len(proof['instruction_hops'])==8
     assert len(proof['data_hops'])==2
+    assert proof['ram_write_hop']['memory_write_event']==35
+    assert proof['ram_write_hop']['native_acceptance_event']==34
+    assert proof['ram_write_hop']['native_response_event']==36
+    assert proof['ram_write_hop']['address']==0x100fc
+    assert proof['ram_write_hop']['value']==85
+    assert proof['ram_write_hop']['byte_enable']==15
+    assert proof['ram_write_hop']['transaction']['source_sequence']==3
     assert all(edge['status']=='certified' for edge in proof['edges'])
+
+
+@pytest.mark.parametrize('mutation',[
+    'missing_event','wrong_event_id','address','value','byte_enable','width',
+    'memory_id','byte_offset','generation','version','transaction_sequence',
+    'transaction_scope','transaction_channel','producer_event','native_address',
+    'native_value','native_mask','native_write','native_response'])
+def test_exact_native_hop_consumer_refuses_an_unjoined_result_ram_write(mutation):
+    from myfuzz.integration.compiled_f4 import check_f4_exact_hops
+    fixture=exact_hop_fixture()
+    ram=next(e for e in fixture['events'] if e.get('kind')=='memory_write')
+    if mutation=='missing_event':
+        fixture['events'].remove(ram)
+    elif mutation=='wrong_event_id':
+        fixture['ram_event_id']+=100
+    elif mutation=='address':
+        ram['address']+=4
+    elif mutation=='value':
+        ram['value']+=1
+    elif mutation=='byte_enable':
+        ram['byte_enable']=7
+    elif mutation=='width':
+        ram['width_bytes']=2
+    elif mutation=='memory_id':
+        ram['memory_id']='other'
+    elif mutation=='byte_offset':
+        ram['byte_offset']+=4
+    elif mutation=='generation':
+        ram['generation']=1
+    elif mutation=='version':
+        ram['version']=[0,0]
+    elif mutation=='transaction_sequence':
+        ram['transaction']['source_sequence']=4
+    elif mutation=='transaction_scope':
+        ram['transaction']['testcase_id']='other'
+    elif mutation=='transaction_channel':
+        ram['transaction']['channel_id']='instr'
+    elif mutation=='producer_event':
+        ram['producer_event_id']+=1
+    elif mutation in {'native_address','native_value','native_mask','native_write'}:
+        producer=ram['producer_event_id']
+        step=next(e for e in fixture['events'] if e.get('event_id')==producer)
+        taps=step['outputs']['driver_samples'][0]['pre']['protocol_taps']
+        if mutation=='native_address':taps['data_addr']+=4
+        elif mutation=='native_value':taps['data_wdata']+=1
+        elif mutation=='native_mask':taps['data_be']=7
+        else:taps['data_we']=0
+    elif mutation=='native_response':
+        response=next(e for e in reversed(fixture['events'])
+            if 'outputs' in e and e['outputs']['driver_samples'][0]
+                ['pre']['protocol_taps']['data_rvalid']==1)
+        response['outputs']['driver_samples'][0]['pre']['protocol_taps']['data_rvalid']=0
+    with pytest.raises(ValueError,match='compiled-F4-'):
+        check_f4_exact_hops(**fixture)
 
 
 @pytest.mark.parametrize('mutation',['instruction_acceptance','instruction_response','instruction_value',
@@ -138,6 +209,25 @@ def test_exact_native_hop_consumer_refuses_independent_missing_or_changed_hops(m
         next(e for e in events if e.get('kind')=='mmio_delivery')['source_transaction']['source_sequence']=9
     with pytest.raises(ValueError,match='compiled-F4-'):
         check_f4_exact_hops(**fixture)
+
+
+def test_compiled_f4_first_fresh_prefix_comparison_binds_result_ram_witness():
+    from copy import deepcopy
+    from myfuzz.integration.compiled_f4 import _compare_prefixes
+    expected=dict(semantic_hash='a'*64,records=[dict(certificate=dict(
+        prerequisite={'process_scope':'first'},
+        postcondition={'process_scope':'first'},
+        exact_hops=dict(ram_write_hop=dict(memory_write_event=35,
+            address=0x100fc,value=85,byte_enable=15,
+            transaction=dict(channel_id='data',source_sequence=3)))))])
+    actual=deepcopy(expected)
+    actual['records'][0]['certificate']['prerequisite']['process_scope']='fresh'
+    actual['records'][0]['certificate']['postcondition']['process_scope']='fresh'
+    assert _compare_prefixes(expected,actual)['matches'] is True
+    actual['records'][0]['certificate']['exact_hops']['ram_write_hop']['value']=86
+    comparison=_compare_prefixes(expected,actual)
+    assert comparison['matches'] is False
+    assert comparison['first_difference'].endswith('/ram_write_hop/value')
 
 
 @pytest.mark.parametrize('mutation',['missing','wrong_tick','wrong_context','wrong_value'])

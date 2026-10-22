@@ -15,11 +15,13 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'src'))
 
-from myfuzz.local_harness.declaration_review import review_profiles
+from myfuzz.composition.component_profile import load_component_profile
+from myfuzz.local_harness.declaration_review import review_interrupts, review_profiles
 
 
 #: Repository profiles the plan requires to be admitted as they stand. The
@@ -308,24 +310,74 @@ class RefusalTests(unittest.TestCase):
         self.assertIn('polarity', rows[0]['detail']['reason'])
         _resolve_pointer(_document(FIXTURE_SOURCE), '/interrupts/0/polarity')
 
-    def test_a_reversed_but_declared_polarity_is_read_verbatim(self):
-        """The reviewer reports the declared form; it never normalises it.
-
-        Whether ``active_low`` matches the RTL cannot be decided from the
-        declaration alone (pulp_gpio's own evidence records that), so what this
-        test pins down is the weaker, honest guarantee: the row echoes the
-        declaration instead of substituting a polarity of its own.
-        """
+    def test_zipcpu_rx_polarity_conflicts_with_pinned_source(self):
+        """A declared inversion of the source-proven RX level blocks generation."""
         def flip_polarity(document):
             document['interrupts'][0]['polarity'] = 'active_low'
         path = self._mutated(FIXTURE_SOURCE, 'uart-flipped-polarity.json',
                              flip_polarity)
         review = self._review(path)
-        self.assertEqual('ok', review['status'], review['refused'])
-        rows = _rows(review['components'][0], 'interrupt-form-declared')
+        self.assertIs(False, review['generated'])
+        self.assertEqual('refused', review['status'])
+        self.assertEqual(['zipcpu_axiluart'], review['refused'])
+        rows = _rows(review['components'][0], 'interrupt-polarity-source-conflict')
         self.assertEqual(1, len(rows))
-        self.assertEqual('active_low', rows[0]['detail']['sources'][0]['polarity'])
-        self.assertEqual('level', rows[0]['detail']['sources'][0]['trigger'])
+        self.assertEqual('conflict', rows[0]['status'])
+        self.assertEqual('/interrupts/0/polarity', rows[0]['pointer'])
+        self.assertEqual('active_low', rows[0]['detail']['declared'])
+        self.assertEqual('active_high', rows[0]['detail']['source_polarity'])
+
+    def test_polarity_conflict_does_not_hide_later_unsupported_irq(self):
+        def break_two_interrupts(document):
+            document['interrupts'][0]['polarity'] = 'active_low'
+            document['interrupts'][1]['trigger'] = 'rising_edge'
+
+        path = self._mutated(FIXTURE_SOURCE, 'uart-two-irq-gaps.json',
+                             break_two_interrupts)
+        review = self._review(path)
+        self.assertIs(False, review['generated'])
+        self.assertEqual('refused', review['status'])
+        interrupt = [row for row in review['components'][0]['rows']
+                     if row['dimension'] == 'interrupt']
+        self.assertEqual(1, len(interrupt))
+        self.assertEqual('unsupported', interrupt[0]['status'])
+        self.assertEqual('interrupt-form-incomplete', interrupt[0]['code'])
+        gaps = interrupt[0]['detail']['rows']
+        self.assertEqual(
+            [('interrupt-polarity-source-conflict', '/interrupts/0/polarity'),
+             ('interrupt-trigger-unsupported', '/interrupts/1')],
+            [(gap['code'], gap['pointer']) for gap in gaps])
+        self.assertEqual('active_low', gaps[0]['declared'])
+        self.assertEqual('active_high', gaps[0]['source_polarity'])
+
+    def test_rx_oracle_refuses_expression_outside_status_bit_zero(self):
+        """A matching expression elsewhere cannot certify an inverted status bit."""
+        profile = load_component_profile(_document(FIXTURE_SOURCE))
+        root = ROOT / profile.source.source_root
+        original = (root / 'rtl/ufifo.v').read_text(encoding='utf-8')
+        expression = '(RXFIFO!=0)?!will_underflow:!will_overflow'
+        self.assertEqual(1, original.count(expression))
+        altered = original.replace(
+            expression, '(RXFIFO!=0)?will_underflow:!will_overflow', 1)
+        altered = altered.replace(
+            'assign\to_empty_n = !will_underflow;',
+            f'wire unused_status_bit = {expression};\n'
+            'assign\to_empty_n = !will_underflow;', 1)
+        self.assertIn(expression, altered)
+
+        def synthetic_reader(locator, *, base_dir):
+            def read(path):
+                if path.name == 'ufifo.v':
+                    return altered.encode('utf-8')
+                return path.read_bytes()
+            return root, {}, read
+
+        with patch('myfuzz.composition.source_crawler._pinned_source_reader',
+                   synthetic_reader):
+            row = review_interrupts(profile, base_dir=ROOT)
+        self.assertEqual('unsupported', row['status'])
+        self.assertEqual('interrupt-polarity-source-unverified', row['code'])
+        self.assertEqual('/interrupts/0/polarity', row['pointer'])
 
     def test_a_profile_the_loader_refuses_becomes_a_located_row(self):
         def break_it(document):

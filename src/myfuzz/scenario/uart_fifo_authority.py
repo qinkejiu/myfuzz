@@ -18,6 +18,7 @@ from collections.abc import Mapping
 import json
 
 SCHEMA = 'uart_fifo_source_authority.v1'
+SCHEMA_V2 = 'uart_fifo_source_authority.v2'
 ACCEPTED = 'accepted_uart_fifo_entry'
 UNKNOWN = 'unknown'
 INCOMPLETE = 'incomplete'
@@ -53,7 +54,7 @@ def _sorted_ids(values):
 
 def _summary(authority):
     """Stable identity of the installed authority (no host or process UUIDs)."""
-    return dict(installed=True, source_id=authority['source_id'],
+    summary = dict(installed=True, source_id=authority['source_id'],
         source_component=authority['source_component'],
         producer_ref=authority['producer_ref'], path_id=authority['path_id'],
         graph_sha256=authority['graph_sha256'],
@@ -61,6 +62,68 @@ def _summary(authority):
         topology_sha256=authority.get('topology_sha256'),
         edge_index_sha256=authority['edge_index_sha256'],
         master_route=authority.get('master_route'))
+    if 'dma_master_routes' in authority:
+        summary['dma_master_routes'] = authority['dma_master_routes']
+    return summary
+
+
+def _validate_dma_master_route_match(row, *, read, authority):
+    """Check the accepted UART proof names its exact selected typed route."""
+    match = row.get('dma_master_route_match')
+    routes = authority.get('dma_master_routes')
+    if not isinstance(match, dict) or not isinstance(routes, (list, tuple)):
+        raise RuntimeError('accepted DMA UART read lacks its compiled route match')
+    matches = [route for route in routes
+        if isinstance(route, dict)
+        and route.get('route_sha256') == match.get('route_sha256')]
+    if len(matches) != 1:
+        raise RuntimeError('accepted DMA UART read names an unknown or duplicate route')
+    route = matches[0]
+    if (route.get('identity_sha256') != route.get('route_sha256')
+            or authority.get('path_id') not in route.get('path_ids', ())):
+        raise RuntimeError('compiled DMA route index identity or selected path is invalid')
+    # RuntimeEdgeIndex rows carry the route declaration fields at the top
+    # level.  The nested ``route`` form belongs to the compilation topology;
+    # source authority consumes the detached index document instead.
+    declaration = route
+    expected = dict(edge_key=route.get('edge_key'),
+        source_node_id=declaration.get('source_node_id'),
+        target_node_id=declaration.get('target_node_id'),
+        path_id=authority.get('path_id'),
+        initiator_component=declaration.get('initiator_component'),
+        endpoint_id=declaration.get('endpoint_id'),
+        target_kind=declaration.get('target_kind'),
+        target_component=declaration.get('target_component'),
+        target_id=declaration.get('target_id'), base=declaration.get('base'),
+        size=declaration.get('size'), operation=declaration.get('operation'),
+        byte_enable=declaration.get('byte_enable'),
+        target_identity_sha256=declaration.get('target_identity_sha256'))
+    if any(not _same(match.get(name), value)
+           for name, value in expected.items()):
+        raise RuntimeError('accepted DMA UART read route identity differs from its declaration')
+    transaction = row.get('source_transaction')
+    address = match.get('address')
+    route_base = declaration.get('base')
+    route_size = declaration.get('size')
+    if (type(address) is not int or type(route_base) is not int
+            or type(route_size) is not int
+            or not isinstance(transaction, dict)
+            or not _same(match.get('transaction_key'), transaction)
+            or match.get('operation') != 'read'
+            or match.get('target_kind') != 'peripheral'
+            or match.get('target_component') != 'uart'
+            or match.get('target_id') != 'uart'
+            or transaction.get('channel_id') != 'dma-memory'
+            or transaction.get('source_component') != 'dma'
+            or match.get('address') != row.get('address')
+            or match.get('byte_enable') != 15):
+        raise RuntimeError('accepted DMA UART read route lacks its exact transaction/access')
+    if (address < route_base or address + 4 > route_base + route_size
+            or address - route_base
+                not in declaration.get('readable_offsets', ())):
+        raise RuntimeError('accepted DMA UART read lies outside its declared RDATA route')
+    if read.get('route') != 'dma_master':
+        raise RuntimeError('DMA route match was attached to a non-master FIFO read')
 
 
 def _admissions(authority):
@@ -115,7 +178,7 @@ def _retention_document(row):
 
 def _read_document(row):
     transaction = row.get('source_transaction')
-    return dict(access_id=row.get('access_id'), entry_id=list(row['entry_id']),
+    document = dict(access_id=row.get('access_id'), entry_id=list(row['entry_id']),
         frame_id=row.get('frame_id'), read_value=row.get('read_value'),
         route_context_mode=row.get('route_context_mode'),
         address=row.get('address'), window_base=row.get('window_base'),
@@ -131,6 +194,9 @@ def _read_document(row):
         pop_event=row.get('pop_event'), access_event=row.get('access_event'),
         path_id=row.get('path_id'),
         graph_path_certified=row.get('graph_path_certified'))
+    if 'dma_master_route_match' in row:
+        document['dma_master_route_match'] = row['dma_master_route_match']
+    return document
 
 
 def _incomplete_reasons(rows):
@@ -230,6 +296,7 @@ def source_authority_evidence(rows, *, entries, admissions, reads, authority):
         retention_documents.append(_retention_document(row))
 
     read_documents = []
+    route_bearing = (authority.get('schema_version') == 'dma_source_provenance.v2')
     for read in reads:
         entry_index = read['entry_index']
         if entry_index not in entry_ids:
@@ -257,6 +324,8 @@ def source_authority_evidence(rows, *, entries, admissions, reads, authority):
         expected_channel = 'dma-memory' if read['route'] == 'dma_master' else 'data'
         if not isinstance(transaction, dict) or transaction.get('channel_id') != expected_channel:
             raise RuntimeError('accepted UART FIFO read carries the wrong channel')
+        if route_bearing and read['route'] == 'dma_master':
+            _validate_dma_master_route_match(row, read=read, authority=authority)
         for name in ('request_tick', 'response_tick', 'request_event',
                      'response_event', 'pop_event', 'access_event'):
             if not _is_int(row.get(name)):
@@ -272,14 +341,15 @@ def source_authority_evidence(rows, *, entries, admissions, reads, authority):
         raise ValueError('admitted FIFO entries must have unique frame identities')
 
     reasons = _incomplete_reasons(rows)
+    schema = SCHEMA_V2 if route_bearing else SCHEMA
     if missing:
-        return dict(schema_version=SCHEMA, fifo_origin=UNKNOWN,
+        return dict(schema_version=schema, fifo_origin=UNKNOWN,
             source_authority=INCOMPLETE, proof_grade=BOUNDED_CHAIN,
             reason=missing[0], missing=sorted(set(missing)),
             authority=_summary(authority),
             retention=retention_documents, reads=read_documents,
             incomplete_reasons=reasons)
-    return dict(schema_version=SCHEMA, fifo_origin=ACCEPTED,
+    return dict(schema_version=schema, fifo_origin=ACCEPTED,
         source_authority=ACCEPTED, proof_grade=ACCEPTED_CHAIN, reason=None,
         missing=[], authority=_summary(authority),
         retention=retention_documents, reads=read_documents,

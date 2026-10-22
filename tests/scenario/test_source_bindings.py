@@ -68,7 +68,8 @@ class SourceBindingTests(unittest.TestCase):
 
     def test_memory_image_binding_must_name_initial_image(self):
         source = FuzzableSource("program", "cpu", "boot", 0, 8,
-                                ("CPU_TO_IP",), kind="memory_image")
+                                ("CPU_TO_IP",), kind="memory_image",
+                                image_address=0x1000)
         genome = ScenarioGenome(
             "seed", "CPU_TO_IP", "target", ("cpu",), 2, (),
             initial_images=(MemoryImage("boot", "cpu", 0x1000, "11"),))
@@ -83,7 +84,7 @@ class SourceBindingTests(unittest.TestCase):
         wrong_address = SourceBinding(
             "program", "memory_image", "cpu", "boot", 0, 8,
             "initial_image:cpu:boot", 0x2000)
-        with self.assertRaisesRegex(ValueError, "image|address"):
+        with self.assertRaisesRegex(ValueError, "binding|image|address"):
             self.decoder((source,), (wrong_address,), genome=genome)
 
     def test_document_cannot_self_authorize_modified_graph(self):

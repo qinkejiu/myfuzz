@@ -466,17 +466,23 @@ def test_stale_foreign_or_tampered_binding_refused(timer_generated, gpio_generat
 # --- Binding identity reaches checker, prefix, stability and fresh replay ----
 
 def test_binding_enters_checker_and_prefix_identity(timer_generated):
-    from myfuzz.integration.compiled_f4 import CompiledF4Runtime
+    from myfuzz.integration.compiled_f4 import (
+        CompiledF4Runtime, derive_f4_execution_binding)
     artifacts, inputs = timer_generated
     binding = selector().select_storage_producer(artifacts=artifacts, compiled_inputs=inputs,
         base_dir=ROOT)
     from myfuzz.integration.compiled_candidate_layout import compile_candidate_layout
     path = f4_path(inputs['compiled'])
     layout = compile_candidate_layout(path)
+    execution_binding = derive_f4_execution_binding(
+        artifacts=artifacts, compiled_inputs=inputs, base_dir=ROOT)
     runtime = SimpleNamespace(path=path, compiled_digest='compiled', layout=layout,
-        error_policy={'mode': 'native_error_role'}, producer_binding=binding)
+        error_policy={'mode': 'native_error_role'}, producer_binding=binding,
+        execution_binding=execution_binding)
     configuration = CompiledF4Runtime.online_identity_configuration(runtime)
     assert configuration['producer_binding'] == binding.document()
+    assert configuration['execution_binding'] == execution_binding.document()
+    assert configuration['execution_binding_sha256'] == execution_binding.digest
     trace = SimpleNamespace(status='complete', events=(), local_ticks={},
         semantic_sha256='semantic', manifest_sha256='manifest')
     finished = SimpleNamespace(finished=False, _stable=lambda **kw: None,
@@ -486,9 +492,13 @@ def test_binding_enters_checker_and_prefix_identity(timer_generated):
         _native_processes={}, _process_identities={}, compiled_digest='compiled',
         closure={}, artifacts={}, rounds=1, max_cases=1, records=[], layout=layout,
         error_policy={'mode': 'native_error_role'}, run_id='unit',
-        producer_binding=binding, row=binding.row, feedback=lambda: {})
+        producer_binding=binding, execution_binding=execution_binding,
+        row=binding.row, feedback=lambda: {})
     prefix = CompiledF4Runtime.finish(finished)
+    assert prefix['schema_version'] == 'compiled_F4_prefix.v2'
     assert prefix['producer_binding'] == binding.document()
+    assert prefix['execution_binding'] == execution_binding.document()
+    assert prefix['execution_binding_sha256'] == execution_binding.digest
 
 
 def test_stability_rebuilds_binding_and_refuses_drift(timer_generated):
@@ -517,6 +527,46 @@ def test_stability_rebuilds_binding_and_refuses_drift(timer_generated):
             _difference=lambda left, right: None,
             compile_paths=lambda request: inputs['compiled']):
         with pytest.raises(ValueError, match='producer-binding-changed'):
+            compiled_f4.CompiledF4Runtime._stable(runtime)
+
+
+def test_stability_rebuilds_execution_binding_and_refuses_drift(timer_generated):
+    from myfuzz.integration import compiled_f4
+    from myfuzz.integration.compiled_candidate_layout import compile_candidate_layout
+    artifacts, inputs = timer_generated
+    producer = selector().select_storage_producer(
+        artifacts=artifacts, compiled_inputs=inputs, base_dir=ROOT)
+    execution = compiled_f4.derive_f4_execution_binding(
+        artifacts=artifacts, compiled_inputs=inputs, base_dir=ROOT)
+    path = f4_path(inputs['compiled'])
+    image = next(source for source in path['sources']
+                 if source['kind'] == 'instruction_image')
+    stream = next(source for source in path['sources']
+                  if source['kind'] == 'cpu_mmio_stream')
+    layout = compile_candidate_layout(path)
+    error_policy = compiled_f4._cpu_error_policy(
+        artifacts['processor'], image, stream)
+    runtime = SimpleNamespace(finished=False, _caller_inputs=inputs,
+        _caller_artifacts=artifacts, inputs=inputs, artifacts=artifacts,
+        _input_digest='same', cpu_id='processor', image=image, stream=stream,
+        error_policy=error_policy, traces={}, path=path, layout=layout, base_dir=ROOT,
+        closure={}, compiled_digest=compiled_f4.compiled_document_sha256(
+            inputs['compiled']), producer_binding=producer,
+        execution_binding=execution, _validated_built_receipts=lambda: None)
+    changed_body = execution.document()
+    changed_body.pop('binding_sha256')
+    changed_body['selected_path_sha256'] = '0' * 64
+
+    with patch.multiple('myfuzz.integration.compiled_f4',
+            _input_identity=lambda *a: 'same',
+            _cpu_error_policy=lambda *a: error_policy,
+            compile_candidate_layout=lambda current: layout,
+            _admit_f4=lambda **kw: (path, producer),
+            _closure=lambda base: {},
+            _execution_binding_document=lambda **kw: changed_body,
+            _difference=lambda left, right: None,
+            compile_paths=lambda request: inputs['compiled']):
+        with pytest.raises(ValueError, match='execution-binding-changed'):
             compiled_f4.CompiledF4Runtime._stable(runtime)
 
 
@@ -577,18 +627,22 @@ def _transaction(sequence):
                 channel_id='data', source_sequence=sequence)
 
 
-def _probes(value, *, pwrite, pwdata=0, prdata=0, paddr=4):
+def _probes(value, *, pwrite, pwdata=0, prdata=0, paddr=4, psel=1,
+            penable=1):
     return dict(storage_value=value, storage_reset=0, storage_paddr=paddr,
-                storage_psel=1, storage_penable=1, storage_pwrite=pwrite,
+                storage_psel=psel, storage_penable=penable,
+                storage_pwrite=pwrite,
                 storage_pwdata=pwdata, storage_prdata=prdata,
                 storage_pready=1, storage_pslverr=0)
 
 
-def _backend(target_artifact, *, pwrite, pwdata=0, prdata=0):
+def _backend(target_artifact, *, pwrite, pwdata=0, prdata=0, paddr=4,
+             psel=1, penable=1):
     signals = target_artifact.runtime_document['base_protocol_trace']['signals']
-    return {signals['psel']: 1, signals['penable']: 1, signals['pready']: 1,
+    return {signals['psel']: psel, signals['penable']: penable,
+            signals['pready']: 1,
             signals['pslverr']: 0, signals['pwrite']: pwrite,
-            signals['paddr']: 4, signals['pwdata']: pwdata,
+            signals['paddr']: paddr, signals['pwdata']: pwdata,
             signals['prdata']: prdata}
 
 
@@ -619,8 +673,9 @@ def timer_receipt(target_artifact, declaration, *, before_value=0):
         producer_event_id=101)
     sample(20, 'pre', 101, _probes(before_value, pwrite=1, pwdata=value),
            _backend(target_artifact, pwrite=1, pwdata=value))
-    sample(20, 'post', 101, _probes(value, pwrite=1, pwdata=value),
-           _backend(target_artifact, pwrite=1, pwdata=value))
+    sample(20, 'post', 101,
+           _probes(value, pwrite=0, paddr=0, psel=0, penable=0),
+           _backend(target_artifact, pwrite=0, paddr=0, psel=0, penable=0))
     add(kind='mmio_acceptance', component='processor',
         device_id='peripheral', address=access['address'],
         offset=access['register_offset'], write=False,
@@ -632,8 +687,9 @@ def timer_receipt(target_artifact, declaration, *, before_value=0):
         producer_event_id=102)
     sample(30, 'pre', 102, _probes(value, pwrite=0, prdata=value),
            _backend(target_artifact, pwrite=0, prdata=value))
-    sample(30, 'post', 102, _probes(value, pwrite=0, prdata=value),
-           _backend(target_artifact, pwrite=0, prdata=value))
+    sample(30, 'post', 102,
+           _probes(value, pwrite=0, paddr=0, psel=0, penable=0),
+           _backend(target_artifact, pwrite=0, paddr=0, psel=0, penable=0))
     add(kind='memory_write', component='processor',
         address=declaration['result_address'], value=value, byte_enable=15)
     return SimpleNamespace(events=events, violations=(), status='running',
@@ -699,6 +755,238 @@ def generic_authority(timer_generated, tmp_path):
 def install_writes(authority, writes):
     from myfuzz.scenario import apb_storage_register_version as module
     module._LIVE[authority]['writes'] = deepcopy(writes)
+
+
+from tests.scenario.test_apb_storage_register_version import registered_storage_artifact
+
+
+def registered_consumer(artifact, timer_generated, tmp_path, *, alias=False):
+    """Pure receipt controls; reaching consume must still refuse native eligibility."""
+    from myfuzz.local_harness.apb3_register_session import GeneratedApb3RegisterSession
+    from myfuzz.scenario.apb_storage_register_version import ApbStorageRegisterVersionAuthority
+    target = GeneratedApb3RegisterSession(artifact, base_dir=ROOT, cache_dir=tmp_path)
+    authority = ApbStorageRegisterVersionAuthority(target)
+    contract = artifact.runtime_document['storage_observation']['source_contract']
+    register = contract['register']['name']
+    offset = contract['register']['canonical_offset']
+    if alias: offset += contract['decode']['alias_period_bytes']
+    declaration = deepcopy(timer_declaration(timer_generated, 0x55))
+    access = declaration['candidate']['access']
+    access.update(register=register, register_offset=offset,
+                  address=access['window_base'] + offset)
+    receipt = timer_receipt(artifact, declaration)
+    signals = artifact.runtime_document['base_protocol_trace']['signals']
+    for event in receipt.events:
+        if (event['kind'] == 'local_tick_sample'
+                and event['phase'] == 'pre'):
+            event['outputs']['backend'][signals['paddr']] = offset
+            event['outputs']['storage_probes']['storage_paddr'] = offset
+    commit = timer_commit(artifact, declaration)
+    commit['raw_address'] = offset
+    before = version_witness(artifact)
+    before.update(register=register,
+        version_basis=f'all_measured_{register.rsplit("_", 1)[-1]}_alias_writes_since_first_command')
+    install_writes(authority, [commit])
+    args = dict(target_artifact=artifact, authority=authority, token=object(),
+        register=register, reset_epoch=0, before=before, prior_writes=0)
+    return declaration, receipt, args
+
+
+@pytest.mark.parametrize('alias', (False, True))
+def test_registered_consumer_joins_canonical_or_exact_declared_alias(
+        registered_storage_artifact, timer_generated, tmp_path, alias):
+    from myfuzz.integration.generated_storage_consumer import check_storage_observation
+    declaration, receipt, args = registered_consumer(registered_storage_artifact,
+        timer_generated, tmp_path, alias=alias)
+    with pytest.raises(ValueError, match='storage-version-actual-native-build-required'):
+        check_storage_observation(declaration, receipt, **args)
+
+
+def test_generic_producer_uses_registered_decode(registered_storage_artifact,
+        timer_generated, tmp_path):
+    """Exercise shared producer projection without requiring Task 4 config."""
+    from myfuzz.integration.compiled_candidate_layout import compile_candidate_layout
+    artifact = registered_storage_artifact
+    declaration, _, _ = registered_consumer(artifact, timer_generated, tmp_path)
+    artifacts, inputs = timer_generated
+    path = deepcopy(f4_path(inputs['compiled']))
+    endpoint = artifact.plan.binding.endpoints[0].endpoint_id
+    contract = artifact.runtime_document['storage_observation']['source_contract']
+    path['bound_inputs'][0].update(endpoint_id=endpoint,
+        input_id=f'peripheral.{endpoint}.register.{contract["register"]["name"]}.value')
+    result = selector()._generic_apb_document(
+        artifacts={**artifacts, 'peripheral': artifact}, compiled_inputs=inputs,
+        path=path, image=next(s for s in path['sources'] if s['kind'] == 'instruction_image'),
+        stream=next(s for s in path['sources'] if s['kind'] == 'cpu_mmio_stream'),
+        access=declaration['candidate']['access'], layout=compile_candidate_layout(path),
+        target_endpoint=endpoint, base_dir=ROOT)
+    for key in ('mask', 'value', 'alias_period_bytes', 'raw_address_alias_count',
+                'aligned_word_alias_count'):
+        assert result['decode'][key] == contract['decode'][key]
+    assert result['register']['name'] == contract['register']['name']
+    assert result['source']['contract_digest'] == contract['digest']
+    from myfuzz.integration.generated_storage_consumer import storage_consumer_support
+    result['binding_sha256'] = sha256(canonical(result).encode()).hexdigest()
+    support = storage_consumer_support(
+        binding=selector().AdmittedStorageProducerBinding(canonical(result)),
+        artifacts={'peripheral': artifact})
+    assert support['complete'] is True and support['runtime_admitted'] is False
+    high = contract['decode']['mask'].bit_length() - 1
+    assert support['elements']['native_apb_pre_sample']['basis'] == (
+        f'native APB pre/post storage_probes with PADDR[{high}:2] alias and reset levels')
+
+
+@pytest.mark.parametrize(('missing', 'expected'), (
+    ('cpu_acceptance', 'compiled-F4-storage-CPU-acceptance-join'),
+    ('router_delivery', 'compiled-F4-storage-delivery-count'),
+    ('native_apb_pre_sample', 'compiled-F4-storage-native-transfer-missing'),
+    ('version_token', 'compiled-F4-storage-token-required'),
+))
+def test_registered_consumer_requires_each_receipt_join(
+        registered_storage_artifact, timer_generated, tmp_path, missing, expected):
+    from myfuzz.integration.generated_storage_consumer import check_storage_observation
+    declaration, receipt, args = registered_consumer(registered_storage_artifact,
+        timer_generated, tmp_path)
+    if missing == 'cpu_acceptance': receipt.events[0]['kind'] = 'missing'
+    elif missing == 'router_delivery': receipt.events[1]['kind'] = 'missing'
+    elif missing == 'native_apb_pre_sample': receipt.events[2]['kind'] = 'missing'
+    else: args['token'] = None
+    with pytest.raises(ValueError, match=expected):
+        check_storage_observation(declaration, receipt, **args)
+
+
+@pytest.mark.parametrize(('where', 'expected'), (
+    ('backend', 'compiled-F4-storage-native-transfer-missing'),
+    ('probe', 'compiled-F4-storage-storage-probe-trace-mismatch'),
+    ('backend_and_probe', 'compiled-F4-storage-native-transfer-missing'),
+    ('commit', 'compiled-F4-storage-commit-alias-mismatch'),
+    ('post_backend', 'compiled-F4-storage-storage-probe-trace-mismatch'),
+    ('post_probe', 'compiled-F4-storage-storage-probe-trace-mismatch'),
+))
+def test_registered_consumer_rejects_a_different_valid_alias(
+        registered_storage_artifact, timer_generated, tmp_path, where, expected):
+    from myfuzz.integration.generated_storage_consumer import check_storage_observation
+    from myfuzz.scenario import apb_storage_register_version as module
+    declaration, receipt, args = registered_consumer(registered_storage_artifact,
+        timer_generated, tmp_path)
+    contract = registered_storage_artifact.runtime_document['storage_observation']['source_contract']
+    alias = contract['register']['canonical_offset'] + contract['decode']['alias_period_bytes']
+    signals = registered_storage_artifact.runtime_document['base_protocol_trace']['signals']
+    if where in ('backend', 'backend_and_probe'):
+        receipt.events[2]['outputs']['backend'][signals['paddr']] = alias
+    if where in ('probe', 'backend_and_probe'):
+        receipt.events[2]['outputs']['storage_probes']['storage_paddr'] = alias
+    if where == 'commit':
+        module._LIVE[args['authority']]['writes'][0]['raw_address'] = alias
+    if where == 'post_backend':
+        receipt.events[3]['outputs']['backend'][signals['paddr']] = alias
+    if where == 'post_probe':
+        receipt.events[3]['outputs']['storage_probes']['storage_paddr'] = alias
+    with pytest.raises(ValueError, match=expected):
+        check_storage_observation(declaration, receipt, **args)
+
+
+def test_registered_consumer_treats_post_idle_address_as_dont_care(
+        registered_storage_artifact, timer_generated, tmp_path):
+    from myfuzz.integration.generated_storage_consumer import check_storage_observation
+    declaration, receipt, args = registered_consumer(registered_storage_artifact,
+        timer_generated, tmp_path)
+    signals = registered_storage_artifact.runtime_document['base_protocol_trace']['signals']
+    alias = (registered_storage_artifact.runtime_document['storage_observation']
+             ['source_contract']['register']['canonical_offset']
+             + registered_storage_artifact.runtime_document['storage_observation']
+             ['source_contract']['decode']['alias_period_bytes'])
+    receipt.events[3]['outputs']['backend'][signals['paddr']] = alias
+    receipt.events[3]['outputs']['storage_probes']['storage_paddr'] = alias
+    with pytest.raises(ValueError, match='storage-version-actual-native-build-required'):
+        check_storage_observation(declaration, receipt, **args)
+
+
+def test_registered_consumer_requires_post_sample_to_be_idle(
+        registered_storage_artifact, timer_generated, tmp_path):
+    from myfuzz.integration.generated_storage_consumer import check_storage_observation
+    declaration, receipt, args = registered_consumer(registered_storage_artifact,
+        timer_generated, tmp_path)
+    signals = registered_storage_artifact.runtime_document['base_protocol_trace']['signals']
+    receipt.events[3]['outputs']['backend'][signals['psel']] = 1
+    receipt.events[3]['outputs']['storage_probes']['storage_psel'] = 1
+    with pytest.raises(ValueError, match='compiled-F4-storage-native-post-not-idle'):
+        check_storage_observation(declaration, receipt, **args)
+
+
+@pytest.mark.parametrize(('mutation', 'expected'), (
+    ('event_order', 'compiled-F4-storage-native-post-sample-mismatch'),
+    ('schema', 'compiled-F4-storage-native-post-sample-mismatch'),
+    ('storage_value', 'compiled-F4-storage-storage-transition-mismatch'),
+))
+def test_registered_consumer_binds_post_order_schema_and_storage_value(
+        registered_storage_artifact, timer_generated, tmp_path,
+        mutation, expected):
+    from myfuzz.integration.generated_storage_consumer import check_storage_observation
+    declaration, receipt, args = registered_consumer(registered_storage_artifact,
+        timer_generated, tmp_path)
+    post = receipt.events[3]
+    if mutation == 'event_order':
+        post['event_id'] = receipt.events[2]['event_id']
+    elif mutation == 'schema':
+        post['observation_schema_version'] = 'ip_raw_observation.v2'
+    else:
+        post['outputs']['storage_probes']['storage_value'] = 0x54
+    with pytest.raises(ValueError, match=expected):
+        check_storage_observation(declaration, receipt, **args)
+
+
+@pytest.mark.parametrize(('mutation', 'expected'), (
+    ('register', 'compiled-F4-storage-witness-mismatch'),
+    ('digest', 'compiled-F4-storage-witness-source-mismatch'),
+))
+def test_registered_consumer_refuses_a_cross_contract_token_witness(
+        registered_storage_artifact, timer_generated, tmp_path, mutation, expected):
+    """Refusal-only fake witness; cannot assert any native token authority."""
+    from myfuzz.integration.generated_storage_consumer import check_storage_observation
+    from myfuzz.scenario import apb_storage_register_version as version_module
+    declaration, receipt, args = registered_consumer(registered_storage_artifact,
+        timer_generated, tmp_path)
+    authority = args['authority']
+    journal = version_module._LIVE[authority]['writes']
+    witness = dict(args['before'], value=0x55, local_tick=40, command_sequence=8,
+        write_count=1, field_version=1,
+        write_history_sha256=sha256(canonical(journal).encode()).hexdigest(),
+        producer_source_sha256=sha256(Path(version_module.__file__).read_bytes()).hexdigest())
+    if mutation == 'register':
+        witness['register'] = 'SPICMD' if args['register'] == 'TIMER0_CTRL' else 'TIMER0_CTRL'
+    else: witness['source_contract_digest'] = '0' * 64
+    target = authority.target
+    target._process = SimpleNamespace(pid=1, poll=lambda: None)
+    target.local_ticks = 40
+    target._sequence = 8
+    try:
+        with patch.object(authority, 'writes', return_value=journal), \
+             patch.object(authority, 'consume', return_value=witness):
+            with pytest.raises(ValueError, match=expected):
+                check_storage_observation(declaration, receipt, **args)
+    finally:
+        target._process = None
+
+
+@pytest.mark.parametrize(('where', 'expected'), (
+    ('argument', 'compiled-F4-storage-observation-contract-mismatch'),
+    ('declaration', 'compiled-F4-storage-declaration-geometry'),
+    ('before', 'compiled-F4-storage-before-witness-required'),
+    ('before_digest', 'compiled-F4-storage-before-witness-mismatch'),
+))
+def test_registered_consumer_rejects_cross_register_or_digest(
+        registered_storage_artifact, timer_generated, tmp_path, where, expected):
+    from myfuzz.integration.generated_storage_consumer import check_storage_observation
+    declaration, receipt, args = registered_consumer(registered_storage_artifact,
+        timer_generated, tmp_path)
+    other = 'SPICMD' if args['register'] == 'TIMER0_CTRL' else 'TIMER0_CTRL'
+    if where == 'argument': args['register'] = other
+    elif where == 'declaration': declaration['candidate']['access']['register'] = other
+    elif where == 'before': args['before']['register'] = other
+    else: args['before']['source_contract_digest'] = '0' * 64
+    with pytest.raises(ValueError, match=expected):
+        check_storage_observation(declaration, receipt, **args)
 
 
 def consume_storage(timer_generated, tmp_path, *, value=0x55, receipt=None,
@@ -967,6 +1255,35 @@ def test_storage_consumer_requires_an_opaque_authority_and_live_token(
             prior_writes=0)
 
 
+def test_storage_consumer_refuses_changed_build_identity_in_same_process(
+        timer_generated, tmp_path):
+    from myfuzz.integration.generated_storage_consumer import (
+        check_storage_observation)
+    from myfuzz.scenario import apb_storage_register_version as version_module
+    artifacts, inputs, binding, target, authority = generic_authority(
+        timer_generated, tmp_path)
+    artifact = artifacts['peripheral']
+    declaration = timer_declaration(timer_generated, 0x55)
+    receipt = timer_receipt(artifact, declaration)
+    journal = [timer_commit(artifact, declaration)]
+    before = version_witness(artifact)
+    witness = version_witness(artifact, value=0x55, write_count=1,
+        history=sha256(canonical(journal).encode()).hexdigest())
+    witness.update(local_tick=40, command_sequence=8,
+                   build_identity_sha256='c' * 64,
+                   producer_source_sha256=sha256(
+                       Path(version_module.__file__).read_bytes()).hexdigest())
+    target._process = SimpleNamespace(pid=1, poll=lambda: None)
+    target.local_ticks = 40
+    target._sequence = 8
+    with patch.object(authority, 'writes', return_value=journal), \
+         patch.object(authority, 'consume', return_value=witness):
+        with pytest.raises(ValueError,
+                           match='compiled-F4-storage-witness-build-identity-mismatch'):
+            check_storage_observation(declaration, receipt,
+                target_artifact=artifact, authority=authority, token=object(),
+                register='TIMER0_CTRL', reset_epoch=0, before=before,
+                prior_writes=0)
 def test_stable_storage_version_keeps_only_process_independent_fields():
     from myfuzz.integration.generated_storage_consumer import (
         STABLE_VERSION_KEYS, stable_storage_version)
@@ -1086,6 +1403,9 @@ def test_generic_finish_normalizes_hash_but_keeps_real_records(timer_generated):
     artifacts, inputs = timer_generated
     binding = selector().select_storage_producer(artifacts=artifacts,
         compiled_inputs=inputs, base_dir=ROOT)
+    from myfuzz.integration.compiled_f4 import derive_f4_execution_binding
+    execution_binding = derive_f4_execution_binding(
+        artifacts=artifacts, compiled_inputs=inputs, base_dir=ROOT)
     layout = compile_candidate_layout(f4_path(inputs['compiled']))
     records = [dict(certificate=dict(joins=[dict(delivery_event=1)],
                                      commit=dict(tick=15)))]
@@ -1104,7 +1424,8 @@ def test_generic_finish_normalizes_hash_but_keeps_real_records(timer_generated):
             compiled_digest='compiled', closure={}, artifacts={}, rounds=1,
             max_cases=1, records=deepcopy(records), layout=layout,
             error_policy={'mode': 'native_error_role'}, run_id='unit',
-            producer_binding=binding, feedback=lambda: {}, row=row)
+            producer_binding=binding, execution_binding=execution_binding,
+            feedback=lambda: {}, row=row)
         return CompiledF4Runtime.finish(runtime)
 
     first = prefix('generic_apb_storage_abi',

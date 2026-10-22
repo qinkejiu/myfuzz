@@ -254,6 +254,9 @@ def _final_state_growth_bound(genome: ScenarioGenome,
             # pending-target map after an otherwise small local operation.
             bound += sum(len(_canonical(window.device_id)) + 32
                          for window in router.windows)
+        streams = getattr(runner, '_reduced_axi_streams', None)
+        if streams is not None and component in streams.streams:
+            bound += streams.growth_bound(component)
         largest += bound
     return largest
 
@@ -310,6 +313,9 @@ def _evidence_record_bound(genome: ScenarioGenome,
             session_bound = getattr(session, "max_evidence_record_bytes", None)
             if type(session_bound) is not int or session_bound < 1:
                 raise ValueError(f"{component}: evidence record bound is required")
+        streams = getattr(runner, '_reduced_axi_streams', None)
+        if streams is not None and component in streams.streams:
+            session_bound = max(session_bound, streams.record_bound(component))
         bound += session_bound
         memory = getattr(session, "memory", None)
         if memory is not None:

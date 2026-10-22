@@ -263,5 +263,292 @@ class RuntimeContractTests(unittest.TestCase):
         runner.identity_document.assert_not_called()
 
 
+class DmaMasterRouteContractTests(unittest.TestCase):
+    def fixture(self, *, duplicate_window=False, split_memory=False):
+        from myfuzz.local_harness.wishbone_dma_session import MasterTargetWindow
+        from myfuzz.scenario.ledger import TransactionLedger
+        from myfuzz.scenario.memory_service import MemoryService
+        from myfuzz.scenario.runtime_path_contract import (
+            DmaMasterRouteContract, RuntimeNode, RuntimeEdgeContract,
+            RuntimePathContract, persistent_memory_route_identity_document)
+
+        class Uart:
+            def identity_document(self):
+                return {'component': 'uart', 'profile': 'test-uart-v1'}
+
+            def read_register(self, offset):
+                return 0
+
+            def write_register(self, offset, value, *, be):
+                pass
+
+        class Dma:
+            def __init__(self, windows, service):
+                self.master_targets = windows
+                self.memory_service = service
+                self.identity = {'component': 'dma', 'profile': 'test-wbdmac-v1'}
+                self._route_validator = None
+
+            def identity_document(self):
+                return dict(self.identity)
+
+            def configure_dma_route_validator(self, callback):
+                if self._route_validator is not None:
+                    raise ValueError('already configured')
+                self._route_validator = callback
+
+        memory = PersistentMemory(regions=(MemoryRegion('ram', 0x1000, 0x1000),),
+            initialization_seed=1, max_initialized_bytes=4096)
+        dma_memory = (PersistentMemory(regions=(MemoryRegion('ram', 0x1000, 0x1000),),
+            initialization_seed=1, max_initialized_bytes=4096)
+            if split_memory else memory)
+        uart = Uart()
+        window = MasterTargetWindow('uart', 0x50000000, 0x1000, uart,
+            (0x1c,), (2,), readable_offsets=(0x18,))
+        windows = (window, window) if duplicate_window else (window,)
+        dma = Dma(windows, MemoryService(dma_memory, TransactionLedger()))
+        graph = DependencyGraph(
+            sources=(FuzzableSource('uart.payload', 'uart', 'payload', 0, 8,
+                ('CPU_TO_IP',), kind='memory_image'),),
+            rules=(
+                DependencyRule('uart.read_result', ('uart.payload',), 'EVENT_ORDER'),
+                DependencyRule('dma.receive', ('uart.read_result',), 'DMA_MASTER_TRANSFER'),
+                DependencyRule('dma.write_payload', ('dma.receive',), 'EVENT_ORDER'),
+                DependencyRule('ram.target_effect', ('dma.write_payload',), 'DMA_MASTER_TRANSFER'),
+            ))
+        nodes = (
+            RuntimeNode('uart.payload', 'uart', 'logical'),
+            RuntimeNode('uart.read_result', 'uart', 'logical'),
+            RuntimeNode('dma.receive', 'dma', 'logical'),
+            RuntimeNode('dma.write_payload', 'dma', 'logical'),
+            RuntimeNode('ram.target_effect', 'cpu', 'logical'),
+        )
+        edges = (
+            RuntimeEdgeContract(0, 0, 'causal_order'),
+            RuntimeEdgeContract(1, 0, 'dma_master_route'),
+            RuntimeEdgeContract(2, 0, 'causal_order'),
+            RuntimeEdgeContract(3, 0, 'dma_master_route'),
+        )
+        dma_identity_sha = digest(dma.identity_document())
+        window_identity_sha = digest(window.route_identity_document())
+        uart_read = DmaMasterRouteContract(
+            rule_index=1, prerequisite_index=0,
+            source_node_id='uart.read_result', target_node_id='dma.receive',
+            initiator_component='dma', endpoint_id='dma.master',
+            endpoint_identity_sha256=dma_identity_sha,
+            target_kind='peripheral', target_component='uart', target_id='uart',
+            base=0x50000000, size=0x1000, operation='read',
+            permissions=('read', 'write'), byte_enable=15,
+            readable_offsets=(0x18,), writable_offsets=(0x1c,),
+            accepted_write_values=(2,), target_identity_sha256=window_identity_sha)
+        memory_identity = persistent_memory_route_identity_document(
+            memory, memory_id='ram', base=0x1000, size=0x1000)
+        ram_write = DmaMasterRouteContract(
+            rule_index=3, prerequisite_index=0,
+            source_node_id='dma.write_payload', target_node_id='ram.target_effect',
+            initiator_component='dma', endpoint_id='dma.master',
+            endpoint_identity_sha256=dma_identity_sha,
+            target_kind='persistent_memory', target_component='cpu', target_id='ram',
+            base=0x1000, size=0x1000, operation='write',
+            permissions=('read', 'write'), byte_enable=15,
+            readable_offsets=(), writable_offsets=(), accepted_write_values=(),
+            target_identity_sha256=digest(memory_identity))
+        contract = RuntimePathContract(digest(graph.edge_document()), nodes, edges,
+            dma_master_routes=(uart_read, ram_write))
+        runner = SimpleNamespace(sessions={'uart': uart, 'dma': dma,
+                                           'cpu': SimpleNamespace(memory=memory)},
+            ownership=SimpleNamespace(_bits={}), bindings=())
+        paths = graph.edge_paths_to('ram.target_effect', direction='CPU_TO_IP')
+        self.assertEqual(1, len(paths))
+        return graph, runner, contract, paths[0], dma, memory
+
+    def test_v1_contract_document_remains_byte_compatible(self):
+        _, _, contract, _ = RuntimeContractTests().fixture()
+        expected = {'schema_version': 'runtime_path_contract.v1',
+            'graph_sha256': contract.graph_sha256,
+            'nodes': [{'node_id': n.node_id, 'component': n.component,
+                       'kind': n.kind, 'port': n.port, 'bit_offset': n.bit_offset,
+                       'width': n.width} for n in sorted(contract.nodes,
+                                                        key=lambda n: n.node_id)],
+            'edges': [{'rule_index': e.rule_index,
+                       'prerequisite_index': e.prerequisite_index,
+                       'relation': e.relation, 'initiator_component': e.initiator_component,
+                       'device_id': e.device_id, 'base': e.base, 'size': e.size,
+                       'resource_component': e.resource_component,
+                       'resource_id': e.resource_id}
+                      for e in sorted(contract.edges, key=lambda e: e.key)]}
+        self.assertEqual(expected, contract.document())
+        self.assertEqual('runtime_path_contract.v1', contract.document()['schema_version'])
+
+    def test_v2_roundtrip_binds_two_directional_edges_and_full_topology_digest(self):
+        from myfuzz.scenario.runtime_path_contract import (
+            PreparedRuntimePathContract, RuntimePathContract)
+        graph, runner, contract, path, dma, _memory = self.fixture()
+        prepared = PreparedRuntimePathContract(graph, contract,
+            (('CPU_TO_IP', path),))
+        document = prepared.document()
+        self.assertEqual('prepared_runtime_paths.v2', document['schema_version'])
+        restored = PreparedRuntimePathContract.from_document(document)
+        self.assertEqual(document, restored.document())
+        compiled = restored.bind(runner)
+        self.assertEqual('runtime_path_compilation.v2',
+                         compiled.document()['schema_version'])
+        route_rows = compiled.document()['topology']['dma_master_routes']
+        self.assertEqual(2, len(route_rows))
+        self.assertEqual([1, 3], [row['route']['rule_index'] for row in route_rows])
+        self.assertEqual([row['route']['identity_sha256'] for row in route_rows],
+                         [row['route_sha256'] for row in route_rows])
+        self.assertEqual(2, len(compiled.dma_master_routes))
+        compiled.validate_topology()
+        self.assertIsNotNone(dma._route_validator)
+
+    def test_v2_route_identity_is_strict_and_requires_selected_matching_edge(self):
+        from dataclasses import replace
+        from myfuzz.scenario.runtime_path_contract import (
+            PreparedRuntimePathContract, RuntimePathContract)
+        graph, _runner, contract, path, _dma, _memory = self.fixture()
+        document = contract.document()
+        self.assertEqual('runtime_path_contract.v2', document['schema_version'])
+        self.assertEqual(contract, RuntimePathContract.from_document(document))
+        changed = {**document, 'dma_master_routes': [
+            {**document['dma_master_routes'][0], 'unknown': True},
+            document['dma_master_routes'][1]]}
+        with self.assertRaises(ValueError):
+            RuntimePathContract.from_document(changed)
+        bad_route = replace(contract.dma_master_routes[0], source_node_id='dma.receive')
+        bad_contract = replace(contract, dma_master_routes=(bad_route,
+            contract.dma_master_routes[1]))
+        with self.assertRaisesRegex(ValueError, 'edge|endpoint|route'):
+            PreparedRuntimePathContract(graph, bad_contract,
+                (('CPU_TO_IP', path),))
+        selected_prefix = graph.edge_paths_to('dma.receive', direction='CPU_TO_IP')[0]
+        with self.assertRaisesRegex(ValueError, 'selected|route'):
+            PreparedRuntimePathContract(graph, contract,
+                (('CPU_TO_IP', selected_prefix),))
+
+    def test_v2_peripheral_route_requires_exact_unique_window_and_endpoint_identity(self):
+        from myfuzz.scenario.runtime_path_contract import PreparedRuntimePathContract
+        for change in ('ambiguous', 'endpoint_object', 'endpoint_identity',
+                       'target_identity', 'aperture', 'permissions'):
+            graph, runner, contract, path, dma, _memory = self.fixture(
+                duplicate_window=(change == 'ambiguous'))
+            route = contract.dma_master_routes[0]
+            if change == 'endpoint_object':
+                dma.master_targets = (replace(dma.master_targets[0],
+                    endpoint=dma.master_targets[0].endpoint.__class__()),)
+            elif change == 'endpoint_identity':
+                route = replace(route, endpoint_identity_sha256='0' * 64)
+            elif change == 'target_identity':
+                route = replace(route, target_identity_sha256='0' * 64)
+            elif change == 'aperture':
+                route = replace(route, size=0x2000)
+            elif change == 'permissions':
+                with self.subTest(change=change), self.assertRaises(ValueError):
+                    replace(route, permissions=('read',))
+                continue
+            routes = (route, contract.dma_master_routes[1])
+            changed = replace(contract, dma_master_routes=routes)
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                PreparedRuntimePathContract(graph, changed,
+                    (('CPU_TO_IP', path),)).bind(runner)
+
+    def test_v2_peripheral_route_uses_injective_accepted_write_range_identity(self):
+        from dataclasses import replace
+        from myfuzz.scenario.runtime_path_contract import PreparedRuntimePathContract
+        graph, runner, contract, path, dma, _memory = self.fixture()
+        window = replace(dma.master_targets[0],
+            accepted_write_values=range(2, 4, 2))
+        dma.master_targets = (window,)
+        route = replace(contract.dma_master_routes[0],
+            accepted_write_values=range(2, 3, 1),
+            target_identity_sha256=digest(window.route_identity_document()))
+        self.assertEqual(tuple(window.accepted_write_values),
+                         tuple(route.accepted_write_values))
+        self.assertNotEqual(window.route_identity_document()['accepted_write_values'],
+                            route.document()['accepted_write_values'])
+        changed = replace(contract, dma_master_routes=(route,
+            contract.dma_master_routes[1]))
+        with self.assertRaisesRegex(ValueError, 'accepted.*identity|route.*identity'):
+            PreparedRuntimePathContract(graph, changed,
+                (('CPU_TO_IP', path),)).bind(runner)
+
+    def test_v2_memory_route_requires_same_memory_service_memory_and_exact_region(self):
+        from myfuzz.scenario.runtime_path_contract import PreparedRuntimePathContract
+        graph, runner, contract, path, _dma, memory = self.fixture(split_memory=True)
+        with self.assertRaisesRegex(ValueError, 'memory|resource|route'):
+            PreparedRuntimePathContract(graph, contract,
+                (('CPU_TO_IP', path),)).bind(runner)
+        graph, runner, contract, path, _dma, memory = self.fixture()
+        compiled = PreparedRuntimePathContract(graph, contract,
+            (('CPU_TO_IP', path),)).bind(runner)
+        compiled.validate_topology()
+        memory._windows.clear()
+        with self.assertRaisesRegex(ValueError, 'topology|resource'):
+            compiled.validate_topology()
+
+    def test_v2_topology_mutation_detects_equal_window_replacement_and_service_or_ledger_swap(self):
+        from myfuzz.scenario.runtime_path_contract import PreparedRuntimePathContract
+        for change in ('window', 'service', 'service_memory', 'ledger',
+                       'target_memory'):
+            graph, runner, contract, path, dma, _memory = self.fixture()
+            compiled = PreparedRuntimePathContract(graph, contract,
+                (('CPU_TO_IP', path),)).bind(runner)
+            # Isolate the persistent-memory validator: the full fixture also
+            # has a peripheral route which independently snapshots this tuple.
+            compiled = replace(compiled, _dma_routes=tuple(snapshot
+                for snapshot in compiled._dma_routes
+                if snapshot.route.target_kind == 'persistent_memory'))
+            if change == 'window':
+                dma.master_targets = (replace(dma.master_targets[0]),)
+            elif change == 'service':
+                dma.memory_service = object()
+            elif change == 'service_memory':
+                dma.memory_service.memory = PersistentMemory(
+                    regions=(MemoryRegion('ram', 0x1000, 0x1000),),
+                    initialization_seed=1, max_initialized_bytes=4096)
+            elif change == 'target_memory':
+                runner.sessions['cpu'].memory = PersistentMemory(
+                    regions=(MemoryRegion('ram', 0x1000, 0x1000),),
+                    initialization_seed=1, max_initialized_bytes=4096)
+            else:
+                dma.memory_service.ledger = object()
+            with self.subTest(change=change), self.assertRaisesRegex(ValueError, 'topology'):
+                compiled.validate_topology()
+
+    def test_v2_route_compile_rejects_windows_shadowing_routes_or_persistent_ram(self):
+        from myfuzz.local_harness.wishbone_dma_session import MasterTargetWindow
+        from myfuzz.scenario.runtime_path_contract import PreparedRuntimePathContract
+        for shadow_target in ('peripheral', 'persistent_memory'):
+            graph, runner, contract, path, dma, _memory = self.fixture()
+            uart = runner.sessions['uart']
+            shadow_base, shadow_size = ((0x50000000, 0x2000)
+                if shadow_target == 'peripheral' else (0x1000, 0x1000))
+            shadow = MasterTargetWindow('uart', shadow_base, shadow_size, uart,
+                (0x1c,), (2,), readable_offsets=(0x18,))
+            dma.master_targets = (dma.master_targets[0], shadow)
+            with self.subTest(shadow_target=shadow_target), \
+                    self.assertRaisesRegex(ValueError, 'shadow|overlap'):
+                PreparedRuntimePathContract(graph, contract,
+                    (('CPU_TO_IP', path),)).bind(runner)
+
+
 if __name__ == '__main__':
     unittest.main()
+
+
+def test_optional_topology_guard_preserves_serialized_v2_and_existing_callback():
+    from myfuzz.scenario.runtime_path_contract import PreparedRuntimePathContract
+    from copy import deepcopy
+    fixture = DmaMasterRouteContractTests()
+    graph, runner, contract, path, dma, _ = fixture.fixture()
+    prepared = PreparedRuntimePathContract(graph, contract, (('CPU_TO_IP', path),))
+    legacy = prepared.bind(deepcopy(runner)).document()
+    calls = []
+    def guard():
+        calls.append('guard')
+    compiled = prepared.bind(runner, topology_guard=guard)
+    assert compiled.document() == legacy
+    assert calls == ['guard']
+    dma._route_validator()
+    assert calls == ['guard', 'guard']
+    assert 'topology_guard' not in repr(compiled.document())

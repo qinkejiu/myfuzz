@@ -18,6 +18,7 @@ A failure never writes a proof and exits non-zero.
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import os
@@ -47,6 +48,11 @@ WRITE_ZERO = 0x04
 VALUE_ONE = 0xa5c30001
 VALUE_TWO = 0x13572468
 TIMER_ONE_VALUE = 0x5a5a5a5a
+TIMER_CONTRACT = 'pulp-apb-timer.ctrl0.source.v1'
+SPI_CONTRACT = 'pulp-apb-spi.spicmd.source.v1'
+SPI_PROOF_DEFAULT = ROOT / 'docs/reports/evidence/verilog-probe-pulp-apb-spi/proof.json'
+INVOCATIONS = None
+
 
 
 class VerificationError(RuntimeError):
@@ -68,8 +74,13 @@ def _sha256(path):
 
 def _run(argv, *, cwd, timeout):
     try:
-        return subprocess.run(argv, cwd=cwd, capture_output=True, text=True,
-                              timeout=timeout)
+        result = subprocess.run(argv, cwd=cwd, capture_output=True, text=True,
+                                timeout=timeout)
+        if INVOCATIONS is not None:
+            INVOCATIONS.append(dict(argv=[str(a) for a in argv], cwd=str(cwd),
+                timeout_seconds=timeout, exit_code=result.returncode,
+                stdout=result.stdout, stderr=result.stderr))
+        return result
     except FileNotFoundError as error:
         raise VerificationError(f'tool-unavailable: {argv[0]}') from error
     except subprocess.TimeoutExpired as error:
@@ -90,10 +101,12 @@ def _run_locked(argv, *, cwd, timeout):
 
 
 def _clean_cache(path):
-    resolved = Path(path).absolute()
-    expected = (ROOT / '.superpowers').absolute()
+    candidate = Path(path).absolute()
+    resolved = candidate.resolve()
+    expected = (ROOT / '.superpowers').resolve()
     if (expected not in resolved.parents
-            or not resolved.name.startswith('cache-verilog-probe')):
+            or not resolved.name.startswith('cache-verilog-probe-')
+            or any(p.is_symlink() for p in (candidate, *candidate.parents))):
         raise VerificationError('cache-directory-outside-superpowers: '
                                 f'{resolved}')
     if resolved.exists():
@@ -146,7 +159,7 @@ def _probe_checks(artifact, runtime_sv, source_contract):
 
 
 def _negative_controls(work, runtime_sv, wrapper_path, source_paths,
-                       adapter_paths, module, expression):
+                       adapter_paths, module, expression, *, spi=False):
     controls = []
     mutations = {
         'out-of-range-generate-index':
@@ -156,6 +169,11 @@ def _negative_controls(work, runtime_sv, wrapper_path, source_paths,
         'unknown-register-name':
             expression.replace('regs_q[1]', 'regs_x[1]'),
     }
+    if spi:
+        mutations = {
+            'unknown-instance-name': expression.replace('u_axiregs', 'u_axiregs_missing'),
+            'unknown-register-name': expression.replace('spi_cmd', 'spi_cmd_missing'),
+        }
     negatives = work / 'negative'
     negatives.mkdir()
     for name, mutated_expression in mutations.items():
@@ -401,23 +419,289 @@ def verify(*, cache_dir, proof_out):
     return proof, out
 
 
+
+def _spi_request():
+    return dict(schema_version='local_harness.v2',
+        profile_path='configs/peripherals/pulp_spi/local_component_profile.json',
+        instance_id='pulp_spi_storage_probe', reset_assert_ticks=3,
+        reset_release_ticks=1, max_wait_cycles=16,
+        tuning=dict(endpoint_policies=[dict(endpoint_id='spi.bus',
+            template_id='target.apb3', template_version='1', variant_id='full-word',
+            max_outstanding=1)],
+            fixed_inputs=[dict(endpoint_id='spi.pins', role='sdi'+str(i), value=0)
+                for i in range(4)],
+            apb_storage_observations=[dict(endpoint_id='spi.bus',
+                contract_id=SPI_CONTRACT, register='SPICMD')]))
+
+
+def _generate_spi(output):
+    """Generate D2 directly; this has no compiled-F4 or version dependency."""
+    from myfuzz.local_harness import (load_local_harness_request,
+        plan_local_harness, render_local_harness, render_local_runtime,
+        verify_local_source_lock)
+    request = _spi_request()
+    # This helper runs in its own locked process. Record the planner's exact
+    # elaboration and source-lock subprocesses as well as the outer command.
+    records = []
+    original_popen = subprocess.Popen
+    class RecordedPopen(original_popen):
+        def __init__(self, argv, *args, **kwargs):
+            self.probe_record = dict(argv=[str(a) for a in argv],
+                cwd=str(kwargs.get('cwd', Path.cwd())), exit_code=None,
+                stdout=None, stderr=None)
+            records.append(self.probe_record)
+            super().__init__(argv, *args, **kwargs)
+
+        def poll(self):
+            result = super().poll()
+            self.probe_record['exit_code'] = result
+            return result
+
+        def wait(self, *args, **kwargs):
+            result = super().wait(*args, **kwargs)
+            self.probe_record['exit_code'] = result
+            return result
+
+        def communicate(self, *args, **kwargs):
+            stdout, stderr = super().communicate(*args, **kwargs)
+            def as_text(value):
+                return value.decode('utf-8', errors='replace') if isinstance(value, bytes) else value
+            self.probe_record.update(exit_code=self.returncode,
+                stdout=as_text(stdout), stderr=as_text(stderr))
+            return stdout, stderr
+    subprocess.Popen = RecordedPopen
+    try:
+        plan = plan_local_harness(load_local_harness_request(request), base_dir=ROOT)
+        structural = render_local_harness(plan)
+        artifact = render_local_runtime(plan, structural,
+            verify_local_source_lock(plan.profile, base_dir=ROOT), base_dir=ROOT)
+    finally:
+        subprocess.Popen = original_popen
+    # The renderer can attach the previously committed proof. Archive the
+    # prospective input to this run instead, avoiding a circular reference
+    # through the bundle to either the old proof or the proof being built.
+    document = copy.deepcopy(artifact.runtime_document)
+    observation = document['storage_observation']
+    observation.update(hierarchy_verified=False, native_verified=False)
+    observation.pop('hierarchy_evidence', None)
+    observation.pop('digest', None)
+    observation['digest'] = _digest(observation)
+    document.pop('artifact_digest', None)
+    # Use the renderer's canonical artifact encoding (including UTF-8 text).
+    from myfuzz.local_harness.renderer import _sha
+    document['artifact_digest'] = _sha(document)
+    output.mkdir(parents=True, exist_ok=True)
+    for name, text in (('runtime.sv', artifact.runtime_sv),
+                       ('wrapper.sv', structural.wrapper_sv)):
+        (output/name).write_text(text)
+    for name, value in (('request.json',request), ('artifact.json',document),
+                       ('generation_invocations.json',records)):
+        (output/name).write_text(json.dumps(value,sort_keys=True,indent=2)+'\n')
+
+
+def _publish_spi_evidence(staged, out):
+    """Atomically replace each validated sidecar, then the bundle and proof.
+
+    During publication an old proof can encounter a mismatched sidecar and
+    fail closed. Only the final proof replacement exposes the complete new
+    bundle as valid. No partially written JSON or binary is ever visible.
+    """
+    files = sorted(p for p in staged.rglob('*') if p.is_file()
+        and p.relative_to(staged).as_posix() not in ('bundle.json','proof.json'))
+    files += [staged/'bundle.json', staged/'proof.json']
+    for source in files:
+        relative = source.relative_to(staged)
+        destination = out if relative.as_posix()=='proof.json' else out.parent/relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(dir=destination.parent,
+                prefix='.'+destination.name+'.', delete=False) as handle:
+            temporary = Path(handle.name)
+            try:
+                handle.write(source.read_bytes())
+            except BaseException:
+                temporary.unlink(missing_ok=True)
+                raise
+        try:
+            temporary.replace(destination)
+        finally:
+            temporary.unlink(missing_ok=True)
+
+
+def verify_spi(*, cache_dir, proof_out):
+    from myfuzz.local_harness.apb_storage_probe_verification import (
+        attach_native_proof, probe_binding_digest, spi_sample_checks,
+        verified_storage_observation)
+    from myfuzz.composition.component_profile import load_component_profile
+    from myfuzz.local_harness.apb_storage_source_contract import select_apb_storage_source_contract
+    global INVOCATIONS
+    INVOCATIONS = []
+    cache = Path(cache_dir).absolute()
+    _clean_cache(cache)
+    out = Path(proof_out).absolute()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    generated = cache/'generated'
+    result = _run_locked([sys.executable, str(Path(__file__).resolve()),
+        '--generate-spi-only',str(generated)], cwd=ROOT, timeout=300)
+    if result.returncode:
+        raise VerificationError('spi-generation-failed: '+result.stderr[-4000:])
+    artifact = json.loads((generated/'artifact.json').read_text())
+    runtime_sv = (generated/'runtime.sv').read_text()
+    wrapper_sv = (generated/'wrapper.sv').read_text()
+    contract = select_apb_storage_source_contract(load_component_profile(
+        ROOT/_spi_request()['profile_path']), base_dir=ROOT,
+        selection=dict(contract_id=SPI_CONTRACT, register='SPICMD'))
+    probe, _ = _probe_checks(artifact, runtime_sv, contract)
+    if (_sha256(generated/'runtime.sv')!=artifact['runtime_sv_sha256']
+            or _sha256(generated/'wrapper.sv')!=artifact['structural_build']['wrapper_sha256']):
+        raise VerificationError('generated-bytes-mismatch')
+    sources = [ROOT/path for path in artifact['structural_build']['source_files']]
+    adapters = [ROOT/row['path'] for row in artifact['adapter_sources']]
+    module = artifact['module_name']
+    work = cache/'work'
+    work.mkdir()
+    runtime_path, wrapper_path = work/'runtime.sv', work/'wrapper.sv'
+    runtime_path.write_text(runtime_sv)
+    wrapper_path.write_text(wrapper_sv)
+    tb_source = ROOT/'tests/native/pulp_spi_apb_storage_probe_tb.cpp'
+    tb_path = work/tb_source.name
+    shutil.copyfile(tb_source,tb_path)
+    versions = {}
+    for tool in ('verilator','c++','make','python3'):
+        result = _run([tool,'--version'],cwd=work,timeout=60)
+        if result.returncode: raise VerificationError('tool-version-failed: '+tool)
+        versions[tool] = (result.stdout or result.stderr).strip()
+    lint_argv = ['verilator','--lint-only','-Wno-fatal','--top-module',module,
+        str(runtime_path),str(wrapper_path),*(str(p) for p in (*sources,*adapters))]
+    lint = _run_locked(lint_argv,cwd=work,timeout=300)
+    if lint.returncode: raise VerificationError('spi-lint-failed: '+lint.stderr[-3000:])
+    controls = _negative_controls(work,runtime_sv,wrapper_path,sources,adapters,
+        module,contract['storage_expression']['expression'],spi=True)
+    samples = _build_and_sample(work,runtime_path,wrapper_path,sources,adapters,module,tb_path)
+    checks = dict(ten_probe_ports_declared=True, expression_resolves_elaboration=True,
+        unbound_expression_refused=True, **spi_sample_checks(samples))
+    if not all(checks.values()): raise VerificationError('spi-sample-check-failed: '+str(checks))
+    # A valid but displaced expression elaborates; require the physical bench
+    # to reject it so an elaboration-only success cannot certify SPIADR.
+    displaced = work/'wrong-register.sv'
+    displaced.write_text(runtime_sv.replace(contract['storage_expression']['expression'],
+        contract['storage_expression']['expression'].replace('spi_cmd','spi_addr')))
+    obj = work/'wrong-register-obj'
+    build = _run_locked(['verilator','--cc','--exe','--build','-Wno-fatal',
+        '--top-module',module,'--prefix','Vtop','--build-jobs','2','--Mdir',str(obj),
+        str(displaced),str(wrapper_path),*(str(p) for p in (*sources,*adapters)),str(tb_path)],
+        cwd=work,timeout=900)
+    if build.returncode: raise VerificationError('wrong-register-control-build-failed')
+    refused = _run([str(obj/'Vtop')],cwd=work,timeout=120)
+    if refused.returncode==0 or 'PROBE-TB-FAIL' not in refused.stderr:
+        raise VerificationError('wrong-register-control-not-refused')
+    controls.append(dict(mutation='wrong-register-expression',exit_code=refused.returncode,refused=True))
+    staged = cache/'evidence'
+    staged.mkdir()
+    # Preserve exact generated inputs, logs, and native executable identity.
+    for name in ('runtime.sv','wrapper.sv','request.json','artifact.json','generation_invocations.json'):
+        shutil.copyfile(generated/name,staged/name)
+    shutil.copyfile(tb_source,staged/tb_source.name)
+    snapshots = [*sources,*adapters]
+    for source in snapshots:
+        destination = staged/'inputs'/source.relative_to(ROOT)
+        destination.parent.mkdir(parents=True,exist_ok=True)
+        shutil.copyfile(source,destination)
+    for source in (Path(__file__).resolve(),
+            ROOT/'src/myfuzz/local_harness/apb_storage_probe_verification.py',
+            ROOT/'src/myfuzz/local_harness/apb_storage_probe_contract.py',
+            ROOT/'src/myfuzz/local_harness/apb_storage_source_contract.py',
+            ROOT/_spi_request()['profile_path']):
+        destination = staged/'inputs'/source.relative_to(ROOT)
+        destination.parent.mkdir(parents=True,exist_ok=True)
+        shutil.copyfile(source,destination)
+    (staged/'native_binary.sha256').write_text(_sha256(work/'obj/Vtop')+'\n')
+    (staged/'native_binary').write_bytes((work/'obj/Vtop').read_bytes())
+    (staged/'samples.json').write_text(json.dumps(samples,sort_keys=True,indent=2)+'\n')
+    (staged/'invocations.json').write_text(json.dumps(INVOCATIONS,sort_keys=True,indent=2)+'\n')
+    (staged/'tool_versions.json').write_text(json.dumps(versions,sort_keys=True,indent=2)+'\n')
+    run_log = next(r for r in INVOCATIONS if r['argv']==[str(work/'obj/Vtop')])
+    (staged/'native.stdout.log').write_text(run_log['stdout'])
+    (staged/'native.stderr.log').write_text(run_log['stderr'])
+    files = [p for p in staged.rglob('*') if p.is_file()]
+    bundle = dict(schema_version='apb_storage_probe_bundle.v1',
+        files={p.relative_to(staged).as_posix():_sha256(p) for p in sorted(files)})
+    (staged/'bundle.json').write_text(json.dumps(bundle,sort_keys=True,indent=2)+'\n')
+    proof = dict(schema_version='apb_storage_probe_hierarchy_proof.v1', status='verified',
+        probe_binding_digest=probe_binding_digest(probe),
+        expression=contract['storage_expression']['expression'],ports=probe['ports'],
+        runtime_sv_sha256=_sha256(runtime_path),wrapper_sha256=_sha256(wrapper_path),
+        source=contract['source'],parameters=contract['parameters'],
+        verilator=dict(version=versions['verilator'].splitlines()[0],top_module=module),
+        commands=dict(lint=lint_argv,native=next(r['argv'] for r in INVOCATIONS
+            if '--build' in r['argv']), run=[str(work/'obj/Vtop')]),
+        negative_controls=controls,samples=samples,sample_digest=_digest(samples),checks=checks,
+        inputs={_spi_request()['profile_path']:_sha256(ROOT/_spi_request()['profile_path']),
+            'request.json':_sha256(generated/'request.json')},
+        evidence_bundle=dict(reference='bundle.json',sha256=_sha256(staged/'bundle.json')))
+    proof['proof_digest'] = _digest(proof)
+    # Validate using the same closed reference under a temporary evidence root,
+    # including every copied sidecar file, before publishing the proof.
+    reference = 'docs/reports/evidence/verilog-probe-pulp-apb-spi/proof.json'
+    validation_root = cache/'validation'
+    validation_directory = (validation_root/reference).parent
+    validation_directory.mkdir(parents=True)
+    for name in bundle['files']:
+        destination = validation_directory/name
+        destination.parent.mkdir(parents=True,exist_ok=True)
+        shutil.copyfile(staged/name,destination)
+    shutil.copyfile(staged/'bundle.json',validation_directory/'bundle.json')
+    for name in contract['source']['files']:
+        destination = validation_root/contract['source']['root']/name
+        destination.parent.mkdir(parents=True,exist_ok=True)
+        shutil.copyfile(ROOT/contract['source']['root']/name,destination)
+    proof_text = json.dumps(proof,sort_keys=True,indent=2)+'\n'
+    (validation_root/reference).write_text(proof_text)
+    archived = json.loads((validation_directory/'artifact.json').read_text())
+    archived_runtime = (validation_directory/'runtime.sv').read_text()
+    archived_wrapper_sha256 = _sha256(validation_directory/'wrapper.sv')
+    if verified_storage_observation(archived['storage_observation'],
+            runtime_sv=archived_runtime, wrapper_sha256=archived_wrapper_sha256,
+            base_dir=validation_root) is not None:
+        raise VerificationError('spi-archived-artifact-not-prospective')
+    attached = attach_native_proof(archived['storage_observation'],
+        runtime_sv=archived_runtime, wrapper_sha256=archived_wrapper_sha256,
+        base_dir=validation_root)
+    evidence = verified_storage_observation(attached, runtime_sv=archived_runtime,
+        wrapper_sha256=archived_wrapper_sha256, base_dir=validation_root)
+    if evidence is None or evidence['proof_digest']!=proof['proof_digest']:
+        raise VerificationError('spi-archived-artifact-proof-not-verified')
+    (staged/'proof.sha256').write_text(proof['proof_digest']+'\n')
+    (staged/'proof.json').write_text(proof_text)
+    _publish_spi_evidence(staged, out)
+    INVOCATIONS = None
+    return proof,out
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--contract-id', choices=(TIMER_CONTRACT,SPI_CONTRACT),
+                        default=TIMER_CONTRACT)
+    parser.add_argument('--generate-spi-only',type=Path,help=argparse.SUPPRESS)
     parser.add_argument('--cache-dir', type=Path,
-                        default=ROOT / '.superpowers/cache-verilog-probe-timer',
+                        default=None,
                         help='fresh bounded build cache under .superpowers/')
-    parser.add_argument('--proof-out', type=Path, default=PROOF_DEFAULT,
+    parser.add_argument('--proof-out', type=Path, default=None,
                         help='digest-bound proof written only on success')
     parser.add_argument('--lock-wait', type=int, default=14400,
                         help='seconds to wait for the heavy-worker lock '
                              '(default 14400)')
     args = parser.parse_args(argv)
+    if args.generate_spi_only is not None:
+        _generate_spi(args.generate_spi_only)
+        return 0
+    spi = args.contract_id == SPI_CONTRACT
+    args.cache_dir = args.cache_dir or ROOT / ('.superpowers/cache-verilog-probe-spi' if spi else '.superpowers/cache-verilog-probe-timer')
+    args.proof_out = args.proof_out or (SPI_PROOF_DEFAULT if spi else PROOF_DEFAULT)
     if args.lock_wait < 0:
         parser.error('--lock-wait must be non-negative')
     global LOCK_WAIT
     LOCK_WAIT = args.lock_wait
     try:
-        proof, out = verify(cache_dir=args.cache_dir, proof_out=args.proof_out)
+        proof, out = (verify_spi if spi else verify)(cache_dir=args.cache_dir, proof_out=args.proof_out)
     except VerificationError as error:
         print(f'PROBE-VERIFY-FAIL: {error}', file=sys.stderr)
         return 1

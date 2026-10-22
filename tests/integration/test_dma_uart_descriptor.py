@@ -621,6 +621,169 @@ def _transaction(sequence):
     return {**SYNTHETIC_IDENTITY, 'source_sequence': sequence}
 
 
+def test_v2_dma_key_and_response_helpers_reject_ambiguous_journal_shapes():
+    key = _transaction(1)
+    assert runtime._dma_key_document(key, 'test key') == key
+    for field, value in (('source_epoch', True), ('source_sequence', False)):
+        changed = {**key, field: value}
+        with pytest.raises(RuntimeError, match='strict DMA TransactionKey'):
+            runtime._dma_key_document(changed, 'test key')
+    with pytest.raises(RuntimeError, match='strict DMA TransactionKey'):
+        runtime._dma_key_document({**key, 'extra': 1}, 'test key')
+
+    response = {'event_id': 2, 'response': dict(transaction=key, error=0, rdata=0)}
+    assert runtime._response_for_key([response], key, 'test beat') == (
+        response, response['response'])
+    for rows in ([],
+            [{'event_id': 2, 'response': dict(
+                transaction={**key, 'source_sequence': 2}, error=0, rdata=0)}],
+            [response, response],
+            [{'event_id': 2, 'response': dict(transaction=key, error=False, rdata=0)}]):
+        with pytest.raises(RuntimeError):
+            runtime._response_for_key(rows, key, 'test beat')
+
+
+def test_v2_dma_target_effect_must_share_accepted_step_and_strict_write_status():
+    request = {'producer_event_id': 17}
+    target = {'producer_event_id': 17}
+    assert runtime._same_producer_step(request, target, 'test route') == 17
+    with pytest.raises(RuntimeError, match='not produced by its accepted DMA step'):
+        runtime._same_producer_step(request, {'producer_event_id': 18}, 'test route')
+    with pytest.raises(RuntimeError, match='producer step'):
+        runtime._same_producer_step(request, {'producer_event_id': True}, 'test route')
+    assert runtime._write_response_value_is_success({'rdata': 0})
+    assert runtime._write_response_value_is_success({})
+    assert not runtime._write_response_value_is_success({'rdata': False})
+    assert not runtime._write_response_value_is_success({'rdata': 1})
+    assert runtime._dma_memory_version({'generation': 3, 'version': (3, 1)},
+        'test effect') == (3, 1)
+    for event in ({'generation': 3, 'version': (3, 0)},
+            {'generation': 3, 'version': [3, 1]},
+            {'generation': 3, 'version': (2, 1)},
+            {'generation': True, 'version': (True, 1)}):
+        with pytest.raises(RuntimeError, match='committed RAM memory version'):
+            runtime._dma_memory_version(event, 'test effect')
+
+
+def test_v2_source_authority_is_bound_to_its_route_index_and_live_topology():
+    from types import SimpleNamespace
+
+    case = DescriptorCase.create('RX_TO_RAM', dst_index=0, payload=0x5A, length=1)
+    path_id = 'selected-path'
+    authority = {'installed': True, 'schema_version': 'dma_source_provenance.v2',
+        'path_id': path_id, 'graph_sha256': 'graph', 'contract_sha256': 'contract',
+        'topology_sha256': 'topology', 'edge_index_sha256': 'index',
+        'dma_master_routes': []}
+
+    def index(*, identity='index', topology='topology', routes=()):
+        document = {'graph_sha256': 'graph', 'contract_sha256': 'contract',
+            'topology_sha256': topology, 'path_ids': [path_id],
+            'dma_master_routes': list(routes)}
+        return SimpleNamespace(identity_sha256=identity,
+            document=lambda: document,
+            match_dma_master_route=lambda *args, **kwargs: None)
+
+    witnesses = extract_case_witnesses(())
+    with pytest.raises(ValueError, match='live topology validator'):
+        certify_descriptor_case(witnesses, case, case_index=1,
+            source_authority=authority, edge_index=index(), path_id=path_id)
+    with pytest.raises(RuntimeError, match='compiled route index'):
+        certify_descriptor_case(witnesses, case, case_index=1,
+            source_authority=authority, edge_index=index(identity='other'),
+            path_id=path_id, topology_validator=lambda: None)
+    with pytest.raises(RuntimeError, match='compiled route index'):
+        certify_descriptor_case(witnesses, case, case_index=1,
+            source_authority=authority, edge_index=index(topology='other'),
+            path_id=path_id, topology_validator=lambda: None)
+    with pytest.raises(RuntimeError, match='route rows differ'):
+        certify_descriptor_case(witnesses, case, case_index=1,
+            source_authority=authority,
+            edge_index=index(routes=[{'route_sha256': 'foreign',
+                'path_ids': [path_id]}]), path_id=path_id,
+            topology_validator=lambda: None)
+    with pytest.raises(RuntimeError, match='differs from installed v2 source authority'):
+        certify_descriptor_case(witnesses, case, case_index=1,
+            source_authority={**authority, 'path_id': 'other-path'},
+            edge_index=index(), path_id=path_id,
+            topology_validator=lambda: None)
+
+
+def test_v2_uart_source_proof_reads_flat_route_index_declaration():
+    from myfuzz.scenario.uart_fifo_authority import (
+        _validate_dma_master_route_match)
+    from myfuzz.scenario.runtime_path_contract import DmaMasterRouteContract
+
+    path_id = 'selected-path'
+    base = firmware.UART_BASE
+    address = base + firmware.UART_RDATA_OFFSET
+    transaction = dict(execution_id='exec', testcase_id='case',
+        source_component='dma', source_epoch=0, channel_id='dma-memory',
+        source_sequence=1)
+    declaration = DmaMasterRouteContract(rule_index=3,
+        prerequisite_index=0, source_node_id='uart.fifo_entry',
+        target_node_id='dma.uart_master_rdata', initiator_component='dma',
+        endpoint_id='read_master', endpoint_identity_sha256='c' * 64,
+        target_kind='peripheral', target_component='uart', target_id='uart',
+        base=base, size=0x1000, operation='read', permissions=('read',),
+        byte_enable=15, readable_offsets=(firmware.UART_RDATA_OFFSET,),
+        writable_offsets=(), accepted_write_values=(),
+        target_identity_sha256='b' * 64)
+    route = {**declaration.document(),
+        'route_sha256': declaration.identity_sha256,
+        'edge_key': [3, 0], 'path_ids': [path_id]}
+    match = dict(route_sha256=route['route_sha256'], edge_key=(3, 0),
+        source_node_id=route['source_node_id'],
+        target_node_id=route['target_node_id'], path_id=path_id,
+        initiator_component='dma', endpoint_id='read_master',
+        target_kind='peripheral', target_component='uart', target_id='uart',
+        base=base, size=0x1000, operation='read', address=address,
+        byte_enable=15, transaction_key=transaction,
+        target_identity_sha256=route['target_identity_sha256'])
+    row = dict(dma_master_route_match=match,
+        source_transaction=transaction, address=address)
+    authority = dict(path_id=path_id, dma_master_routes=[route])
+
+    _validate_dma_master_route_match(row, read={'route': 'dma_master'},
+        authority=authority)
+    for changed in ({**route, 'identity_sha256': '0' * 64},
+            {**route, 'path_ids': ['another-path']}):
+        with pytest.raises(RuntimeError,
+                match='identity or selected path is invalid'):
+            _validate_dma_master_route_match(row,
+                read={'route': 'dma_master'},
+                authority={**authority, 'dma_master_routes': [changed]})
+
+
+def test_descriptor_case_replay_normalizes_identity_and_json_sequence_shape():
+    reference_ids = {'cpu': 'a' * 32, 'dma': 'b' * 32,
+        'uart': 'c' * 32, 'runner': 'd' * 32}
+    actual_ids = {'cpu': '1' * 32, 'dma': '2' * 32,
+        'uart': '3' * 32, 'runner': '4' * 32}
+    reference_key = dict(execution_id=reference_ids['dma'],
+        testcase_id='descriptor-case-1', source_component='dma',
+        source_epoch=0, channel_id='dma-memory', source_sequence=1)
+    actual_key = {**reference_key, 'execution_id': actual_ids['dma']}
+    reference_case = {'dma_master_route_match': {'transaction_key': reference_key,
+        'edge_key': [3, 0]}, 'value': 0x5A}
+    actual_case = {'dma_master_route_match': {'transaction_key': actual_key,
+        'edge_key': (3, 0)}, 'value': 0x5A}
+
+    reference_cases = (reference_case,)
+    actual_cases = (actual_case,)
+    assert runtime._descriptor_case_replay_difference(reference_cases,
+        actual_cases, reference_execution_ids=reference_ids,
+        actual_execution_ids=actual_ids) is None
+
+    changed_key = {**actual_key, 'source_sequence': 2}
+    changed_case = {**actual_case, 'dma_master_route_match': {
+        **actual_case['dma_master_route_match'], 'transaction_key': changed_key}}
+    difference = runtime._descriptor_case_replay_difference(reference_cases,
+        (changed_case,), reference_execution_ids=reference_ids,
+        actual_execution_ids=actual_ids)
+    assert difference['path'] == [
+        0, 'dma_master_route_match', 'transaction_key', 'source_sequence']
+
+
 def _fifo(depth, head, *, phase):
     return {'probe_uart_fifo_depth': depth, 'probe_uart_fifo_head': head,
         'probe_uart_fifo_rvalid': 1 if phase == 'pre' else 0,
@@ -773,6 +936,152 @@ def _synthetic_rows(case, case_index=1, *, commit_before_write=False):
     return rows.rows
 
 
+def _synthetic_v2_route_rows(case):
+    """One accepted UART→DMA→RAM run with typed request/effect/response rows."""
+    from copy import deepcopy
+
+    rows = _synthetic_rows(case, commit_before_write=True)
+    program = case.program()
+    accepted_reads = [row for row in rows if row.get('kind') == 'dma_edge'
+        and isinstance(row.get('accepted'), dict)
+        and row['accepted'].get('write') is False]
+    accepted_writes = [row for row in rows if row.get('kind') == 'dma_edge'
+        and isinstance(row.get('accepted'), dict)
+        and row['accepted'].get('write') is True]
+    for index in range(case.length):
+        read_address = program['source_words'][index]
+        write_address = program['destination_words'][index]
+        read_row = accepted_reads[index]
+        write_row = accepted_writes[index]
+        assert read_row['accepted']['address'] == read_address
+        assert write_row['accepted']['address'] == write_address
+        read_key = _transaction(2 * index + 1)
+        write_key = _transaction(2 * index + 2)
+        read_step = 9000 + 2 * index + 1
+        write_step = 9000 + 2 * index + 2
+        read_row['accepted'].update(transaction=read_key, byte_enable=15)
+        read_row['producer_event_id'] = read_step
+        write_row['accepted'].update(transaction=write_key, byte_enable=15)
+        write_row['producer_event_id'] = write_step
+
+        access_id = f'dma-v2-uart-access-{index}'
+        old_delivery = read_row['accepted']['target_delivery']
+        access = {**old_delivery['target_uart_access'],
+            'access_id': access_id, 'source_transaction': dict(read_key),
+            'route_context_mode': 'dma_master',
+            'raw_offset': firmware.UART_RDATA_OFFSET,
+            'write': False, 'byte_enable': 15, 'address': read_address,
+            'window_base': firmware.UART_BASE, 'window_size': 0x1000,
+            'producer_event_id': read_step}
+        delivery = dict(target_component='uart',
+            address=read_address, offset=firmware.UART_RDATA_OFFSET,
+            write=False, value=case.payload, byte_enable=15,
+            source_transaction=dict(read_key), target_access_id=access_id,
+            target_uart_access=access)
+        read_row['accepted']['target_delivery'] = delivery
+        read_row['target_delivery'] = deepcopy(delivery)
+        rows.insert(rows.index(read_row) + 1,
+            {'kind': 'uart_rdata_access', **access})
+        rows.insert(rows.index(read_row) + 2,
+            {'kind': 'dma_edge', 'response': dict(
+                transaction=dict(read_key), error=0, rdata=case.payload)})
+
+        effect = next(row for row in rows if row.get('kind') == 'memory_write'
+            and row.get('component') == 'dma'
+            and row.get('address') == write_address)
+        effect.update(transaction=dict(write_key), producer_event_id=write_step,
+            generation=0, version=(0, 10 + index), memory_id='ram',
+            width_bytes=4, byte_enable=15,
+            byte_offset=write_address - 0x10000)
+        rows.insert(rows.index(write_row) + 1,
+            {'kind': 'dma_edge', 'response': dict(
+                transaction=dict(write_key), error=0, rdata=0)})
+
+    for event_id, row in enumerate(rows, 1):
+        row['event_id'] = event_id
+    return rows
+
+
+class _SyntheticV2RouteIndex:
+    """Typed route matcher stub; the compiled index has its own unit tests."""
+
+    def __init__(self, path_id):
+        from types import SimpleNamespace
+        self.path_id = path_id
+        self.routes = (
+            SimpleNamespace(route_sha256='a' * 64, edge_key=(3, 0),
+                source_node_id='uart.fifo_entry',
+                target_node_id='dma.uart_master_rdata',
+                initiator_component='dma', endpoint_id='read_master',
+                target_kind='peripheral', target_component='uart',
+                target_id='uart', base=firmware.UART_BASE, size=0x1000,
+                operation='read', target_identity_sha256='b' * 64),
+            SimpleNamespace(route_sha256='c' * 64, edge_key=(7, 0),
+                source_node_id='dma.ram_write', target_node_id='ram.master_write',
+                initiator_component='dma', endpoint_id='write_master',
+                target_kind='persistent_memory', target_component='cpu',
+                target_id='ram', base=0x10000, size=0x20000,
+                operation='write', target_identity_sha256='d' * 64),
+        )
+        self.identity_sha256 = 'e' * 64
+        self._document = dict(graph_sha256='graph-digest',
+            contract_sha256='contract-digest', topology_sha256='topology-digest',
+            path_ids=[path_id], dma_master_routes=[{
+                'route_sha256': route.route_sha256,
+                'identity_sha256': route.route_sha256,
+                'edge_key': list(route.edge_key),
+                'path_ids': [path_id],
+                'source_node_id': route.source_node_id,
+                'target_node_id': route.target_node_id,
+                'initiator_component': route.initiator_component,
+                'endpoint_id': route.endpoint_id,
+                'target_kind': route.target_kind,
+                'target_component': route.target_component,
+                'target_id': route.target_id,
+                'base': route.base,
+                'size': route.size,
+                'operation': route.operation,
+                'byte_enable': 15,
+                'readable_offsets': ([firmware.UART_RDATA_OFFSET]
+                    if route.operation == 'read' else []),
+                'target_identity_sha256': route.target_identity_sha256,
+            } for route in self.routes])
+        self.calls = []
+
+    def document(self):
+        return self._document
+
+    def dma_master_routes_for_path(self, path_id):
+        return self.routes if path_id == self.path_id else ()
+
+    def match_dma_master_route(self, path_id, **query):
+        from myfuzz.scenario.ledger import TransactionKey
+        from myfuzz.scenario.runtime_edge_index import DmaMasterRouteMatch
+
+        route = next((item for item in self.dma_master_routes_for_path(path_id)
+            if all(getattr(item, key) == query.get(key) for key in (
+                'initiator_component', 'endpoint_id', 'target_kind',
+                'target_component', 'target_id', 'base', 'size', 'operation'))), None)
+        address = query.get('address')
+        transaction = query.get('transaction_key')
+        if (route is None or type(address) is not int
+                or not route.base <= address <= route.base + route.size - 4
+                or query.get('byte_enable') != 15
+                or type(transaction) is not dict):
+            return None
+        self.calls.append(dict(path_id=path_id, **query))
+        return DmaMasterRouteMatch(route_sha256=route.route_sha256,
+            edge_key=route.edge_key, source_node_id=route.source_node_id,
+            target_node_id=route.target_node_id, path_id=path_id,
+            initiator_component=route.initiator_component,
+            endpoint_id=route.endpoint_id, target_kind=route.target_kind,
+            target_component=route.target_component, target_id=route.target_id,
+            base=route.base, size=route.size, operation=route.operation,
+            address=address, byte_enable=15,
+            transaction_key=TransactionKey(**transaction),
+            target_identity_sha256=route.target_identity_sha256)
+
+
 @pytest.mark.parametrize('direction,dst_index,payload,length', [
     ('RX_TO_RAM', 0, 0x5A, 1),
     ('RX_TO_RAM', 1, 0x11, 3),
@@ -823,6 +1132,95 @@ def test_synthetic_journal_certifies_every_direction(direction, dst_index,
             [0, 10 + index] for index in range(length)]
         assert evidence['cpu_source_versions'] == [
             [0, 2 + index] for index in range(length)]
+
+
+def test_v2_synthetic_journal_certifies_exact_uart_request_effect_response_and_ram_version():
+    case = DescriptorCase.create('RX_TO_RAM', dst_index=1,
+        payload=0x5A, length=2)
+    path_id = 'route-v2-positive-path'
+    index = _SyntheticV2RouteIndex(path_id)
+    topology_checks = []
+    route_authority = index.document()['dma_master_routes']
+    source_authority = dict(installed=True,
+        schema_version='dma_source_provenance.v2', path_id=path_id,
+        source_id='uart.external_rx_byte', source_component='uart',
+        producer_ref='external-serial-byte', graph_sha256='graph-digest',
+        contract_sha256='contract-digest', topology_sha256='topology-digest',
+        edge_index_sha256=index.identity_sha256,
+        dma_master_routes=route_authority,
+        admissions=[dict(action_id=action_id, admission_id=f'admission-{i}')
+            for i, action_id in enumerate(case.action_ids(1))])
+    evidence = certify_descriptor_case(
+        extract_case_witnesses(_synthetic_v2_route_rows(case)), case,
+        case_index=1, edge_index=index, path_id=path_id,
+        source_authority=source_authority,
+        topology_validator=lambda: topology_checks.append('checked'))
+
+    assert evidence['completed'] is True
+    assert evidence['outcome'] == 'complete'
+    assert evidence['source_authority'] == 'incomplete'
+    assert evidence['source_authority_evidence']['schema_version'] == \
+        'uart_fifo_source_authority.v2'
+    assert topology_checks == ['checked']
+    assert len(index.calls) == 2 * case.length
+    assert [beat['source_sequence'] for beat in evidence['beats']] == [1, 3]
+    assert [beat['write_sequence'] for beat in evidence['beats']] == [2, 4]
+    for beat in evidence['beats']:
+        routes = beat['dma_routes']
+        assert routes['source_read']['route_match']['operation'] == 'read'
+        assert routes['source_read']['value'] == case.payload
+        assert routes['destination_write']['route_match']['operation'] == 'write'
+        assert routes['destination_write']['target_effect']['value'] == case.payload
+        assert routes['destination_write']['target_effect']['version'][1] > 0
+        assert beat['native_responses']['read_event_id'] > beat['read_event_id']
+        assert beat['native_responses']['write_event_id'] > beat['write_event_id']
+
+
+def _v2_bad_uart_target_key(rows):
+    event = next(row for row in rows if row.get('kind') == 'uart_rdata_access'
+        and row.get('route_context_mode') == 'dma_master')
+    event['source_transaction'] = _transaction(99)
+    return rows
+
+
+def _v2_bad_uart_producer_step(rows):
+    event = next(row for row in rows if row.get('kind') == 'uart_rdata_access'
+        and row.get('route_context_mode') == 'dma_master')
+    event['producer_event_id'] += 1
+    return rows
+
+
+def _v2_duplicate_read_response(rows):
+    response = next(row for row in rows if row.get('kind') == 'dma_edge'
+        and isinstance(row.get('response'), dict)
+        and row['response'].get('transaction', {}).get('source_sequence') == 1)
+    rows.append({**response, 'event_id': max(row['event_id'] for row in rows) + 1})
+    return rows
+
+
+def _v2_bad_ram_version(rows):
+    event = next(row for row in rows if row.get('kind') == 'memory_write'
+        and row.get('component') == 'dma')
+    event['version'] = (0, 0)
+    return rows
+
+
+@pytest.mark.parametrize('mutate,message', [
+    (_v2_bad_uart_target_key, 'DMA UART target journal event differs'),
+    (_v2_bad_uart_producer_step, 'not produced by its accepted DMA step'),
+    (_v2_duplicate_read_response, 'exactly one native response'),
+    (_v2_bad_ram_version, 'committed RAM memory version'),
+])
+def test_v2_certifier_refuses_wrong_key_step_response_count_or_memory_version(
+        mutate, message):
+    case = DescriptorCase.create('RX_TO_RAM', dst_index=1,
+        payload=0x5A, length=2)
+    rows = mutate(_synthetic_v2_route_rows(case))
+    index = _SyntheticV2RouteIndex('route-v2-negative-path')
+    with pytest.raises(RuntimeError, match=message):
+        certify_descriptor_case(extract_case_witnesses(rows), case,
+            case_index=1, edge_index=index, path_id=index.path_id,
+            topology_validator=lambda: None)
 
 
 def _drop(rows, predicate):

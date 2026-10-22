@@ -36,8 +36,10 @@ from types import MappingProxyType
 from .dependency import (DependencyGraph, DependencyPath, DependencyRule,
     FuzzableSource)
 from .runtime_edge_index import RuntimeEdgeIndex
-from .runtime_path_contract import (PreparedRuntimePathContract,
-    RuntimeEdgeContract, RuntimeNode, RuntimePathContract)
+from .runtime_path_contract import (DmaMasterRouteContract,
+    PreparedRuntimePathContract, RuntimeEdgeContract, RuntimeNode,
+    RuntimePathContract, canonical_runtime_identity_sha256,
+    persistent_memory_route_identity_document)
 from .source_provenance import SourceAdmission
 
 SOURCE_NODE = 'uart.external_rx_byte'
@@ -51,12 +53,11 @@ UART_SIZE = 0x1000
 UART_RDATA_OFFSET = 0x18
 DMA_IRQ_ENDPOINT = ('dma', 'irq', 'cpu', 'irq', 1)
 RAM_RESOURCE_ID = 'ram'
-#: The only relation the shared runtime contract can express for a DMA master
-#: window today.  The route itself is validated against the actual
-#: ``MasterTargetWindow`` list below; the graph edge stays causal order because
-#: ``RuntimePathContract`` has no DMA-master relation and adding one would
-#: change shared topology semantics outside S4.
-DMA_MASTER_EDGE_RELATION = 'causal_order'
+# Stable profile endpoint IDs for the Wishbone DMA's independent read and
+# write masters.  The bus initiator remains ``dma``; graph edge direction is
+# data flow.
+DMA_READ_ENDPOINT = 'read_master'
+DMA_WRITE_ENDPOINT = 'write_master'
 
 NODES = (
     RuntimeNode(SOURCE_NODE, SOURCE_COMPONENT, 'physical', SOURCE_PORT,
@@ -64,8 +65,11 @@ NODES = (
     RuntimeNode('uart.rx_frame', 'uart', 'logical'),
     RuntimeNode('uart.fifo_entry', 'uart', 'state'),
     RuntimeNode('cpu.fifo_pop', 'cpu', 'logical'),
+    RuntimeNode('dma.uart_master_rdata', 'dma', 'logical'),
+    RuntimeNode('dma.transfer_input', 'dma', 'logical'),
     RuntimeNode('dma.fifo_pop', 'dma', 'logical'),
     RuntimeNode('dma.ram_write', 'dma', 'logical'),
+    RuntimeNode('ram.master_write', 'cpu', 'logical'),
     RuntimeNode('ram.destination_commit', 'cpu', 'state'),
     RuntimeNode('dma.completion_irq', 'dma', 'physical', 'irq', 0, 1),
     RuntimeNode('cpu.dma_irq', 'cpu', 'physical', 'irq', 0, 1),
@@ -77,13 +81,15 @@ RULES = (
     ('uart.rx_frame', (SOURCE_NODE,), 'EVENT_ORDER'),
     ('uart.fifo_entry', ('uart.rx_frame',), 'EVENT_ORDER'),
     ('cpu.fifo_pop', ('uart.fifo_entry',), 'EVENT_ORDER'),
-    # A real RX_TO_RAM case pops the descriptor with CPU RDATA reads first and
-    # only then lets the configured DMA master pop the payload; a RAM-sourced
-    # case stops at the CPU pop.  The declared path is the superset of the RX
-    # FIFO chain, never a per-case witness.
-    ('dma.fifo_pop', ('cpu.fifo_pop',), 'EVENT_ORDER'),
+    # The UART RDATA read is a typed peripheral route from the UART FIFO value
+    # into the DMA source master.  CPU descriptor consumption remains a
+    # separate AND prerequisite of the DMA FIFO pop.
+    ('dma.uart_master_rdata', ('uart.fifo_entry',), 'DMA_MASTER_TRANSFER'),
+    ('dma.transfer_input', ('dma.uart_master_rdata',), 'EVENT_ORDER'),
+    ('dma.fifo_pop', ('cpu.fifo_pop', 'dma.transfer_input'), 'EVENT_ORDER'),
     ('dma.ram_write', ('dma.fifo_pop',), 'EVENT_ORDER'),
-    ('ram.destination_commit', ('dma.ram_write',), 'PERSISTENT_STATE_RULE'),
+    ('ram.master_write', ('dma.ram_write',), 'DMA_MASTER_TRANSFER'),
+    ('ram.destination_commit', ('ram.master_write',), 'PERSISTENT_STATE_RULE'),
     ('dma.completion_irq', ('ram.destination_commit',), 'EVENT_ORDER'),
     ('cpu.dma_irq', ('dma.completion_irq',), 'DATA_BINDING'),
     ('cpu.isr', ('cpu.dma_irq',), 'EVENT_ORDER'),
@@ -106,21 +112,101 @@ def _edges(*, uart_base, uart_size, resource_component, resource_id):
         RuntimeEdgeContract(1, 0, 'causal_order'),
         RuntimeEdgeContract(2, 0, 'mmio_route', 'cpu', 'uart', uart_base,
                             uart_size),
-        RuntimeEdgeContract(3, 0, DMA_MASTER_EDGE_RELATION),
+        RuntimeEdgeContract(3, 0, 'dma_master_route'),
         RuntimeEdgeContract(4, 0, 'causal_order'),
-        RuntimeEdgeContract(5, 0, 'persistent_state',
+        RuntimeEdgeContract(5, 0, 'causal_order'),
+        RuntimeEdgeContract(5, 1, 'causal_order'),
+        RuntimeEdgeContract(6, 0, 'causal_order'),
+        RuntimeEdgeContract(7, 0, 'dma_master_route'),
+        RuntimeEdgeContract(8, 0, 'persistent_state',
                             resource_component=resource_component,
                             resource_id=resource_id),
-        RuntimeEdgeContract(6, 0, 'causal_order'),
-        RuntimeEdgeContract(7, 0, 'direct_binding'),
-        RuntimeEdgeContract(8, 0, 'causal_order'),
+        RuntimeEdgeContract(9, 0, 'causal_order'),
+        RuntimeEdgeContract(10, 0, 'direct_binding'),
+        RuntimeEdgeContract(11, 0, 'causal_order'),
     )
 
 
-def compile_dma_runtime_paths(*, direction=SOURCE_DIRECTION,
+def _dma_route_contracts(runner, *, uart_base, uart_size,
+        resource_component, resource_id):
+    from myfuzz.local_harness.wishbone_dma_session import (
+        MasterTargetWindow, dma_route_endpoint_identity_document)
+
+    sessions = getattr(runner, 'sessions', None)
+    if type(sessions) is not dict:
+        raise ValueError('runner sessions are required for DMA master routes')
+    dma = sessions.get('dma')
+    uart = sessions.get('uart')
+    cpu = sessions.get(resource_component)
+    if dma is None or uart is None or cpu is None:
+        raise ValueError('DMA, UART, and RAM owner sessions are required')
+    windows = getattr(dma, 'master_targets', None)
+    if type(windows) is not tuple:
+        raise ValueError('DMA master route requires immutable target windows')
+    matches = [window for window in windows
+        if type(window) is MasterTargetWindow
+        and window.component == 'uart'
+        and (window.base, window.size) == (uart_base, uart_size)]
+    if len(matches) != 1:
+        raise ValueError('DMA master target window for UART RDATA is missing or ambiguous')
+    window = matches[0]
+    if window.endpoint is not uart or window.readable_offsets != (UART_RDATA_OFFSET,):
+        raise ValueError('DMA UART route does not identify the real UART RDATA endpoint')
+    if not callable(getattr(uart, 'master_target_access', None)):
+        raise ValueError('UART endpoint lacks master_target_access for the DMA RDATA route')
+    endpoint_sha = canonical_runtime_identity_sha256(
+        dma_route_endpoint_identity_document(dma))
+    uart_identity = window.route_identity_document()
+    uart_target_sha = canonical_runtime_identity_sha256(uart_identity)
+    uart_permissions = tuple(sorted(
+        (['read'] if window.readable_offsets else [])
+        + (['write'] if window.writable_offsets else [])))
+    uart_route = DmaMasterRouteContract(
+        rule_index=3, prerequisite_index=0,
+        source_node_id='uart.fifo_entry', target_node_id='dma.uart_master_rdata',
+        initiator_component='dma', endpoint_id=DMA_READ_ENDPOINT,
+        endpoint_identity_sha256=endpoint_sha, target_kind='peripheral',
+        target_component='uart', target_id='uart', base=uart_base,
+        size=uart_size, operation='read', permissions=uart_permissions,
+        byte_enable=window.byte_enable,
+        readable_offsets=window.readable_offsets,
+        writable_offsets=window.writable_offsets,
+        accepted_write_values=window.accepted_write_values,
+        target_identity_sha256=uart_target_sha)
+
+    service = getattr(dma, 'memory_service', None)
+    memory = getattr(service, 'memory', None)
+    if (memory is None or getattr(cpu, 'memory', None) is not memory
+            or getattr(service, 'ledger', None) is None):
+        raise ValueError('DMA RAM route requires the exact CPU PersistentMemory and ledger')
+    regions = [region for region in memory._regions
+        if region.memory_id == resource_id and region.writable]
+    if len(regions) != 1:
+        raise ValueError('DMA destination RAM region is missing or ambiguous')
+    region = regions[0]
+    ram_base, ram_size = region.base, region.size
+    ram_identity = persistent_memory_route_identity_document(memory,
+        memory_id=resource_id, base=ram_base, size=ram_size)
+    ram_permissions = tuple(sorted(
+        (['read'] if region.readable else [])
+        + (['write'] if region.writable else [])))
+    ram_route = DmaMasterRouteContract(
+        rule_index=7, prerequisite_index=0,
+        source_node_id='dma.ram_write', target_node_id='ram.master_write',
+        initiator_component='dma', endpoint_id=DMA_WRITE_ENDPOINT,
+        endpoint_identity_sha256=endpoint_sha, target_kind='persistent_memory',
+        target_component=resource_component, target_id=resource_id,
+        base=ram_base, size=ram_size, operation='write',
+        permissions=ram_permissions, byte_enable=15,
+        readable_offsets=(), writable_offsets=(), accepted_write_values=(),
+        target_identity_sha256=canonical_runtime_identity_sha256(ram_identity))
+    return (uart_route, ram_route)
+
+
+def compile_dma_runtime_paths(runner, *, direction=SOURCE_DIRECTION,
         uart_base=UART_BASE, uart_size=UART_SIZE,
         resource_component='cpu', resource_id=RAM_RESOURCE_ID):
-    """Build and self-check the declared UART-FIFO-to-ISR runtime path."""
+    """Build the route-bound UART-FIFO-to-ISR path against one live Runner."""
     if direction != SOURCE_DIRECTION:
         raise ValueError('the UART RX FIFO source graph declares IP_TO_CPU only')
     if (type(uart_base) is not int or uart_base < 0 or uart_base % 0x1000
@@ -134,9 +220,13 @@ def compile_dma_runtime_paths(*, direction=SOURCE_DIRECTION,
                 SOURCE_BIT_OFFSET, SOURCE_WIDTH, (SOURCE_DIRECTION,)),),
         rules=tuple(DependencyRule(target, prerequisites, kind)
                     for target, prerequisites, kind in RULES))
-    contract = RuntimePathContract(_digest(graph.edge_document()),
-        NODES, _edges(uart_base=uart_base, uart_size=uart_size,
-            resource_component=resource_component, resource_id=resource_id))
+    routes = _dma_route_contracts(runner, uart_base=uart_base,
+        uart_size=uart_size, resource_component=resource_component,
+        resource_id=resource_id)
+    contract = RuntimePathContract(_digest(graph.edge_document()), NODES,
+        _edges(uart_base=uart_base, uart_size=uart_size,
+            resource_component=resource_component, resource_id=resource_id),
+        dma_master_routes=routes)
     paths = graph.edge_paths_to(TARGET_NODE, direction=direction)
     if len(paths) != 1:
         raise ValueError('the declared UART FIFO path graph must resolve to one path')
@@ -164,7 +254,7 @@ class DmaRuntimePaths:
     resource_id: str
 
     def document(self) -> dict:
-        return dict(schema_version='dma_runtime_paths.v1',
+        return dict(schema_version='dma_runtime_paths.v2',
             direction=self.direction, path_id=self.path_id,
             graph_sha256=self.contract.graph_sha256,
             contract_sha256=self.contract.identity_sha256,
@@ -232,10 +322,12 @@ def declared_dma_master_route(runner, *, component='uart', base=UART_BASE,
         raise ValueError(
             'UART endpoint lacks master_target_access; an S4 DMA master FIFO '
             'pop cannot carry a transaction identity without it')
+    from myfuzz.local_harness.wishbone_dma_session import dma_route_endpoint_identity_document
     return DmaMasterRoute(component=component, base=base, size=size,
         readable_offsets=readable,
         writable_offsets=tuple(getattr(window, 'writable_offsets', ())),
-        endpoint_identity_sha256=_digest(window.endpoint.identity_document()))
+        endpoint_identity_sha256=canonical_runtime_identity_sha256(
+            dma_route_endpoint_identity_document(dma)))
 
 
 def source_input_sha256(action_id, component, value):
@@ -269,6 +361,8 @@ class DmaSourceProvenance:
     producer_ref: str
     edge_index_sha256: str
     topology_sha256: str
+    compiled: object
+    edge_index: RuntimeEdgeIndex
 
     def admission(self, *, case_id, case_index, action_id, value):
         """Create the admission for one byte that is about to be submitted."""
@@ -289,7 +383,10 @@ class DmaSourceProvenance:
                 self.source_component, value))
 
     def document(self) -> dict:
-        return dict(schema_version='dma_source_provenance.v1', installed=True,
+        selected_routes = [row for row in
+            self.edge_index.document().get('dma_master_routes', ())
+            if self.paths.path_id in row.get('path_ids', ())]
+        return dict(schema_version='dma_source_provenance.v2', installed=True,
             source_id=self.source_id, source_component=self.source_component,
             source_port=self.source_port, source_width=self.source_width,
             direction=self.direction, producer_ref=self.producer_ref,
@@ -299,7 +396,11 @@ class DmaSourceProvenance:
             topology_sha256=self.topology_sha256,
             edge_index_sha256=self.edge_index_sha256,
             master_route=self.master_route.document(),
+            dma_master_routes=selected_routes,
             paths=self.paths.document())
+
+    def validate_topology(self):
+        self.compiled.validate_topology()
 
 
 NOT_INSTALLED = MappingProxyType(dict(schema_version='dma_source_provenance.v1',
@@ -314,7 +415,7 @@ def compile_dma_source_provenance(runner, *, paths=None):
     UART ``master_target_access`` raises instead of degrading to an unproven
     run.
     """
-    compiled_paths = paths or compile_dma_runtime_paths()
+    compiled_paths = paths or compile_dma_runtime_paths(runner)
     master_route = declared_dma_master_route(runner)
     prepared = compiled_paths.prepared
     compiled = prepared.bind(runner)
@@ -341,7 +442,8 @@ def compile_dma_source_provenance(runner, *, paths=None):
         source_port=source.port, source_width=source.width,
         direction=compiled_paths.direction, producer_ref=ref,
         edge_index_sha256=edge_index.identity_sha256,
-        topology_sha256=compiled.topology_sha256)
+        topology_sha256=compiled.topology_sha256, compiled=compiled,
+        edge_index=edge_index)
 
 
 def register_case_admissions(runner, provenance, *, case_id, case_index,
@@ -361,6 +463,7 @@ def register_case_admissions(runner, provenance, *, case_id, case_index,
         raise ValueError('duplicate source action identity')
     admissions = []
     for action_id, value in zip(action_ids, source_bytes):
+        provenance.validate_topology()
         admission = provenance.admission(case_id=case_id,
             case_index=case_index, action_id=action_id, value=value)
         runner.register_source_admission(admission)

@@ -335,6 +335,10 @@ class IpBaseCoverageConsumer:
             if not isinstance(event, Mapping):
                 raise ValueError('base-coverage-event-invalid')
             cursor = start_cursor + offset
+            if event.get('kind') == 'reset_barrier':
+                # Runner reset ends all in-flight joins, even before another
+                # endpoint event supplies its new epoch. Keep coverage history.
+                self._pending.clear()
             self._consume_raw(event)
             self._consume_base(event)
             consumed.append(ConsumedEvent(cursor, event))

@@ -22,6 +22,7 @@ from types import MappingProxyType
 
 NORMALIZER_SCHEMA = 'typed_replay_normalizer.v1'
 EXECUTION_ROLES = ('cpu', 'dma', 'uart', 'runner')
+GPIO_DMA_EXECUTION_ROLES = ('cpu', 'dma', 'gpio', 'runner')
 EXECUTION_TOKEN_PREFIX = 'execution:'
 _UUID = re.compile(r'[0-9a-f]{32}\Z')
 _TRANSACTION_KEY = re.compile(
@@ -126,11 +127,11 @@ RETAINED_FIELDS = (
 FORBIDDEN_REWRITE_SCOPES = ('whole_json', 'whole_document', 'string_replace')
 
 
-def _validate_ids(execution_ids):
+def _validate_ids(execution_ids, roles=EXECUTION_ROLES):
     if not isinstance(execution_ids, Mapping):
         raise ValueError('execution IDs must be a mapping of role to UUID')
-    if set(execution_ids) != set(EXECUTION_ROLES):
-        raise ValueError('execution IDs must identify CPU, DMA, UART and Runner')
+    if set(execution_ids) != set(roles):
+        raise ValueError('execution IDs must identify exactly: ' + ', '.join(roles))
     issued = {name: value for name, value in execution_ids.items()
               if value is not None}
     if (len(set(issued.values())) != len(issued)
@@ -140,15 +141,7 @@ def _validate_ids(execution_ids):
     return {value: EXECUTION_TOKEN_PREFIX + name for name, value in issued.items()}
 
 
-def normalize_execution_identities(value, execution_ids):
-    """Return ``value`` with only declared execution identities rewritten.
-
-    ``execution_ids`` maps the four issued roles to their native UUIDs (or
-    ``None`` when a role has not started).  Unknown strings, unknown UUIDs and
-    every retained field are left exactly as measured.
-    """
-    mapping = _validate_ids(execution_ids)
-
+def _normalize_with_mapping(value, mapping):
     def visit(item, field=None, *, event_record=False, ledger_reference=False):
         if isinstance(item, dict):
             state_edge = (event_record
@@ -173,6 +166,34 @@ def normalize_execution_identities(value, execution_ids):
     if isinstance(value, (tuple, list)):
         return [visit(event, event_record=True) for event in value]
     return visit(value)
+
+
+def normalize_execution_identities(value, execution_ids):
+    """Normalize only declared identities for the v1 CPU/DMA/UART/Runner path."""
+    return _normalize_with_mapping(value, _validate_ids(execution_ids))
+
+
+def normalize_gpio_dma_execution_identities(value, execution_ids):
+    """Normalize identities for the exact CPU/DMA/GPIO/Runner PULP replay roles.
+
+    The field-level rewrite rules are identical to v1; only this explicitly
+    named role set is accepted. Unknown fields and payload strings remain
+    byte-for-byte unchanged.
+    """
+    mapping = _validate_ids(execution_ids, roles=GPIO_DMA_EXECUTION_ROLES)
+    # The gate stores independent event streams under this one evidence
+    # manifest. Normalize each declared stream as a root event array so the
+    # existing state_dependency rule remains restricted to canonical journal
+    # root records; other manifest fields retain ordinary field-level rules.
+    if isinstance(value, Mapping) and not (
+            value.get('kind') == _STATE_EDGE_KIND
+            and _STATE_EDGE_REQUIRED <= value.keys()):
+        return {key: _normalize_with_mapping(child, mapping)
+                for key, child in value.items()}
+    if (isinstance(value, Mapping) and value.get('kind') == _STATE_EDGE_KIND
+            and _STATE_EDGE_REQUIRED <= value.keys()):
+        return _normalize_with_mapping([value], mapping)[0]
+    return _normalize_with_mapping(value, mapping)
 
 
 def _normalized(value, execution_ids):
@@ -242,6 +263,16 @@ def first_replay_difference(reference, actual, *, reference_execution_ids,
     """
     left = _normalized(reference, reference_execution_ids)
     right = _normalized(actual, actual_execution_ids)
+    return _diff(left, right, ())
+
+
+def first_gpio_dma_replay_difference(reference, actual, *,
+        reference_execution_ids, actual_execution_ids):
+    """Compare fresh PULP GPIO DMA prefixes using its four exact execution roles."""
+    left = normalize_gpio_dma_execution_identities(reference,
+        reference_execution_ids)
+    right = normalize_gpio_dma_execution_identities(actual,
+        actual_execution_ids)
     return _diff(left, right, ())
 
 
@@ -315,10 +346,13 @@ def assert_prefix_equal(reference, actual, execution_ids, *, scope='replay'):
     return True
 
 
-__all__ = ['NORMALIZER_SCHEMA', 'EXECUTION_ROLES', 'NormalizerRule',
+__all__ = ['NORMALIZER_SCHEMA', 'EXECUTION_ROLES', 'GPIO_DMA_EXECUTION_ROLES',
+           'NormalizerRule',
            'NORMALIZER_RULES', 'RULES_BY_NAME', 'FIELD_RULES',
            'STATE_EDGE_RULE', 'RETAINED_FIELDS', 'FORBIDDEN_REWRITE_SCOPES',
            'normalize_execution_identities', 'first_difference',
-           'first_replay_difference', 'first_difference_normalized',
+           'normalize_gpio_dma_execution_identities',
+           'first_replay_difference', 'first_gpio_dma_replay_difference',
+           'first_difference_normalized',
            'normalized_digest', 'PrefixDivergence', 'PrefixComparison',
            'compare_prefix_events', 'assert_prefix_equal']

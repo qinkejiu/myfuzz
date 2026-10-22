@@ -32,6 +32,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import replace
+from inspect import signature
 from pathlib import Path
 
 import pytest
@@ -39,6 +40,11 @@ import pytest
 from myfuzz.integration.picorv32_native_scenario_campaign import (
     PicoNativeGpioBoundProvider, assess_native_gpio_closed_chain)
 from myfuzz.integration.scenario_campaign import CampaignBlocked
+from myfuzz.integration.picorv32_native_online import (
+    PicoNativeOnlineRuntime, make_picorv32_native_online_runtime)
+from myfuzz.scenario.native_packet_session import (
+    native_packet_source_binding_configuration,
+    native_packet_source_completion_configuration)
 from myfuzz.scenario import picorv32_native_cpu_example as fixture
 from myfuzz.scenario.genome import GenomeCodec
 
@@ -62,6 +68,82 @@ C2 = fixture.round_two_value(A, B)
 def seed(direction):
     return GenomeCodec.decode(
         (BOUND_SEED if direction == CPU else REVERSE_SEED).read_bytes())
+
+
+class TestNativeSourceCompletionOptIn:
+    def test_source_completion_is_a_strict_default_off_opt_in(self):
+        parameter = signature(make_picorv32_native_online_runtime).parameters[
+            'native_source_completion']
+        assert parameter.default is False
+        for invalid in (0, 1, None, 'true'):
+            with pytest.raises(ValueError, match='native_source_completion must be boolean'):
+                make_picorv32_native_online_runtime(
+                    cache_dir=Path('/tmp/native-source-completion-test'),
+                    native_source_completion=invalid)
+
+    def test_source_completion_requires_both_existing_native_prerequisites(self):
+        with pytest.raises(ValueError, match='native completion observation'):
+            make_picorv32_native_online_runtime(
+                cache_dir=Path('/tmp/native-source-completion-test'),
+                native_source_completion=True)
+        with pytest.raises(ValueError, match='native source binding'):
+            make_picorv32_native_online_runtime(
+                cache_dir=Path('/tmp/native-source-completion-test'),
+                native_completion_observation=True,
+                native_source_completion=True)
+        with pytest.raises(ValueError, match='native completion observation'):
+            make_picorv32_native_online_runtime(
+                cache_dir=Path('/tmp/native-source-completion-test'),
+                native_source_binding=True, native_source_completion=True)
+
+    def test_raw_sample_bound_allows_28_cases_and_refuses_29_without_changing_binding(self, monkeypatch):
+        completion = native_packet_source_completion_configuration(28)
+        assert completion['max_native_raw_samples'] == 4096
+        assert completion['max_warmup_native_samples'] + (
+            completion['max_cases'] * completion['native_samples_per_case']) == 4096
+        assert completion['max_completion_objects'] == 256
+        with pytest.raises(ValueError, match='raw-sample bound'):
+            native_packet_source_completion_configuration(29)
+        assert native_packet_source_binding_configuration(96)['max_cases'] == 96
+
+        import myfuzz.integration.picorv32_native_online as native_online
+        def forbidden(*args, **kwargs):
+            pytest.fail('29 case completion plan must fail before bootstrap or factory')
+        monkeypatch.setattr(native_online, 'make_picorv32_native_online_bootstrap', forbidden)
+        monkeypatch.setattr(native_online, 'make_picorv32_native_online_factory', forbidden)
+        with pytest.raises(ValueError, match='raw-sample bound'):
+            native_online.make_picorv32_native_online_runtime(
+                cache_dir=Path('/tmp/native-source-completion-test'), max_cases=29,
+                native_completion_observation=True, native_source_binding=True,
+                native_source_completion=True)
+
+    @pytest.mark.parametrize('failure', [False, True])
+    def test_finish_revokes_completion_owner_after_success_or_failure(self, failure):
+        class Session:
+            def __init__(self):
+                self.revocations = 0
+
+            def finish_export(self):
+                if failure:
+                    raise RuntimeError('finish failed')
+                return 'finished'
+
+            def _revoke_native_source_completion(self, primary=None):
+                self.revocations += 1
+
+            def abort_packet_submission(self, primary):
+                pass
+
+        runtime = PicoNativeOnlineRuntime.__new__(PicoNativeOnlineRuntime)
+        runtime.session = Session()
+        runtime._begun = True
+        runtime._terminal = False
+        if failure:
+            with pytest.raises(RuntimeError, match='finish failed'):
+                runtime.finish()
+        else:
+            assert runtime.finish() == 'finished'
+        assert runtime.session.revocations == 1
 
 
 # --------------------------------------------------------------------------

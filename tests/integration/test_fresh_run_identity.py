@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from myfuzz.integration.rfuzz_wire import InputBatch
@@ -101,12 +102,40 @@ class FreshRunIdentityTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "run"
             executor = self.make_bundle(output)
+            self.assertTrue((output / "run_identity.json").read_bytes().endswith(b"\n"))
             identity = json.loads((output / "run_identity.json").read_text())["identity"]
             self.assertEqual("observed", identity["runner"]["status"])
             self.assertIn("genome_templates", identity)
             self.assertIn("corpus/entry_1.json", identity["artifacts"])
             result = replay_scenario_rfuzz_corpus(output, executor.factory)
             self.assertEqual(1, result.matched_entries)
+
+    def test_dma_bound_fresh_identity_wraps_the_complete_inner_envelope_bytes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "run"
+            executor = self.make_bundle(output, versioned=False)
+            executor._dma_intent_binding = object()
+            executor._dma_bound_credentials = {}
+            executor._prepared_runtime_paths = SimpleNamespace(path_ids=())
+            executor.fresh_runtime_path_documents = {}
+            captured = {}
+
+            def encode(payload_bytes, **_kwargs):
+                captured["payload_bytes"] = payload_bytes
+                return json.dumps({
+                    "identity_sha256": "a" * 64,
+                    "payload_sha256": hashlib.sha256(payload_bytes).hexdigest(),
+                }).encode()
+
+            with patch("myfuzz.integration.scenario_rfuzz_live._rfuzz_client_identity",
+                       return_value={"binary_sha256": "test-client"}), \
+                 patch("myfuzz.scenario.dma_binding_replay.encode_dma_bound_payload",
+                       side_effect=encode):
+                _write_fresh_run_identity(
+                    output, executor=executor, checker_identity=None,
+                    client_binary=Path("unused"), run_config={"search_seed": 1})
+
+            self.assertTrue(captured["payload_bytes"].endswith(b"\n"))
 
     def test_targets_receipts_and_failure_trace_tamper_fail_before_factory(self):
         for filename in ("targets.json", "receipts.jsonl", "corpus/entry_1.json",

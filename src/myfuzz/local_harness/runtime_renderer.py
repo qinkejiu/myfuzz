@@ -290,7 +290,8 @@ def _obi_shape(endpoint, abi, *, read_only, error_response):
 
 
 def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarness,
-                         source_verification: dict[str, object], *, base_dir: Path) -> LocalRuntimeArtifact:
+                         source_verification: dict[str, object], *, base_dir: Path,
+                         _endpoint_link_collector=None) -> LocalRuntimeArtifact:
     """Authenticate one supplied plan/structure and emit its runtime adapter top.
 
     base_dir explicitly chooses the checkout. Verification is refreshed here,
@@ -300,10 +301,12 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
     from .native_physical_observation import native_physical_observation_requested
     native_raw = native_physical_observation_requested(plan.request)
     verified = _admit(plan, structural, source_verification, root)
-    return _render_admitted_runtime(plan, structural, verified, root, native_raw=native_raw)
+    return _render_admitted_runtime(plan, structural, verified, root, native_raw=native_raw,
+                                   _endpoint_link_collector=_endpoint_link_collector)
 
 
-def _render_admitted_runtime(plan, structural, verified, root, *, native_raw):
+def _render_admitted_runtime(plan, structural, verified, root, *, native_raw,
+                             _endpoint_link_collector=None):
     """Pure code generation from admitted values; this grants no source status.
 
     Keep admission in render_local_runtime. Consumers may reproduce the exact
@@ -812,6 +815,15 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw):
                                     role=role, channel=prefix))
                 statements.append(f'assign {name} = {wires[role]};' if direction == 'output'
                                   else f'assign {wires[role]} = {name};')
+                if prefix == 'mwb' and _endpoint_link_collector is not None:
+                    field = next(field for field in endpoint.fields if field.role == role)
+                    _endpoint_link_collector.append({
+                        'endpoint_id': endpoint.endpoint_id, 'function': endpoint.function,
+                        'backend_channel': prefix,
+                        'role': role, 'direction': direction, 'width': width,
+                        'physical_port': field.port, 'member_path': list(field.member_path),
+                        'raw_lo': field.raw_lo, 'raw_hi': field.raw_hi,
+                        'port_width': field.port_width, 'backend_port': name})
     elif kind == 'wishbone_cpu':
         wires = _shape(endpoints[0], _WISHBONE, abi)
         for role, (direction, width) in _WISHBONE.items():
@@ -1118,6 +1130,17 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw):
         if type(declared_wait) is not int or declared_wait < 1:
             raise ValueError('runtime-wishbone-timer-wait-bound')
         wait = min(declared_wait, plan.request.max_wait_cycles)
+        if kind == 'wishbone_uart':
+            trace_roles = ('cyc', 'stb', 'we', 'adr', 'dat_w', 'sel', 'ack')
+            trace_shape = {role: wishbone_shape[role] for role in trace_roles}
+            base_protocol_trace = _expose_protocol_trace(
+                'wishbone', endpoints[0],
+                profile_endpoint_clocks[endpoints[0].endpoint_id]
+                or clock_schedule['primary_clock_domain'],
+                trace_shape, {role: wires[role] for role in trace_roles},
+                ports, statements, backend)
+            base_protocol_trace.update(max_wait_cycles=wait,
+                sampling='pre_post', sample_group='backend')
         locals_.extend(['logic unused_request_accepted;', 'logic unused_completion;'])
         if not addressed:
             locals_.append('logic unused_adr;')
@@ -1281,6 +1304,8 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw):
             **base_protocol_trace,
             'max_wait_cycles': document['effective_max_wait_cycles'],
         }
+    if kind == 'wishbone_uart':
+        document['base_protocol_trace'] = base_protocol_trace
     if uart_fifo_observation is not None:
         document['uart_fifo_observation_contract'] = uart_fifo_observation
     if gpio_observation is not None:

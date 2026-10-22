@@ -107,6 +107,20 @@ class GeneratedPulpGpioSession(GeneratedLocalSession):
         self._check_artifact_stable()
         return 'gpio_observation_contract' in self._artifact_document
 
+    def dma_master_target_provider_identity_document(self):
+        """Version the PULP DMA adapter and the native observation it needs."""
+        if not self.routed_register_access_enabled:
+            raise ValueError('PULP GPIO DMA provider requires observation variant')
+        return {
+            'schema_version': 'pulp_gpio_dma_target_provider.v1',
+            'api_schema_version': 'dma_master_target_access.v1',
+            'implementation_profile': 'pulp_gpio_padout_apb3.v1',
+            'observation_contract': copy.deepcopy(
+                self._artifact_document['gpio_observation_contract']),
+            'operations': [{'operation': 'write', 'register': 'PADOUT',
+                'offset': 12, 'byte_enable': 15}],
+        }
+
     def routed_register_access(self, source_transaction, *, address, offset,
                                write, value, be, delivery_context):
         from myfuzz.scenario.ledger import TransactionKey
@@ -248,6 +262,219 @@ class GeneratedPulpGpioSession(GeneratedLocalSession):
             raise
         finally:
             self._gpio_active_context = None
+
+    def dma_master_target_access(self, source_transaction, *, address, offset,
+                                 write, value, byte_enable, delivery_context):
+        """Prove one DMA word write reached this instance's real PADOUT RTL."""
+        from myfuzz.scenario.ledger import TransactionKey
+
+        if not self.routed_register_access_enabled:
+            raise ValueError('PULP GPIO DMA target requires observation variant')
+        if type(source_transaction) is not TransactionKey:
+            raise ValueError('invalid PULP GPIO DMA transaction key')
+        if (type(write) is not bool or not write):
+            raise ValueError('PULP GPIO DMA target supports PADOUT write only')
+        if type(offset) is not int or offset != 12:
+            raise ValueError('PULP GPIO DMA target supports PADOUT offset 12 only')
+        if (type(address) is not int or not 0 <= address < 1 << 64
+                or address % 4):
+            raise ValueError('invalid PULP GPIO DMA target address')
+        _word(value, 'DMA PADOUT value')
+        if type(byte_enable) is not int or byte_enable != 15:
+            raise ValueError('PULP GPIO DMA target requires a full-word write')
+
+        context_fields = {
+            'source_transaction', 'device_id', 'window_base', 'window_size',
+            'address', 'offset', 'write', 'value', 'be'}
+        expected = {
+            'source_transaction': asdict(source_transaction),
+            'address': address, 'offset': offset, 'write': True,
+            'value': value, 'be': byte_enable,
+        }
+        if (type(delivery_context) is not dict
+                or set(delivery_context) != context_fields
+                or any(delivery_context.get(name) != actual
+                       for name, actual in expected.items())):
+            raise ValueError('PULP GPIO DMA delivery context mismatch')
+        context_key = delivery_context['source_transaction']
+        key_fields = {'execution_id', 'testcase_id', 'source_component',
+                      'source_epoch', 'channel_id', 'source_sequence'}
+        if (type(context_key) is not dict or set(context_key) != key_fields
+                or any(type(context_key[name]) is not str
+                       for name in ('execution_id', 'testcase_id',
+                                    'source_component', 'channel_id'))
+                or any(type(context_key[name]) is not int
+                       for name in ('source_epoch', 'source_sequence'))
+                or type(delivery_context['address']) is not int
+                or type(delivery_context['offset']) is not int
+                or type(delivery_context['write']) is not bool
+                or type(delivery_context['value']) is not int
+                or type(delivery_context['be']) is not int):
+            raise ValueError('PULP GPIO DMA delivery context types are invalid')
+        component = self._artifact_document.get('plan', {}).get('instance_id')
+        base, size = delivery_context['window_base'], delivery_context['window_size']
+        if (type(component) is not str or not component
+                or delivery_context['device_id'] != component
+                or type(base) is not int or not 0 <= base < 1 << 64
+                or base % 0x1000 != 0
+                or type(size) is not int or size < 4 or size % 4 != 0
+                or base + size > 1 << 64
+                or address != base + offset or address + 4 > base + size):
+            raise ValueError('PULP GPIO DMA window context mismatch')
+
+        request = {
+            'address': address, 'offset': offset, 'write': True,
+            'value': value, 'byte_enable': byte_enable,
+        }
+        key_document = asdict(source_transaction)
+        called = False
+        try:
+            # This is the sole APB entry point. It retains the native tick,
+            # target access, request, and response facts under the exact key.
+            called = True
+            routed = self.routed_register_access(
+                source_transaction, address=address, offset=offset,
+                write=True, value=value, be=byte_enable,
+                delivery_context=copy.deepcopy(delivery_context))
+            if type(routed) is not dict:
+                raise ValueError('PULP GPIO DMA target access receipt is invalid')
+
+            access = routed.get('target_apb_access')
+            target_request = routed.get('target_request')
+            target_response = routed.get('target_response')
+            access_id = routed.get('target_access_id')
+            if (type(access) is not dict or type(access.get('pre')) is not dict
+                    or type(access.get('post')) is not dict):
+                raise ValueError('PULP GPIO DMA APB access was not observed')
+            pre, post = access['pre'], access['post']
+            if pre.get('gpio_probe_pslverr') != 0:
+                raise ValueError('PULP GPIO DMA APB error was observed')
+            apb_matches = all(
+                type(pre.get(name)) is int and pre[name] == actual
+                for name, actual in {
+                    'gpio_probe_psel': 1,
+                    'gpio_probe_penable': 1,
+                    'gpio_probe_apb_addr': offset,
+                    'gpio_probe_pwrite': 1,
+                    'gpio_probe_pwdata': value,
+                    'gpio_probe_pready': 1,
+                    'gpio_probe_pslverr': 0,
+                }.items())
+            if not apb_matches:
+                raise ValueError('PULP GPIO DMA APB request/access mismatch')
+            access_ok = (
+                access.get('schema_version') == 'gpio_target_observation.v1'
+                and access.get('status') == 'observed'
+                and access.get('source_transaction') == key_document
+                and access.get('component') == component
+                and access.get('raw_offset') == offset
+                and access.get('decoded_offset') == offset
+                and access.get('write') is True
+                and access.get('wdata') == value
+                and type(access_id) is str and bool(access_id)
+                and access.get('access_id') == access_id
+                and type(access.get('local_tick')) is int)
+            if not access_ok:
+                raise ValueError('PULP GPIO DMA APB access was not observed')
+
+            request_backend = (target_request.get('backend')
+                               if type(target_request) is dict else None)
+            request_identity_ok = (
+                type(target_request) is dict
+                and target_request.get('schema_version') == 'gpio_target_transport.v1'
+                and target_request.get('source_transaction') == key_document
+                and target_request.get('access_id') == access_id
+                and type(target_request.get('local_tick')) is int
+                and type(request_backend) is dict)
+            if not request_identity_ok:
+                raise ValueError('PULP GPIO DMA target request was not observed')
+            request_matches = all(
+                type(request_backend.get(name)) is int
+                and request_backend[name] == actual
+                for name, actual in {
+                    'gpio_req_valid': 1,
+                    'gpio_req_ready': 1,
+                    'gpio_req_addr': offset,
+                    'gpio_req_write': 1,
+                    'gpio_req_wdata': value,
+                    'gpio_req_be': byte_enable,
+                }.items())
+            if not request_matches:
+                raise ValueError('PULP GPIO DMA target request was not observed')
+
+            access_response = access.get('target_response')
+            response_backend = (target_response.get('backend')
+                                if type(target_response) is dict else None)
+            response_identity_ok = (
+                type(target_response) is dict
+                and target_response.get('schema_version') == 'gpio_target_transport.v1'
+                and target_response.get('source_transaction') == key_document
+                and target_response.get('access_id') == access_id
+                and type(target_response.get('local_tick')) is int
+                and type(response_backend) is dict
+                and type(access_response) is dict)
+            if not response_identity_ok:
+                raise ValueError('PULP GPIO DMA target response was not observed or had APB error')
+            response_matches = (
+                type(access_response.get('rdata')) is int
+                and 0 <= access_response['rdata'] <= _WORD
+                and type(access_response.get('error')) is int
+                and access_response['error'] == 0
+                and type(response_backend.get('gpio_rsp_rdata')) is int
+                and response_backend['gpio_rsp_rdata'] == access_response['rdata']
+                and type(response_backend.get('gpio_rsp_error')) is int
+                and response_backend['gpio_rsp_error'] == 0
+                and type(response_backend.get('gpio_rsp_valid')) is int
+                and response_backend['gpio_rsp_valid'] == 1
+                and type(response_backend.get('gpio_rsp_ready')) is int
+                and response_backend['gpio_rsp_ready'] == 1
+                and routed.get('rdata') == access_response['rdata'])
+            if (not response_matches
+                    or target_response.get('status') != 'observed'):
+                raise ValueError('PULP GPIO DMA target response was not observed or had APB error')
+            if target_request.get('status') != 'observed':
+                raise ValueError('PULP GPIO DMA target request was not observed')
+
+            tick = access['local_tick']
+            if not (target_request['local_tick'] < tick
+                    < target_response['local_tick']):
+                raise ValueError('PULP GPIO DMA APB request/response order mismatch')
+            post_value = post.get('gpio_probe_out')
+            if type(post_value) is not int or post_value != value:
+                raise ValueError('PULP GPIO DMA PADOUT effect was not observed')
+
+            effect = {
+                'schema_version': 'pulp_gpio_padout_effect.v1',
+                'status': 'observed',
+                'source_transaction': copy.deepcopy(key_document),
+                'request': copy.deepcopy(request),
+                'register': 'PADOUT', 'offset': offset,
+                'accepted_value': value, 'post_probe_value': post_value,
+                'access_id': access_id, 'local_tick': tick,
+            }
+            return {
+                'schema_version': 'dma_master_target_access.v1',
+                'status': 'observed',
+                'source_transaction': copy.deepcopy(key_document),
+                'request': copy.deepcopy(request),
+                'response': {'rdata': access_response['rdata'], 'error': 0},
+                'target_access_id': access_id,
+                'target_access': copy.deepcopy(access),
+                'target_request': copy.deepcopy(target_request),
+                'target_response': copy.deepcopy(target_response),
+                'target_effect': effect,
+            }
+        except BaseException:
+            if called:
+                self.gpio_events.append({
+                    'schema_version': 'pulp_gpio_dma_target_terminal.v1',
+                    'kind': 'gpio_dma_target_terminal', 'status': 'uncertain',
+                    'source_transaction': copy.deepcopy(key_document),
+                    'request': copy.deepcopy(request),
+                    'delivery_context': copy.deepcopy(delivery_context),
+                    'reset_epoch': self.reset_epoch,
+                })
+            raise
 
     def _normalized_physical(self, snapshot):
         raw = snapshot.get('physical', {})

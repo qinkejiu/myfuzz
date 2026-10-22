@@ -19,7 +19,7 @@ class OpenTitanMutationTests(unittest.TestCase):
                 factory, decoder, targets, seed = make_opentitan_mutation_bundle(component_id)
                 runner = factory()
                 self.assertTrue(decoder.trusted_for_search)
-                self.assertEqual("scenario_rfuzz_decoder.v2", decoder.document()["schema_version"])
+                self.assertEqual("scenario_rfuzz_decoder.v4", decoder.document()["schema_version"])
                 self.assertEqual({"cpu", device}, set(runner.sessions))
                 self.assertEqual(runner.ownership.document(), decoder.ownership.document())
                 self.assertEqual(1, len(targets))

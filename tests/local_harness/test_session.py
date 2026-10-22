@@ -35,6 +35,7 @@ class GeneratedSessionTests(unittest.TestCase):
             import json, sys, time
             digest = {DIGEST!r}
             mode = {mode!r}
+            kind = {self.document['kind']!r}
             if mode == 'wrong_ready': digest = 'b' * 64
             print('READY local_driver.v1 ' + digest + ' 8 4', flush=True)
             tick = 0
@@ -54,10 +55,16 @@ class GeneratedSessionTests(unittest.TestCase):
                 if mode == 'bad_tick': before = tick + 1
                 else: before = tick
                 tick += 1
-                payload = {{'schema_version':'local_driver_result.v1','kind':'apb_gpio',
+                payload = {{'schema_version':'local_driver_result.v1','kind':kind,
                            'samples':[{{'local_tick':tick,'pre':{{}},'post':{{}}}}],
                            'observations':{{'gpio_out':tick}},'pre_backend':{{}},
                            'rdata':0,'error':0}}
+                if mode == 'native_valid_taps':
+                    taps = {{'cpu_native_trace_valid':1, 'cpu_native_trace_addr':0,
+                            'cpu_native_trace_wdata':0, 'cpu_native_trace_wstrb':0,
+                            'cpu_native_trace_ready':0, 'cpu_native_trace_rdata':0}}
+                    for phase in ('pre', 'post'):
+                        payload['samples'][0][phase]['protocol_taps'] = dict(taps)
                 encoded = json.dumps(payload,sort_keys=True,separators=(',',':')).encode().hex()
                 print('RESULT ' + parts[1] + ' ' + parts[2] + ' ' +
                       format(before,'x') + ' ' + format(tick,'x') + ' ' + encoded,
@@ -77,6 +84,44 @@ class GeneratedSessionTests(unittest.TestCase):
         self.addCleanup(patcher.stop)
         self.addCleanup(session.end_case)
         return session
+
+    def enable_native_taps(self):
+        self.document['kind'] = 'native_memory_cpu'
+        self.document['native_completion_observation'] = {'schema_version':
+            'native_completion_observation.v1'}
+        self.document['protocol_tap_ports'] = [
+            {'name': name, 'width': width} for name, width in (
+                ('cpu_native_trace_valid', 1), ('cpu_native_trace_addr', 32),
+                ('cpu_native_trace_wdata', 32), ('cpu_native_trace_wstrb', 4),
+                ('cpu_native_trace_ready', 1), ('cpu_native_trace_rdata', 32))]
+
+    def test_opted_in_native_receipt_requires_taps_before_command_commit(self):
+        self.enable_native_taps()
+        session = self.make_session(mode='valid')
+        session.prepare_local()
+        session.begin_case('native-case')
+        with self.assertRaises(ValueError):
+            session.command('STEP_MEMORY', (0, 0, 0, 0))
+        self.assertEqual((0, 0), (session._sequence, session.local_ticks))
+        self.assertIsNone(session.process)
+
+    def test_opted_in_native_receipt_forwards_exact_tap_contract(self):
+        self.enable_native_taps()
+        session = self.make_session(mode='native_valid_taps')
+        session.prepare_local()
+        session.begin_case('native-case')
+        receipt = session.command('STEP_MEMORY', (0, 0, 0, 0))
+        self.assertEqual((1, 1), (session._sequence, session.local_ticks))
+        self.assertEqual(1, receipt.payload['samples'][0]['pre']
+                         ['protocol_taps']['cpu_native_trace_valid'])
+
+    def test_native_without_observation_accepts_legacy_receipt(self):
+        self.document['kind'] = 'native_memory_cpu'
+        session = self.make_session(mode='valid')
+        session.prepare_local()
+        session.begin_case('legacy-native-case')
+        receipt = session.command('STEP_MEMORY', (0, 0, 0, 0))
+        self.assertEqual((1, 1), (session._sequence, receipt.tick_after))
 
     def test_process_stays_alive_across_commands_and_ticks_are_monotone(self):
         session = self.make_session()

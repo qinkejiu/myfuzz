@@ -21,11 +21,13 @@ from pathlib import Path
 
 from myfuzz.local_harness.apb_storage_probe_verification import (
     verified_storage_observation)
+from myfuzz.local_harness.apb_storage_source_contract import (
+    validate_apb_storage_source_contract, apb_storage_address_matches)
 from myfuzz.local_harness.native_physical_observation import (
     verify_apb_register_trace)
 from myfuzz.local_harness.runtime_artifact import LocalRuntimeArtifact
 from myfuzz.scenario.apb_storage_register_version import (
-    ApbStorageRegisterVersionAuthority)
+    ApbStorageRegisterVersionAuthority, storage_version_basis)
 
 CONSUMER_QUALNAME = (
     'myfuzz.integration.generated_storage_consumer.check_storage_observation')
@@ -55,8 +57,6 @@ PROBE_WIDTHS = {
 }
 TRACE_ROLES = frozenset({'paddr', 'psel', 'penable', 'pwrite', 'pwdata',
                          'pready', 'prdata', 'pslverr'})
-ALIAS_MASK = 0x1c
-ALIAS_VALUE = 0x4
 FULL_MASK = 0xffffffff
 VERSION_BASIS = 'all_measured_CTRL_alias_writes_since_first_command'
 HISTORY_SCOPE = ('complete_commands_since_first_measured_state_'
@@ -133,7 +133,7 @@ def stable_storage_version(witness):
     return document
 
 
-def _check_declaration(declaration, *, target_artifact, register):
+def _check_declaration(declaration, *, target_artifact, register, contract):
     if (not isinstance(declaration, dict)
             or declaration.get('schema_version')
             != 'generated_register_writer.v1'):
@@ -159,13 +159,13 @@ def _check_declaration(declaration, *, target_artifact, register):
             or access.get('operation') != 'write'
             or access.get('value_origin') != 'cpu_transaction_wdata'
             or access.get('register_origin') != 'bound_target_register_commit'
-            or access.get('width_bytes') != 4
+            or access.get('width_bytes') != contract['register']['width'] // 8
             or access.get('allowed_byte_enables') != [15]
             or access.get('byte_enable_domain') != 'target_word_lanes'
             or access.get('access_alignment') != 4
-            or access.get('value_mask') != FULL_MASK
-            or not 0 <= value <= FULL_MASK
-            or offset & ALIAS_MASK != ALIAS_VALUE
+            or access.get('value_mask') != contract['register']['write_mask']
+            or not 0 <= value <= contract['register']['write_mask']
+            or apb_storage_address_matches(contract, offset) is not True
             or access.get('address') != window_base + offset
             or type(access.get('source_component')) is not str
             or type(access.get('target_component')) is not str
@@ -194,7 +194,7 @@ def _check_before(before, *, prior_writes, register):
             or not _hex64(before['source_contract_digest'])
             or not _hex64(before['probe_digest'])
             or type(before['execution']) is not str
-            or before['version_basis'] != VERSION_BASIS
+            or before['version_basis'] != storage_version_basis(register)
             or before['history_scope'] != HISTORY_SCOPE
             or type(before['reset_waveform_observed']) is not bool
             or before['grants_reset_prerequisite'] is not False
@@ -234,7 +234,7 @@ def _join_delivery(events, *, delivery, component, device, address, offset,
 
 
 def _transfer_samples(events, *, delivery, component, signals, expected_write,
-                      offset, value, reset_epoch):
+                      offset, value, reset_epoch, contract):
     """Find the exact accepted native APB pre/post pair of one delivery."""
     rows = [e for e in events if e.get('kind') == 'local_tick_sample'
             and e.get('component') == component
@@ -266,6 +266,7 @@ def _transfer_samples(events, *, delivery, component, signals, expected_write,
     backend = pre['outputs']['backend']
     observed = pre['outputs']['storage_probes']
     if (type(pre.get('local_tick')) is not int or pre['local_tick'] < 1
+            or type(pre.get('event_id')) is not int or pre['event_id'] < 1
             or pre.get('reset_epoch') != reset_epoch
             or pre.get('observation_schema_version') != 'ip_raw_observation.v1'):
         raise ValueError('compiled-F4-storage-native-transfer-mismatch')
@@ -282,7 +283,7 @@ def _transfer_samples(events, *, delivery, component, signals, expected_write,
         if observed['storage_' + role] != backend.get(signals[role]):
             raise ValueError(
                 'compiled-F4-storage-storage-probe-trace-mismatch')
-    if observed['storage_paddr'] & ALIAS_MASK != ALIAS_VALUE:
+    if apb_storage_address_matches(contract, observed['storage_paddr']) is not True:
         raise ValueError('compiled-F4-storage-alias-mismatch')
     if observed['storage_paddr'] % 4:
         raise ValueError('compiled-F4-storage-alias-mismatch')
@@ -305,14 +306,44 @@ def _transfer_samples(events, *, delivery, component, signals, expected_write,
     if len(posts) != 1:
         raise ValueError('compiled-F4-storage-native-post-sample-missing')
     post = posts[0]
-    if post['outputs']['storage_probes']['storage_reset'] != observed['storage_reset']:
+    post_backend = post['outputs'].get('backend')
+    post_observed = post['outputs']['storage_probes']
+    if (type(post.get('event_id')) is not int
+            or post['event_id'] <= pre['event_id']
+            or post.get('observation_schema_version')
+            != pre.get('observation_schema_version')
+            or not isinstance(post_backend, dict)):
+        raise ValueError('compiled-F4-storage-native-post-sample-mismatch')
+    for name, width in PROBE_WIDTHS.items():
+        if (type(post_observed[name]) is not int
+                or not 0 <= post_observed[name] < 1 << width):
+            raise ValueError('compiled-F4-storage-storage-probe-width')
+    for role in TRACE_ROLES:
+        name = 'storage_' + role
+        backend_value = post_backend.get(signals[role])
+        width = PROBE_WIDTHS[name]
+        if (type(backend_value) is not int
+                or not 0 <= backend_value < 1 << width):
+            raise ValueError('compiled-F4-storage-native-post-sample-mismatch')
+        if post_observed[name] != backend_value:
+            raise ValueError(
+                'compiled-F4-storage-storage-probe-trace-mismatch')
+    # The pre sample above proves this transaction's address while APB is
+    # selected and enabled.  After completion the bus is idle; APB does not
+    # assign transaction meaning to PADDR in that phase, so only require the
+    # paired backend/probe observations to agree.
+    if (post_observed['storage_psel'] != 0
+            or post_observed['storage_penable'] != 0):
+        raise ValueError('compiled-F4-storage-native-post-not-idle')
+    if post_observed['storage_reset'] not in (0, 1):
         raise ValueError('compiled-F4-storage-reset-level')
-    return pre, post, deepcopy(observed), deepcopy(
-        post['outputs']['storage_probes'])
+    if post_observed['storage_reset'] != observed['storage_reset']:
+        raise ValueError('compiled-F4-storage-reset-level')
+    return pre, post, deepcopy(observed), deepcopy(post_observed)
 
 
 def _check_commit(commit, *, before, access, value, writes_all, delivery, pre,
-                  post, probes_pre, probes_post, target):
+                  post, probes_pre, probes_post, target, contract):
     if (not isinstance(commit, dict) or set(commit) != COMMIT_KEYS
             or not isinstance(commit.get('context'), dict)
             or not isinstance(commit.get('raw_reference'), dict)):
@@ -324,7 +355,7 @@ def _check_commit(commit, *, before, access, value, writes_all, delivery, pre,
             or any(type(commit[key]) is not int for key in
                    ('tick', 'raw_address', 'before', 'after', 'sample_index',
                     'command_sequence'))
-            or any(not 0 <= commit[key] <= FULL_MASK
+            or any(not 0 <= commit[key] < 1 << contract['register']['width']
                    for key in ('before', 'after'))
             or commit['phase'] != 'pre'
             or commit['sample_index'] < 0
@@ -364,9 +395,10 @@ def _check_commit(commit, *, before, access, value, writes_all, delivery, pre,
         raise ValueError('compiled-F4-storage-commit-sequence-mismatch')
     if commit['tick'] != pre['local_tick'] or post['local_tick'] != commit['tick']:
         raise ValueError('compiled-F4-storage-commit-tick-mismatch')
-    if (commit['raw_address'] & ALIAS_MASK != ALIAS_VALUE
+    if (not 0 <= commit['raw_address'] < access['window_size']
+            or apb_storage_address_matches(contract, commit['raw_address']) is not True
             or commit['raw_address'] % 4
-            or not 0 <= commit['raw_address'] < access['window_size']
+            or commit['raw_address'] != access['register_offset']
             or commit['raw_address'] != probes_pre['storage_paddr']):
         raise ValueError('compiled-F4-storage-commit-alias-mismatch')
     if (commit['before'] != before['value']
@@ -423,7 +455,13 @@ def check_storage_observation(declaration, receipt, *, target_artifact, authorit
             or {row['name'] for row in ports} != set(PROBE_WIDTHS)):
         raise ValueError(
             'compiled-F4-storage-observation-contract-mismatch')
-    contract = observation['source_contract']
+    try:
+        contract = validate_apb_storage_source_contract(
+            observation['source_contract'], target_artifact.plan.profile,
+            base_dir=target.base_dir)
+    except ValueError as error:
+        raise ValueError(
+            'compiled-F4-storage-observation-contract-mismatch') from error
     if (contract.get('contract_id')
             != observation.get('selection', {}).get('contract_id')
             or contract.get('scope') != 'source_reviewed_contract'
@@ -434,11 +472,8 @@ def check_storage_observation(declaration, receipt, *, target_artifact, authorit
             or not isinstance(contract.get('register'), dict)
             or contract['register'].get('name') != register
             or contract['register'].get('width') != 32
-            or contract['register'].get('canonical_offset') != ALIAS_VALUE
             or contract['register'].get('write_mask') != FULL_MASK
-            or not isinstance(contract.get('decode'), dict)
-            or contract['decode'].get('mask') != ALIAS_MASK
-            or contract['decode'].get('value') != ALIAS_VALUE):
+            or not isinstance(contract.get('decode'), dict)):
         raise ValueError(
             'compiled-F4-storage-observation-contract-mismatch')
     try:
@@ -449,12 +484,13 @@ def check_storage_observation(declaration, receipt, *, target_artifact, authorit
             runtime_sv=target_artifact.runtime_sv,
             wrapper_sha256=(document.get('structural_build') or {}).get(
                 'wrapper_sha256'),
-            base_dir=Path(__file__).resolve().parents[3])
+            base_dir=target.base_dir)
     except ValueError as error:
         raise ValueError(
             'compiled-F4-storage-observation-contract-mismatch') from error
     access, value = _check_declaration(
-        declaration, target_artifact=target_artifact, register=register)
+        declaration, target_artifact=target_artifact, register=register,
+        contract=contract)
     if target.reset_epoch != reset_epoch:
         raise ValueError('compiled-F4-storage-epoch-mismatch')
     _check_before(before, prior_writes=prior_writes, register=register)
@@ -520,11 +556,11 @@ def check_storage_observation(declaration, receipt, *, target_artifact, authorit
     write_pre, write_post, write_probes, write_post_probes = _transfer_samples(
         receipt_events, delivery=write_delivery, component=target_component,
         signals=signals, expected_write=True, offset=offset, value=value,
-        reset_epoch=reset_epoch)
+        reset_epoch=reset_epoch, contract=contract)
     read_pre, read_post, read_probes, read_post_probes = _transfer_samples(
         receipt_events, delivery=read_delivery, component=target_component,
         signals=signals, expected_write=False, offset=offset, value=value,
-        reset_epoch=reset_epoch)
+        reset_epoch=reset_epoch, contract=contract)
     if write_pre['local_tick'] >= read_pre['local_tick']:
         raise ValueError('compiled-F4-storage-sequence-mismatch')
     if write_post['event_id'] >= read_acceptance['event_id']:
@@ -553,7 +589,8 @@ def check_storage_observation(declaration, receipt, *, target_artifact, authorit
     commit = _check_commit(writes_all[prior_writes], before=before,
         access=access, value=value, writes_all=writes_all,
         delivery=write_delivery, pre=write_pre, post=write_post,
-        probes_pre=write_probes, probes_post=write_post_probes, target=target)
+        probes_pre=write_probes, probes_post=write_post_probes, target=target,
+        contract=contract)
     witness = authority.consume(token)
     if not isinstance(witness, dict) or set(witness) != WITNESS_KEYS:
         raise ValueError('compiled-F4-storage-witness-shape')
@@ -562,7 +599,7 @@ def check_storage_observation(declaration, receipt, *, target_artifact, authorit
             or witness['value'] != value
             or witness['write_count'] != prior_writes + 1
             or witness['field_version'] != prior_writes + 1
-            or witness['version_basis'] != VERSION_BASIS
+            or witness['version_basis'] != storage_version_basis(register)
             or witness['history_scope'] != HISTORY_SCOPE
             or witness['write_history_sha256'] != _digest(writes_all)
             or witness['grants_reset_prerequisite'] is not False
@@ -600,6 +637,8 @@ def check_storage_observation(declaration, receipt, *, target_artifact, authorit
     if (before['pid'] != witness['pid']
             or before['execution'] != witness['execution']):
         raise ValueError('compiled-F4-storage-witness-process-mismatch')
+    if before['build_identity_sha256'] != witness['build_identity_sha256']:
+        raise ValueError('compiled-F4-storage-witness-build-identity-mismatch')
     joins = [
         dict(delivery_event=write_delivery['event_id'],
              acceptance_event=write_acceptance['event_id'],
@@ -752,6 +791,14 @@ def storage_consumer_support(*, binding, artifacts):
               'router_delivery': delivery_ok,
               'native_apb_pre_sample': probe_ok,
               'version_token': token_ok}
+    bases = dict(ELEMENT_BASIS)
+    if probe_ok:
+        decode = probe['source_contract'].get('decode', {})
+        mask = decode.get('mask')
+        if type(mask) is int and mask > 0:
+            bases['native_apb_pre_sample'] = (
+                'native APB pre/post storage_probes with '
+                f'PADDR[{mask.bit_length() - 1}:2] alias and reset levels')
     refusals = [dict(code='compiled-F4-storage-receipt-join-incomplete',
                      element=name) for name in RECEIPT_ELEMENTS
                 if not states[name]]
@@ -762,7 +809,7 @@ def storage_consumer_support(*, binding, artifacts):
         row=document.get('row'), consumer=CONSUMER_QUALNAME,
         receipt_elements=list(RECEIPT_ELEMENTS),
         elements={name: dict(present=bool(states[name]),
-                             basis=ELEMENT_BASIS[name])
+                             basis=bases[name])
                   for name in RECEIPT_ELEMENTS},
         refusals=refusals, runtime_admitted=False,
         authority_scope=('source_code_identity_only_live_token_requires_'
@@ -776,11 +823,15 @@ _PINNED_ISSUER = (ApbStorageRegisterVersionAuthority,
                   ApbStorageRegisterVersionAuthority.issue.__code__)
 _CONSUMER_PIN = (check_storage_observation, check_storage_observation.__code__)
 _SUPPORT_PIN = (storage_consumer_support, storage_consumer_support.__code__)
+_SOURCE_PINS = {function.__name__: (function, function.__code__) for function in (
+    validate_apb_storage_source_contract, apb_storage_address_matches,
+    storage_version_basis)}
 
 
 def _check_pins():
     import myfuzz.local_harness.native_physical_observation as observation_module
     import myfuzz.scenario.apb_storage_register_version as version_module
+    import myfuzz.local_harness.apb_storage_source_contract as source_module
     if (_CONSUMER_PIN[0] is not check_storage_observation
             or _CONSUMER_PIN[1] is not check_storage_observation.__code__
             or _SUPPORT_PIN[0] is not storage_consumer_support
@@ -792,5 +843,10 @@ def _check_pins():
             or getattr(version_module, 'ApbStorageRegisterVersionAuthority',
                        None) is not _PINNED_ISSUER[0]
             or _PINNED_ISSUER[0].consume.__code__ is not _PINNED_ISSUER[1]
-            or _PINNED_ISSUER[0].issue.__code__ is not _PINNED_ISSUER[2]):
+            or _PINNED_ISSUER[0].issue.__code__ is not _PINNED_ISSUER[2]
+            or any(globals().get(name) is not function
+                   or function.__code__ is not code
+                   or getattr(version_module if name == 'storage_version_basis'
+                              else source_module, name) is not function
+                   for name, (function, code) in _SOURCE_PINS.items())):
         raise ValueError('compiled-F4-storage-consumer-drift')

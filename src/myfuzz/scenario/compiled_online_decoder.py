@@ -48,7 +48,7 @@ from myfuzz.scenario.batch import BatchAdvance
 from myfuzz.scenario.compiled_paths import (
     compiled_document_sha256 as _compiled_document_sha256)
 from myfuzz.scenario.rfuzz_decoder import RECORD_BYTES
-from myfuzz.scenario.session_runtime import OnlineCase, OnlineInstruction
+from myfuzz.scenario.session_runtime import OnlineCase, OnlineInstruction, BoundOnlineInstruction
 
 DECODER_SCHEMA = 'compiled_online_decoder.v1'
 CANDIDATE_SCHEMA = 'compiled_online_candidate.v1'
@@ -100,10 +100,12 @@ class CompiledCandidate:
     layout_digest: str
     candidate_sha256: str
     case_id: str
+    runtime_path_id: str | None = None
+    runtime_path_admission_sha256: str | None = None
 
     def document(self) -> dict:
         """The reviewable identity of this decode; no native result is claimed."""
-        return {
+        document = {
             'schema_version': CANDIDATE_SCHEMA,
             'case_id': self.case_id,
             'path_id': self.path_id,
@@ -126,6 +128,11 @@ class CompiledCandidate:
             'instruction_address': self.case.source.address,
             'candidate_access': dict(self.declaration['candidate']['access']),
         }
+        if self.runtime_path_id is not None:
+            document.update(runtime_path_id=self.runtime_path_id,
+                runtime_path_admission_sha256=self.runtime_path_admission_sha256,
+                instruction_graph_source_id=self.case.source.source_id)
+        return document
 
 
 def compiled_document_sha256(compiled) -> str:
@@ -199,7 +206,8 @@ class CompiledOnlineDecoder:
 
     def __init__(self, *, request, compiled, path, layout, run_id, cpu_id,
                  schedule, rounds, instruction_start, instruction_end,
-                 result_address, compiled_sha256=None, cursor_provider=None):
+                 result_address, compiled_sha256=None, cursor_provider=None,
+                 runtime_path_admission=None):
         if not isinstance(compiled, dict) or not isinstance(path, dict):
             raise CompiledCandidateRefused('declaration-required')
         if not isinstance(layout, CandidateLayout):
@@ -277,11 +285,32 @@ class CompiledOnlineDecoder:
         self.max_input_bytes = self.wire_bytes
         self.max_records = 1
         self._cursor_provider = cursor_provider
+        self.runtime_path_admission = runtime_path_admission
+        self.runtime_contract = None
+        self._runtime_path_admission_document = None
+        if runtime_path_admission is not None:
+            from myfuzz.integration.compiled_f4_runtime_path import (
+                CompiledF4RuntimePathAdmission, admit_compiled_f4_runtime_path)
+            if type(runtime_path_admission) is not CompiledF4RuntimePathAdmission:
+                raise CompiledCandidateRefused('runtime-path-admission-required')
+            runtime_path_admission.validate_cached_identity()
+            expected = admit_compiled_f4_runtime_path(request=request,
+                compiled=compiled, path=path)
+            if runtime_path_admission.document() != expected.document():
+                raise CompiledCandidateRefused('runtime-path-admission-mismatch')
+            binding = runtime_path_admission.instruction_binding
+            if (binding.component != cpu_id or instruction_start != binding.base
+                    or instruction_end != binding.base + binding.size
+                    or result_address != instruction_end - 4):
+                raise CompiledCandidateRefused('runtime-image-reservation-mismatch')
+            self.runtime_contract = runtime_path_admission.prepared.contract
+            self._runtime_path_admission_document = runtime_path_admission.document()
 
     @classmethod
     def from_request(cls, *, request, compiled, path, run_id, cpu_id, schedule,
                      rounds, instruction_start, instruction_end, result_address,
-                     compiled_sha256=None, cursor_provider=None):
+                     compiled_sha256=None, cursor_provider=None,
+                     runtime_path_admission=None):
         """Recompile D3 from the trusted request, then bind its exact layout."""
         from myfuzz.scenario.compiled_paths import compile_paths
 
@@ -301,7 +330,8 @@ class CompiledOnlineDecoder:
                    instruction_end=instruction_end,
                    result_address=result_address,
                    compiled_sha256=compiled_sha256,
-                   cursor_provider=cursor_provider)
+                   cursor_provider=cursor_provider,
+                   runtime_path_admission=runtime_path_admission)
 
     @classmethod
     def from_runtime(cls, runtime, *, run_id=None):
@@ -321,7 +351,8 @@ class CompiledOnlineDecoder:
             instruction_end=runtime.end,
             result_address=runtime.result,
             compiled_sha256=runtime.compiled_digest,
-            cursor_provider=lambda: runtime.cursor)
+            cursor_provider=lambda: runtime.cursor,
+            runtime_path_admission=getattr(runtime, 'runtime_path_admission', None))
 
     def verify(self) -> None:
         """Refuse a stale, edited or replaced declaration before a decode."""
@@ -335,6 +366,15 @@ class CompiledOnlineDecoder:
             raise CompiledCandidateRefused('compiled-path-identity-changed')
         if compiled_document_sha256(self.compiled) != self.compiled_sha256:
             raise CompiledCandidateRefused('compiled-digest-identity-changed')
+        if (self.runtime_path_admission is None) != (self._runtime_path_admission_document is None):
+            raise CompiledCandidateRefused('runtime-path-admission-identity-changed')
+        if self.runtime_path_admission is not None:
+            self.runtime_path_admission.validate_cached_identity()
+            if (self.runtime_path_admission.document() != self._runtime_path_admission_document
+                    or self.runtime_contract != self.runtime_path_admission.prepared.contract):
+                raise CompiledCandidateRefused('runtime-path-admission-identity-changed')
+        elif self.runtime_contract is not None:
+            raise CompiledCandidateRefused('runtime-path-admission-identity-changed')
 
     def decode_candidate(self, raw, *, cursor, case_index, case_id=None
                          ) -> CompiledCandidate:
@@ -401,10 +441,15 @@ class CompiledOnlineDecoder:
                 detail={'cursor': cursor, 'instruction_bytes': len(code),
                         'result_address': self.result_address})
         identity = f'{self.run_id}:{case_index}' if case_id is None else case_id
+        admission = self.runtime_path_admission
+        instruction = (OnlineInstruction(f'{self.image["source_id"]}:{case_index}',
+                           self.cpu_id, cursor, code.hex()) if admission is None else
+            BoundOnlineInstruction(f'{self.image["source_id"]}:{case_index}',
+                self.cpu_id, cursor, code.hex(), admission.instruction_binding.source_id))
         case = OnlineCase(
-            identity, self.direction, self.path_id,
-            OnlineInstruction(f'{self.image["source_id"]}:{case_index}',
-                              self.cpu_id, cursor, code.hex()),
+            identity, self.direction,
+            self.path_id if admission is None else admission.runtime_path_id,
+            instruction,
             tuple(BatchAdvance(self.schedule) for _ in range(self.rounds)))
         access = declaration['candidate']['access']
         return CompiledCandidate(
@@ -418,12 +463,15 @@ class CompiledOnlineDecoder:
             compiled_sha256=self.compiled_sha256,
             layout_digest=self.layout.digest,
             candidate_sha256=sha256(projection.candidate_bytes).hexdigest(),
-            case_id=identity)
+            case_id=identity,
+            runtime_path_id=admission.runtime_path_id if admission is not None else None,
+            runtime_path_admission_sha256=admission.digest if admission is not None else None)
 
     def document(self) -> dict:
-        """Stable decoder manifest; it declares no runtime-path contract."""
-        return {
-            'schema_version': DECODER_SCHEMA,
+        """Stable decoder manifest including an explicitly admitted runtime path."""
+        self.verify()
+        document = {
+            'schema_version': DECODER_SCHEMA if self.runtime_path_admission is None else 'compiled_online_decoder.v2',
             'path_id': self.path_id,
             'flow_id': 'F4',
             'direction': self.direction,
@@ -456,3 +504,11 @@ class CompiledOnlineDecoder:
             'trusted_for_search': True,
             'runtime_contract': None,
         }
+        if self.runtime_path_admission is not None:
+            admission = self.runtime_path_admission
+            document.update(runtime_contract=admission.prepared.contract.document(),
+                graph=admission.prepared.graph.edge_document(),
+                path_mapping=admission.prepared.document()['selections'],
+                runtime_path_admission=admission.document(),
+                instruction_image_bindings=[admission.instruction_binding.document()])
+        return document

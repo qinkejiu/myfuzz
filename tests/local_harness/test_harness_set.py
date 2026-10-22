@@ -16,6 +16,7 @@ tests pin them:
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 
 import pytest
@@ -38,6 +39,11 @@ GPIO_REQUEST = {
     'schema_version': 'local_harness.v1', 'profile_path': GPIO_PROFILE,
     'instance_id': 'gpio', 'reset_assert_ticks': 2, 'reset_release_ticks': 2,
     'max_wait_cycles': 16}
+DMA_REQUEST = {
+    'schema_version': 'local_harness.v1',
+    'profile_path': 'configs/peripherals/zipcpu_wbdmac/component_profile.json',
+    'instance_id': 'mover', 'reset_assert_ticks': 8,
+    'reset_release_ticks': 8, 'max_wait_cycles': 16}
 
 
 def write(path: Path, value) -> Path:
@@ -64,6 +70,230 @@ def compose_document(tmp_path: Path, *, cpu_endpoint='processor.data',
                      'base': 0x40000000, 'size': 0x1000}],
     }
     return write(tmp_path / 'compose.json', document)
+
+
+def dma_compose_document(tmp_path: Path, *, names=('cpu', 'sink', 'mover')):
+    cpu_name, output_name, mover_name = names
+    write(tmp_path / 'requests/cpu.json', {**CPU_REQUEST, 'instance_id': cpu_name})
+    write(tmp_path / 'requests/gpio.json', {**GPIO_REQUEST,
+                                           'instance_id': output_name})
+    write(tmp_path / 'requests/dma.json', {**DMA_REQUEST,
+                                          'instance_id': mover_name})
+    route = {
+        'route_id': 'copy.destination', 'initiator_instance': mover_name,
+        'initiator_endpoint_id': 'dma.memory',
+        'target': {'kind': 'peripheral', 'component_instance': output_name,
+                   'device_id': 'output.window', 'endpoint_id': 'gpio.bus'},
+        'base': 0x40000000, 'size': 0x1000, 'operation': 'write',
+        'permissions': ['write'], 'byte_enable': 15,
+        'readable_offsets': [], 'writable_offsets': [12],
+        'accepted_write_values': {'kind': 'range', 'start': 0,
+                                  'stop': 256, 'step': 1},
+    }
+    document = {
+        'schema_version': 'harness_compose.v2',
+        'cpu': {'instance_id': cpu_name, 'request': 'requests/cpu.json',
+                'data_endpoint': 'processor.data'},
+        'devices': [
+            {'device_id': 'output.window', 'instance_id': output_name,
+             'request': 'requests/gpio.json', 'bus_endpoint': 'gpio.bus',
+             'base': 0x40000000, 'size': 0x1000},
+            {'device_id': 'mover.control', 'instance_id': mover_name,
+             'request': 'requests/dma.json', 'bus_endpoint': 'dma.control',
+             'base': 0x40001000, 'size': 16,
+             'template': {'template_id': 'target.wishbone-pipelined',
+                          'template_version': '1',
+                          'variant_id': 'dma-full-word-no-select'}},
+        ],
+        'dma_master_routes': {'schema_version': 'dma_master_route_intent.v1',
+                              'routes': [route]},
+        'dma_master_route_bindings': [{
+            'route_id': 'copy.destination',
+            'initiator_template': {
+                'template_id': 'master.wishbone-pipelined',
+                'template_version': '1',
+                'variant_id': 'dma-full-word-no-select',
+            },
+            'target_template': {
+                'template_id': 'target.apb3',
+                'template_version': '1',
+                'variant_id': 'full-word',
+            },
+        }],
+    }
+    return write(tmp_path / 'compose.json', document)
+
+
+def test_v1_output_bytes_remain_the_existing_serialization(tmp_path):
+    compose = load_compose(compose_document(tmp_path), base_dir=ROOT)
+    output = tmp_path / 'out'
+    generated = generate_harness_set(compose, base_dir=ROOT,
+                                     compose_base=tmp_path, output_root=output)
+    expected = (json.dumps(generated, sort_keys=True, indent=2,
+                           ensure_ascii=False, allow_nan=False) + '\n').encode()
+    assert (output / 'harness_set.json').read_bytes() == expected
+    assert (output / 'wiring_contract.json').read_bytes() == (
+        json.dumps(generated['wiring'], sort_keys=True, indent=2,
+                   ensure_ascii=False, allow_nan=False) + '\n').encode()
+    assert 'dma_master_routes' not in generated['wiring']
+    assert hashlib.sha256((output / 'wiring_contract.json').read_bytes()).hexdigest() == (
+        '37c1c3861d84a3cd688afc9c84e6e3d0a06a8826f66c46de9d1922c27238d51e')
+
+
+def test_v2_route_survives_generation_with_static_endpoint_fingerprints(tmp_path):
+    source = dma_compose_document(tmp_path)
+    compose = load_compose(source, base_dir=ROOT)
+    output = tmp_path / 'out'
+    generated = generate_harness_set(compose, base_dir=ROOT,
+                                     compose_base=tmp_path, output_root=output)
+    wiring = generated['wiring']
+    assert generated['schema_version'] == 'harness_set.v2'
+    assert wiring['schema_version'] == 'wiring_contract.v2'
+    assert wiring['dma_master_routes']['schema_version'] == 'dma_master_route_intent.v1'
+    assert len(wiring['dma_master_routes_sha256']) == 64
+    route, = wiring['dma_master_routes']['routes']
+    assert route['initiator_instance'] == 'mover'
+    assert route['target']['component_instance'] == 'sink'
+    assert 'endpoint_identity_sha256' not in route
+    assert 'target_identity_sha256' not in route
+    binding, = wiring['dma_master_route_bindings']
+    assert binding['route_id'] == route['route_id']
+    assert len(binding['initiator']['profile_endpoint_sha256']) == 64
+    assert len(binding['target']['profile_endpoint_sha256']) == 64
+    assert binding['initiator']['template_id'] == 'master.wishbone-pipelined'
+    assert json.loads((output / 'wiring_contract.json').read_text()) == wiring
+
+
+@pytest.mark.parametrize('names', [
+    ('cpu_renamed', 'sink_renamed', 'engine_renamed'),
+    ('processor', 'device_2', 'device_1'),
+])
+def test_v2_route_uses_declared_endpoint_ids_with_renamed_instances(tmp_path, names):
+    compose = load_compose(dma_compose_document(tmp_path, names=names),
+                           base_dir=ROOT)
+    generated = generate_harness_set(compose, base_dir=ROOT,
+                                     compose_base=tmp_path,
+                                     output_root=tmp_path / 'out')
+    route, = generated['wiring']['dma_master_routes']['routes']
+    assert route['initiator_instance'] == names[2]
+    assert route['target']['component_instance'] == names[1]
+
+
+@pytest.mark.parametrize('change, code', [
+    (lambda r: r.update(initiator_endpoint_id='dma.control'), 'dma-route-initiator-not-master'),
+    (lambda r: r.update(initiator_instance='unknown'), 'dma-route-initiator-undeclared'),
+    (lambda r: r['target'].update(endpoint_id='gpio.pins'), 'dma-route-target-not-slave'),
+    (lambda r: r['target'].update(device_id='wrong'), 'dma-route-target-window-undeclared'),
+    (lambda r: r.update(base=0x40002000), 'dma-route-aperture-outside-target'),
+])
+def test_v2_route_refusal_precedes_output_creation(tmp_path, change, code):
+    source = dma_compose_document(tmp_path)
+    document = json.loads(source.read_text())
+    change(document['dma_master_routes']['routes'][0])
+    compose = load_compose(write(source, document), base_dir=ROOT)
+    output = tmp_path / 'out'
+    with pytest.raises(HarnessSetRefused) as raised:
+        generate_harness_set(compose, base_dir=ROOT,
+                             compose_base=tmp_path, output_root=output)
+    assert raised.value.code == code
+    assert not output.exists()
+    assert not list(tmp_path.glob('.out.*'))
+
+
+def test_v2_requires_nonempty_routes_and_v1_refuses_routes(tmp_path):
+    source = dma_compose_document(tmp_path)
+    document = json.loads(source.read_text())
+    document['dma_master_routes']['routes'] = []
+    with pytest.raises(HarnessSetRefused):
+        load_compose(write(source, document), base_dir=ROOT)
+    document['schema_version'] = 'harness_compose.v1'
+    with pytest.raises(HarnessSetRefused) as raised:
+        load_compose(write(source, document), base_dir=ROOT)
+    assert raised.value.code == 'compose-field-unknown'
+
+
+@pytest.mark.parametrize('change', [
+    lambda d: d['dma_master_route_bindings'].clear(),
+    lambda d: d['dma_master_route_bindings'][0]['initiator_template'].pop('variant_id'),
+    lambda d: d['dma_master_route_bindings'][0].update(unexpected=True),
+])
+def test_v2_requires_closed_one_to_one_route_bindings(tmp_path, change):
+    source = dma_compose_document(tmp_path)
+    document = json.loads(source.read_text())
+    change(document)
+    with pytest.raises(HarnessSetRefused):
+        load_compose(write(source, document), base_dir=ROOT)
+    assert not (tmp_path / 'out').exists()
+
+
+def test_v2_route_offset_must_match_declared_target_register(tmp_path):
+    source = dma_compose_document(tmp_path)
+    document = json.loads(source.read_text())
+    document['dma_master_routes']['routes'][0]['writable_offsets'] = [0x100]
+    compose = load_compose(write(source, document), base_dir=ROOT)
+    with pytest.raises(HarnessSetRefused) as raised:
+        generate_harness_set(compose, base_dir=ROOT, compose_base=tmp_path,
+                             output_root=tmp_path / 'out')
+    assert raised.value.code == 'dma-route-target-register-undeclared'
+    assert not (tmp_path / 'out').exists()
+
+
+def test_v2_route_template_mismatch_refuses_before_output(tmp_path):
+    source = dma_compose_document(tmp_path)
+    document = json.loads(source.read_text())
+    document['dma_master_route_bindings'][0]['initiator_template']['variant_id'] = 'wrong'
+    compose = load_compose(write(source, document), base_dir=ROOT)
+    with pytest.raises(HarnessSetRefused) as raised:
+        generate_harness_set(compose, base_dir=ROOT, compose_base=tmp_path,
+                             output_root=tmp_path / 'out')
+    assert raised.value.code == 'dma-route-template-not-admitted'
+    assert not (tmp_path / 'out').exists()
+
+
+def test_v2_memory_route_uses_resource_and_owner_fingerprints(tmp_path):
+    source = dma_compose_document(tmp_path)
+    document = json.loads(source.read_text())
+    document['memory'] = [{
+        'resource_id': 'ram', 'component_instance': 'cpu',
+        'base': 0x80000000, 'size': 0x1000,
+        'read': True, 'write': True, 'execute': False,
+    }]
+    route = document['dma_master_routes']['routes'][0]
+    route.update(target={'kind': 'persistent_memory',
+                         'component_instance': 'cpu', 'resource_id': 'ram'},
+                 base=0x80000000, writable_offsets=[],
+                 accepted_write_values={'kind': 'values', 'values': []})
+    del document['dma_master_route_bindings'][0]['target_template']
+    compose = load_compose(write(source, document), base_dir=ROOT)
+    generated = generate_harness_set(compose, base_dir=ROOT, compose_base=tmp_path,
+                                     output_root=tmp_path / 'out')
+    binding, = generated['wiring']['dma_master_route_bindings']
+    assert binding['target']['kind'] == 'persistent_memory'
+    assert binding['target']['owner_profile_fingerprint'].startswith('sha256:')
+    assert len(binding['target']['resource_sha256']) == 64
+    assert 'profile_endpoint_sha256' not in binding['target']
+
+
+def test_v2_memory_route_refuses_permission_not_declared_by_resource(tmp_path):
+    source = dma_compose_document(tmp_path)
+    document = json.loads(source.read_text())
+    document['memory'] = [{
+        'resource_id': 'ram', 'component_instance': 'cpu',
+        'base': 0x80000000, 'size': 0x1000,
+        'read': True, 'write': False, 'execute': False,
+    }]
+    route = document['dma_master_routes']['routes'][0]
+    route.update(target={'kind': 'persistent_memory',
+                         'component_instance': 'cpu', 'resource_id': 'ram'},
+                 base=0x80000000, writable_offsets=[],
+                 accepted_write_values={'kind': 'values', 'values': []})
+    del document['dma_master_route_bindings'][0]['target_template']
+    compose = load_compose(write(source, document), base_dir=ROOT)
+    with pytest.raises(HarnessSetRefused) as raised:
+        generate_harness_set(compose, base_dir=ROOT, compose_base=tmp_path,
+                             output_root=tmp_path / 'out')
+    assert raised.value.code == 'dma-route-target-permission-unsupported'
+    assert not (tmp_path / 'out').exists()
 
 
 def test_the_declared_roles_must_be_named_not_inferred(tmp_path):
