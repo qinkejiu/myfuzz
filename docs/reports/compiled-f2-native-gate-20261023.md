@@ -170,3 +170,18 @@ refusal).
   main session's separate obligation.
 - No F1 retirement, F3/F5/F6, arbitrary APB3 register semantics, AXI/AHB/TileLink
   execution, P6/P7-E/P8 or six-CPU/four-IP completion is claimed.
+
+
+## Post-audit source closure
+
+The independent audit (`docs/reports/f2-native-independent-audit-20261023.md`)
+found that the exact executed source was still a dirty working tree at the time
+of the gates. The complete source/test/config tree used by both gates is now
+committed as `5634abb` (`chore: checkpoint current Codex system source and
+tests`); the 38 previously untracked modules and the modified entry/build files
+are included, so the committed tree can import and select the F2 executor. The
+SPI 961-file pin therefore equals `5634abb`; the Timer run's single differing
+file is the later fixed-input-ownership change described above (a functional
+no-op for the Timer target). The failed-attempt logs are force-added despite the
+repository `*.log` ignore rule. The audit's F-1 is resolved by source
+integration; F-2/F-3/F-4 report-text issues are corrected here.
