@@ -1,0 +1,388 @@
+{
+  "schema_version": "task5_native_source_completion_external_launch_contract.v1",
+  "purpose": "Freeze the external launch, package stages, and independent audit trust boundary for one r11 gate run.",
+  "plan_schema": "r11-plan-schema.v1.json",
+  "auditor_source": "scripts/audit_native_source_completion_evidence.py",
+  "root_contract": {
+    "workspace_dir": "/root/fanzehui/myfuzz",
+    "operation_dir_template": "/root/fanzehui/myfuzz/operations/<new-operation-id>",
+    "evidence_dir_template": "/root/fanzehui/myfuzz/evidence/<same-new-operation-id>",
+    "operation_and_evidence_basenames_equal": true,
+    "audit_output_relative_path": "independent-audit.json",
+    "remote_read_write_limit": "/root/fanzehui/**",
+    "protected_read_only_root": "/root/fanzehui/system-20261016/**",
+    "operation_identity_consumed_at": "first write or directory creation under the remote operation or evidence path",
+    "consumed_identity_reuse": false
+  },
+  "stage1": {
+    "members_exactly": [
+      "r11-plan-schema.v1.json",
+      "r11-source-byte-bootstrap.v1.py",
+      "r11-post-gate-audit-runner.v1.py",
+      "r11-independent-auditor.v1.py",
+      "r11-gate-script.v1.py",
+      "r11-one-shot-controller.v1.py",
+      "r11-external-launch-contract.v1.json",
+      "r11-static-code-manifest.v1.json"
+    ],
+    "manifest": "r11-static-code-manifest.v1.json",
+    "manifest_schema": {
+      "$ref": "r11-plan-schema.v1.json#/$defs/static_code_manifest",
+      "schema_version": "r11_static_code_manifest.v1",
+      "row_keys_exactly": ["path", "size", "sha256"],
+      "row_paths_sorted_exactly": ["r11-external-launch-contract.v1.json", "r11-gate-script.v1.py", "r11-independent-auditor.v1.py", "r11-one-shot-controller.v1.py", "r11-plan-schema.v1.json", "r11-post-gate-audit-runner.v1.py", "r11-source-byte-bootstrap.v1.py"]
+    },
+    "manifest_lists_own_sha": false,
+    "manifest_sha256_supplied_externally": true,
+    "gate_script_byte_join": "SHA-256 and exact bytes of r11-gate-script.v1.py equal Stage 2 project/scripts/verify_picorv32_native_online.py before claim creation",
+    "required_operation_code_copies": ["control/r11-one-shot-controller.v1.py", "control/r11-post-gate-audit-runner.v1.py", "control/r11-independent-auditor.v1.py", "control/r11-plan-schema.v1.json", "control/r11-external-launch-contract.v1.json"]
+  },
+  "stage2": {
+    "members_exactly": [
+      "selected project/ files and directories with control/source-snapshot-map.v1.json",
+      "control/source-manifest.v1.json",
+      "control/submodule-manifest.v1.json",
+      "frozen interpreter/runtime and required native tools under tools/, enumerated by control/tool-freeze.v1.json",
+      "control/environment.v1.json",
+      "control/intent.v1.json",
+      "control/run-plan.v1.json",
+      "control/controller-receipt.v1.json",
+      "control/r11-one-shot-controller.v1.py",
+      "control/r11-post-gate-audit-runner.v1.py",
+      "control/r11-independent-auditor.v1.py",
+      "control/r11-plan-schema.v1.json",
+      "control/r11-external-launch-contract.v1.json",
+      "control/r11-static-code-manifest.v1.json",
+      "control/stage2-manifest.v1.json"
+    ],
+    "manifest": "control/stage2-manifest.v1.json",
+    "runner_auditor_per_input_file_limit_bytes": 67108864,
+    "frozen_package_tool_source_members_must_fit_reader_limit": true,
+    "controller_rejects_oversize_stage2_and_selected_source_rows_before_claim": true,
+    "oversize_protected_baseline_digest_rows_are_not_reader_inputs": true,
+    "static_code_manifest_copy": "control/r11-static-code-manifest.v1.json",
+    "manifest_lists_own_sha": false,
+    "manifest_sha256_supplied_externally": true,
+    "manifest_raw_digest_cli_argument_exactly": "--stage2-manifest-sha256 <64-lowercase-hex>",
+    "manifest_schema": {
+      "$ref": "r11-plan-schema.v1.json#/$defs/stage2_manifest",
+      "schema_version": "r11_stage2_manifest.v1",
+      "operation_relative_paths": true,
+      "entry_row_schema": "r11-plan-schema.v1.json#/$defs/source_tree_entry",
+      "sorted_unique_by_path": true,
+      "exact_live_inventory_before_claim": true,
+      "manifest_self_row_excluded": true,
+      "raw_sha256_must_equal_external_cli_argument": true,
+      "digest_join_receipts": ["claim", "launch_intent", "gate_end", "post_run_integrity"]
+    },
+    "manifest_excludes_exactly": [
+      "control/stage2-manifest.v1.json",
+      "control/claim.v1.json",
+      "control/launch-intent.v1.json",
+      "control/gate-start.v1.json",
+      "control/gate-end.v1.json",
+      "control/post-run-integrity.v1.json",
+      "control/source-postflight.v1.json",
+      "control/source-snapshot-postflight.v1.json",
+      "control/lock-postflight.v1.json",
+      "control/gate.stdout.log",
+      "control/gate.stderr.log",
+      "control/observation-<monotonic-ns>.v1.json",
+      "control/protected-baselines-preflight.v1.json",
+      "control/protected-baselines-postflight.v1.json",
+      "control/submodules-preflight.v1.json",
+      "control/submodules-postflight.v1.json",
+      "control/audit-identity.v1.json",
+      "control/auditor-terminal.v1.json",
+      "control/auditor.stdout.log",
+      "control/auditor.stderr.log",
+      "native-cache/"
+    ],
+    "dynamic_outputs_are_stage2_inputs": false,
+    "final_audit_identity_is_stage2_input": false,
+    "controller_receipt": {
+      "operation_relative_path": "control/controller-receipt.v1.json",
+      "schema_version": "task5_r11_controller_receipt.v1",
+      "keys_exactly": ["schema_version", "path", "controller_sha256", "intent_sha256", "gate_started", "gate_executed"]
+    },
+    "runtime_environment": {
+      "$ref": "r11-plan-schema.v1.json#/$defs/runtime_environment",
+      "operation_relative_path": "control/environment.v1.json",
+      "tool_interpreter_runtime_and_command_files_under": "<operation>/tools/",
+      "PATH_and_PYTHONPATH_may_include_only_operation_directories": true,
+      "all_frozen_tool_interpreter_runtime_command_files_are_stage2_regular_file_rows": true,
+      "all_PATH_and_PYTHONPATH_directories_are_stage2_directory_rows": true,
+      "stage2_file_rows_match_live_size_mode_sha256_and_are_singly_linked": true,
+      "search_directory_rows_match_live_mode_and_are_no_follow": true,
+      "TMPDIR_exactly": "<operation>/native-cache",
+      "optional_TMP_TEMP_XDG_CACHE_HOME_PYTHONPYCACHEPREFIX_if_set": "<operation>/native-cache",
+      "native_cache_absent_and_excluded_from_stage2_inventory_before_claim": true,
+      "controller_creates_native_cache_privately_after_claim_before_spawn": true,
+      "process_environment_source": "vars",
+      "controller_python": "interpreters.controller",
+      "gate_python": "interpreters.gate",
+      "auditor_python": "interpreters.auditor"
+    },
+    "source_manifest": {
+      "$ref": "r11-plan-schema.v1.json#/$defs/source_manifest",
+      "operation_relative_path": "control/source-manifest.v1.json",
+      "files_only": true,
+      "gate_script_required": "project/scripts/verify_picorv32_native_online.py",
+      "directories_and_symlinks_recorded_in": "control/source-snapshot-map.v1.json"
+    },
+    "source_snapshot_postflight": {
+      "operation_relative_path": "control/source-snapshot-postflight.v1.json",
+      "schema_version": "r11_source_snapshot_postflight.v1",
+      "exact_keys": ["schema_version", "entries"],
+      "entries_schema": "r11-plan-schema.v1.json#/$defs/source_tree_entry",
+      "source_receipt": "control/source-postflight.v1.json",
+      "source_receipt_reference_field": "source_snapshot_postflight",
+      "source_receipt_reference_object_exact_keys": ["path", "sha256"],
+      "post_run_reference_field": "postflight_receipts.source_snapshot_postflight",
+      "post_run_reference_object_exact_keys": ["path", "sha256"],
+      "runner_requires_entries_equal_static_source_snapshot_map": true
+    },
+    "submodule_manifest": {
+      "operation_relative_path": "control/submodule-manifest.v1.json",
+      "schema_version": "r11_submodule_manifest.v1",
+      "rows_exactly": ["path", "tracked_mode", "gitlink_commit", "checked_out", "checked_out_head", "selected_entries_sha256", "selected_entries_count"],
+      "tracked_mode": "160000",
+      "selected_entries_source": "canonical sorted entry projection from control/source-snapshot-map.v1.json under each submodule path"
+    },
+    "tool_freeze": {
+      "$ref": "r11-plan-schema.v1.json#/$defs/tool_freeze",
+      "workspace_relative_path_template": "operations/<new-operation-id>/control/tool-freeze.v1.json",
+      "required_tool": "python3",
+      "row_keys_exactly": ["path", "sha256"],
+      "all_tool_paths_within_workspace": true,
+      "runtime_closure_recorded_separately": true
+    }
+  },
+  "run": {
+    "$ref": "r11-plan-schema.v1.json#/$defs/run",
+    "gate_run_id_creation": "one fresh 64-character lowercase hexadecimal value before intent and plan freeze",
+    "gate_run_id_regeneration_after_claim": false,
+    "argv_template": [
+      "python3",
+      "-B",
+      "<operation>/project/scripts/verify_picorv32_native_online.py",
+      "--output",
+      "<evidence>",
+      "--cache-dir",
+      "<operation>/native-cache",
+      "--heavy-lock",
+      "<workspace>/.superpowers/heavy-worker.lock",
+      "--gate-run-id",
+      "<frozen-gate-run-id>",
+      "--native-completion-observation",
+      "--native-source-binding",
+      "--native-source-completion"
+    ],
+    "cwd_template": "<operation>/project",
+    "output_template": "<evidence>",
+    "cache_dir_template": "<operation>/native-cache",
+    "heavy_lock_template": "<workspace>/.superpowers/heavy-worker.lock",
+    "requested_gate_flags_exactly": ["--native-completion-observation", "--native-source-binding", "--native-source-completion"],
+    "requested_gates_exactly": ["native_completion_observation", "native_source_binding", "native_source_completion"],
+    "requested_run_keys_exactly": ["argv", "cwd", "output", "cache_dir", "heavy_lock", "gate_run_id", "requested_gate_flags", "requested_gates"]
+  },
+  "launch": {
+    "controller_interpreter": "frozen regular file under the new workset tools/ tree",
+    "gate_interpreter": "separately frozen regular file under the new workset tools/ tree",
+    "gate_popen": "Popen(executable=<frozen gate interpreter>, args=<exact run.argv>, cwd=run.cwd, env=<frozen sanitized environment>, start_new_session=True)",
+    "argv_zero_exactly": "python3",
+    "environment_and_path_frozen": true,
+    "exclusive_receipts": ["claim", "launch_intent", "gate_start", "gate_end", "post_run_integrity"],
+    "receipt_write_flags": ["O_CREAT", "O_EXCL", "O_NOFOLLOW"],
+    "wait_on_original_child": true,
+    "wait_observation_interval_seconds": 60,
+    "relaunch_on_timeout": false,
+    "signal_child_or_group_on_timeout": false,
+    "process_group_post_wait_observation_window_seconds": 60,
+    "dynamic_preflight_maps": {
+      "protected_baselines": {
+        "path": "control/protected-baselines-preflight.v1.json",
+        "schema_version": "r11_protected_baselines_map.v1",
+        "exact_top_level_keys": ["schema_version", "roots"],
+        "root_row_keys": ["path", "entries"],
+        "entry_schema": "r11-plan-schema.v1.json#/$defs/source_tree_entry"
+      },
+      "submodules": {
+        "path": "control/submodules-preflight.v1.json",
+        "schema_version": "r11_submodule_runtime_map.v1",
+        "exact_top_level_keys": ["schema_version", "entries"],
+        "entry_keys_exactly": ["path", "tracked_mode", "gitlink_commit", "checked_out", "checked_out_head", "selected_entries_sha256", "selected_entries_count"]
+      },
+      "created_before_claim_with_exclusive_no_follow_writes": true
+    },
+    "dynamic_postflight_maps": {
+      "source_snapshot": {"path": "control/source-snapshot-postflight.v1.json", "schema_version": "r11_source_snapshot_postflight.v1"},
+      "protected_baselines": {"path": "control/protected-baselines-postflight.v1.json", "schema_version": "r11_protected_baselines_map.v1"},
+      "submodules": {"path": "control/submodules-postflight.v1.json", "schema_version": "r11_submodule_runtime_map.v1"},
+      "referenced_by_post_run_integrity": true
+    },
+    "controller_receipts": {
+      "claim": {
+        "path": "control/claim.v1.json",
+        "schema_version": "task5_r11_claim.v1",
+        "keys_exactly": ["schema_version", "plan_sha256", "intent_sha256", "controller_sha256", "stage2_manifest_sha256", "gate_run_id", "argv", "pid", "one_shot", "gate_started", "gate_executed"]
+      },
+      "launch_intent": {
+        "path": "control/launch-intent.v1.json",
+        "schema_version": "task5_r11_launch_intent.v1",
+        "keys_exactly": ["schema_version", "plan_sha256", "intent_sha256", "controller_sha256", "gate_run_id", "stage2_manifest_sha256", "argv", "cwd", "output", "controller_pid", "gate_started", "gate_executed"]
+      },
+      "gate_start": {
+        "path": "control/gate-start.v1.json",
+        "schema_version": "task5_r11_gate_start.v1",
+        "keys_exactly": ["schema_version", "plan_sha256", "controller_sha256", "gate_run_id", "argv", "cwd", "output", "controller_pid", "pid", "process_group_id", "status"]
+      },
+      "gate_end_success": {
+        "path": "control/gate-end.v1.json",
+        "schema_version": "task5_r11_gate_end.v1",
+        "terminal_status_value": "gate_process_completed",
+        "terminal_status_scope": "the reaped gate process, process group, and collected gate evidence only; this receipt is not overall completion authority",
+        "keys_exactly": ["schema_version", "pid", "gate_run_id", "controller_pid", "stage2_manifest_sha256", "process_group_id", "returncode", "gate_started", "gate_executed", "reaped_by_wait", "process_group_gone", "terminal_status", "claims", "stdout_sha256", "stderr_sha256", "observed_output", "observation_errors", "branch_result_sha256", "summary_sha256"]
+      },
+      "post_run_integrity_success": {
+        "path": "control/post-run-integrity.v1.json",
+        "schema_version": "task5_r11_post_run_integrity.v1",
+        "terminal_status_value": "completed",
+        "terminal_status_scope": "overall completion authority after exclusive write, fsync, and readback of this receipt",
+        "keys_exactly": ["schema_version", "gate_end", "gate_end_sha256", "gate_run_id", "plan_sha256", "stage2_manifest_sha256", "controller_sha256", "gate_returncode", "gate_started", "gate_executed", "process_group_gone", "output_created_by_gate", "source_tree_matches_preflight", "protected_baselines_match_preflight", "submodules_match_preflight", "canonical_lock_matches_preflight", "postflight_receipts", "claims", "terminal_status"],
+        "postflight_receipts_keys_exactly": ["source_tree", "canonical_lock", "source_snapshot_postflight", "protected_baselines_preflight", "protected_baselines_postflight", "submodules_preflight", "submodules_postflight"],
+        "map_reference_object_keys_exactly": ["path", "sha256"]
+      },
+      "source_postflight": {
+        "path": "control/source-postflight.v1.json",
+        "schema_version": "task5_r11_source_postflight.v1",
+        "keys_exactly": ["schema_version", "status", "matches_preflight", "source_manifest_sha256", "full_map_preflight_sha256", "full_map_postflight_sha256", "source_snapshot_map_sha256", "source_snapshot_postflight", "claims"],
+        "source_snapshot_postflight_keys_exactly": ["path", "sha256"]
+      },
+      "lock_postflight": {
+        "path": "control/lock-postflight.v1.json",
+        "schema_version": "task5_r11_lock_postflight.v1",
+        "keys_exactly": ["schema_version", "status", "matches_preflight", "expected", "observed", "claims"]
+      },
+      "failure_receipts": "Failure receipts use the same paths and schema_version values, terminal_status='failed', a failure_stage, and only fields observed at that stage. They can never satisfy the success terminal predicates."
+    },
+    "success_returncode_predicate": "type(returncode) is int and returncode == 0",
+    "success_requires": [
+      "same gate_run_id in intent, claim, launch, gate start, gate end, post-run, positive, controlled-response, native-source-refusal, and summary",
+      "same controller PID, gate PID, and process-group ID across applicable receipts",
+      "gate PID equals process-group ID",
+      "reaped_by_wait is true and process_group_gone independently observed true",
+      "gate_end.terminal_status is gate_process_completed and independently read post_run_integrity.terminal_status is completed",
+      "gate output directory absent in preflight and proven created by this gate",
+      "source-tree, protected-baseline, submodule, and canonical-lock postflight inventories match preflight",
+      "stdout, stderr, three exact result.json.gz files, and summary.json.gz hashes match gate end and final audit identity",
+      "gate-end, post-run, source-postflight, and lock-postflight receipt joins pass",
+      "receipt claims equal the auditor's four-field CLAIMS, and plan/intent acceptance_matrix equals its seven-row ACCEPTANCE_MATRIX"
+    ]
+  },
+  "audit": {
+    "final_identity": {
+      "$ref": "r11-plan-schema.v1.json#/$defs/audit_identity",
+      "schema_version": "task5_native_source_completion_audit_identity.v1",
+      "created_after_gate_and_postflight": true,
+      "operation_files_keys_exactly": ["intent", "plan", "controller", "controller_receipt", "claim", "launch_intent", "gate_start", "gate_end", "post_run_integrity", "source_postflight", "lock_postflight", "source_manifest", "gate_script", "auditor", "gate_stdout", "gate_stderr"],
+      "workspace_files_keys_exactly": ["tool_freeze"],
+      "evidence_files_keys_exactly": ["positive", "controlled-response", "native-source-refusal", "summary"],
+      "evidence_file_paths": {
+        "positive": "positive/result.json.gz",
+        "controlled-response": "controlled-response/result.json.gz",
+        "native-source-refusal": "native-source-refusal/result.json.gz",
+        "summary": "summary.json.gz"
+      },
+      "runner_operation_file_key_allowed": false,
+      "runner_byte_identity_source": "Stage 1 static code manifest and Stage 2 source/package manifest"
+    },
+    "independent_sha256_source": "separate reviewer/operator recomputation of final identity-manifest bytes",
+    "runner_generated_sha256_is_independent_trust_root": false,
+    "runner_phases": {
+      "prepare": "create audit identity exclusively after all required evidence exists; print only a provisional SHA; do not invoke auditor",
+      "audit": "require externally recomputed SHA, re-read and compare identity bytes, then invoke auditor",
+      "identity_path": "control/audit-identity.v1.json"
+    },
+    "auditor_terminal_artifacts": {
+      "terminal_path": "control/auditor-terminal.v1.json",
+      "stdout_path": "control/auditor.stdout.log",
+      "stderr_path": "control/auditor.stderr.log",
+      "success_terminal_schema": {
+        "schema_version": "r11_post_gate_auditor_terminal.v1",
+        "exact_keys": ["schema_version", "argv", "executable", "cwd", "environment_sha256", "pid", "returncode", "reaped_by_communicate", "stdout_sha256", "stderr_sha256", "identity_sha256"]
+      },
+      "spawn_failure_terminal_schema": {
+        "schema_version": "r11_post_gate_auditor_terminal.v1",
+        "exact_keys": ["schema_version", "argv", "executable", "cwd", "status", "error_type", "identity_sha256"],
+        "status": "spawn_failed"
+      },
+      "stdout_and_stderr_are_raw_bytes": true,
+      "auditor_report_path": "<evidence>/independent-audit.json"
+    },
+    "review_receipts": {
+      "schema": "r11-plan-schema.v1.json#/$defs/exact_digest_review",
+      "local_evidence_directory": "docs/reports/evidence/native-completion-r11/reviews/",
+      "required_files": ["stage1-review-a.json", "stage1-review-b.json", "stage2-preupload-review-a.json", "stage2-preupload-review-b.json", "stage2-upload-review-a.json", "stage2-upload-review-b.json", "audit-identity-sha-review.json"],
+      "stage1_and_stage2_reviews_are_operator_launch_preconditions": true,
+      "audit_identity_sha_review_is_operator_audit_precondition": true,
+      "machine_verified_by_controller_or_runner": false,
+      "review_artifacts_are_outside_reviewed_manifest": true,
+      "review_artifacts_are_cryptographic_signatures": false,
+      "readback_entries_schema": "r11-plan-schema.v1.json#/$defs/review_readback_entry",
+      "readback_entries_sorted_unique": true,
+      "readback_row_observed_metadata_exactly": ["uid", "gid", "nlink"],
+      "stage1_readback_entries": "exact seven static-code-manifest member file rows plus r11-static-code-manifest.v1.json self file row; each retains observed uid/gid/nlink and self raw SHA equals subject_sha256",
+      "stage2_preupload_readback_entries": "every Stage 2 manifest entry plus control/stage2-manifest.v1.json self file row; each retains observed uid/gid/nlink and self raw SHA equals subject_sha256",
+      "stage2_upload_readback_entries": "every independently read on-target Stage 2 member plus the manifest self file row; package identity projection (path,kind,mode,size,sha256,target) equals preupload projection and complete target inventory; target uid/gid/nlink are retained and checked independently",
+      "stage2_upload_owner_check": "all on-target rows must have the approved target effective UID and GID recorded from the operation root; reviewers check each row by no-follow readback",
+      "stage2_upload_link_check": "regular files and symlinks have nlink=1; directory nlink is positive and equals no-follow readback",
+      "audit_identity_readback_entries": "exactly control/audit-identity.v1.json file row, retaining uid/gid/nlink; raw SHA equals subject_sha256"
+    },
+    "auditor_argv_template": [
+      "python3",
+      "-B",
+      "<operation>/control/r11-independent-auditor.v1.py",
+      "--operation-dir",
+      "<operation>",
+      "--evidence-dir",
+      "<evidence>",
+      "--workspace-dir",
+      "<workspace>",
+      "--identity-manifest",
+      "<operation-relative-final-identity-path>",
+      "--identity-sha256",
+      "<externally-recomputed-final-identity-sha256>",
+      "--output",
+      "<evidence>/independent-audit.json"
+    ],
+    "auditor_rehashes_all_identity_files": true,
+    "auditor_popen": "Popen(executable=environment.interpreters.auditor, args=<exact auditor_argv_template>, env=environment.vars)",
+    "passing_result_required": true,
+    "auditor_report_false_claims_are_separate_from_receipt_claims": true,
+    "receipt_claims": {
+      "coverage_guided_search": false,
+      "formal_p6_complete": false,
+      "retirement_authority": false,
+      "source_authority": false
+    },
+    "report_scope_false_claims": {
+      "decode": false,
+      "execution": false,
+      "architectural_retirement": false,
+      "semantic_cpu_consumption": false,
+      "peripheral_payload_consumption": false,
+      "feedback_authority": false,
+      "formal_p6_completion": false,
+      "source_authority": false,
+      "controlled_response_proves_source_credential": false
+    },
+    "unverified_scope_remains_false": ["source_tree_closure_verified", "external_tool_bytes_verified", "gate_executable_identity_verified"]
+  },
+  "review_boundaries": {
+    "auditor_parses_full_snapshot_maps": false,
+    "runner_recomputes_full_source_postflight_map": true,
+    "stage2_review_receipts_prove_review_process_but_are_not_signatures": true,
+    "auditor_receipt_key_sets": "The independent auditor pins its required identity-file paths and joins; additional r11 fields are bound by the operation-file hashes and checked by the r11 controller/runner."
+  }
+}
