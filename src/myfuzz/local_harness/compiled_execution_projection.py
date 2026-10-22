@@ -199,3 +199,40 @@ def assess_compiled_f4_support(*,artifacts,compiled_inputs,base_dir=None):
         unsupported_paths=[dict(path_id=p['path_id'],flow_id=p['flow_id'],
             reason='compiled-executor-flow-unsupported') for p in compiled_inputs['compiled']['paths']
             if p['path_id']!=selected['path_id']])
+
+
+def assess_compiled_f2_support(*,artifacts,compiled_inputs,base_dir=None):
+    """Inspect the installed F2 read-response executor without live authority.
+
+    The report is source/code identity plus the registered read producer
+    binding only.  Startup, the live pre-read token and every exact hop are
+    still required at execution time.
+    """
+    from myfuzz.integration.compiled_f2 import admit_f2
+    from myfuzz.integration.compiled_f2_consumer import select_f2_read_producer
+    try:
+        selected=admit_f2(artifacts=artifacts,compiled_inputs=compiled_inputs,
+            base_dir=base_dir)
+        binding=select_f2_read_producer(artifacts=artifacts,
+            compiled_inputs=compiled_inputs,base_dir=base_dir)
+    except ValueError as error:
+        return dict(schema_version='compiled_F2_support.v1',execution_supported=0,
+            runtime_admitted=False,status='unsupported',reason=str(error),
+            executor='compiled_f2_obi_apb')
+    unsupported=[dict(path_id=p['path_id'],flow_id=p['flow_id'],
+        reason='compiled-executor-flow-unsupported')
+        for p in compiled_inputs['compiled']['paths']
+        if p['path_id']!=selected['path_id']
+        and (p['flow_id']=='F2' and p['status']=='executable')]
+    return dict(schema_version='compiled_F2_support.v1',execution_supported=1,
+        runtime_admitted=False,status='supported_requires_actual_startup',
+        executor='compiled_f2_obi_apb',flow_id='F2',path_id=selected['path_id'],
+        producer_binding=binding.document(),
+        support_scope=('registered_full_word_APB3_read_response_with_live_current_'
+                       'version_and_dependent_result_RAM_store'),
+        startup_requires=['native_first_fetch_inside_instruction_image',
+                          'exact_private_input_readmission',
+                          'actual_native_APB_read_response',
+                          'actual_native_current_register_version_token',
+                          'dependent_XOR_result_RAM_store'],
+        unsupported_paths=unsupported)

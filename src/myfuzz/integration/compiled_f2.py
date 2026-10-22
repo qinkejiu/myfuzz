@@ -405,8 +405,13 @@ class CompiledF2Runtime:
             return tuple(receipt.violations)
         if self._pending is None:
             return tuple(receipt.violations)
-        declaration,before,token,prior=self._pending
+        declaration,before,prior=self._pending
         try:
+            # The post-read token is issued only after the command receipt, the
+            # same ordering F4's storage consumer uses: a new APB command clears
+            # earlier tokens, so a pre-command token could never be consumed.
+            token=self.authority.issue(register=self.register_name,
+                reset_epoch=before.document()['reset_epoch'])
             observed,after=check_f2_read_observation(declaration,receipt,
                 target_artifact=self.artifacts[self.target_id],authority=self.authority,
                 token=token,before=before,register=self.register_name,
@@ -447,7 +452,10 @@ class CompiledF2Runtime:
             base_dir=self.base_dir)
         if path!=self.path:
             raise ValueError('compiled-F2-admission-changed')
-        if producer!=self.producer_binding:
+        # Producer bindings are sealed by identity in their selecting object,
+        # so the stable comparison is their complete canonical document.
+        if (type(producer) is not type(self.producer_binding)
+                or producer.document_json!=self.producer_binding.document_json):
             raise ValueError('compiled-F2-producer-binding-changed')
         admission=getattr(self,'runtime_path_admission',None)
         if admission is None:
@@ -583,8 +591,6 @@ class CompiledF2Runtime:
         before=capture_f2_read_version(self.authority,register=self.register_name,
             reset_epoch=target.reset_epoch)
         pre=before.document();prior=pre['write_count']
-        token=self.authority.issue(register=self.register_name,
-            reset_epoch=pre['reset_epoch'])
         index=len(self.records);case_id=f'{self.run_id}:{index}'
         case=OnlineCase(case_id,'CPU_TO_IP',
             self.runtime_path_admission.runtime_path_id,
@@ -593,7 +599,7 @@ class CompiledF2Runtime:
                 self.runtime_path_admission.instruction_binding.source_id),
             tuple(BatchAdvance(tuple(self.runner.sessions)) for _ in range(self.rounds)))
         self._stable()
-        self._pending=(declaration,before,token,prior);self._checked=None
+        self._pending=(declaration,before,prior);self._checked=None
         receipt=self.session.submit_case(case)
         self._pending=None
         if receipt.violations or self._checked is None or receipt.status!='running':
@@ -614,6 +620,7 @@ class CompiledF2Runtime:
             case_id=case_id,instruction_source_id=self.image['source_id'],
             instruction_address=self.cursor,instruction_sha256=sha256(code).hexdigest(),
             prerequisite=prerequisite,
+            postcondition=stable_storage_version(after),
             version_before=stable_storage_version(observed['version_before']),
             version_witness=stable_storage_version(observed['version_witness']),
             joins=observed['joins'],

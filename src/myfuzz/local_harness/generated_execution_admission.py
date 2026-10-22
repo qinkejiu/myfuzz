@@ -125,7 +125,12 @@ def create_compiled_execution(*, artifacts, compiled_inputs, executor, **runtime
     prerequisite and checker mappings. Constructor startup is authorized by the
     caller; unsupported executors retain the default refusal.
     """
-    if executor!='compiled_f4_obi_apb':
-        raise GeneratedExecutionRefused('compiled-executor-unsupported','/executor')
-    from myfuzz.integration.compiled_f4 import CompiledF4Runtime
-    return CompiledF4Runtime(artifacts=artifacts,compiled_inputs=compiled_inputs,**runtime_options)
+    if executor=='compiled_f4_obi_apb':
+        from myfuzz.integration.compiled_f4 import CompiledF4Runtime
+        return CompiledF4Runtime(artifacts=artifacts,compiled_inputs=compiled_inputs,
+            **runtime_options)
+    if executor=='compiled_f2_obi_apb':
+        from myfuzz.integration.compiled_f2 import CompiledF2Runtime
+        return CompiledF2Runtime(artifacts=artifacts,compiled_inputs=compiled_inputs,
+            **runtime_options)
+    raise GeneratedExecutionRefused('compiled-executor-unsupported','/executor')

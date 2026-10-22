@@ -1,0 +1,356 @@
+{
+  "byte_length": 4,
+  "path": {
+    "assertions": [
+      {
+        "assertion_class": "protocol_checker",
+        "asserts": "a receipt carries a violation string exactly when the run's own checker returned it for that case's real RTL events; a non-empty violations list forces the case status to 'finding' and is never rewritten into a complete case",
+        "declared_by": "session_runtime online receipt contract: receipts.jsonl[].violations",
+        "expectation_id": "protocol_checker.receipt_violations"
+      },
+      {
+        "assertion_class": "cross_component_provenance_and_order",
+        "asserts": "a declared runtime edge is certified only by the exact identity joins of its producer/delivery/consumer hops; a partially observed edge stays incomplete with the missing hop named, and an edge with no observable shape stays unknown with its reason",
+        "declared_by": "myfuzz.scenario.edge_provenance:runtime_edge_provenance_report.v1",
+        "expectation_id": "cross_component.declared_edge_hops"
+      }
+    ],
+    "bound_inputs": [
+      {
+        "basis": "F2 uses the target IP RTL real read response; bound rdata is never randomly overwritten (plan line 78)",
+        "component": "peripheral",
+        "endpoint_id": "timer.bus",
+        "input_id": "peripheral.timer.bus.read_response",
+        "kind": "ip_read_response",
+        "origin": "bound"
+      }
+    ],
+    "constraints": {
+      "layout_hash": null,
+      "policy_hash": "sha256:24c5e41710d651114b28106281ea291ea0e73951865f9ba25305eaf3a144625f",
+      "register_field_constraints": [],
+      "rule_ids": [
+        "window:peripheral"
+      ],
+      "rules": [
+        {
+          "basis": "soc_plan.address_map.windows",
+          "budget": 1,
+          "category": "environment_hard",
+          "checker": "soc_structure_audit.controller_mmio",
+          "failure_class": "constraint_conflict",
+          "fields": [],
+          "owner": "cpu",
+          "parameters": [
+            [
+              "base",
+              1073745920
+            ],
+            [
+              "size",
+              4096
+            ],
+            [
+              "request_sources",
+              [
+                "peripheral"
+              ]
+            ],
+            [
+              "bus_owner",
+              "cpu"
+            ]
+          ],
+          "phase": "runtime",
+          "primitive": "reachable_window",
+          "read_set": [],
+          "rule_id": "window:peripheral",
+          "state_bits": 0,
+          "write_set": []
+        }
+      ],
+      "schema_version": "soc_input_constraints.v1",
+      "source_constraints": [
+        {
+          "alignment": 2,
+          "bit_offset": 0,
+          "constraint_basis": "declared read+execute region containing the declared reset vector",
+          "kind": "instruction_image",
+          "mask": 4294967295,
+          "origin": "fuzzable",
+          "range": [
+            65536,
+            262143
+          ],
+          "source_id": "ram.image",
+          "width": 1572864
+        },
+        {
+          "alignment": 4,
+          "bit_offset": 0,
+          "constraint_basis": "the CPU-side load stream is the fuzzable source; the IP read response stays bound",
+          "kind": "cpu_load_stream",
+          "mask": 4294967295,
+          "origin": "fuzzable",
+          "range": [
+            1073745924,
+            1073745924
+          ],
+          "register_access": {
+            "access_alignment": 4,
+            "address": 1073745924,
+            "allowed_byte_enables": [
+              15
+            ],
+            "byte_enable_domain": "target_word_lanes",
+            "device_id": "peripheral",
+            "field": "value",
+            "operation": "read",
+            "register": "TIMER0_CTRL",
+            "register_offset": 4,
+            "register_origin": "bound_target_register_commit",
+            "schema_version": "register_source_access.v1",
+            "source_component": "processor",
+            "source_endpoint": "processor.data",
+            "target_component": "peripheral",
+            "target_endpoint": "timer.bus",
+            "value_mask": 4294967295,
+            "value_origin": "bound_target_rdata",
+            "width_bytes": 4,
+            "window_alignment": 4096,
+            "window_base": 1073745920,
+            "window_size": 4096
+          },
+          "source_id": "peripheral.TIMER0_CTRL.value.address",
+          "width": 32
+        }
+      ]
+    },
+    "definition": {
+      "authority": "docs/superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md:78",
+      "name": "data_read_stream",
+      "propagation": "CPU Load \u771f\u5b9e\u53d1\u51fa\u5730\u5740/\u8bfb\u8bf7\u6c42\uff1bRAM \u4f7f\u7528\u63d0\u4ea4\u65f6\u51bb\u7ed3\u7684\u6301\u4e45\u5b57\u8282\uff0cMMIO \u4f7f\u7528\u76ee\u6807 IP RTL \u7684\u771f\u5b9e\u8bfb\u54cd\u5e94\uff1bCPU \u771f\u5b9e\u6d88\u8d39 rdata\u3002\u5df2\u7ed1\u5b9a rdata \u4e0d\u968f\u673a\u8986\u76d6\u3002",
+      "summary": "RAM \u6216\u5916\u8bbe \u2192 CPU"
+    },
+    "direction": "CPU_TO_IP",
+    "endpoints": [
+      {
+        "component_id": "ibex_obi_local",
+        "declared_role": "data_memory_master",
+        "endpoint_id": "processor.data",
+        "function": "data_memory_master",
+        "instance_id": "processor",
+        "protocol": [
+          "obi",
+          "1"
+        ]
+      },
+      {
+        "component_id": "ibex_obi_local",
+        "declared_role": "instruction_memory_master",
+        "endpoint_id": "processor.instruction",
+        "function": "instruction_memory_master",
+        "instance_id": "processor",
+        "protocol": [
+          "obi",
+          "1"
+        ]
+      },
+      {
+        "component_id": "pulp_timer",
+        "declared_role": "read_response_producer",
+        "endpoint_id": "timer.bus",
+        "function": "mmio_slave",
+        "instance_id": "peripheral",
+        "protocol": [
+          "apb",
+          "3"
+        ]
+      }
+    ],
+    "execution_contract": {
+      "address": 1073745924,
+      "allowed_byte_enables": [
+        15
+      ],
+      "consumption_mode": "native_read_then_dependent_ram_store",
+      "device_id": "peripheral",
+      "expectation_ids": [
+        "cross_component.declared_edge_hops",
+        "protocol_checker.receipt_violations"
+      ],
+      "field": "value",
+      "instruction_source_id": "ram.image",
+      "load_source_id": "peripheral.TIMER0_CTRL.value.address",
+      "nodes": {
+        "consumed": "F2.data_read_consumed",
+        "image": "F2.program_image",
+        "request": "F2.read_request",
+        "response": "F2.read_response"
+      },
+      "register": "TIMER0_CTRL",
+      "response_mask": 4294967295,
+      "schema_version": "compiled_F2_read_contract.v1",
+      "source_component": "processor",
+      "source_endpoint": "processor.data",
+      "target_component": "peripheral",
+      "target_endpoint": "timer.bus",
+      "version_selector": {
+        "component": "peripheral",
+        "epoch_policy": "current_live_epoch",
+        "kind": "ip_register_version",
+        "register": "TIMER0_CTRL"
+      },
+      "width_bytes": 4,
+      "window": {
+        "base": 1073745920,
+        "size": 4096
+      }
+    },
+    "flow_id": "F2",
+    "flow_name": "data_read_stream",
+    "not_claimed": [
+      "rtl_operational",
+      "cross_component_accepted",
+      "coverage_guided_searched",
+      "bug_confirmed"
+    ],
+    "path_id": "F2:ram.image",
+    "prerequisites": [
+      {
+        "basis": "F2 requires the current live IP register version before reading",
+        "kind": "ip_register_version",
+        "subject": {
+          "component": "peripheral",
+          "register": "TIMER0_CTRL"
+        }
+      }
+    ],
+    "reason": {
+      "code": null,
+      "detail": null,
+      "missing": [],
+      "pointer": null
+    },
+    "runtime_path_identity": {
+      "direction": "CPU_TO_IP",
+      "edges": [
+        {
+          "kind": "PERSISTENT_STATE_RULE",
+          "prerequisite": "F2.program_image",
+          "prerequisite_index": 0,
+          "rule_index": 1,
+          "target": "F2.read_request"
+        },
+        {
+          "kind": "DATA_BINDING",
+          "prerequisite": "F2.read_request",
+          "prerequisite_index": 0,
+          "rule_index": 2,
+          "target": "F2.read_response"
+        },
+        {
+          "kind": "DATA_BINDING",
+          "prerequisite": "F2.read_response",
+          "prerequisite_index": 0,
+          "rule_index": 3,
+          "target": "F2.data_read_consumed"
+        }
+      ],
+      "path_id": "ba230cff12fb8c4ba006073c79a8c53ba0ba9f6e3a09bfa09c705423e80d87a6",
+      "source_ids": [
+        "F2.program_image"
+      ]
+    },
+    "seed": null,
+    "sources": [
+      {
+        "alignment": 2,
+        "bit_offset": 0,
+        "component": "processor",
+        "constraint_basis": "declared read+execute region containing the declared reset vector",
+        "endpoint_id": "processor.instruction",
+        "field": null,
+        "kind": "instruction_image",
+        "mask": 4294967295,
+        "origin": "fuzzable",
+        "origin_ref": "wiring:wiring_contract.v1",
+        "port": "ram",
+        "range": [
+          65536,
+          262143
+        ],
+        "register": null,
+        "source_id": "ram.image",
+        "width": 1572864
+      },
+      {
+        "alignment": 4,
+        "bit_offset": 0,
+        "component": "processor",
+        "constraint_basis": "the CPU-side load stream is the fuzzable source; the IP read response stays bound",
+        "endpoint_id": "processor.data",
+        "field": "value",
+        "kind": "cpu_load_stream",
+        "mask": 4294967295,
+        "origin": "fuzzable",
+        "origin_ref": "wiring:wiring_contract.v1",
+        "port": null,
+        "range": [
+          1073745924,
+          1073745924
+        ],
+        "register": "TIMER0_CTRL",
+        "register_access": {
+          "access_alignment": 4,
+          "address": 1073745924,
+          "allowed_byte_enables": [
+            15
+          ],
+          "byte_enable_domain": "target_word_lanes",
+          "device_id": "peripheral",
+          "field": "value",
+          "operation": "read",
+          "register": "TIMER0_CTRL",
+          "register_offset": 4,
+          "register_origin": "bound_target_register_commit",
+          "schema_version": "register_source_access.v1",
+          "source_component": "processor",
+          "source_endpoint": "processor.data",
+          "target_component": "peripheral",
+          "target_endpoint": "timer.bus",
+          "value_mask": 4294967295,
+          "value_origin": "bound_target_rdata",
+          "width_bytes": 4,
+          "window_alignment": 4096,
+          "window_base": 1073745920,
+          "window_size": 4096
+        },
+        "source_id": "peripheral.TIMER0_CTRL.value.address",
+        "width": 32
+      }
+    ],
+    "status": "executable",
+    "target": {
+      "component": "processor",
+      "node": "F2.data_read_consumed"
+    },
+    "termination_observation": {
+      "basis": "CPU \u771f\u5b9e\u6d88\u8d39 rdata (plan line 78)",
+      "kind": "consumption"
+    }
+  },
+  "schema_version": "compiled_F2_candidate_layout.v1",
+  "source_slices": [
+    {
+      "alignment": 4,
+      "component": "processor",
+      "endpoint_id": "processor.data",
+      "maximum": 1073745924,
+      "minimum": 1073745924,
+      "raw_bit_offset": 0,
+      "source_id": "peripheral.TIMER0_CTRL.value.address",
+      "width": 32
+    }
+  ]
+}

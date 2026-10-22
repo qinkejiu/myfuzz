@@ -1,9 +1,9 @@
 # Compiled F2 CPU load and IP read-response runtime slice
 
-Status: bounded software implementation and pure gates passed. No native Timer/SPI
-gate, no CPU-retirement, F3/F5/F6, P6/P7-E/P8 or system completion is claimed.
-This slice does not run a native process: the main session freezes and runs the
-native gate. The preceding selected F4 slice remains accepted only against its
+Status: bounded software implementation and pure gates passed. This slice did
+not run a native process. The follow-on native first/fresh gates subsequently
+passed for both registered instances: [native gate report](compiled-f2-native-gate-20261023.md).
+No CPU-retirement, F3/F5/F6, P6/P7-E/P8 or system completion is claimed. The preceding selected F4 slice remains accepted only against its
 own frozen inputs: [report](compiled-f4-built-identity-20261022.md).
 
 Design: [approved specification](../superpowers/specs/2026-10-23-compiled-f2-read-response-design.md).
@@ -113,9 +113,9 @@ PYTHONPATH=src:. python3 -m pytest -q -ra tests/integration/test_compiled_f2_rea
 
 ## Remaining boundaries
 
-- The native Timer/CV32E20 and SPI/CV32E40P original/fresh gates, renamed-instance
-  control, real negative gates, frozen inputs/hashes and independent audit are
-  the main session's next step. The runtime is not natively proven here.
+- The native Timer/CV32E20 and SPI/CV32E40P original/fresh gates were run in the
+  follow-on slice and passed ([report](compiled-f2-native-gate-20261023.md)); the
+  renamed-instance native control and independent audit remain main-session work.
 - CLI/executor registration, capability-report wiring, saved-file byte pinning
   and the run-level F2 build join are not part of this bounded slice.
 - `cross_component.declared_edge_hops` evidence comes from the read-specific
