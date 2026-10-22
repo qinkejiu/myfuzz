@@ -1,7 +1,7 @@
 # Compiled F2 native Timer/SPI read-response first/fresh gates
 
 Status: **both registered F2 instances pass real first/fresh native gates**.
-Timer (CV32E20/CVE2 OBI + PULP APB timer `TIMER0_CTRL`) and SPI
+Timer (lowRISC Ibex `ibex_obi_local` OBI + PULP APB timer `TIMER0_CTRL`) and SPI
 (CV32E40P OBI + PULP APB SPI `SPICMD`) each executed one declared read
 candidate, consumed the real IP PRDATA through native OBI, stored
 `PRDATA XOR 0x5a5` in the declared result RAM word, and replayed the complete
@@ -63,9 +63,9 @@ The canonical `/home/qinkejiu/.native-gate/cache` build cache was reused
 `f2-heavy.lock`; no other agent's lock/output was touched.
 
 The SPI gate ran after the fixed-input-ownership addition; its 961 pinned source
-files equal the current committed tree exactly. The Timer gate ran immediately
+files equal the source tree committed at `5634abb`. The Timer gate ran immediately
 before that addition and its own 1154-file `source_input_hashes.json` pins the
-exact bytes it executed: the only file differing from the current tree is
+exact bytes it executed: the only file differing from the committed tree is
 `src/myfuzz/integration/compiled_execution_files.py`, whose later change only
 derives profile-constant fixed-input ownership (the Timer target declares no
 fixed inputs, so its already-passed run is unaffected).
@@ -93,7 +93,7 @@ Per-gate native chain (from the committed `prefix.json` certificates):
 
 - Timer: APB read sample event `78`, native OBI data acceptance `67`, OBI
   response `97`; PRDATA `0`, dependent store `0x000005a5` (`1445`) at
-  `0x0004003c`/byte offset `196604`; edges `[processor→processor
+  `0x0003fffc`/byte offset `196604`; edges `[processor→processor
   persistent_state, processor→peripheral read_request, peripheral→processor
   read_return]`, all certified.
 - SPI: APB read sample event `399`, OBI acceptance `295`, response `493`;

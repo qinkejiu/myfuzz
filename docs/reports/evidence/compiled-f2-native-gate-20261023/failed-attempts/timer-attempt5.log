@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/home/qinkejiu/myfuzz/scripts/run_compiled_dataflow.py", line 45, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/home/qinkejiu/myfuzz/scripts/run_compiled_dataflow.py", line 32, in main
+    result=run_compiled_execution_files(base_dir=ROOT,compose_path=args.compose,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/qinkejiu/myfuzz/src/myfuzz/integration/compiled_execution_files.py", line 365, in run_compiled_execution_files
+    compiled_document_sha256=compiled_document_sha256(
+                             ^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name 'compiled_document_sha256' is not defined
+compiled-F2 refused build join: NameError("name 'compiled_document_sha256' is not defined")
