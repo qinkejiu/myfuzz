@@ -373,8 +373,9 @@ def edge_endpoints_from_compiled(contract: RuntimePathContract,
     """Resolve every declared edge endpoint from one compiled session document.
 
     Direct bindings are matched to their unique compiled ``Bindings`` row; MMIO
-    routes take the declared initiator/router window device; persistent edges
-    take the declared resource component. Missing, duplicated or inconsistent
+    routes take their direction from the graph's own node components and must
+    pair the declared initiator with the declared device; persistent edges take
+    the declared resource component. Missing, duplicated or inconsistent
     coordinates fail closed instead of inventing an endpoint.
     """
     if not isinstance(compiled, Mapping) or set(compiled) != {
@@ -427,11 +428,27 @@ def edge_endpoints_from_compiled(contract: RuntimePathContract,
             if len(windows) != 1 or windows[0]["base"] != declaration.base \
                     or windows[0]["size"] != declaration.size:
                 raise ValueError(f"MMIO edge {key} has no unique declared window")
+            # The declaration names the initiator/device pair but not which
+            # leg of the route this edge is.  Node ownership decides it: an
+            # outbound leg is initiator -> device, a return leg is
+            # device -> initiator.  Deriving the pair from the declared nodes
+            # makes a CPU -> CPU edge for a CPU/peripheral declaration
+            # unrepresentable instead of fabricating an endpoint from the
+            # declaration alone.
+            source_component = components.get(prerequisite)
+            target_component = components.get(target)
+            declared_pair = {declaration.initiator_component, declaration.device_id}
+            if (source_component is None or target_component is None
+                    or {source_component, target_component} != declared_pair
+                    or source_component == target_component):
+                raise ValueError(
+                    f"MMIO edge {key} endpoints do not match the declared "
+                    "initiator/device pair")
             endpoints[key] = EdgeEndpoints(
-                RuntimeNode(prerequisite, declaration.initiator_component, "physical",
+                RuntimeNode(prerequisite, source_component, "physical",
                             port="mmio", bit_offset=declaration.base,
                             width=declaration.size),
-                RuntimeNode(target, declaration.device_id, "physical",
+                RuntimeNode(target, target_component, "physical",
                             port="mmio", bit_offset=declaration.base,
                             width=declaration.size))
         elif declaration.relation == "persistent_state":
