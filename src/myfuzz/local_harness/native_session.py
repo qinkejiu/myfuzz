@@ -65,6 +65,7 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
         self.last_samples=()
         self._online_instruction_slots=False
         self._native_bus_observer = None
+        self._native_source_completion_session = None
         self._physical_tick_samples_enabled = False
         if 'native_completion_observation' in self._artifact_document:
             from myfuzz.scenario.native_cpu_events import NativeBusObserver
@@ -130,6 +131,8 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
     def begin_case(self,testcase_id):
         if self._native_bus_observer is not None and self._native_bus_observer.failed:
             raise RuntimeError('native bus observation is terminal')
+        if self._native_bus_observer is not None:
+            self._native_bus_observer.revoke_source_completion()
         super().begin_case(testcase_id)
         self._pending=None;self._sequence_memory=0;self._quiescing=False;self.last_samples=()
 
@@ -187,6 +190,7 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
         observer = getattr(self, '_native_bus_observer', None)
         if observer is not None:
             observer.failed = True
+            observer.revoke_source_completion()
         super()._abort()
 
     def end_case(self):
@@ -206,6 +210,9 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
                 primary.add_note('native bus close cleanup: ' + repr(cleanup))
             except BaseException:
                 pass
+        finally:
+            if observer is not None:
+                observer.revoke_source_completion()
         if primary is not None:
             raise primary
 
@@ -216,17 +223,33 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
     def _record_native_bus_receipt(self, receipt, pending_response):
         if self._native_bus_observer is not None:
             try:
-                self._native_bus_observer.observe(receipt, pending_response)
+                return self._native_bus_observer.observe(receipt, pending_response)
             except BaseException as primary:
                 self._native_bus_observer.failed = True
-                try:
-                    self._abort()
-                except BaseException as cleanup:
+                if not self._terminal_source_refusal(primary):
                     try:
-                        primary.add_note('native bus observation cleanup: ' + repr(cleanup))
-                    except BaseException:
-                        pass
+                        self._abort()
+                    except BaseException as cleanup:
+                        try:
+                            primary.add_note('native bus observation cleanup: ' + repr(cleanup))
+                        except BaseException:
+                            pass
                 raise
+        return None
+
+    def _terminal_source_refusal(self, primary):
+        """A selected-source contradiction ends the case; it is not a fault.
+
+        The real CPU process is healthy and the refusal only denies the exact
+        completion.  The packet session's terminal cleanup therefore owns the
+        close: it sends the normal END command and reaps return code 0 instead
+        of killing the process.  The retained response stays with the observer.
+        """
+        if (type(primary) is not ValueError
+                or getattr(self, '_native_source_completion_session', None) is None):
+            return False
+        from myfuzz.scenario.native_instruction_source_binding import _CANDIDATE_REFUSAL
+        return str(primary) == _CANDIDATE_REFUSAL
 
     @property
     def drain_tick_samples(self):
@@ -252,7 +275,7 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
             raise ProtocolEnvironmentError('native command handshake observation mismatch')
         self.last_samples=tuple(copy.deepcopy(payload['samples']))
         self._observe_verified_memory_edge(receipt)
-        self._record_native_bus_receipt(receipt, pending)
+        observed_key=self._record_native_bus_receipt(receipt, pending)
         accepted=int(bool(pre['m_req_valid'] and pre['m_req_ready']))
         consumed=int(bool(pre['m_rsp_valid'] and pre['m_rsp_ready']))
         if consumed:
@@ -265,8 +288,18 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
             if address%4 or (not write and be!=self.read_request_be):
                 self._abort();raise ProtocolEnvironmentError('native unaligned or incomplete read')
             self._sequence_memory+=1
-            key=TransactionKey('local-execution',self._case_id,self.artifact.plan.request.instance_id,
-                self.reset_epoch,'memory',self._sequence_memory)
+            if self._native_bus_observer is not None:
+                key=observed_key
+                if (type(key) is not TransactionKey
+                        or key != TransactionKey('local-execution',self._case_id,
+                            self.artifact.plan.request.instance_id,self.reset_epoch,
+                            'memory',self._sequence_memory)):
+                    self._abort()
+                    raise ProtocolEnvironmentError('native observer accepted key differs from service request')
+            else:
+                key=TransactionKey('local-execution',self._case_id,
+                    self.artifact.plan.request.instance_id,self.reset_epoch,
+                    'memory',self._sequence_memory)
             try:
                 response=self._service_accepted_request(key,address,write,be,value)
             except (ValueError,RuntimeError) as error:

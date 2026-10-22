@@ -16,6 +16,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, replace
 from copy import deepcopy
 import hashlib
+from collections.abc import Mapping
 from collections import Counter, deque
 from itertools import zip_longest
 import inspect
@@ -25,6 +26,7 @@ import sys
 from typing import Callable
 
 from .runtime_path_contract import PreparedRuntimePathContract
+from .instruction_image_binding import InstructionImageSourceBinding
 from .runtime_edge_index import RuntimeEdgeIndex
 from .source_provenance import AdmissionRegistry, SourceAdmission
 from .batch import BatchAdvance, BatchSourceEvent
@@ -59,6 +61,16 @@ def _canonical_sha256(value: object) -> str:
     for fragment in encoder.iterencode(value):
         digest.update(fragment.encode("utf-8"))
     return digest.hexdigest()
+
+
+def _native_source_completion_terminal_grants(events, key, raw_event_id):
+    """Find source completion grants tied to a refused native transaction."""
+    key_document = asdict(key)
+    return [event for event in events
+        if event.get('kind') == 'native_instruction_bus_completion'
+        and (event.get('key') == key_document
+             or event.get('transaction') == key_document
+             or event.get('producer_event_id') == raw_event_id)]
 
 
 def _checker_config_value(value: object) -> object:
@@ -118,6 +130,7 @@ _ONLINE_SOURCE_PATHS = (
     "src/myfuzz/scenario/event_provenance.py",
     "src/myfuzz/scenario/batch.py",
     "src/myfuzz/scenario/runtime_path_contract.py",
+    "src/myfuzz/scenario/instruction_image_binding.py",
     "src/myfuzz/scenario/runner.py",
     "src/myfuzz/scenario/event_journal.py",
     "src/myfuzz/scenario/uart_peer.py",
@@ -137,6 +150,12 @@ _ONLINE_SOURCE_PATHS = (
     "src/myfuzz/scenario/rv32i_sources.py",
     "src/myfuzz/scenario/source_actions.py",
     "src/myfuzz/scenario/session_runtime.py",
+)
+_DMA_BOUND_ONLINE_SOURCE_PATHS = (
+    "src/myfuzz/local_harness/dma_artifact_endpoint_links.py",
+    "src/myfuzz/scenario/dma_binding_replay.py",
+    "src/myfuzz/scenario/dma_intent_topology_binding.py",
+    "src/myfuzz/scenario/dma_route_intent.py",
 )
 
 
@@ -260,15 +279,22 @@ def _register_reset_default_source_files(paths=None):
 
 def _online_manifest(runner: ScenarioRunner, checker: Callable | None = None, *,
                      runtime_paths: dict | None = None, checker_configuration_only=False,
+                     instruction_image_bindings=(),
+                     dma_binding_required: bool = False,
                      register_program_configuration=None, register_capability_preflight=None,
                      ordinary_apb_access_evidence_configuration=None, ordinary_apb_access_source_files=None,
                      register_program_verifier_configuration=None, register_program_verifier_source_files=None,
                      register_reset_default_configuration=None,
                      register_reset_default_source_files=None,
-                     native_packet_configuration=None) -> dict:
+                     native_packet_configuration=None,
+                     native_source_completion_configuration=None) -> dict:
     """Versioned online extension without changing legacy host-source v1."""
+    if type(dma_binding_required) is not bool:
+        raise ValueError("DMA binding source inventory switch must be boolean")
     files = []
-    for name in _ONLINE_SOURCE_PATHS:
+    source_paths = (_ONLINE_SOURCE_PATHS + _DMA_BOUND_ONLINE_SOURCE_PATHS
+                    if dma_binding_required else _ONLINE_SOURCE_PATHS)
+    for name in source_paths:
         path = _ROOT / name
         if not path.is_file():
             raise ValueError(f"online runtime source is missing: {name}")
@@ -279,8 +305,13 @@ def _online_manifest(runner: ScenarioRunner, checker: Callable | None = None, *,
                 "checker": _checker_identity(checker, configuration_only=checker_configuration_only)}
     if runtime_paths is not None:
         document["runtime_paths"] = runtime_paths
+    if instruction_image_bindings:
+        document["instruction_image_bindings"] = json.loads(_canonical(instruction_image_bindings))
     if native_packet_configuration is not None:
         document['native_packet_configuration'] = json.loads(_canonical(native_packet_configuration))
+    if native_source_completion_configuration is not None:
+        document['native_source_completion'] = json.loads(
+            _canonical(native_source_completion_configuration))
     if runner.provenance_enabled:
         document["provenance_configuration"] = runner.provenance_configuration
     if register_program_configuration is not None:
@@ -346,6 +377,19 @@ class OnlineInstruction:
         return bytes.fromhex(self.data_hex)
 
 
+@dataclass(frozen=True)
+class BoundOnlineInstruction(OnlineInstruction):
+    """Versioned instruction input naming its admitted graph image source."""
+
+    source_id: str
+
+    def __post_init__(self):
+        super().__post_init__()
+        if (any(type(value) is not str or not value for value in
+                (self.action_id, self.component, self.source_id))):
+            raise ValueError("bound instruction requires an explicit graph source_id")
+
+
 OnlineInput = BatchSourceEvent | OnlineInstruction
 
 
@@ -371,7 +415,7 @@ class OnlineCase:
                 or any(not isinstance(item, BatchAdvance) for item in self.advances)):
             raise ValueError("a case requires a nonempty local advance sequence")
         if (not isinstance(self.support_instructions, tuple)
-                or any(not isinstance(item, OnlineInstruction)
+                or any(type(item) is not OnlineInstruction
                        for item in self.support_instructions)):
             raise ValueError("support instructions must be a tuple of fixed fragments")
         if self.support_instructions and isinstance(self.source, OnlineInstruction):
@@ -398,7 +442,8 @@ class OnlineCaseReceipt:
 
 
 def _resolve_case_source(prepared, case: OnlineCase, *, field_width=None,
-                         require_unique: bool = True) -> str:
+                         require_unique: bool = True, instruction_image_bindings=(),
+                         instruction_slots=()) -> str:
     direction, _ = prepared.resolve_path_id(case.path_id)
     if direction != case.direction:
         raise ValueError("runtime path direction differs from case")
@@ -409,6 +454,14 @@ def _resolve_case_source(prepared, case: OnlineCase, *, field_width=None,
         matches = [node for node in candidates if node.kind == "source" and
                    (node.component, node.port, node.bit_offset, node.width) ==
                    (source.component, source.port, source.bit_offset, width)]
+    elif isinstance(source, BoundOnlineInstruction):
+        bindings = [binding for binding in instruction_image_bindings
+                    if binding.path_id == case.path_id and binding.source_id == source.source_id]
+        if len(bindings) != 1:
+            raise ValueError("bound instruction must name exactly one admitted image source")
+        binding = bindings[0]
+        binding.validate_instruction(source, instruction_slots=instruction_slots)
+        return binding.source_id
     else:
         matches = [node for node in candidates if node.kind == "instruction"
                    and node.component == source.component]
@@ -473,7 +526,10 @@ def _validate_saved_provenance(document: dict, prepared, cases: list,
                     or any(owner["kind"] != "source"
                            for owner in owners[source.bit_offset:source.bit_offset + width])):
                 raise ValueError("saved source value or ownership range is invalid")
-        source_id = _resolve_case_source(prepared, case, field_width=width)
+        source_id = _resolve_case_source(prepared, case, field_width=width,
+            instruction_image_bindings=tuple(InstructionImageSourceBinding.from_document(row)
+                for row in document.get("instruction_image_bindings", ())),
+            instruction_slots=document["instruction_slots"])
         admissions = _case_admissions(case, case_index, source_id, role)
         final_case_start = len(seen_actions)
         final_case_count = len(admissions)
@@ -621,6 +677,11 @@ class ScenarioSession:
         self._runtime_prepared = None
         self._runtime_compiled = None
         self._runtime_path_document_bytes = None
+        self._instruction_image_bindings = ()
+        self._instruction_image_binding_document_bytes = _canonical([])
+        self._dma_binding_declaration_bytes = None
+        self._dma_binding_artifact_links_bytes = None
+        self._dma_binding_compilation_bytes = None
 
     def _native_source_binding_configuration(self):
         raw = self._native_source_binding_configuration_json
@@ -638,6 +699,14 @@ class ScenarioSession:
             raise ValueError('native source binding configuration drift')
         return configuration
 
+    def _native_source_binding_case(self, index):
+        """Return the original admitted case and role for live binding lookup."""
+        if (type(index) is not int or index < 0 or index >= len(self._cases)
+                or not self._native_source_binding_installed):
+            raise ValueError('native source binding case is not live')
+        case = self._cases[index]
+        return case, self._case_source_roles.get(case.case_id)
+
     def _revoke_native_source_bindings(self, primary=None):
         if self._native_source_binding_configuration_json is not None or self._native_source_binding_installed:
             try:
@@ -651,9 +720,17 @@ class ScenarioSession:
                 except BaseException:
                     pass
 
+    def _revoke_native_source_completions(self, primary=None):
+        revoke = getattr(self, '_revoke_native_source_completion', None)
+        if callable(revoke):
+            revoke(primary)
+
     def configure_runtime_paths(self, graph, contract, paths: tuple, *,
                                 source_ownership=None, replay_only: bool = False,
-                                provenance: bool = True) -> None:
+                                provenance: bool = True,
+                                dma_intent_binding=None,
+                                dma_artifact_links=None,
+                                instruction_image_bindings=()) -> None:
         """Bind declared routes on the actual runner before any startup command."""
         if self._begun or self._finished or self._runtime_prepared is not None:
             raise RuntimeError("runtime paths must be configured once before begin")
@@ -681,13 +758,54 @@ class ScenarioSession:
                         source.width, direction=direction)
                     if actual != expected:
                         raise ValueError("runtime path source ownership producer mismatch")
-        compiled = prepared.bind(self.runner)
+        if (type(instruction_image_bindings) is not tuple
+                or any(type(binding) is not InstructionImageSourceBinding
+                       for binding in instruction_image_bindings)
+                or len({binding.path_id for binding in instruction_image_bindings})
+                    != len(instruction_image_bindings)):
+            raise ValueError("instruction image bindings require unique typed path declarations")
+        if instruction_image_bindings and not provenance:
+            raise ValueError("instruction image bindings require runtime provenance")
+        for binding in instruction_image_bindings:
+            binding.validate(prepared, self.runner)
+        bound_dma = None
+        if dma_intent_binding is None:
+            if dma_artifact_links is not None:
+                raise ValueError("DMA artifact links require a DMA intent declaration")
+            compiled = prepared.bind(self.runner)
+        else:
+            from .dma_intent_topology_binding import (
+                PreparedDmaIntentBinding,
+                bind_dma_intent_topology,
+            )
+            declaration = (dma_intent_binding if isinstance(
+                dma_intent_binding, PreparedDmaIntentBinding) else
+                PreparedDmaIntentBinding.from_document(dma_intent_binding))
+            if not isinstance(dma_artifact_links, Mapping):
+                raise ValueError("DMA intent binding requires artifact endpoint links")
+            declaration_document = declaration.document()
+            if _canonical(declaration_document["prepared_runtime_paths"]) != _canonical(prepared.document()):
+                raise ValueError("DMA intent declaration and configured runtime paths differ")
+            # The topology binder performs the one runtime bind and installs
+            # its mutation guard on the compiled validator.
+            bound_dma = bind_dma_intent_topology(
+                declaration, self.runner, artifact_links=dma_artifact_links)
+            compiled = bound_dma.runtime_compilation
         document = {**compiled.document(), "declaration": prepared.document()}
         if provenance:
             self.runner.configure_provenance(RuntimeEdgeIndex(document, contract.document()))
+        self._instruction_image_bindings = instruction_image_bindings
+        self._instruction_image_binding_document_bytes = _canonical(
+            [binding.document() for binding in instruction_image_bindings])
         self._runtime_prepared = prepared
         self._runtime_compiled = compiled
         self._runtime_path_document_bytes = _canonical(document)
+        if bound_dma is not None:
+            self._dma_binding_declaration_bytes = _canonical(declaration_document)
+            self._dma_binding_artifact_links_bytes = _canonical({
+                key: value for key, value in dma_artifact_links.items()
+            })
+            self._dma_binding_compilation_bytes = _canonical(bound_dma.document())
 
     @property
     def runtime_contract(self):
@@ -702,8 +820,39 @@ class ScenarioSession:
         return (json.loads(self._runtime_path_document_bytes)
                 if self._runtime_path_document_bytes is not None else None)
 
+    @property
+    def instruction_image_binding_documents(self) -> tuple[dict, ...]:
+        return tuple(json.loads(self._instruction_image_binding_document_bytes))
+
+    def _validate_instruction_image_bindings(self):
+        bindings = self._instruction_image_bindings
+        if (type(bindings) is not tuple
+                or any(type(binding) is not InstructionImageSourceBinding for binding in bindings)
+                or _canonical([binding.document() for binding in bindings])
+                    != self._instruction_image_binding_document_bytes):
+            raise ValueError("instruction image binding configuration drift")
+        for binding in bindings:
+            binding.validate(self._runtime_prepared, self.runner)
+
+    def dma_binding_document(self) -> dict | None:
+        """Return a detached declaration document for an opt-in DMA binding."""
+        return (json.loads(self._dma_binding_declaration_bytes)
+                if self._dma_binding_declaration_bytes is not None else None)
+
+    def dma_binding_artifact_links(self) -> dict | None:
+        """Return detached generation-issued links retained by the binding."""
+        return (json.loads(self._dma_binding_artifact_links_bytes)
+                if self._dma_binding_artifact_links_bytes is not None else None)
+
+    def dma_binding_compilation_document(self) -> dict | None:
+        """Return the detached topology credential issued for this Runner."""
+        return (json.loads(self._dma_binding_compilation_bytes)
+                if self._dma_binding_compilation_bytes is not None else None)
+
     def _validate_runtime_case(self, case: OnlineCase) -> str | None:
         if self._runtime_prepared is None:
+            if isinstance(case.source, BoundOnlineInstruction):
+                raise ValueError("bound instruction requires configured runtime image binding")
             return
         try:
             self._runtime_compiled.validate_topology()
@@ -711,11 +860,14 @@ class ScenarioSession:
             self._halted = True
             self._halt_reason = "environment_error"
             raise
+        self._validate_instruction_image_bindings()
         source = case.source
         width = (self.runner.ownership.field_width(source.component, source.port)
                  if isinstance(source, BatchSourceEvent) and source.width is None else None)
         return _resolve_case_source(self._runtime_prepared, case, field_width=width,
-            require_unique=self.runner.provenance_enabled)
+            require_unique=self.runner.provenance_enabled,
+            instruction_image_bindings=self._instruction_image_bindings,
+            instruction_slots=self._instruction_slots)
 
     @property
     def prerequisite_gate(self):
@@ -1396,9 +1548,12 @@ class ScenarioSession:
                 raise ValueError("image destination has no persistent memory")
         if self._runtime_compiled is not None:
             self._runtime_compiled.validate_topology()
+        self._validate_instruction_image_bindings()
         self._manifest_document = _online_manifest(
             self.runner, self.checker, runtime_paths=self.runtime_path_document,
+            instruction_image_bindings=self.instruction_image_binding_documents,
             checker_configuration_only=self._checker_configuration_only,
+            dma_binding_required=self._dma_binding_declaration_bytes is not None,
             register_program_configuration=self._register_configuration(),
             register_capability_preflight=self._register_capability_preflight(),
             ordinary_apb_access_evidence_configuration=self._ordinary_apb_configuration(),
@@ -1407,7 +1562,11 @@ class ScenarioSession:
             register_program_verifier_source_files=json.loads(self._register_verifier_sources_json) if self._register_verifier_sources_json is not None else None,
             register_reset_default_configuration=self._register_reset_default_configuration(),
             register_reset_default_source_files=json.loads(self._register_reset_default_sources_json) if self._register_reset_default_sources_json is not None else None,
-            native_packet_configuration=self._native_source_binding_configuration())
+            native_packet_configuration=self._native_source_binding_configuration(),
+            native_source_completion_configuration=(
+                self._native_source_completion_configuration()
+                if callable(getattr(self, '_native_source_completion_configuration', None))
+                else None))
         self._manifest_sha256 = hashlib.sha256(
             _canonical(self._manifest_document)).hexdigest()
         if self._register_program_runtime is not None:
@@ -1758,6 +1917,7 @@ class ScenarioSession:
         try:
             self.runner.finalize()
         finally:
+            self._revoke_native_source_completions(sys.exc_info()[1])
             self._revoke_native_source_bindings(sys.exc_info()[1])
         self._finished = True
         return self.trace(defer_semantic_hash=defer_semantic_hash)
@@ -1792,6 +1952,7 @@ class ScenarioSession:
         try:
             self.runner.finalize()
         finally:
+            self._revoke_native_source_completions(sys.exc_info()[1])
             self._revoke_native_source_bindings(sys.exc_info()[1])
         self._finished = True
         check_methods()
@@ -1814,7 +1975,8 @@ class ScenarioSession:
         cases = []
         for case in self._cases:
             source = asdict(case.source)
-            source["kind"] = ("instruction" if isinstance(case.source, OnlineInstruction)
+            source["kind"] = ("bound_instruction" if isinstance(case.source, BoundOnlineInstruction)
+                              else "instruction" if isinstance(case.source, OnlineInstruction)
                               else "source_event")
             if case.source.action_id in self._source_schedule_ticks:
                 source["scheduled_local_tick"] = self._source_schedule_ticks[
@@ -1882,13 +2044,29 @@ class ScenarioSession:
         if self._ordinary_apb_observer is not None and self._register_program_runtime is None:
             raise ValueError('ordinary-apb-session-saving-requires-register-runtime')
         native_configuration = self._native_source_binding_configuration()
+        completion_configuration = (
+            self._native_source_completion_configuration()
+            if callable(getattr(self, '_native_source_completion_configuration', None))
+            else None)
         if native_configuration is not None:
             if (self._register_program_runtime is not None or self._reset_operations
                     or self.runner.persistent_memory_prerequisite_gate is not None
                     or not self.runner.provenance_enabled or self._runtime_prepared is None):
                 raise ValueError('unsupported native source binding plan configuration')
-            document['schema_version'] = 21 if self._terminal_failure is not None else 20
+            if completion_configuration is not None:
+                document['schema_version'] = 23 if self._terminal_failure is not None else 22
+                document['native_source_completion'] = completion_configuration
+            else:
+                document['schema_version'] = 21 if self._terminal_failure is not None else 20
             document['native_packet_configuration'] = native_configuration
+        elif completion_configuration is not None:
+            raise ValueError('native source completion requires native source binding')
+        self._validate_instruction_image_bindings()
+        if self._instruction_image_bindings:
+            if document["schema_version"] not in (10, 11):
+                raise ValueError("unsupported instruction image binding plan configuration")
+            document["schema_version"] = 25 if self._terminal_failure is not None else 24
+            document["instruction_image_bindings"] = list(self.instruction_image_binding_documents)
         return _canonical(document)
 
     def record(self, genome: ScenarioGenome) -> ScenarioTrace:
@@ -2540,6 +2718,316 @@ def _replay_register_program_session(document,template,cases,factory,reference,c
         raise
 
 
+def _assert_native_source_completion_fresh_owners(reference, fresh, *, require_nonce=False):
+    from .native_cpu_events import NativeBusObserver
+    from .native_packet_session import NativePacketSession
+    if (type(reference) is not NativePacketSession
+            or type(fresh) is not NativePacketSession
+            or reference._native_source_completion_configuration() is None
+            or fresh._native_source_completion_configuration() is None):
+        raise ValueError('native source completion fresh session identity required')
+    reference_cpu = reference.runner.sessions.get('cpu')
+    fresh_cpu = fresh.runner.sessions.get('cpu')
+    reference_observer = getattr(reference_cpu, '_native_bus_observer', None)
+    fresh_observer = getattr(fresh_cpu, '_native_bus_observer', None)
+    reference_memory = getattr(reference_cpu, 'memory', None)
+    fresh_memory = getattr(fresh_cpu, 'memory', None)
+    reference_service = getattr(reference_cpu, 'service', None)
+    fresh_service = getattr(fresh_cpu, 'service', None)
+    objects = ((reference, fresh), (reference.runner, fresh.runner),
+        (reference_cpu, fresh_cpu), (reference_memory, fresh_memory),
+        (reference_service, fresh_service), (reference_observer, fresh_observer))
+    if any(left is None or right is None or left is right for left, right in objects):
+        raise ValueError('native source completion fresh owner reuse')
+    if (reference_service.memory is not reference_memory
+            or fresh_service.memory is not fresh_memory
+            or type(reference_observer) is not NativeBusObserver
+            or type(fresh_observer) is not NativeBusObserver
+            or reference_observer.session is not reference_cpu
+            or fresh_observer.session is not fresh_cpu):
+        raise ValueError('native source completion fresh native owner mismatch')
+    if require_nonce:
+        import re
+        old_nonce = getattr(reference_cpu, '_execution', None)
+        new_nonce = getattr(fresh_cpu, '_execution', None)
+        if (type(old_nonce) is not str or re.fullmatch(r'[0-9a-f]{32}', old_nonce) is None
+                or type(new_nonce) is not str or re.fullmatch(r'[0-9a-f]{32}', new_nonce) is None
+                or old_nonce == new_nonce or reference_observer.execution != old_nonce
+                or fresh_observer.execution != new_nonce):
+            raise ValueError('native source completion fresh native nonce reuse')
+
+
+def _validate_native_source_completion_terminal_failure(document):
+    """Accept only the narrowly defined poisoned-source terminal prefix."""
+    if type(document) is not dict or document.get('schema_version') != 23:
+        raise ValueError('native source completion terminal failure requires schema 23')
+    cases = document.get('cases')
+    failure = document.get('terminal_failure')
+    if (type(cases) is not list or not cases
+            or type(failure) is not dict
+            or set(failure) != {'phase', 'case_index', 'case_id', 'command_index',
+                                'error_type', 'error_message'}):
+        raise ValueError('native source completion terminal failure is malformed')
+    case = cases[-1]
+    source = case.get('source') if type(case) is dict else None
+    advances = case.get('advances') if type(case) is dict else None
+    if (type(source) is not dict or source.get('kind') != 'instruction'
+            or source.get('component') != 'cpu'
+            or type(source.get('address')) is not int or source['address'] < 0
+            or type(source.get('action_id')) is not str or not source['action_id']
+            or type(source.get('data_hex')) is not str
+            or len(source['data_hex']) != 8
+            or any(char not in '0123456789abcdef' for char in source['data_hex'])
+            or case.get('source_role') != 'fuzz_source'
+            or case.get('support_instructions') != []
+            or type(advances) is not list or len(advances) != 128):
+        raise ValueError('native source completion terminal failure is not a selected CPU instruction')
+    command_index = failure.get('command_index')
+    if (failure.get('phase') != 'step'
+            or type(failure.get('case_index')) is not int
+            or failure['case_index'] != len(cases) - 1
+            or type(case.get('case_id')) is not str
+            or failure.get('case_id') != case['case_id']
+            or type(command_index) is not int or not 0 <= command_index < len(advances)
+            or failure.get('error_type') != 'ValueError'
+            or failure.get('error_message') != 'native_source_candidate_refused'):
+        raise ValueError('native source completion terminal failure is not the exact candidate refusal')
+    return failure
+
+
+def _validate_native_source_completion_reference(reference, *, binding_policy,
+                                                completion_policy, plan,
+                                                terminal_failure=None):
+    from .native_cpu_events import NativeBusObserver
+    from .native_packet_session import NativePacketSession
+    if (type(reference) is not NativePacketSession
+            or _canonical(reference._native_source_binding_configuration())
+                != _canonical(binding_policy)
+            or _canonical(reference._native_source_completion_configuration())
+                != _canonical(completion_policy)
+            or type(plan) is not bytes
+            or _FINAL_EXPORT_METHOD_PINS['encode_plan'](reference) != plan
+            or reference._begun is not True or reference.runner._status != 'finalized'):
+        raise ValueError('native source completion reference session identity mismatch')
+    if terminal_failure is None:
+        if reference._finished is not True or reference._halted:
+            raise ValueError('native source completion reference session must be exact and finished')
+    else:
+        if (_validate_native_source_completion_terminal_failure(
+                json.loads(plan)) != terminal_failure
+                or _canonical(reference._terminal_failure) != _canonical(terminal_failure)
+                or reference._finished is not False or reference._halted is not True
+                or reference._halt_reason != 'uncertain_effect'):
+            raise ValueError('native source completion terminal failure reference mismatch')
+    cpu = reference.runner.sessions.get('cpu')
+    observer = getattr(cpu, '_native_bus_observer', None)
+    if (cpu is None or type(observer) is not NativeBusObserver
+            or observer.session is not cpu
+            or getattr(cpu, '_native_source_completion_session', None) is not None):
+        raise ValueError('native source completion reference CPU must be quiescent')
+    if terminal_failure is None:
+        if (observer.failed or observer.pending is not None or observer.samples
+                or observer._source_completions
+                or getattr(cpu, '_pending', None) is not None
+                or getattr(cpu, 'pending_responses', 0) != 0):
+            raise ValueError('native source completion reference CPU must be quiescent')
+        return
+
+    _validate_native_source_completion_terminal_cleanup(
+        reference, document=json.loads(plan), cpu=cpu, observer=observer)
+
+
+def _validate_native_source_completion_terminal_cleanup(reference, *, document,
+                                                        cpu, observer):
+    """Verify the one retained response is terminal, revoked and journaled."""
+    from dataclasses import asdict
+    from .ledger import TransactionKey
+    from .memory import ReadSnapshot
+    from .memory_service import _LOOKUP_ISSUED_READ, _VALIDATE_ISSUED_READ
+    from .native_packet_session import INSTRUCTION_START, PACKET_BYTES
+
+    cases = document['cases']
+    source = cases[-1]['source']
+    # The terminal cleanup closes the real CPU process, so the session's
+    # short-lived case label is gone.  The immutable template identity is the
+    # one every issued transaction key used.
+    testcase_id = reference.template.testcase_id
+    pending = observer.pending
+    pending_transaction = (pending.get('transaction')
+        if type(pending) is dict else None)
+    if (not observer.failed or type(pending) is not dict
+            or pending.get('state') != 'response'
+            or pending.get('completion_issued') is not None
+            or observer.samples or observer._source_completions
+            or reference._finished is not False or reference._halted is not True
+            or reference._packet_terminal is not True
+            or reference._packet_cleanup_attempted is not True
+            or reference._packet_accepted_count != len(cases) - 1
+            or reference._packet_cursor != INSTRUCTION_START + (len(cases) - 1) * PACKET_BYTES
+            or getattr(cpu, '_native_source_completion_session', None) is not None
+            or getattr(cpu, '_process', None) is not None
+            or getattr(cpu, 'pending_responses', None) != 1
+            or type(pending_transaction) is not dict
+            # The host releases its own copy of the response when the real
+            # bridge consumes it, one tick before this audited CPU-side
+            # completion edge, so the one retained response is the observer's.
+            or getattr(cpu, '_pending', None) is not None
+            or reference.runner._status != 'finalized'
+            or reference.runner.failure_status != 'uncertain_effect'):
+        raise ValueError('native source completion terminal cleanup state mismatch')
+
+    key = pending.get('key')
+    snapshot = pending.get('read_snapshot')
+    handle = pending.get('read_handle')
+    transaction = pending_transaction
+    native = pending.get('native')
+    if (type(key) is not TransactionKey or type(snapshot) is not ReadSnapshot
+            or handle is None
+            or type(transaction) is not dict or transaction != asdict(key)
+            or key.execution_id != 'local-execution'
+            or key.testcase_id != testcase_id or key.source_component != 'cpu'
+            or key.source_epoch != cpu.reset_epoch or key.channel_id != 'memory'
+            or type(key.source_sequence) is not int
+            or not 1 <= key.source_sequence < (1 << 64)
+            or type(native) is not dict
+            or native.get('addr') != source['address']
+            or native.get('instruction') != 1 or native.get('wstrb') != 0
+            or pending.get('response') != snapshot.value
+            or type(snapshot.data) is not bytes or len(snapshot.data) != 4):
+        raise ValueError('native source completion terminal cleanup transaction mismatch')
+    for scope_name in ('accepted_scope', 'response_scope'):
+        scope = pending.get(scope_name)
+        if (type(scope) is not dict
+                or set(scope) != {'execution', 'command_sequence', 'reset_epoch', 'local_tick'}
+                or scope['execution'] != cpu._execution
+                or scope['reset_epoch'] != cpu.reset_epoch
+                or type(scope['command_sequence']) is not int
+                or type(scope['local_tick']) is not int):
+            raise ValueError('native source completion terminal cleanup response scope mismatch')
+    accepted, response = pending['accepted_scope'], pending['response_scope']
+    if (accepted['command_sequence'] >= response['command_sequence']
+            or accepted['local_tick'] >= response['local_tick']
+            or type(pending.get('response_tick')) is not int
+            or pending.get('response_tick') < 1):
+        raise ValueError('native source completion terminal cleanup response order mismatch')
+
+    bindings = [event for event in reference.runner.events
+        if event.get('kind') == 'native_instruction_source_bound'
+        and event.get('source', {}).get('action_id') == source['action_id']]
+    if (len(bindings) != 1 or bindings[0].get('component') != 'cpu'
+            or bindings[0].get('execution') != cpu._execution
+            or bindings[0].get('case_index') != len(cases) - 1
+            or _canonical(bindings[0].get('source')) != _canonical(source)):
+        raise ValueError('native source completion terminal cleanup binding evidence missing')
+    acceptance = bindings[0].get('acceptance')
+    if type(acceptance) is not dict or acceptance.get('data_hex') != source['data_hex']:
+        raise ValueError('native source completion terminal cleanup binding acceptance malformed')
+    acceptance_matches_read = (
+        snapshot.data.hex() == acceptance['data_hex']
+        and _canonical(snapshot.versions) == _canonical(acceptance.get('versions'))
+        and _canonical(snapshot.writer_event_ids) == _canonical(
+            acceptance.get('writer_event_ids'))
+        and _canonical(snapshot.writer_kinds) == _canonical(
+            acceptance.get('writer_kinds')))
+    if acceptance_matches_read:
+        raise ValueError('native source completion terminal cleanup did not preserve a source contradiction')
+
+    write_events = [event for event in reference.runner.events
+        if event.get('kind') == 'memory_write'
+        and event.get('component') == 'cpu'
+        and event.get('address') == source['address']
+        and event.get('width_bytes') == 4 and event.get('byte_enable') == 0xf]
+    if len(write_events) != 1:
+        raise ValueError('native source completion terminal cleanup writer journal missing')
+    write = write_events[0]
+    write_key = write.get('transaction')
+    try:
+        parsed_write_key = TransactionKey(**write_key)
+    except (TypeError, ValueError):
+        parsed_write_key = None
+    expected_writer_key = dict(execution_id='local-execution',
+        testcase_id=testcase_id, source_component='cpu',
+        source_epoch=cpu.reset_epoch, channel_id='native-source-poison',
+        source_sequence=1)
+    if (type(write_key) is not dict or parsed_write_key is None
+            or asdict(parsed_write_key) != write_key
+            or write_key != expected_writer_key
+            or write.get('value') != 0x13
+            or write_key == asdict(key)
+            or snapshot.writer_event_ids != (str(parsed_write_key),) * 4
+            or snapshot.writer_kinds != ('STORE',) * 4):
+        raise ValueError('native source completion terminal cleanup writer identity mismatch')
+
+    expected_raw_tick = response['local_tick'] + 1
+    raw_pres = [event for event in reference.runner.events
+        if event.get('kind') == 'local_tick_sample'
+        and event.get('component') == 'cpu' and event.get('phase') == 'pre'
+        and event.get('native_driver_scope', {}).get('execution') == cpu._execution
+        and event.get('native_driver_scope', {}).get('reset_epoch') == cpu.reset_epoch
+        and event.get('native_driver_scope', {}).get('command_sequence')
+            == response['command_sequence'] + 1
+        and event.get('native_driver_scope', {}).get('local_tick') == expected_raw_tick]
+    if len(raw_pres) != 1:
+        raise ValueError('native source completion terminal cleanup refused PRE sample missing')
+    try:
+        refused_pre = observer._native(raw_pres[0]['outputs'])
+    except (KeyError, TypeError, ValueError):
+        raise ValueError('native source completion terminal cleanup refused PRE sample malformed') from None
+    if (refused_pre.get('valid') != 1 or refused_pre.get('ready') != 1
+            or refused_pre.get('instruction') != 1
+            or refused_pre.get('wstrb') != 0
+            or refused_pre.get('wstrb') != native.get('wstrb')
+            or refused_pre.get('addr') != source['address']
+            or refused_pre.get('rdata') != pending.get('response')):
+        raise ValueError('native source completion terminal cleanup refused PRE sample mismatch')
+
+    raw_pre_id = raw_pres[0].get('event_id')
+    read_events = [event for event in reference.runner.events
+        if event.get('kind') == 'memory_read'
+        and event.get('transaction') == asdict(key)]
+    if (len(read_events) != 1 or read_events[0].get('component') != 'cpu'
+            or read_events[0].get('address') != source['address']
+            or read_events[0].get('width_bytes') != 4
+            or read_events[0].get('memory_id') != snapshot.memory_id
+            or read_events[0].get('generation') != snapshot.generation
+            or read_events[0].get('byte_offset') != snapshot.byte_offset
+            or read_events[0].get('value') != snapshot.value
+            or read_events[0].get('data_hex') != snapshot.data.hex()
+            or _canonical(read_events[0].get('versions')) != _canonical(snapshot.versions)
+            or _canonical(read_events[0].get('writer_event_ids')) != _canonical(
+                snapshot.writer_event_ids)
+            or _canonical(read_events[0].get('writer_kinds')) != _canonical(
+                snapshot.writer_kinds)
+            or type(read_events[0].get('event_id')) is not int
+            or type(write.get('event_id')) is not int
+            or type(raw_pre_id) is not int
+            or not write['event_id'] < read_events[0]['event_id']
+            or read_events[0].get('event_id', 0) >= raw_pres[0].get('event_id', 0)):
+        raise ValueError('native source completion terminal cleanup read journal mismatch')
+    current_completion_events = _native_source_completion_terminal_grants(
+        reference.runner.events, key, raw_pre_id)
+    current_completion_events.extend(event for event in reference.runner.events
+        if ((event.get('schema_version') == 'native_bus_observation.v1'
+                and event.get('kind') == 'native_bus_completed'
+                and event.get('component') == 'cpu'
+                and (event.get('transaction') == asdict(key)
+                     or event.get('producer_event_id') == raw_pre_id))))
+    if current_completion_events:
+        raise ValueError('native source completion terminal cleanup minted a completion event')
+    try:
+        _LOOKUP_ISSUED_READ(cpu.service, cpu.memory, key, snapshot)
+    except ValueError:
+        pass
+    else:
+        raise ValueError('native source completion terminal cleanup retained an issued read')
+    try:
+        _VALIDATE_ISSUED_READ(cpu.service, cpu.memory, key, snapshot, handle)
+    except ValueError:
+        pass
+    else:
+        raise ValueError('native source completion terminal cleanup retained a live read handle')
+
+
 def replay_online_session(plan: bytes,
                           factory: Callable[[], ScenarioRunner],
                           reference: ScenarioTrace, *,
@@ -2547,13 +3035,56 @@ def replay_online_session(plan: bytes,
                           register_runtime_factory=None,
                           native_max_cases: int | None = None,
                           native_reference_execution: str | None = None,
-                          native_source_binding: bool | None = None
+                          native_source_binding: bool | None = None,
+                          expected_dma_binding_identity_sha256: str | None = None,
+                          native_source_completion: bool | None = None,
+                          native_reference_session=None
                           ) -> ReplayComparison:
     """Rebuild from initial state and compare the complete committed prefix."""
     if not isinstance(plan, bytes) or not isinstance(reference, ScenarioTrace):
         raise ValueError("encoded plan and reference trace are required")
+    try:
+        initial_document = json.loads(plan)
+    except (ValueError, UnicodeError) as error:
+        raise ValueError("invalid online session plan") from error
+    bound_payload = None
+    saved_dma_credential = None
+    saved_dma_artifact_links = None
+    if (type(initial_document) is dict
+            and initial_document.get("schema_version") == "p7_dma_bound_payload.v1"):
+        if expected_dma_binding_identity_sha256 is None:
+            raise ValueError("bound online plan requires expected outer identity digest")
+        from .dma_binding_replay import parse_dma_bound_payload
+        bound_payload = parse_dma_bound_payload(
+            plan,
+            expected_identity_sha256=expected_dma_binding_identity_sha256,
+        )
+        if bound_payload.payload_kind != "online_session_plan":
+            raise ValueError("DMA binding payload kind is not an online session plan")
+        plan = bound_payload.payload_bytes
+        rows = bound_payload.binding_compilations
+        binding_rows = {row["selection_id"]: row["credential"] for row in rows}
+        if set(binding_rows) != {"session"}:
+            raise ValueError("online DMA binding must contain exactly one session credential")
+        saved_dma_credential = binding_rows["session"]
+        if saved_dma_credential.get("declaration_sha256") != bound_payload.declaration.identity_sha256:
+            raise ValueError("online DMA binding credential declaration mismatch")
+        link_rows = saved_dma_credential.get("artifact_links")
+        if type(link_rows) is not list:
+            raise ValueError("online DMA binding credential artifact links are invalid")
+        saved_dma_artifact_links = {}
+        for row in link_rows:
+            if (type(row) is not dict or set(row) != {"instance_id", "endpoint_links"}
+                    or type(row["instance_id"]) is not str
+                    or row["instance_id"] in saved_dma_artifact_links):
+                raise ValueError("online DMA binding credential artifact links are invalid")
+            saved_dma_artifact_links[row["instance_id"]] = row["endpoint_links"]
+    elif expected_dma_binding_identity_sha256 is not None:
+        raise ValueError("expected DMA binding identity requires a bound online plan")
     if native_source_binding is not None and type(native_source_binding) is not bool:
         raise ValueError('native_source_binding comparison policy must be boolean')
+    if native_source_completion is not None and type(native_source_completion) is not bool:
+        raise ValueError('native_source_completion comparison policy must be boolean')
     if native_max_cases is not None and (
             type(native_max_cases) is not int or not 1 <= native_max_cases <= 96):
         raise ValueError('native replay max_cases must be within1..96')
@@ -2562,28 +3093,59 @@ def replay_online_session(plan: bytes,
         if (type(native_reference_execution) is not str
                 or re.fullmatch(r'[0-9a-f]{32}', native_reference_execution) is None):
             raise ValueError('native comparison requires an explicit owned execution')
-    document = json.loads(plan)
+    document = (json.loads(plan) if bound_payload is not None else initial_document)
     base_keys = {"schema_version", "template", "instruction_slots",
                  "warmup_advances", "cases"}
     if not isinstance(document, dict):
         raise ValueError("invalid online session plan")
     schema = document.get("schema_version")
-    native_plan = type(schema) is int and schema in (20, 21)
+    native_plan = type(schema) is int and schema in (20, 21, 22, 23)
+    native_completion_plan = type(schema) is int and schema in (22, 23)
     if native_plan:
-        from .native_packet_session import native_packet_source_binding_configuration
+        from .native_packet_session import (native_packet_source_binding_configuration,
+            native_packet_source_completion_configuration)
         native_policy = document.get('native_packet_configuration')
         if type(native_policy) is not dict:
             raise ValueError('native packet configuration required')
         saved_max_cases = native_policy.get('max_cases')
         expected_policy = native_packet_source_binding_configuration(saved_max_cases)
+        completion_policy = document.get('native_source_completion')
+        expected_completion_policy = (
+            native_packet_source_completion_configuration(saved_max_cases)
+            if native_completion_plan else None)
         if (_canonical(native_policy) != _canonical(expected_policy)
                 or native_source_binding is False or native_reference_execution is None
                 or native_max_cases is not None and native_max_cases != saved_max_cases):
             raise ValueError('native saved configuration or owned comparison policy mismatch')
+        if (native_completion_plan and (
+                native_source_completion is not True
+                or _canonical(completion_policy) != _canonical(expected_completion_policy)
+                or native_reference_session is None)):
+            raise ValueError('native saved configuration or owned comparison policy mismatch')
+        if native_completion_plan:
+            warmups = document.get('warmup_advances')
+            cases = document.get('cases')
+            if (type(warmups) is not list or type(cases) is not list
+                    or any(type(order) is not list for order in warmups)
+                    or len(cases) > saved_max_cases):
+                raise ValueError('native source completion saved plan exceeds its immutable bounds')
+            warmup_samples = sum(order.count('cpu') for order in warmups)
+            reserved_samples = (warmup_samples + len(cases)
+                * expected_completion_policy['native_samples_per_case'])
+            if (warmup_samples > expected_completion_policy['max_warmup_native_samples']
+                    or reserved_samples > expected_completion_policy['max_native_raw_samples']):
+                raise ValueError('native source completion saved plan exceeds its immutable bounds')
+        if (not native_completion_plan and
+                (completion_policy is not None or native_source_completion is True
+                 or native_reference_session is not None)):
+            raise ValueError('native saved configuration or owned comparison policy mismatch')
         native_max_cases = saved_max_cases
         native_source_binding = True
+        native_source_completion = native_completion_plan
     elif native_source_binding:
         raise ValueError('native source binding requires a versioned native packet plan')
+    elif native_source_completion or native_reference_session is not None:
+        raise ValueError('native source completion requires a versioned native packet plan')
     if native_reference_execution is not None and native_max_cases is None:
         raise ValueError('native comparison requires native packet reconstruction')
     register_plan = type(schema) is int and schema in (16,17,18,19)
@@ -2598,13 +3160,17 @@ def replay_online_session(plan: bytes,
     reset_plan = schema in (14, 15,16,17,18,19)
     trusted_plan = schema in (12, 13,16,17,18,19) or reset_plan and 'prerequisite_admissions' in document
     flexible_plan = trusted_plan or reset_plan
-    has_provenance = native_plan or schema in (10, 11) or flexible_plan and 'provenance_configuration' in document
-    has_runtime = native_plan or schema in (8, 9, 10, 11) or flexible_plan and 'runtime_paths' in document
+    has_provenance = native_plan or schema in (10, 11, 24, 25) or flexible_plan and 'provenance_configuration' in document
+    has_runtime = native_plan or schema in (8, 9, 10, 11, 24, 25) or flexible_plan and 'runtime_paths' in document
     if has_provenance and not has_runtime:
         raise ValueError('online provenance requires runtime paths')
-    required = base_keys | ({"terminal_failure"} if schema in (5, 7, 9, 11, 13, 15,17,19,21) else set()) | ({"runtime_paths"} if has_runtime else set())
+    required = base_keys | ({"terminal_failure"} if schema in (5, 7, 9, 11, 13, 15,17,19,21,23,25) else set()) | ({"runtime_paths"} if has_runtime else set())
+    if schema in (24, 25):
+        required.add("instruction_image_bindings")
     if native_plan:
         required.add('native_packet_configuration')
+    if native_completion_plan:
+        required.add('native_source_completion')
     if register_plan:
         required.add('register_programs')
     if reset_plan:
@@ -2613,7 +3179,7 @@ def replay_online_session(plan: bytes,
         required |= {"provenance_configuration", "source_admissions"}
     if trusted_plan:
         required.add('prerequisite_admissions')
-    if (type(schema) is not int or schema not in (4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,16,17,18,19,20,21)
+    if (type(schema) is not int or schema not in (4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,16,17,18,19,20,21,22,23,24,25)
             or set(document) != required
             or not isinstance(document["instruction_slots"], list)
             or not isinstance(document["warmup_advances"], list)
@@ -2638,15 +3204,50 @@ def replay_online_session(plan: bytes,
     prepared = None
     expected_runtime = document.get("runtime_paths")
     if has_runtime:
-        if not isinstance(expected_runtime, dict) or expected_runtime.get("schema_version") != "runtime_path_compilation.v1":
+        if not isinstance(expected_runtime, dict):
             raise ValueError("invalid saved runtime path compilation")
         prepared = PreparedRuntimePathContract.from_document(expected_runtime.get("declaration"))
+        expected_schema = ("runtime_path_compilation.v2"
+                           if prepared.contract.dma_master_routes else
+                           "runtime_path_compilation.v1")
+        if expected_runtime.get("schema_version") != expected_schema:
+            raise ValueError("saved runtime path schema and route declaration mismatch")
         if (expected_runtime.get("graph_sha256") != prepared.contract.graph_sha256
                 or expected_runtime.get("contract_sha256") != prepared.contract.identity_sha256
                 or hashlib.sha256(_canonical(expected_runtime.get("topology"))).hexdigest() != expected_runtime.get("topology_sha256")):
             raise ValueError("saved runtime path compilation identity mismatch")
+        try:
+            # Validate the detached v1/v2 document before constructing a fresh
+            # Runner. V2 route rows must agree with the selected prepared edge.
+            RuntimeEdgeIndex(expected_runtime, prepared.contract.document())
+        except ValueError as exc:
+            raise ValueError("saved runtime path compilation identity mismatch") from exc
+    image_bindings = ()
+    if schema in (24, 25):
+        rows = document["instruction_image_bindings"]
+        if type(rows) is not list or not rows:
+            raise ValueError("bound instruction plan requires image bindings")
+        image_bindings = tuple(InstructionImageSourceBinding.from_document(row) for row in rows)
+        if len({binding.path_id for binding in image_bindings}) != len(image_bindings):
+            raise ValueError("duplicate saved instruction image binding path")
+        for binding in image_bindings:
+            binding.validate_prepared(prepared)
+    if bound_payload is not None:
+        if (not has_runtime or prepared is None
+                or _canonical(bound_payload.declaration.document()["prepared_runtime_paths"])
+                    != _canonical(expected_runtime.get("declaration"))):
+            raise ValueError("online DMA binding declaration and runtime paths differ")
+        saved_compilation_document = {
+            key: value for key, value in expected_runtime.items()
+            if key != "declaration"
+        }
+        if (saved_dma_credential["runtime_compilation_sha256"]
+                != hashlib.sha256(_canonical(saved_compilation_document)).hexdigest()
+                or saved_dma_credential["topology_sha256"]
+                    != expected_runtime.get("topology_sha256")):
+            raise ValueError("online DMA binding credential and saved runtime compilation differ")
     expected_failure = document.get("terminal_failure")
-    if (document["schema_version"] in (5, 7, 9, 11, 13, 15,21) or schema in (17,19) and expected_failure is not None) and (
+    if (document["schema_version"] in (5, 7, 9, 11, 13, 15, 21, 23, 25) or schema in (17,19) and expected_failure is not None) and (
             not isinstance(expected_failure, dict)
             or set(expected_failure) != {"phase", "case_index", "case_id",
                                          "command_index", "error_type", "error_message"}
@@ -2687,7 +3288,8 @@ def replay_online_session(plan: bytes,
         if type(item["source"]) is not dict or "kind" not in item["source"]:
             raise ValueError("invalid online source record")
         kind = item["source"]["kind"]
-        source_fields = (instruction_fields if kind == "instruction" else
+        source_fields = (instruction_fields | {"source_id"} if kind == "bound_instruction" else
+                         instruction_fields if kind == "instruction" else
                          {"action_id", "component", "port", "value", "bit_offset", "width"})
         source_keys = source_fields | {"kind"}
         if "scheduled_local_tick" in item["source"]:
@@ -2695,7 +3297,9 @@ def replay_online_session(plan: bytes,
             if kind != "source_event" or type(tick) is not int or tick < 0:
                 raise ValueError("invalid online source schedule tick")
             source_keys.add("scheduled_local_tick")
-        if kind not in ("instruction", "source_event") or set(item["source"]) != source_keys:
+        if (kind not in ("instruction", "source_event", "bound_instruction")
+                or kind == "bound_instruction" and schema not in (24, 25)
+                or set(item["source"]) != source_keys):
             raise ValueError("invalid online source fields")
         if (type(item["support_instructions"]) is not list
                 or any(type(support) is not dict or set(support) != instruction_fields
@@ -2705,14 +3309,15 @@ def replay_online_session(plan: bytes,
             raise ValueError("invalid online support instructions or advances")
         source = dict(item["source"])
         kind = source.pop("kind")
-        if kind == "instruction":
+        if kind in ("instruction", "bound_instruction"):
             if "scheduled_local_tick" in source:
                 raise ValueError("instruction source cannot schedule a local tick")
-            admitted: OnlineInput = OnlineInstruction(**source)
+            admitted: OnlineInput = (BoundOnlineInstruction(**source)
+                if kind == "bound_instruction" else OnlineInstruction(**source))
         elif kind == "source_event":
             scheduled_tick = source.pop("scheduled_local_tick", None)
             if scheduled_tick is not None:
-                if (document["schema_version"] not in (6, 7, 8, 9, 10, 11, 12, 13, 14, 15,20,21)
+                if (document["schema_version"] not in (6, 7, 8, 9, 10, 11, 12, 13, 14, 15,20,21,22,23,24,25)
                         or type(scheduled_tick) is not int or scheduled_tick < 0):
                     raise ValueError("invalid online source schedule tick")
                 if source["action_id"] in expected_schedule_ticks:
@@ -2734,11 +3339,19 @@ def replay_online_session(plan: bytes,
         phase = expected_failure["phase"]
         if phase in command_counts and expected_failure["command_index"] >= command_counts[phase]:
             raise ValueError("online terminal failure command_index is outside final case")
+    if native_completion_plan:
+        if schema == 23:
+            _validate_native_source_completion_terminal_failure(document)
+        _validate_native_source_completion_reference(native_reference_session,
+            binding_policy=native_policy, completion_policy=expected_completion_policy,
+            plan=plan, terminal_failure=expected_failure)
     if document["schema_version"] in (4, 5, 6, 7) and (document["schema_version"] in (6, 7)) != bool(expected_schedule_ticks):
         raise ValueError("online schedule schema disagrees with source actions")
     if has_provenance:
         _validate_saved_provenance(document, prepared, decoded_cases, decoded_roles, template)
     if register_plan:
+        if bound_payload is not None:
+            raise ValueError("DMA binding is unsupported by register-program replay")
         return _replay_register_program_session(document,template,decoded_cases,factory,
             reference,checker,register_runtime_factory)
     if native_max_cases is None:
@@ -2757,8 +3370,14 @@ def replay_online_session(plan: bytes,
                 or reset_plan or reset_operations
                 or expected_failure is not None and not native_plan):
             raise ValueError('unsupported native packet replay setup or terminal failure')
-        session = NativePacketSession(template, factory(), checker=checker,
-                                      max_cases=native_max_cases, native_source_binding=native_plan)
+        fresh_runner = factory()
+        session = NativePacketSession(template, fresh_runner, checker=checker,
+            max_cases=native_max_cases, native_completion_observation=native_plan,
+            native_source_binding=native_plan,
+            native_source_completion=native_completion_plan)
+        if native_completion_plan:
+            _assert_native_source_completion_fresh_owners(
+                native_reference_session, session)
     trusted_gate = session.runner.persistent_memory_prerequisite_gate
     if trusted_plan != (trusted_gate is not None):
         raise ValueError('trusted replay requires matching saved admission declarations and configured gate')
@@ -2768,9 +3387,17 @@ def replay_online_session(plan: bytes,
     if prepared is not None:
         session.configure_runtime_paths(prepared.graph, prepared.contract,
                                         prepared.runtime_paths, replay_only=True,
-                                        provenance=has_provenance)
+                                        provenance=has_provenance,
+                                        instruction_image_bindings=image_bindings,
+                                        dma_intent_binding=(bound_payload.declaration
+                                            if bound_payload is not None else None),
+                                        dma_artifact_links=saved_dma_artifact_links)
         if _canonical(session.runtime_path_document) != _canonical(expected_runtime):
             raise ValueError("online replay runtime path topology mismatch")
+        if bound_payload is not None:
+            actual_dma_credential = session.dma_binding_compilation_document()
+            if _canonical(actual_dma_credential) != _canonical(saved_dma_credential):
+                raise ValueError("online replay DMA binding credential mismatch")
     if native_max_cases is None:
         for component, address, count in document["instruction_slots"]:
             session.declare_instruction_slots(component, address, count)
@@ -2778,7 +3405,12 @@ def replay_online_session(plan: bytes,
         raise ValueError('native replay constructor reservation mismatch')
     actual_manifest = hashlib.sha256(
         _canonical(_online_manifest(session.runner, checker, runtime_paths=session.runtime_path_document,
-            native_packet_configuration=session._native_source_binding_configuration()))).hexdigest()
+            instruction_image_bindings=session.instruction_image_binding_documents,
+            native_packet_configuration=session._native_source_binding_configuration(),
+            dma_binding_required=bound_payload is not None,
+            native_source_completion_configuration=(
+                session._native_source_completion_configuration()
+                if native_completion_plan else None)))).hexdigest()
     if actual_manifest != reference.manifest_sha256:
         raise ValueError("online replay manifest identity mismatch")
     if native_max_cases is not None:
@@ -2805,6 +3437,14 @@ def replay_online_session(plan: bytes,
                 actual = session.trace()
             else:
                 actual = session.finish()
+            if native_completion_plan:
+                if expected_failure is not None:
+                    _validate_native_source_completion_reference(session,
+                        binding_policy=native_policy,
+                        completion_policy=expected_completion_policy,
+                        plan=plan, terminal_failure=expected_failure)
+                _assert_native_source_completion_fresh_owners(
+                    native_reference_session, session, require_nonce=True)
         except BaseException as primary:
             # Includes malformed packets refused before the guarded submit's
             # own physical-operation try block, after fresh processes started.
@@ -2853,18 +3493,30 @@ def replay_online_session(plan: bytes,
         from .native_replay_identity import native_observation_comparison_events
         cpu = session.runner.sessions['cpu']
         observer = getattr(cpu, '_native_bus_observer', None)
+        terminal_native_refusal = (native_completion_plan and schema == 23
+                                   and expected_failure is not None)
         if (type(observer) is not NativeBusObserver or observer.session is not cpu
-                or observer.failed or observer.pending is not None
+                or (observer.failed is not terminal_native_refusal)
+                or (terminal_native_refusal
+                    and (type(observer.pending) is not dict
+                         or observer.pending.get('state') != 'response'))
+                or (not terminal_native_refusal and observer.pending is not None)
                 or cpu.reset_epoch != 0 or cpu._execution == native_reference_execution):
-            raise ValueError('native comparison requires a completed fresh owned observer')
+            raise ValueError('native comparison requires a completed or exact terminal fresh observer')
         for trace in (reference, actual):
             if trace.semantic_sha256 != _trace_semantic_sha256(
                     trace.status, trace.events, trace.local_ticks):
                 raise ValueError('native comparison raw semantic identity mismatch')
+        comparison_signals = observer.trace['signals']
+        comparison_instruction_marker = observer.contract['instruction_marker']['signal']
         expected_events = native_observation_comparison_events(reference.events,
-            component='cpu', reset_epoch=0, execution=native_reference_execution)
+            component='cpu', reset_epoch=0, execution=native_reference_execution,
+            native_trace_signals=comparison_signals,
+            native_instruction_marker=comparison_instruction_marker)
         actual_events = native_observation_comparison_events(actual.events,
-            component='cpu', reset_epoch=0, execution=cpu._execution)
+            component='cpu', reset_epoch=0, execution=cpu._execution,
+            native_trace_signals=comparison_signals,
+            native_instruction_marker=comparison_instruction_marker)
         semantic_matches = (_trace_semantic_sha256(reference.status,
             expected_events, reference.local_ticks) == _trace_semantic_sha256(
                 actual.status, actual_events, actual.local_ticks))
@@ -2918,7 +3570,8 @@ _RESET_DEFAULT_NATIVE_GUARD = (guard_native_reset_evidence, guard_native_reset_e
 
 def _native_instruction_execution_anchor():
     pins = tuple((getattr(ScenarioSession, name), getattr(ScenarioSession, name).__code__)
-                 for name in ('_execute_case', '_native_source_binding_configuration'))
+                 for name in ('_execute_case', '_native_source_binding_configuration',
+                              '_native_source_binding_case'))
     resolver = (_resolve_case_source, _resolve_case_source.__code__)
     return lambda: (pins, resolver)
 
