@@ -1,8 +1,8 @@
 # DMA target provider reports
 
-## 2026-10-23 Native Task5 本地三分支门与 F2 runtime 切片
+## 2026-10-23 Native Task5 本地三分支门与 F2 真实读响应门
 
-[native-completion-task5-local-20261023](native-completion-task5-local-20261023.md)：positive／controlled／native-source-refusal 三支本地真实门全部通过，四进程 rc0，refusal fresh full；边界为本地门，无远程 Stage2/独立审计。[F2 runtime 报告](compiled-f2-read-response-runtime-20261023.md)：`CompiledF2Runtime` 与 typed IP-read contract，F2 聚焦 128 passed，native 门待跑。[CVW/Vexii 独立审计](cvw-vexi-independent-audit-20261023.md)：定量字段匹配，两处措辞已修正，gate exit/selection 未保存。
+[native-completion-task5-local-20261023](native-completion-task5-local-20261023.md)：positive／controlled／native-source-refusal 三支本地真实门全部通过，四进程 rc0，refusal fresh full；边界为本地门，无远程 Stage2/独立审计。[F2 Timer/SPI native 门](compiled-f2-native-gate-20261023.md)：真实 CPU LW→IP PRDATA→XOR→依赖 RAM store，fresh full、build join complete；单候选、无变异多样性，无 F1/F3/F5/F6/P6/P7/P8 完成。[CVW/Vexii 独立审计](cvw-vexi-independent-audit-20261023.md)：定量字段匹配，两处措辞已修正，gate exit/selection 未保存。
 
 ## 2026-10-22 D2 built executable identity：限定验收完成
 

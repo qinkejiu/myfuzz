@@ -1,9 +1,9 @@
 # 当前工作进度与证据入口
 
-## 2026-10-23 Native Task5 本地三分支门 + F2 runtime 源码切片
+## 2026-10-23 Native Task5 本地三分支门 + F2 真实读响应门
 
-- **Native exact-source completion Task5 本地真实门通过：** `d8d88c7` 修复 refusal 的 truthful terminal cleanup；`docs/reports/evidence/native-completion-task5-local-20261023/` 的 `summary.json.gz` 显示 positive／controlled-response／native-source-refusal 三支全部 passed，四个真实进程每支均 rc0，refusal 的 original/fresh 检查与 full replay 均通过。证据报告：[native-completion-task5-local-20261023](reports/native-completion-task5-local-20261023.md)。边界：这是本地门，**没有**远程 Stage2 上传/claim/controller/independent auditor、source-tree/tool closure 或 executable identity；proof scope 仍仅 `native_instruction_bus_transfer_completed`，不关闭 P6/P7/P8。
-- **F2 CPU-load/IP-read-response runtime 源码切片：** `800b04a` 新增 `CompiledF2Runtime`、typed IP-register prerequisite（非 RAM version masquerade）和 ownership-derived MMIO read-return edge（拒绝 CPU→CPU）；F2 聚焦纯软件门 **128 passed**。CLI/executor/capability 与真实 native 门仍在进行；F2 尚未验收。
+- **Native exact-source completion Task5 本地真实门通过：** `d8d88c7` 修复 refusal 的 truthful terminal cleanup；`docs/reports/evidence/native-completion-task5-local-20261023/` 的 `summary.json.gz` 显示 positive／controlled-response／native-source-refusal 三支全部 passed，四个真实进程每支均 rc0，refusal 的 original/fresh 检查与 full replay 均通过。源码已在 `9573e7c` 整合，独立审计在 `docs/reports/native-task5-local-independent-audit-20261023.md`。边界：本地门，**没有**远程 Stage2 上传/claim/controller/independent auditor、source-tree/tool closure 或 executable identity；proof scope 仍仅 `native_instruction_bus_transfer_completed`，不关闭 P6/P7/P8。
+- **F2 CPU-load/IP-read-response 真实 Timer/SPI 门通过：** `a54289b` + `91a8037`；Timer `TIMER0_CTRL` 与 SPI `SPICMD` 各一候选，真实 CPU LW→IP PRDATA→`XOR 0x5a5`→依赖 RAM store；四个原生进程 exit0/reaped，fresh `matches=true/full`，`compiled_F2_build_join.v1` complete，prerequisite 为真实 `ip_register_version`（非 RAM version），MMIO 边为 CPU→IP request / IP→CPU return。证据：[compiled-f2-native-gate-20261023](reports/compiled-f2-native-gate-20261023.md)。边界：单候选、PRDATA 为 reset-zero、无变异多样性/吞吐、无 F4 native 重跑、无 F1/F3/F5/F6 或 P6/P7/P8 完成。
 - **CVW/Vexii 独立审计：** 36 行核验中定量字段与哈希全部匹配；已修正“two independent processes”“whole-document equality”两处措辞，并记录 gate exit/selection 未保存等缺口。审计：[cvw-vexi-independent-audit-20261023](reports/cvw-vexi-independent-audit-20261023.md)。
 - **远程工作集：** 已把当前项目使用目录复制到 `/root/fanzehui/myfuzz/`（约20G，旧 `/root/fanzehui/myfuzz-20260927-legacy` 保留，原 `system-20261016` 未改）。
 
