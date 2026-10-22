@@ -114,11 +114,14 @@ Test gates run on the same snapshot:
   case data comes from a preloaded RAM table; there is no online genome
   mutation, coverage-guided case selection, cross-case arbitrary harness reuse,
   saved-failure reproduction or the P5/P6 authenticated prefix-replay
-  certificate machinery. The fresh replay here is whole-document equality
-  modulo native run identity, which is weaker than an authenticated prefix
-  replay.
+  certificate machinery. The fresh replay here compares a 16-key stable
+  projection plus raw CPU/GPIO samples, not whole-document equality modulo run
+  identity (measurement/PID/wall/implementation/error/profile_paths/schema are
+  not compared), and is weaker than an authenticated prefix replay.
 * **No interrupt-controller RTL.** The pulse-to-level wire and the GPIO
   `gpio_out → gpio_in` loopback are declared host composition wires, not RTL.
+  The loopback uses the previous edge's `gpio_out` (one-edge delay), which the
+  shorter report wording omits.
   There is no PLIC/CLINT/SoC IRQ controller, no masking, priority, claim or
   wakeup path, and no multi-source arbitration. The GPIO `interrupt` output is a
   transition pulse, not a held pending bit; the level is held by the host until

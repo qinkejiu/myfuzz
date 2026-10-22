@@ -49,7 +49,7 @@ PYTHONPATH=src setsid python3 scripts/auto_harness_test.py \
 
 ## 3. Fresh replay（`run/fresh-verification.json`）
 
-真实 first 与 fresh 两次独立进程的完整投影比较：`matches: true`、`first_difference: null`、`verification_scope: full`、`event_count: 98`；比较字段包括被接受 beat 序列、7 笔路由交付、RAM commit、结果字、最终 GPIO 状态、指令源实测证据与组件/构建身份（运行期 UUID 类字段被显式剔除）。`session/directed-session.json` 保留 first/fresh 原始证据与比较结论。
+真实 first 与 fresh 两次 `_run_once` 调用的投影比较（同一 host 进程内两次启动全新 RTL simulator 子进程；不是两个独立 host 进程，且证据未记录 PID/UUID/exit）：`matches: true`、`first_difference: null`、`verification_scope: full`（该字段由 `cvw_directed_session.py` 固定写入）、`event_count: 98`；比较字段包括被接受 beat 序列、7 笔路由交付、RAM commit、结果字、最终 GPIO 状态、指令源实测证据与组件/构建身份（运行期 UUID 类字段被显式剔除）。`session/directed-session.json` 保留 first/fresh 原始证据与比较结论。
 
 **它不是**一次新的搜索，也不确认 first 未记录的事实；`fresh-verification.json` 的 `not_a_substitute_for` 逐字声明。
 
