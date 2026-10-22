@@ -1,0 +1,129 @@
+{
+  "schema_version": "r11_local_software_verification.v1",
+  "scope": "r11_local_software_and_offline_audit_regressions",
+  "command": [
+    "/usr/bin/python3",
+    "-B",
+    "-m",
+    "pytest",
+    "-q",
+    "-p",
+    "no:cacheprovider",
+    "tests/scenario/test_r11_controller_filesystem.py",
+    "tests/scenario/test_r11_typed_contract.py",
+    "tests/scenario/test_r11_plan_admission.py",
+    "tests/scenario/test_r11_process_group.py",
+    "tests/integration/test_r11_controller_lifecycle.py",
+    "tests/scenario/test_native_source_completion_audit_identity.py",
+    "tests/scenario/test_native_source_completion_terminal_replay.py",
+    "tests/scenario/test_native_source_completion_gate_checks.py",
+    "tests/integration/test_verify_picorv32_native_online_run_identity.py"
+  ],
+  "cwd": "/home/qinkejiu/myfuzz",
+  "environment": {
+    "PYTHONPATH": "src:.",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "started_at_utc": "2026-10-21T17:54:09.303113+00:00",
+  "finished_at_utc": "2026-10-21T17:54:13.187216+00:00",
+  "elapsed_seconds": 3.884105835999435,
+  "pid": 46004,
+  "returncode": 0,
+  "reaped_by_wait": true,
+  "input_bytes_unchanged": true,
+  "inputs": [
+    {
+      "path": "scripts/audit_native_source_completion_evidence.py",
+      "size": 197675,
+      "sha256": "4cbc2a9ae72b0bc134a23e1663356d1a88ddeb8d2be83f7b5154e04af40d2494"
+    },
+    {
+      "path": "scripts/task5_native_completion_r11/r11-external-launch-contract.v1.json",
+      "size": 23515,
+      "sha256": "359ab594be2ec8fab9f857fc4ceda988abe9abed6825be39b63b65b13596f083"
+    },
+    {
+      "path": "scripts/task5_native_completion_r11/r11-gate-script.v1.py",
+      "size": 39137,
+      "sha256": "1422dc3f595eb97f181a6a875d271af238031d7fbd7d5f9a2914c54ab4cc7124"
+    },
+    {
+      "path": "scripts/task5_native_completion_r11/r11-independent-auditor.v1.py",
+      "size": 197675,
+      "sha256": "4cbc2a9ae72b0bc134a23e1663356d1a88ddeb8d2be83f7b5154e04af40d2494"
+    },
+    {
+      "path": "scripts/task5_native_completion_r11/r11-one-shot-controller.v1.py",
+      "size": 64566,
+      "sha256": "57512b625aaa834d20059b88f758e68157173e107e18c7e3ac39cd91e2dd227b"
+    },
+    {
+      "path": "scripts/task5_native_completion_r11/r11-plan-schema.v1.json",
+      "size": 25231,
+      "sha256": "46db704b2295bb690474760ce309a397212446d9c75988bbd0a7f9aeacab1abe"
+    },
+    {
+      "path": "scripts/task5_native_completion_r11/r11-post-gate-audit-runner.v1.py",
+      "size": 60968,
+      "sha256": "ba8ac3fadf94cd7c0be641b774353b72821f1a65c025630550f955726730f86a"
+    },
+    {
+      "path": "scripts/task5_native_completion_r11/r11-source-byte-bootstrap.v1.py",
+      "size": 31508,
+      "sha256": "99fe90116b88496ce910abb3206adc7713c1e698fa5ee1d5a8c16419e9c3576b"
+    },
+    {
+      "path": "scripts/task5_native_completion_r11/r11-static-code-manifest.v1.json",
+      "size": 970,
+      "sha256": "a944ef09f414642541854d36955a81b906f213b4705b2e09cc96372de7f84059"
+    },
+    {
+      "path": "tests/integration/test_r11_controller_lifecycle.py",
+      "size": 13545,
+      "sha256": "05dad2be75957730c61c87ed24c48127cb3f2556919c74c9589c96044c1f29d2"
+    },
+    {
+      "path": "tests/integration/test_verify_picorv32_native_online_run_identity.py",
+      "size": 5329,
+      "sha256": "cf1ad5ac7b65edd835ed87aed939ca628de0523326c9ca096881ff4c6cb1b514"
+    },
+    {
+      "path": "tests/scenario/test_native_source_completion_audit_identity.py",
+      "size": 30869,
+      "sha256": "d3346a4f9621cac724893f5663a4d5283b4e07364037a50c4c47985dc7135b09"
+    },
+    {
+      "path": "tests/scenario/test_native_source_completion_gate_checks.py",
+      "size": 37234,
+      "sha256": "eaf0585c5bfe5877b3f48baac9c80b8f667d34796726c6de7bb4fb557ca41ad9"
+    },
+    {
+      "path": "tests/scenario/test_native_source_completion_terminal_replay.py",
+      "size": 11530,
+      "sha256": "50f2c2299ec16ef24f79049c86c2c00cd70d393460a29a66dd12ac0bba2d2907"
+    },
+    {
+      "path": "tests/scenario/test_r11_controller_filesystem.py",
+      "size": 11541,
+      "sha256": "0012acc577e4844c9b9eb4d66565e67ba39c9b3f34a37667e7830525c62944aa"
+    },
+    {
+      "path": "tests/scenario/test_r11_plan_admission.py",
+      "size": 5431,
+      "sha256": "3569480a7d7337cad8f373709b49478bc408736ce83dff7f69a252e9358db55d"
+    },
+    {
+      "path": "tests/scenario/test_r11_process_group.py",
+      "size": 2987,
+      "sha256": "ce7f958edfe9c4593bf78ddc9750405c349a7e3d2bcf1513df61faf7b86e49a4"
+    },
+    {
+      "path": "tests/scenario/test_r11_typed_contract.py",
+      "size": 1122,
+      "sha256": "06e6ba9a5ea7ceba40b66c3b0c1cfebc066e60d0873083a8ad054fa88fc09287"
+    }
+  ],
+  "input_copy_root": "inputs",
+  "log_sha256": "ed8c31edb906f2782f614e4d2810e78fd4c62fd5baaaaa3047399a0727f2fb24",
+  "real_native_gate_executed": false
+}

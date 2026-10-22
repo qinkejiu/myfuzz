@@ -1,0 +1,507 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://myfuzz.invalid/schemas/task5-native-completion-r11-plan.v1.json",
+  "title": "Task 5 native completion r11 frozen run plan",
+  "description": "Structural contract for the pre-run plan. x-auditor-joins records cross-document and computed constraints that JSON Schema cannot evaluate. The pinned independent auditor remains authoritative for its complete evidence format.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "gate_run_id",
+    "run",
+    "intent",
+    "intent_sha256",
+    "controller_sha256",
+    "controller_receipt_sha256",
+    "claims",
+    "acceptance_matrix",
+    "gate_started",
+    "gate_executed",
+    "post_gate_audit"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "minLength": 1},
+    "gate_run_id": {"$ref": "#/$defs/sha256"},
+    "run": {"$ref": "#/$defs/run"},
+    "intent": {"$ref": "#/$defs/intent"},
+    "intent_sha256": {"$ref": "#/$defs/sha256"},
+    "controller_sha256": {"$ref": "#/$defs/sha256"},
+    "controller_receipt_sha256": {"$ref": "#/$defs/sha256"},
+    "claims": {"$ref": "#/$defs/claims"},
+    "acceptance_matrix": {"$ref": "#/$defs/acceptance_matrix"},
+    "gate_started": {"const": false},
+    "gate_executed": {"const": false},
+    "post_gate_audit": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"$ref": "#/$defs/absolute_path"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true,
+  "x-auditor-joins": [
+    "plan.gate_run_id == plan.run.gate_run_id == plan.intent.run.gate_run_id",
+    "plan.run == plan.intent.run == final_audit_identity.run",
+    "plan.intent == byte-decoded intent document, and plan.intent_sha256 == SHA-256 of those exact document bytes",
+    "plan.controller_sha256 == SHA-256 of operation_files.controller bytes",
+    "plan.controller_receipt_sha256 == SHA-256 of operation_files.controller_receipt bytes",
+    "plan.post_gate_audit.path == absolute operation_files.auditor path and its sha256 matches that file",
+    "run.argv[2] == absolute operation_files.gate_script path; run.argv[4] == run.output; run.argv[6] == run.cache_dir; run.argv[8] == run.heavy_lock; run.argv[10] == run.gate_run_id",
+    "run.cwd == operation_dir/project; run.output == evidence_dir; run.cache_dir == operation_dir/native-cache; run.heavy_lock == workspace_dir/.superpowers/heavy-worker.lock",
+    "operation_dir and evidence_dir have the same basename and are new sibling paths beneath /root/fanzehui/myfuzz/operations and /root/fanzehui/myfuzz/evidence",
+    "all copied claims and acceptance_matrix values equal the pinned auditor constants, including exact row order and text"
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "absolute_path": {"type": "string", "pattern": "^/[^\\n]*$"},
+    "relative_path": {
+      "type": "string",
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^/]+(?:/[^/]+)*$",
+      "description": "The auditor additionally checks PurePosixPath canonical spelling."
+    },
+    "claims": {
+      "type": "object",
+      "properties": {
+        "coverage_guided_search": {"const": false},
+        "formal_p6_complete": {"const": false},
+        "retirement_authority": {"const": false},
+        "source_authority": {"const": false}
+      },
+      "required": ["coverage_guided_search", "formal_p6_complete", "retirement_authority", "source_authority"],
+      "additionalProperties": false
+    },
+    "acceptance_matrix": {
+      "const": [
+        {"id": "selected_source_positive", "expected": "only the exact selected source-bound four-byte native instruction-bus transfer can issue completion evidence"},
+        {"id": "noncandidate_no_grant", "expected": "unrelated/bootstrap/noncandidate reads remain diagnostic and receive no completion grant"},
+        {"id": "controlled_response", "expected": "the controlled selected-source transaction follows its planned response path and produces the exact bound transfer result"},
+        {"id": "selected_source_contradiction_original", "expected": "selected-source contradiction is terminally refused in the original run"},
+        {"id": "selected_source_contradiction_fresh", "expected": "the same selected-source contradiction is terminally refused in the full fresh replay"},
+        {"id": "full_fresh_replay", "expected": "the complete configured replay executes from fresh inputs"},
+        {"id": "independent_raw_audit", "expected": "raw gate evidence is checked by the independent audit path"}
+      ]
+    },
+    "run": {
+      "type": "object",
+      "required": ["argv", "cwd", "output", "cache_dir", "heavy_lock", "gate_run_id", "requested_gate_flags", "requested_gates"],
+      "properties": {
+        "argv": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "python3"},
+            {"const": "-B"},
+            {"$ref": "#/$defs/absolute_path"},
+            {"const": "--output"},
+            {"$ref": "#/$defs/absolute_path"},
+            {"const": "--cache-dir"},
+            {"$ref": "#/$defs/absolute_path"},
+            {"const": "--heavy-lock"},
+            {"$ref": "#/$defs/absolute_path"},
+            {"const": "--gate-run-id"},
+            {"$ref": "#/$defs/sha256"},
+            {"const": "--native-completion-observation"},
+            {"const": "--native-source-binding"},
+            {"const": "--native-source-completion"}
+          ],
+          "minItems": 14,
+          "maxItems": 14
+        },
+        "cwd": {"$ref": "#/$defs/absolute_path"},
+        "output": {"$ref": "#/$defs/absolute_path"},
+        "cache_dir": {"$ref": "#/$defs/absolute_path"},
+        "heavy_lock": {"$ref": "#/$defs/absolute_path"},
+        "gate_run_id": {"$ref": "#/$defs/sha256"},
+        "requested_gate_flags": {"const": ["--native-completion-observation", "--native-source-binding", "--native-source-completion"]},
+        "requested_gates": {"const": ["native_completion_observation", "native_source_binding", "native_source_completion"]}
+      },
+      "additionalProperties": false
+    },
+    "intent": {
+      "type": "object",
+      "required": ["schema_version", "run", "claims", "acceptance_matrix", "gate_started", "gate_executed", "source", "environment", "gate_script_sha256"],
+      "properties": {
+        "schema_version": {"type": "string", "minLength": 1},
+        "run": {"$ref": "#/$defs/run"},
+        "claims": {"$ref": "#/$defs/claims"},
+        "acceptance_matrix": {"$ref": "#/$defs/acceptance_matrix"},
+        "gate_started": {"const": false},
+        "gate_executed": {"const": false},
+        "source": {
+          "type": "object",
+          "required": ["manifest", "task5_files"],
+          "properties": {
+            "manifest": {
+              "type": "object",
+              "required": ["path", "sha256", "entries", "canonical_entries_sha256"],
+              "properties": {
+                "path": {"$ref": "#/$defs/absolute_path"},
+                "sha256": {"$ref": "#/$defs/sha256"},
+                "entries": {"type": "integer", "minimum": 1},
+                "canonical_entries_sha256": {"$ref": "#/$defs/sha256"}
+              },
+              "additionalProperties": false
+            },
+            "task5_files": {
+              "type": "array",
+              "minItems": 1,
+              "items": {"$ref": "#/$defs/task5_file"}
+            }
+          },
+          "additionalProperties": false
+        },
+        "environment": {
+          "type": "object",
+          "required": ["tools", "tool_count", "tool_freeze", "tool_freeze_sha256"],
+          "properties": {
+            "tools": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/intent_tool"}},
+            "tool_count": {"type": "integer", "minimum": 1},
+            "tool_freeze": {"$ref": "#/$defs/absolute_path"},
+            "tool_freeze_sha256": {"$ref": "#/$defs/sha256"}
+          },
+          "additionalProperties": true
+        },
+        "source_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "tool_freeze_sha256": {"$ref": "#/$defs/sha256"},
+        "gate_script_sha256": {"$ref": "#/$defs/sha256"}
+      },
+      "additionalProperties": true
+    },
+    "task5_file": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "properties": {"path": {"$ref": "#/$defs/relative_path"}, "sha256": {"$ref": "#/$defs/sha256"}},
+      "additionalProperties": false
+    },
+    "intent_tool": {
+      "type": "object",
+      "required": ["name", "path", "sha256"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "path": {"$ref": "#/$defs/absolute_path"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      },
+      "additionalProperties": false
+    },
+    "tool_freeze": {
+      "type": "object",
+      "required": ["python3"],
+      "minProperties": 1,
+      "propertyNames": {"minLength": 1},
+      "additionalProperties": {"$ref": "#/$defs/tool_freeze_row"}
+    },
+    "tool_freeze_row": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "properties": {"path": {"$ref": "#/$defs/absolute_path"}, "sha256": {"$ref": "#/$defs/sha256"}},
+      "additionalProperties": false
+    },
+    "runtime_environment": {
+      "type": "object",
+      "required": ["schema_version", "vars", "interpreters", "runtime_closure", "resolved_commands"],
+      "properties": {
+        "schema_version": {"const": "r11_runtime_environment.v1"},
+        "vars": {"type": "object", "propertyNames": {"minLength": 1}, "additionalProperties": {"type": "string"}},
+        "interpreters": {
+          "type": "object",
+          "required": ["controller", "gate", "auditor"],
+          "properties": {
+            "controller": {"$ref": "#/$defs/absolute_path"},
+            "gate": {"$ref": "#/$defs/absolute_path"},
+            "auditor": {"$ref": "#/$defs/absolute_path"}
+          },
+          "additionalProperties": false
+        },
+        "runtime_closure": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["path", "sha256", "role"],
+            "properties": {
+              "path": {"$ref": "#/$defs/absolute_path"},
+              "sha256": {"$ref": "#/$defs/sha256"},
+              "role": {"type": "string", "minLength": 1}
+            },
+            "additionalProperties": false
+          }
+        },
+        "resolved_commands": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {"minLength": 1},
+          "additionalProperties": {"$ref": "#/$defs/absolute_path"}
+        }
+      },
+      "additionalProperties": false,
+      "x-invariants": ["all tool-freeze, interpreter, runtime-closure, and resolved-command paths are canonical descendants of <operation>/tools/ with exact regular-file rows in the Stage 2 inventory", "all PATH and PYTHONPATH directories are operation descendants with exact directory rows in the Stage 2 inventory", "TMPDIR is exactly <operation>/native-cache; optional TMP, TEMP, XDG_CACHE_HOME, and PYTHONPYCACHEPREFIX values, when present, equal that path", "native-cache is absent before claim, is excluded from the Stage 2 inventory, and is privately created by the controller after claim"]
+    },
+    "source_manifest": {
+      "type": "object",
+      "required": ["schema_version", "entries"],
+      "properties": {
+        "schema_version": {"const": "source_tree_manifest.v1"},
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["path", "sha256"],
+            "properties": {
+              "path": {"allOf": [{"$ref": "#/$defs/relative_path"}, {"pattern": "^project/[^/]+(?:/[^/]+)*$"}]},
+              "sha256": {"$ref": "#/$defs/sha256"}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "source_tree_entry": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["path", "kind", "mode"],
+          "properties": {
+            "path": {"type": "string", "pattern": "^(\\.|(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^/]+(?:/[^/]+)*)$"},
+            "kind": {"const": "directory"},
+            "mode": {"type": "integer", "minimum": 0, "maximum": 4095}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["path", "kind", "mode", "size", "sha256"],
+          "properties": {
+            "path": {"$ref": "#/$defs/relative_path"},
+            "kind": {"const": "file"},
+            "mode": {"type": "integer", "minimum": 0, "maximum": 4095},
+            "size": {"type": "integer", "minimum": 0, "maximum": 67108864},
+            "sha256": {"$ref": "#/$defs/sha256"}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["path", "kind", "mode", "target"],
+          "properties": {
+            "path": {"$ref": "#/$defs/relative_path"},
+            "kind": {"const": "symlink"},
+            "mode": {"type": "integer", "minimum": 0, "maximum": 4095},
+            "target": {"type": "string", "minLength": 1}
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "review_readback_entry": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["path", "kind", "mode", "uid", "gid", "nlink"],
+          "properties": {
+            "path": {"type": "string", "pattern": "^(\\.|(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^/]+(?:/[^/]+)*)$"},
+            "kind": {"const": "directory"},
+            "mode": {"type": "integer", "minimum": 0, "maximum": 4095},
+            "uid": {"type": "integer", "minimum": 0},
+            "gid": {"type": "integer", "minimum": 0},
+            "nlink": {"type": "integer", "minimum": 1}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["path", "kind", "mode", "size", "sha256", "uid", "gid", "nlink"],
+          "properties": {
+            "path": {"$ref": "#/$defs/relative_path"},
+            "kind": {"const": "file"},
+            "mode": {"type": "integer", "minimum": 0, "maximum": 4095},
+            "size": {"type": "integer", "minimum": 0, "maximum": 67108864},
+            "sha256": {"$ref": "#/$defs/sha256"},
+            "uid": {"type": "integer", "minimum": 0},
+            "gid": {"type": "integer", "minimum": 0},
+            "nlink": {"const": 1}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["path", "kind", "mode", "target", "uid", "gid", "nlink"],
+          "properties": {
+            "path": {"$ref": "#/$defs/relative_path"},
+            "kind": {"const": "symlink"},
+            "mode": {"type": "integer", "minimum": 0, "maximum": 4095},
+            "target": {"type": "string", "minLength": 1},
+            "uid": {"type": "integer", "minimum": 0},
+            "gid": {"type": "integer", "minimum": 0},
+            "nlink": {"const": 1}
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "source_snapshot_map": {
+      "type": "object",
+      "required": ["schema_version", "source_root", "entries", "exclusions"],
+      "properties": {
+        "schema_version": {"const": "r11_source_snapshot_map.v1"},
+        "source_root": {"$ref": "#/$defs/absolute_path"},
+        "entries": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/source_tree_entry"}},
+        "exclusions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path", "kind", "reason"],
+            "properties": {
+              "path": {"$ref": "#/$defs/relative_path"},
+              "kind": {"enum": ["directory", "file", "symlink"]},
+              "reason": {"type": "string", "minLength": 1}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false,
+      "x-invariants": ["entries are sorted by path and unique", "entries begin with the '.' root directory", "exclusions are exact paths sorted by path, with no wildcard semantics"]
+    },
+    "source_snapshot_postflight": {
+      "type": "object",
+      "required": ["schema_version", "entries"],
+      "properties": {
+        "schema_version": {"const": "r11_source_snapshot_postflight.v1"},
+        "entries": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/source_tree_entry"}}
+      },
+      "additionalProperties": false,
+      "x-invariants": ["entries are a fresh full sorted no-follow scan", "entries equal source_snapshot_map.entries exactly before the controller can report success"]
+    },
+    "static_code_manifest": {
+      "type": "object",
+      "required": ["schema_version", "entries"],
+      "properties": {
+        "schema_version": {"const": "r11_static_code_manifest.v1"},
+        "entries": {
+          "type": "array", "minItems": 7, "maxItems": 7,
+          "items": {
+            "type": "object",
+            "required": ["path", "size", "sha256"],
+            "properties": {
+              "path": {"enum": ["r11-plan-schema.v1.json", "r11-source-byte-bootstrap.v1.py", "r11-post-gate-audit-runner.v1.py", "r11-independent-auditor.v1.py", "r11-gate-script.v1.py", "r11-one-shot-controller.v1.py", "r11-external-launch-contract.v1.json"]},
+              "size": {"type": "integer", "minimum": 0, "maximum": 67108864},
+              "sha256": {"$ref": "#/$defs/sha256"}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false,
+      "x-invariants": ["entries have exactly the seven Stage 1 artifact basenames other than the manifest itself, in sorted path order", "the gate-script row size and SHA-256 match the selected Stage 2 project/scripts/verify_picorv32_native_online.py bytes", "operation/control copies of the controller, runner, auditor, plan schema, and external contract are required and match their Stage 1 rows; every other copy that exists also matches"]
+    },
+    "stage2_manifest": {
+      "type": "object",
+      "required": ["schema_version", "entries"],
+      "properties": {
+        "schema_version": {"const": "r11_stage2_manifest.v1"},
+        "entries": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/source_tree_entry"}}
+      },
+      "additionalProperties": false,
+      "x-invariants": ["entries are sorted by canonical operation-relative path and unique", "the manifest and fixed absent runtime leaves are omitted", "the controller recomputes the exact live operation inventory before claim creation", "the raw manifest SHA-256 must equal external --stage2-manifest-sha256"]
+    },
+    "exact_digest_review": {
+      "type": "object",
+      "required": ["schema_version", "subject_kind", "subject_sha256", "observed_sha256", "reviewer_id", "verdict", "reviewed_at_utc", "method", "findings", "readback_entries"],
+      "properties": {
+        "schema_version": {"const": "r11_exact_digest_review.v1"},
+        "subject_kind": {"enum": ["stage1", "stage2_preupload", "stage2_upload", "audit_identity"]},
+        "subject_sha256": {"$ref": "#/$defs/sha256"},
+        "observed_sha256": {"$ref": "#/$defs/sha256"},
+        "reviewer_id": {"type": "string", "minLength": 1},
+        "verdict": {"enum": ["accepted", "rejected"]},
+        "reviewed_at_utc": {"type": "string", "format": "date-time"},
+        "method": {"type": "string", "minLength": 1},
+        "readback_entries": {"type": "array", "items": {"$ref": "#/$defs/review_readback_entry"}},
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["severity", "path", "detail"],
+            "properties": {
+              "severity": {"enum": ["critical", "important", "minor"]},
+              "path": {"$ref": "#/$defs/relative_path"},
+              "detail": {"type": "string", "minLength": 1}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {"if": {"properties": {"subject_kind": {"const": "stage1"}}, "required": ["subject_kind"]}, "then": {"properties": {"readback_entries": {"minItems": 8, "maxItems": 8}}}},
+        {"if": {"properties": {"subject_kind": {"const": "stage2_preupload"}}, "required": ["subject_kind"]}, "then": {"properties": {"readback_entries": {"minItems": 2}}}},
+        {"if": {"properties": {"subject_kind": {"const": "stage2_upload"}}, "required": ["subject_kind"]}, "then": {"properties": {"readback_entries": {"minItems": 2}}}},
+        {"if": {"properties": {"subject_kind": {"const": "audit_identity"}}, "required": ["subject_kind"]}, "then": {"properties": {"readback_entries": {"minItems": 1, "maxItems": 1}}}}
+      ],
+      "x-invariants": ["subject_sha256 equals observed_sha256", "paired stage reviews use distinct reviewer IDs and accepted verdicts", "no unresolved Critical or Important finding", "readback_entries are sorted by canonical relative path, unique, and retain observed uid, gid, and nlink for every typed row", "stage1 entries are the seven static-code-manifest-listed files plus the static manifest self file row, whose raw SHA equals subject_sha256", "stage2_preupload entries are every Stage 2 manifest entry plus its self file row, whose raw SHA equals subject_sha256", "stage2_upload entries are every actual on-target Stage 2 member plus the manifest self row; their package identity projection (path,kind,mode,size,sha256,target) equals the preupload projection and complete on-target inventory, while on-target uid/gid/nlink are retained and independently checked against target ownership and link-count requirements", "audit_identity has exactly the audit identity manifest file row, whose raw SHA equals subject_sha256", "review files are outside the Stage 1/Stage 2 digest they review and are not cryptographic signatures"]
+    },
+    "audit_identity": {
+      "type": "object",
+      "required": ["schema_version", "operation_dir", "evidence_dir", "workspace_dir", "output_file", "run", "operation_files", "workspace_files", "evidence_files"],
+      "properties": {
+        "schema_version": {"const": "task5_native_source_completion_audit_identity.v1"},
+        "operation_dir": {"$ref": "#/$defs/absolute_path"},
+        "evidence_dir": {"$ref": "#/$defs/absolute_path"},
+        "workspace_dir": {"$ref": "#/$defs/absolute_path"},
+        "output_file": {"$ref": "#/$defs/absolute_path"},
+        "run": {"$ref": "#/$defs/run"},
+        "operation_files": {
+          "type": "object",
+          "required": ["intent", "plan", "controller", "controller_receipt", "claim", "launch_intent", "gate_start", "gate_end", "post_run_integrity", "source_postflight", "lock_postflight", "source_manifest", "gate_script", "auditor", "gate_stdout", "gate_stderr"],
+          "properties": {
+            "intent": {"$ref": "#/$defs/identity_file"},
+            "plan": {"$ref": "#/$defs/identity_file"},
+            "controller": {"$ref": "#/$defs/identity_file"},
+            "controller_receipt": {"$ref": "#/$defs/identity_file"},
+            "claim": {"$ref": "#/$defs/identity_file"},
+            "launch_intent": {"$ref": "#/$defs/identity_file"},
+            "gate_start": {"$ref": "#/$defs/identity_file"},
+            "gate_end": {"$ref": "#/$defs/identity_file"},
+            "post_run_integrity": {"$ref": "#/$defs/identity_file"},
+            "source_postflight": {"$ref": "#/$defs/identity_file"},
+            "lock_postflight": {"$ref": "#/$defs/identity_file"},
+            "source_manifest": {"$ref": "#/$defs/identity_file"},
+            "gate_script": {"$ref": "#/$defs/identity_file"},
+            "auditor": {"$ref": "#/$defs/identity_file"},
+            "gate_stdout": {"$ref": "#/$defs/identity_file"},
+            "gate_stderr": {"$ref": "#/$defs/identity_file"}
+          },
+          "additionalProperties": false
+        },
+        "workspace_files": {
+          "type": "object",
+          "required": ["tool_freeze"],
+          "properties": {"tool_freeze": {"$ref": "#/$defs/identity_file"}},
+          "additionalProperties": false
+        },
+        "evidence_files": {
+          "type": "object",
+          "required": ["positive", "controlled-response", "native-source-refusal", "summary"],
+          "properties": {
+            "positive": {"$ref": "#/$defs/identity_file"},
+            "controlled-response": {"$ref": "#/$defs/identity_file"},
+            "native-source-refusal": {"$ref": "#/$defs/identity_file"},
+            "summary": {"$ref": "#/$defs/identity_file"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false,
+      "description": "Dynamic post-gate identity. runner is deliberately absent from operation_files; it is pinned by the static package/source manifest."
+    },
+    "identity_file": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "properties": {"path": {"$ref": "#/$defs/relative_path"}, "sha256": {"$ref": "#/$defs/sha256"}},
+      "additionalProperties": false
+    }
+  }
+}

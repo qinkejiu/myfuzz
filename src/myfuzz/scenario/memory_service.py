@@ -6,11 +6,14 @@ from dataclasses import asdict, dataclass
 from collections import OrderedDict
 import hashlib
 import json
+import sys
 from typing import ClassVar
+from weakref import ref
 
 from .ledger import TransactionKey, TransactionLedger
 from .memory import (InstructionAcceptance, PersistentMemory, ReadSnapshot,
-                     _ACCEPT_ISSUED_INSTRUCTIONS)
+                     _ACCEPT_ISSUED_INSTRUCTIONS, _READ_ACTUAL_SNAPSHOT,
+                     _VALIDATE_ACTUAL_SNAPSHOT, _REVOKE_ACTUAL_SNAPSHOT)
 
 
 @dataclass(frozen=True)
@@ -115,10 +118,25 @@ class MemoryService:
     def read(self, key: TransactionKey, address: int, *,
              width_bytes: int) -> ReadSnapshot:
         payload = {"op": "read", "address": address, "width_bytes": width_bytes}
-        self.memory.validate_read(address, width_bytes)
+        had_armed_read = _HAS_ARMED_ISSUED_READ(self)
+        try:
+            self.memory.validate_read(address, width_bytes)
+            native_armed = _IS_ARMED_ISSUED_READ(self, key)
+        except BaseException:
+            if had_armed_read:
+                _REVOKE_ISSUED_READ(self)
+            raise
+        committed_snapshot = None
+        committed_event = None
+
         def commit() -> ReadSnapshot:
-            snapshot = self.memory.read(address, width_bytes,
-                                        transaction_id=str(key))
+            nonlocal committed_snapshot, committed_event
+            if native_armed:
+                snapshot = _READ_ACTUAL_SNAPSHOT(self.memory, address, width_bytes,
+                                                 transaction_id=str(key), issuer=self)
+            else:
+                snapshot = self.memory.read(address, width_bytes,
+                                            transaction_id=str(key))
             for byte_offset in snapshot.materialized_offsets:
                 lane = byte_offset - snapshot.byte_offset
                 self.events.append({"kind": "memory_initialization",
@@ -141,9 +159,22 @@ class MemoryService:
             if self.include_writer_kinds:
                 record["writer_kinds"] = snapshot.writer_kinds
             self.events.append(record)
+            committed_snapshot = snapshot
+            committed_event = record
             return snapshot
 
-        return self.ledger.execute_once(key, payload, commit)
+        try:
+            result = self.ledger.execute_once(key, payload, commit)
+            if native_armed:
+                if committed_snapshot is None:
+                    raise ValueError('armed native read was replayed without a callback')
+                _REGISTER_ISSUED_READ(self, self.memory, key, result,
+                                      committed_event, payload)
+            return result
+        except BaseException:
+            if native_armed:
+                _REVOKE_ISSUED_READ(self)
+            raise
 
     def write(self, key: TransactionKey, address: int, value: int, *,
               width_bytes: int, byte_enable: int) -> WriteReceipt:
@@ -260,3 +291,141 @@ def _native_instruction_service_anchor():
 
 
 _NATIVE_INSTRUCTION_SERVICE_PRODUCER = _native_instruction_service_anchor()
+
+
+def _issued_read_registry():
+    """Keep opaque handles for completed original service reads only."""
+    method = MemoryService.read
+    code = method.__code__
+    issued = {}
+
+    def owner_records(service):
+        row = issued.get(id(service))
+        return row[1] if row is not None and row[0]() is service else None
+
+    def original_producer(service):
+        bound = getattr(service, 'read', None)
+        if (type(service) is not MemoryService
+                or MemoryService.read is not method or method.__code__ is not code
+                or 'read' in vars(service)
+                or getattr(bound, '__self__', None) is not service
+                or getattr(bound, '__func__', None) is not method):
+            raise ValueError('native read requires original service producer')
+
+    def arm(service, key):
+        original_producer(service)
+        if type(key) is not TransactionKey:
+            raise ValueError('native read requires typed transaction key')
+        records = owner_records(service)
+        if records is None:
+            owner_id = id(service)
+
+            def expired(reference):
+                row = issued.get(owner_id)
+                if row is not None and row[0] is reference:
+                    issued.pop(owner_id)
+
+            records = {}
+            issued[owner_id] = (ref(service, expired), records)
+        if records:
+            raise ValueError('native read issuance already armed or pending')
+        records['armed'] = key
+
+    def has_arm(service):
+        records = owner_records(service)
+        return records is not None and 'armed' in records
+
+    def is_armed(service, key):
+        records = owner_records(service)
+        if records is None or 'armed' not in records:
+            return False
+        if records['armed'] is not key:
+            raise ValueError('native read key differs from armed transaction')
+        return True
+
+    def revoke(service):
+        records = owner_records(service)
+        if records is not None:
+            row = records.get('issued')
+            _REVOKE_ACTUAL_SNAPSHOT(row[3] if row is not None else service.memory,
+                                    service)
+            records.clear()
+
+    def register(service, memory, key, snapshot, event, payload):
+        frame = sys._getframe(1)
+        original_producer(service)
+        _VALIDATE_ACTUAL_SNAPSHOT(memory, service, snapshot)
+        entry = service.ledger._entries.get(key)
+        if (frame.f_code is not code or frame.f_globals is not globals()
+                or frame.f_locals.get('self') is not service
+                or frame.f_locals.get('committed_snapshot') is not snapshot
+                or frame.f_locals.get('committed_event') is not event
+                or type(memory) is not PersistentMemory or service.memory is not memory
+                or type(key) is not TransactionKey or type(snapshot) is not ReadSnapshot
+                or entry is None or entry.status != 'complete' or entry.receipt is not snapshot
+                or entry.payload_digest != TransactionLedger._digest(payload)
+                or not service.events or service.events[-1] is not event
+                or type(event) is not dict or event.get('kind') != 'memory_read'
+                or event.get('transaction') != asdict(key)
+                or snapshot.transaction_id != str(key)):
+            raise ValueError('native read requires actual completed service callback')
+        expected_event = {"kind": "memory_read", "transaction": asdict(key),
+                          "address": payload['address'],
+                          "width_bytes": payload['width_bytes'],
+                          "memory_id": snapshot.memory_id,
+                          "generation": snapshot.generation,
+                          "byte_offset": snapshot.byte_offset,
+                          "value": snapshot.value,
+                          "data_hex": snapshot.data.hex(),
+                          "versions": snapshot.versions,
+                          "writer_event_ids": snapshot.writer_event_ids}
+        if service.include_writer_kinds:
+            expected_event['writer_kinds'] = snapshot.writer_kinds
+        if (event != expected_event
+                or json.dumps(event, sort_keys=True, allow_nan=False)
+                != json.dumps(expected_event, sort_keys=True, allow_nan=False)):
+            raise ValueError('native read event differs from actual snapshot')
+        records = owner_records(service)
+        if records is None or records.get('armed') is not key:
+            raise ValueError('native read was not armed for this transaction')
+        handle = object()
+        records.clear()
+        records['issued'] = (handle, snapshot, key, memory, service.ledger,
+                             entry, tuple(getattr(snapshot, name) for name in
+                                          ReadSnapshot.__dataclass_fields__),
+                             event,
+                             json.dumps(event, sort_keys=True, allow_nan=False))
+
+    def lookup(service, memory, key, snapshot):
+        original_producer(service)
+        _VALIDATE_ACTUAL_SNAPSHOT(memory, service, snapshot)
+        records = owner_records(service)
+        row = records.get('issued') if records is not None else None
+        if (row is None or row[1] is not snapshot or row[2] is not key
+                or row[3] is not memory or service.memory is not memory
+                or row[4] is not service.ledger or type(key) is not TransactionKey
+                or type(snapshot) is not ReadSnapshot
+                or tuple(getattr(snapshot, name) for name in
+                         ReadSnapshot.__dataclass_fields__) != row[6]
+                or snapshot.generation != memory.generation
+                or service.ledger._entries.get(key) is not row[5]
+                or row[5].status != 'complete' or row[5].receipt is not snapshot
+                # Runner journals a detached copy and deliberately clears
+                # service.events. Keep validating the original callback event
+                # object and its frozen material, not its transient list slot.
+                or json.dumps(row[7], sort_keys=True, allow_nan=False) != row[8]):
+            raise ValueError('native read is not an unchanged issued result')
+        return row[0]
+
+    def validate(service, memory, key, snapshot, handle):
+        if lookup(service, memory, key, snapshot) is not handle:
+            raise ValueError('native read handle does not match issuance')
+        return snapshot
+
+    return arm, has_arm, is_armed, revoke, register, lookup, validate
+
+
+(_ARM_ISSUED_READ, _HAS_ARMED_ISSUED_READ, _IS_ARMED_ISSUED_READ,
+ _REVOKE_ISSUED_READ,
+ _REGISTER_ISSUED_READ, _LOOKUP_ISSUED_READ,
+ _VALIDATE_ISSUED_READ) = _issued_read_registry()

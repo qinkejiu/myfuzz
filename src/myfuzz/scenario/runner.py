@@ -160,12 +160,14 @@ class _EventLog:
     def append_unchecked(self, record: dict) -> None:
         record = self.runner._decorate_provenance(record)
         self._records.append(record)
+        self.runner._reduced_axi_streams.consume(record)
         self.runner._consume_dependency_event(record)
 
     def append(self, record: dict, *, memory_commit_token=None, memory_read_token=None) -> None:
         self.runner._ensure_semantic_capacity("append_event")
         record = self.runner._decorate_provenance(record)
         self._records.append(record)
+        self.runner._reduced_axi_streams.consume(record)
         self.runner._consume_dependency_event(record,
             commit_token=memory_commit_token, read_token=memory_read_token)
         if record.get("kind") in ("memory_read", "memory_write", "mmio_delivery",
@@ -178,7 +180,8 @@ class ScenarioRunner:
     def __init__(self, *, sessions: Mapping[str, LocalHarnessSession],
                  ownership: OwnershipMap, bindings: tuple[Binding, ...],
                  irq_pulses: Mapping[Binding, int] | None = None,
-                 independent_baseline: bool = False) -> None:
+                 independent_baseline: bool = False,
+                 reduced_axi_stream_limits: Mapping[str, dict] | None = None) -> None:
         if not sessions:
             raise ValueError("at least one local harness is required")
         if not isinstance(independent_baseline, bool):
@@ -242,6 +245,7 @@ class ScenarioRunner:
         self._ip_protocol_event_normalizers: dict[str, object | None] = {}
         self._ip_protocol_checkers: dict[str, object | None] = {}
         self._protocol_trace_sets: dict[str, object] = {}
+        self._native_source_completion_objects: dict[int, object] = {}
         self._inputs: dict[str, dict[str, int]] = {component: {} for component in self.sessions}
         self._pending_bound_targets: set[str] = set()
         self._events = _EventLog(self)
@@ -313,6 +317,8 @@ class ScenarioRunner:
         self._gpio_input_origins: dict[str, list[dict | None]] = {}
         self._gpio_irq_trigger_refs: dict[tuple[str, int, int, str], dict | None] = {}
         self._source_transport_scopes: dict[str, dict[str, str]] = {}
+        from .reduced_axi_runner_stream import ReducedAxiRunnerStreams
+        self._reduced_axi_streams = ReducedAxiRunnerStreams(self, limits=reduced_axi_stream_limits)
 
     def configure_provenance(self, edge_index) -> None:
         if (self._status != 'created' or self._events or self._provenance is not None
@@ -615,6 +621,13 @@ class ScenarioRunner:
                              'kind': 'source_admission', 'admission': admission.document()})
 
     def _decorate_provenance(self, record: dict) -> dict:
+        # Issued observations and stream DTOs have an exact three-field Runner
+        # envelope. Their observation-only authority lives in their own DTOs;
+        # generic provenance would change the original issued content.
+        streams = getattr(self, '_reduced_axi_streams', None)
+        if (streams is not None and record.get('component') in streams.streams
+                and record.get('kind', '').startswith('reduced_axi_')):
+            return record
         return self._provenance.decorate(record) if self._provenance is not None else record
 
     @property
@@ -1002,6 +1015,8 @@ class ScenarioRunner:
             document["irq_delivery"] = [
                 {"binding": asdict(binding), **policy.state_document()}
                 for binding, policy in self._irq_pulses.items()]
+        if self._reduced_axi_streams.streams:
+            document['reduced_axi_observations'] = self.reduced_axi_observation_reports()
         return document
 
     def configure_controlled_irq_bootstrap(self, bootstrap, *, component: str = 'cpu') -> None:
@@ -1077,7 +1092,12 @@ class ScenarioRunner:
             document['native_reset_evidence'] = self._native_reset_evidence.configuration()
         if self._ordinary_apb_access_evidence is not None:
             document['ordinary_apb_access_evidence'] = self._ordinary_apb_access_evidence.configuration()
+        if self._reduced_axi_streams.streams:
+            document['reduced_axi_observation_streams'] = self._reduced_axi_streams.configuration()
         return document
+
+    def reduced_axi_observation_reports(self):
+        return self._reduced_axi_streams.reports()
 
     def begin_test(self, testcase_id: str) -> None:
         if self._status != "created" or not testcase_id:
@@ -1118,11 +1138,16 @@ class ScenarioRunner:
                 if deadline is not None and time.monotonic() >= deadline:
                     raise LocalCommandDeadlineExceeded(
                         "max_wall_time_ms: before local begin")
+                self._reduced_axi_streams.preflight(component, kind='begin_scope')
+                if component in self._reduced_axi_streams.streams:
+                    self._reduced_axi_streams.bind(component)
                 begin_in_flight = True
                 with command_deadline(deadline):
                     self.sessions[component].begin_case(testcase_id)
                 begin_in_flight = False
                 started.append(component)
+                if component in self._reduced_axi_streams.streams:
+                    self._append_external_events(component, len(self._events))
         except BaseException as exc:
             if self._native_reset_evidence is not None:
                 self._native_reset_evidence._operation_failed("begin_failure")
@@ -1131,14 +1156,17 @@ class ScenarioRunner:
             if attempted is not None and attempted not in cleanup:
                 cleanup.append(attempted)
             for component in reversed(cleanup):
-                try:
-                    with command_deadline(
-                            self._wall_started_at + self._resource_budget.max_wall_time_ms / 1000
-                            if self._resource_budget is not None
-                            and self._wall_started_at is not None else None):
-                        self.sessions[component].end_case()
-                except BaseException:
-                    pass
+                for _, session in self._reduced_axi_streams.cleanup_targets(component):
+                    try:
+                        with command_deadline(
+                                self._wall_started_at + self._resource_budget.max_wall_time_ms / 1000
+                                if self._resource_budget is not None
+                                and self._wall_started_at is not None else None):
+                            session.end_case()
+                        if component in self._reduced_axi_streams.streams:
+                            self._append_external_events(component, len(self._events))
+                    except BaseException:
+                        pass
             self._begin_cleanup_done = True
             if isinstance(exc, ScenarioBudgetExhausted):
                 raise
@@ -1247,6 +1275,9 @@ class ScenarioRunner:
             for _, router in self._unique_routers():
                 for window in router.windows:
                     self._finalize_ordinary_apb_access(router, window.target, failure='reset')
+        for component in self._reduced_axi_streams.streams:
+            self._reduced_axi_streams.drain(component, len(self._events))
+            self._reduced_axi_streams.preflight(component, operations=2, records=11, kind='reset')
         pending_responses_before = self._pending_responses()
         pending_events_before = self._pending_events()
         pending_bound_before = tuple(sorted(self._pending_bound_targets))
@@ -1272,8 +1303,11 @@ class ScenarioRunner:
         try:
             for component in sorted(self.sessions):
                 resetting_component = component
+                self._reduced_axi_streams.preflight(component, operations=2, records=11, kind='reset')
                 with command_deadline(deadline):
                     outcome = self.sessions[component].reset_local()
+                if component in self._reduced_axi_streams.streams:
+                    self._append_external_events(component, len(self._events))
                 count = (outcome or {}).get("cancelled_responses", 0)
                 if isinstance(count, bool) or not isinstance(count, int) or count < 0:
                     raise ValueError("invalid reset cancellation receipt")
@@ -1574,6 +1608,7 @@ class ScenarioRunner:
             raise RuntimeError("scenario is not running")
         if component not in self.sessions:
             raise ValueError("unknown local harness")
+        self._reduced_axi_streams.preflight(component)
         guard_register_program_verifier(self)
         if self._native_reset_evidence is not None:
             additional=2 if component in self._native_reset_evidence._targets else 0
@@ -2098,10 +2133,20 @@ class ScenarioRunner:
             return self._protocol_trace_sets[component]
         artifact = getattr(session, 'artifact', None)
         document = getattr(artifact, 'runtime_document', None)
-        if (not isinstance(document, dict) or 'base_protocol_traces' not in document
-                or getattr(session, '_physical_tick_samples_enabled', False) is not True):
+        if not isinstance(document, dict):
             return None
-        if document.get('kind') == 'native_memory_cpu':
+        runner_owns_projection = 'base_protocol_traces' not in document
+        if runner_owns_projection:
+            # Singular target traces use only the existing Runner producers.
+            # Admission must have completed before attaching report consumers.
+            if ('base_protocol_trace' not in document
+                    or not callable(getattr(session, 'drain_tick_samples', None))
+                    or self._ip_protocol_event_normalizers.get(component) is None
+                    or self._ip_protocol_checkers.get(component) is None):
+                return None
+        elif getattr(session, '_physical_tick_samples_enabled', False) is not True:
+            return None
+        if not runner_owns_projection and document.get('kind') == 'native_memory_cpu':
             # Native completion has a dedicated live producer, not the OBI
             # observer or the generic peripheral protocol checker.
             from .native_cpu_events import NativeBusObserver
@@ -2113,7 +2158,8 @@ class ScenarioRunner:
             self._protocol_trace_sets[component] = None
             return None
         from .protocol_trace_sets import ProtocolTraceSetObserver
-        observer = ProtocolTraceSetObserver(component, artifact)
+        observer = ProtocolTraceSetObserver(component, artifact,
+            runner_owns_projection=runner_owns_projection)
         self._protocol_trace_sets[component] = observer
         return observer
 
@@ -2193,6 +2239,8 @@ class ScenarioRunner:
                     if self._ordinary_apb_access_evidence is not None and 'ordinary_apb_access_ref' in sample:
                         raw_event['ordinary_apb_access_ref'] = deepcopy(sample['ordinary_apb_access_ref'])
                     self._append_ordinary_observed_event(raw_event)
+                    if phase == 'pre':
+                        native_completion_producer_event_id = event_id
                     if native_scope is not None:
                         for projection in sample['native_bus_events']:
                             if projection['phase'] == phase:
@@ -2225,7 +2273,7 @@ class ScenarioRunner:
                             self._append_ordinary_observed_event({**protocol_event,
                                 'event_id': len(self._events) + 1,
                                 'kind': protocol_event['event_type']})
-                    if trace_set is not None:
+                    if trace_set is not None and not trace_set.runner_owns_projection:
                         for entry in trace_set.entries.values():
                             invalid = False
                             for finding in entry['checker'].consume_local_tick(raw_event, reset_epoch=epoch):
@@ -2240,7 +2288,206 @@ class ScenarioRunner:
                                         'event_id':len(self._events)+1,'kind':projected['event_type']})
                     if type(epoch) is int:
                         self._gpio_irq_trigger_refs.pop((component, epoch, tick, phase), None)
+                if native_scope is not None:
+                    self._drain_native_source_completions(
+                        component, native_completion_producer_event_id)
                 self._last_sample_ticks[component] = tick
+
+    def _drain_native_source_completions(self, component: str,
+                                         producer_event_id: int) -> None:
+        """Consume original live completion objects from this CPU owner only."""
+        cpu = self.sessions.get(component)
+        source_session = getattr(cpu, '_native_source_completion_session', None)
+        if source_session is None:
+            return
+        from .native_packet_session import NativePacketSession
+        from .native_cpu_events import NativeBusObserver
+        from .native_instruction_bus_completion import (
+            NativeInstructionBusCompletion, validate_issued_native_completion)
+        configuration = (source_session._native_source_completion_configuration()
+                         if type(source_session) is NativePacketSession else None)
+        if (component != 'cpu' or type(source_session) is not NativePacketSession
+                or source_session.runner is not self
+                or configuration is None
+                or source_session._native_source_binding_configuration() is None):
+            raise ValueError('native source completion current-session owner required')
+        observer = getattr(cpu, '_native_bus_observer', None)
+        if (type(observer) is not NativeBusObserver or observer.session is not cpu
+                or getattr(observer, 'drain_source_completions', None) is None):
+            raise ValueError('native source completion live observer required')
+        issued = observer.drain_source_completions()
+        if type(issued) is not tuple:
+            raise ValueError('native source completion issued-object stream required')
+        for completion in issued:
+            if type(completion) is not NativeInstructionBusCompletion:
+                raise ValueError('native source completion original issued object required')
+            validate_issued_native_completion(observer, completion)
+            binding = completion.binding
+            case, role = source_session._native_source_binding_case(binding.case_index)
+            registry = self._provenance.registry if self._provenance is not None else None
+            admission = registry.get(binding.source.action_id) if registry is not None else None
+            if (case.source is not binding.source or case.case_id != binding.admission.case_id
+                    or role != 'fuzz_source' or admission is not binding.admission
+                    or binding.component != component or binding.execution != cpu._execution
+                    or binding.reset_epoch != cpu.reset_epoch
+                    or completion.reset_epoch != cpu.reset_epoch):
+                raise ValueError('native source completion admission or source owner mismatch')
+            completion_scope = dict(zip(('execution', 'command_sequence',
+                'reset_epoch', 'local_tick'), completion.completion_scope))
+            accepted_scope = dict(zip(('execution', 'command_sequence',
+                'reset_epoch', 'local_tick'), completion.accepted_scope))
+            response_scope = dict(zip(('execution', 'command_sequence',
+                'reset_epoch', 'local_tick'), completion.response_scope))
+            def native_from_raw_pre(raw_event, expected_scope, error_code):
+                if (raw_event is None or raw_event.get('kind') != 'local_tick_sample'
+                        or raw_event.get('component') != component
+                        or raw_event.get('phase') != 'pre'
+                        or raw_event.get('native_driver_scope') != expected_scope):
+                    raise ValueError(error_code)
+                outputs = raw_event.get('outputs')
+                try:
+                    taps = outputs['protocol_taps']
+                    physical = outputs['physical']
+                    native = {role: taps[signal]
+                        for role, signal in observer.trace['signals'].items()}
+                    for role in ('valid', 'ready', 'addr', 'wstrb', 'wdata', 'rdata'):
+                        native[role] = taps[observer.trace['signals'][role]]
+                    marker = observer.contract['instruction_marker']['signal']
+                    native['instruction'] = physical[marker]
+                except (KeyError, TypeError):
+                    raise ValueError(error_code) from None
+                if any(type(value) is not int for value in native.values()):
+                    raise ValueError(error_code)
+                return native
+
+            raw_pre = self.event_by_id(producer_event_id)
+            native_expected = native_from_raw_pre(raw_pre, completion_scope,
+                'native source completion raw PRE producer or taps mismatch')
+            native_tuple = tuple(native_expected[name] for name in
+                ('valid', 'ready', 'addr', 'wstrb', 'rdata', 'instruction'))
+            if native_tuple != completion.native_pre:
+                raise ValueError('native source completion raw PRE tuple mismatch')
+            transaction = asdict(completion.key)
+
+            def one_event(predicate, code):
+                matches = [event for event in self._events if predicate(event)]
+                if len(matches) != 1:
+                    raise ValueError(code)
+                return matches[0]
+
+            admission_event = one_event(lambda event:
+                event.get('kind') == 'source_admission'
+                and event.get('admission') == binding.admission.document(),
+                'native source completion admission journal reference mismatch')
+            host_binding_event = one_event(lambda event:
+                event.get('schema_version') == 'native_instruction_source_binding.v1'
+                and event.get('kind') == 'native_instruction_source_bound'
+                and event.get('component') == component
+                and event.get('execution') == binding.execution
+                and event.get('reset_epoch') == binding.reset_epoch
+                and event.get('case_index') == binding.case_index
+                and event.get('source', {}).get('action_id') == binding.source.action_id,
+                'native source completion host binding journal reference mismatch')
+            service_event = self.event_by_id(host_binding_event.get('producer_event_id'))
+            if (host_binding_event.get('admission_event_id') != admission_event.get('event_id')
+                    or service_event is None or service_event.get('kind') != 'instruction_source'
+                    or service_event.get('component') != component
+                    or service_event.get('source_event_id') != binding.source.action_id
+                    or service_event.get('producer_event_id') != admission_event.get('event_id')
+                    or type(service_event.get('address')) is not int
+                    or service_event.get('address') != binding.source.address
+                    or type(service_event.get('data_hex')) is not str
+                    or service_event.get('data_hex') != binding.source.data_hex
+                    or type(service_event.get('generation')) is not int
+                    or service_event.get('generation') != binding.acceptance.generation
+                    or binding.acceptance.address != binding.source.address
+                    or binding.acceptance.data != binding.source.data
+                    or binding.acceptance.source_event_id != binding.source.action_id):
+                raise ValueError('native source completion service/admission journal join mismatch')
+            from .native_instruction_source_binding import _binding_document, _canonical
+            issued_binding_document = _binding_document(binding)
+            recorded_binding_document = {name: host_binding_event.get(name)
+                for name in issued_binding_document}
+            if (_canonical(recorded_binding_document) != _canonical(issued_binding_document)):
+                raise ValueError('native source completion host binding document mismatch')
+
+            def scope_matches(event, scope):
+                return all(event.get(name) == scope[name] for name in
+                           ('execution', 'command_sequence', 'reset_epoch', 'local_tick'))
+
+            def native_projection(kind, scope):
+                return one_event(lambda event:
+                    event.get('schema_version') == 'native_bus_observation.v1'
+                    and event.get('kind') == kind and event.get('component') == component
+                    and event.get('transaction') == transaction
+                    and scope_matches(event, scope),
+                    'native source completion native bus reference mismatch')
+
+            accepted_event = native_projection('native_backend_request_accepted', accepted_scope)
+            response_event = native_projection('native_backend_response_consumed', response_scope)
+            completed_event = native_projection('native_bus_completed', completion_scope)
+            accepted_raw_event = self.event_by_id(accepted_event.get('producer_event_id'))
+            accepted_native_expected = native_from_raw_pre(accepted_raw_event,
+                accepted_scope, 'native source completion accepted raw PRE mismatch')
+            accepted_native = accepted_event.get('native')
+            if (type(accepted_native) is not dict
+                    or set(accepted_native) != set(accepted_native_expected)
+                    or any(type(value) is not int for value in accepted_native.values())
+                    or accepted_native != accepted_native_expected
+                    or accepted_native.get('valid') != 1
+                    or accepted_native.get('ready') != 0
+                    or accepted_native.get('addr') != completion.address
+                    or accepted_native.get('wstrb') != 0
+                    or accepted_native.get('instruction') != 1):
+                raise ValueError('native source completion accepted request/raw PRE mismatch')
+            expected_response_value = completion.snapshot.value
+            if (completed_event.get('producer_event_id') != producer_event_id
+                    or completed_event.get('accepted_scope') != accepted_scope
+                    or completed_event.get('response_scope') != response_scope
+                    or completed_event.get('native') != native_expected
+                    or type(response_event.get('value')) is not int
+                    or response_event.get('value') != expected_response_value
+                    or response_event.get('native_post_is_offer_only') is not True
+                    or accepted_event.get('producer_event_id') == response_event.get('producer_event_id')
+                    or accepted_event.get('producer_event_id') == producer_event_id
+                    or response_event.get('producer_event_id') == producer_event_id):
+                raise ValueError('native source completion accepted/response/completed join mismatch')
+            identity = id(completion)
+            prior = self._native_source_completion_objects.get(identity)
+            if prior is completion:
+                raise ValueError('native source completion object was already consumed')
+            capacity = configuration['max_completion_objects']
+            if (type(capacity) is not int or capacity < 1
+                    or len(self._native_source_completion_objects) >= capacity):
+                raise ValueError('native source completion runner capacity exhausted')
+            if prior is not None:
+                raise ValueError('native source completion object identity collision')
+            self._native_source_completion_objects[identity] = completion
+            snapshot = asdict(completion.snapshot)
+            snapshot['data_hex'] = snapshot.pop('data').hex()
+            document = dict(schema_version=completion.schema_version,
+                kind='native_instruction_bus_completion',
+                proof_scope=completion.proof_scope,
+                grants_source_authority=completion.grants_source_authority,
+                component=component, event_id=len(self._events) + 1,
+                producer_event_id=producer_event_id,
+                key=asdict(completion.key), snapshot=snapshot,
+                binding=_binding_document(binding), address=completion.address,
+                data_hex=completion.data.hex(), reset_epoch=completion.reset_epoch,
+                accepted_scope=dict(zip(('execution', 'command_sequence',
+                    'reset_epoch', 'local_tick'), completion.accepted_scope)),
+                response_scope=dict(zip(('execution', 'command_sequence',
+                    'reset_epoch', 'local_tick'), completion.response_scope)),
+                completion_scope=dict(zip(('execution', 'command_sequence',
+                    'reset_epoch', 'local_tick'), completion.completion_scope)),
+                native_pre=list(completion.native_pre),
+                admission_event_id=admission_event['event_id'],
+                host_binding_event_id=host_binding_event['event_id'],
+                service_event_id=service_event['event_id'],
+                native_accepted_event_id=accepted_event['event_id'],
+                native_response_event_id=response_event['event_id'],
+                native_completed_event_id=completed_event['event_id'])
+            self._append_ordinary_observed_event(document)
 
     def _drain_causal_gpio_events(self, event_id: int, *, exclude: str = '') -> None:
         if self._gpio_consumption_tracker is None and self._uart_consumption_tracker is None:
@@ -2254,6 +2501,7 @@ class ScenarioRunner:
     def _append_external_events(self, component: str, event_id: int) -> None:
         """Keep facts logged by local services even when the step reply is lost."""
         session = self.sessions[component]
+        self._reduced_axi_streams.drain(component, event_id)
         drained_streams = []
         for owner, attribute, kind in ((getattr(session, "service", None),
                                         "events", "memory_commit"),
@@ -2268,6 +2516,8 @@ class ScenarioRunner:
                                        (session, "uart_events", "uart_observation"),
                                        (session, "cpu_events", "cpu_observation"),
                                        (session, "runtime_events", "runtime_observation")):
+            if attribute == "runtime_events" and component in self._reduced_axi_streams.streams:
+                continue
             if kind=="memory_commit" and component in self._failed_memory_commit_components:
                 continue
             stream = getattr(owner, attribute, None)
@@ -3090,19 +3340,29 @@ class ScenarioRunner:
         if self._status not in ("running", "quiescing", "failed"):
             raise RuntimeError("scenario was not started")
         if self._begin_cleanup_done:
+            self._reduced_axi_streams.checkpoint()
+            self._reduced_axi_streams.finalize()
             self._status = "finalized"
             return
-        if self._ordinary_apb_access_evidence is not None:
-            producer = len(self._events)
-            for component in self.sessions:
-                self._append_external_events(component, producer)
-            try:
-                self._drain_ordinary_apb_events(producer)
-                self._drain_tick_samples(producer)
-            finally:
-                for _, router in self._unique_routers():
-                    for window in router.windows:
-                        self._finalize_ordinary_apb_access(router, window.target, failure='finalize')
+        precleanup_errors = []
+        try:
+            if self._ordinary_apb_access_evidence is not None:
+                producer = len(self._events)
+                for component in self.sessions:
+                    self._append_external_events(component, producer)
+                try:
+                    self._drain_ordinary_apb_events(producer)
+                    self._drain_tick_samples(producer)
+                finally:
+                    for _, router in self._unique_routers():
+                        for window in router.windows:
+                            self._finalize_ordinary_apb_access(router, window.target, failure='finalize')
+        except BaseException as exc:
+            # A diagnostic/export failure must never skip process reaping.
+            self.failure_status = self.failure_status or 'environment_error'
+            precleanup_errors.append({'component': 'runner',
+                                      'error_type': type(exc).__name__})
+        self._reduced_axi_streams.checkpoint()
         budget = self._resource_budget
         replay_cut = (self._replay_wall_cut is not None
                       and self._replay_wall_cut[1] == "inflight_finalize")
@@ -3117,11 +3377,11 @@ class ScenarioRunner:
             finalize_timeout_us = (
                 max(0, int((deadline - time.monotonic()) * 1_000_000))
                 if deadline is not None else None)
-        cleanup_errors: list[dict[str, str]] = []
-        for component in sorted(self.sessions):
+        cleanup_errors: list[dict[str, str]] = precleanup_errors
+        for component, session in self._reduced_axi_streams.cleanup_targets():
             try:
                 with command_deadline(deadline):
-                    self.sessions[component].end_case()
+                    session.end_case()
             except BaseException as exc:
                 cleanup_errors.append({"component": component,
                                        "error_type": type(exc).__name__})
@@ -3176,6 +3436,8 @@ class ScenarioRunner:
                 "kind": "harness_failure", "phase": "finalize",
                 "status": "environment_error", "cleanup_errors": cleanup_errors,
             })
+
+        self._reduced_axi_streams.finalize()
 
 
 # Capture the command guard independently of mutable instance/class dispatch.

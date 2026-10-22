@@ -1,0 +1,93 @@
+{
+  "schema_version": "r11_exact_digest_review.v1",
+  "subject_kind": "stage1",
+  "subject_sha256": "a944ef09f414642541854d36955a81b906f213b4705b2e09cc96372de7f84059",
+  "observed_sha256": "a944ef09f414642541854d36955a81b906f213b4705b2e09cc96372de7f84059",
+  "reviewer_id": "r11_controller_bootstrap_review",
+  "verdict": "accepted",
+  "reviewed_at_utc": "2026-10-21T17:56:31Z",
+  "method": "Independent raw manifest/member SHA-256 and typed metadata readback; reviewed exact typed embedded identity joins, preclaim validator placement, and local software coverage. Reviewer did not execute the real gate or access the remote target.",
+  "findings": [],
+  "readback_entries": [
+    {
+      "path": "r11-external-launch-contract.v1.json",
+      "kind": "file",
+      "mode": 420,
+      "size": 23515,
+      "sha256": "359ab594be2ec8fab9f857fc4ceda988abe9abed6825be39b63b65b13596f083",
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1
+    },
+    {
+      "path": "r11-gate-script.v1.py",
+      "kind": "file",
+      "mode": 420,
+      "size": 39137,
+      "sha256": "1422dc3f595eb97f181a6a875d271af238031d7fbd7d5f9a2914c54ab4cc7124",
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1
+    },
+    {
+      "path": "r11-independent-auditor.v1.py",
+      "kind": "file",
+      "mode": 420,
+      "size": 197675,
+      "sha256": "4cbc2a9ae72b0bc134a23e1663356d1a88ddeb8d2be83f7b5154e04af40d2494",
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1
+    },
+    {
+      "path": "r11-one-shot-controller.v1.py",
+      "kind": "file",
+      "mode": 420,
+      "size": 64566,
+      "sha256": "57512b625aaa834d20059b88f758e68157173e107e18c7e3ac39cd91e2dd227b",
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1
+    },
+    {
+      "path": "r11-plan-schema.v1.json",
+      "kind": "file",
+      "mode": 420,
+      "size": 25231,
+      "sha256": "46db704b2295bb690474760ce309a397212446d9c75988bbd0a7f9aeacab1abe",
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1
+    },
+    {
+      "path": "r11-post-gate-audit-runner.v1.py",
+      "kind": "file",
+      "mode": 420,
+      "size": 60968,
+      "sha256": "ba8ac3fadf94cd7c0be641b774353b72821f1a65c025630550f955726730f86a",
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1
+    },
+    {
+      "path": "r11-source-byte-bootstrap.v1.py",
+      "kind": "file",
+      "mode": 420,
+      "size": 31508,
+      "sha256": "99fe90116b88496ce910abb3206adc7713c1e698fa5ee1d5a8c16419e9c3576b",
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1
+    },
+    {
+      "path": "r11-static-code-manifest.v1.json",
+      "kind": "file",
+      "mode": 420,
+      "size": 970,
+      "sha256": "a944ef09f414642541854d36955a81b906f213b4705b2e09cc96372de7f84059",
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1
+    }
+  ]
+}

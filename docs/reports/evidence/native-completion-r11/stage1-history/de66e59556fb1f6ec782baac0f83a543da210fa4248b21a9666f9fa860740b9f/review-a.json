@@ -1,0 +1,99 @@
+{
+  "schema_version": "r11_exact_digest_review.v1",
+  "subject_kind": "stage1",
+  "subject_sha256": "de66e59556fb1f6ec782baac0f83a543da210fa4248b21a9666f9fa860740b9f",
+  "observed_sha256": "de66e59556fb1f6ec782baac0f83a543da210fa4248b21a9666f9fa860740b9f",
+  "reviewer_id": "r11_contract_alignment_review",
+  "verdict": "rejected",
+  "reviewed_at_utc": "2026-10-21T17:51:27.965928+00:00",
+  "method": "Independent read-only manifest/member readback and review of controller/auditor nested identity joins; review reported to root before this record was written.",
+  "findings": [
+    {
+      "severity": "important",
+      "path": "r11-one-shot-controller.v1.py",
+      "detail": "plan.intent ordinary equality admits numeric nested boolean substitutes before claim; independent auditor plan.intent and post.gate_end joins have the same mismatch while runner rejects them later."
+    }
+  ],
+  "readback_entries": [
+    {
+      "path": "r11-external-launch-contract.v1.json",
+      "kind": "file",
+      "mode": 420,
+      "size": 23515,
+      "sha256": "359ab594be2ec8fab9f857fc4ceda988abe9abed6825be39b63b65b13596f083",
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1
+    },
+    {
+      "path": "r11-gate-script.v1.py",
+      "kind": "file",
+      "mode": 420,
+      "size": 39137,
+      "sha256": "1422dc3f595eb97f181a6a875d271af238031d7fbd7d5f9a2914c54ab4cc7124",
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1
+    },
+    {
+      "path": "r11-independent-auditor.v1.py",
+      "kind": "file",
+      "mode": 420,
+      "size": 197016,
+      "sha256": "c5922bc0b6c387511fde9f6f3fa61b9649a63b00dfbec1b3ea77e712513bb341",
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1
+    },
+    {
+      "path": "r11-one-shot-controller.v1.py",
+      "kind": "file",
+      "mode": 420,
+      "size": 63746,
+      "sha256": "1757a367762568feb7087e1271f6d6669448d84bc6dc61bf1480b9e2fd834886",
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1
+    },
+    {
+      "path": "r11-plan-schema.v1.json",
+      "kind": "file",
+      "mode": 420,
+      "size": 25231,
+      "sha256": "46db704b2295bb690474760ce309a397212446d9c75988bbd0a7f9aeacab1abe",
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1
+    },
+    {
+      "path": "r11-post-gate-audit-runner.v1.py",
+      "kind": "file",
+      "mode": 420,
+      "size": 60957,
+      "sha256": "f4f0270ae7b8c07bcab4da7c2eaf20fdd9415e5a3e765bec469be2a016ca5946",
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1
+    },
+    {
+      "path": "r11-source-byte-bootstrap.v1.py",
+      "kind": "file",
+      "mode": 420,
+      "size": 31508,
+      "sha256": "99fe90116b88496ce910abb3206adc7713c1e698fa5ee1d5a8c16419e9c3576b",
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1
+    },
+    {
+      "path": "r11-static-code-manifest.v1.json",
+      "kind": "file",
+      "mode": 420,
+      "size": 970,
+      "sha256": "de66e59556fb1f6ec782baac0f83a543da210fa4248b21a9666f9fa860740b9f",
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1
+    }
+  ]
+}

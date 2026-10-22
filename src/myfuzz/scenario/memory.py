@@ -430,12 +430,13 @@ class PersistentMemory:
                 self._bytes[key] = ByteCell(self._initial_byte(*key), version,
                                             "FIRST_READ", f"init:{region.memory_id}:{key[1]}")
         cells = tuple(self._bytes[key] for key in keys)
-        return ReadSnapshot(transaction_id, region.memory_id, self.generation,
-                            offset, bytes(cell.value for cell in cells),
-                            tuple(cell.version for cell in cells),
-                            tuple(cell.writer_event_id for cell in cells),
-                            tuple(key[1] for key in missing),
-                            writer_kinds=tuple(cell.writer_kind for cell in cells))
+        snapshot = ReadSnapshot(transaction_id, region.memory_id, self.generation,
+                                offset, bytes(cell.value for cell in cells),
+                                tuple(cell.version for cell in cells),
+                                tuple(cell.writer_event_id for cell in cells),
+                                tuple(key[1] for key in missing),
+                                writer_kinds=tuple(cell.writer_kind for cell in cells))
+        return snapshot
 
     def write(self, address: int, value: int, *, width_bytes: int,
               byte_enable: int, writer_event_id: str) -> tuple[int, int] | None:
@@ -476,6 +477,72 @@ class PersistentMemory:
 
 
 _BIND_INSTRUCTION_ACCEPTANCE_PRODUCER(PersistentMemory.accept_instructions)
+
+
+def _native_read_snapshot_anchor():
+    """Call the original memory read for service issuance, rejecting overrides."""
+    method = PersistentMemory.read
+    code = method.__code__
+    issued = {}
+
+    def original_producer(owner):
+        bound = getattr(owner, 'read', None)
+        if (type(owner) is not PersistentMemory
+                or PersistentMemory.read is not method or method.__code__ is not code
+                or 'read' in vars(owner)
+                or getattr(bound, '__self__', None) is not owner
+                or getattr(bound, '__func__', None) is not method):
+            raise ValueError('native read requires original memory producer')
+
+    def register(owner, issuer, snapshot):
+        frame = sys._getframe(1)
+        original_producer(owner)
+        if (frame.f_code is not read.__code__ or frame.f_globals is not globals()
+                or frame.f_locals.get('owner') is not owner
+                or frame.f_locals.get('issuer') is not issuer
+                or frame.f_locals.get('snapshot') is not snapshot
+                or type(snapshot) is not ReadSnapshot):
+            raise ValueError('snapshot requires actual memory read')
+        issuer_id = id(issuer)
+
+        def expired(reference):
+            row = issued.get(issuer_id)
+            if row is not None and any(item is reference for item in row[:3]):
+                issued.pop(issuer_id)
+
+        issued[issuer_id] = (ref(owner, expired), ref(issuer, expired),
+                             ref(snapshot, expired),
+                             tuple(getattr(snapshot, name) for name in
+                                   ReadSnapshot.__dataclass_fields__))
+
+    def validate(owner, issuer, snapshot):
+        original_producer(owner)
+        row = issued.get(id(issuer))
+        if (row is None or row[0]() is not owner or row[1]() is not issuer
+                or row[2]() is not snapshot
+                or tuple(getattr(snapshot, name) for name in
+                         ReadSnapshot.__dataclass_fields__) != row[3]
+                or snapshot.generation != owner.generation):
+            raise ValueError('snapshot is not an unchanged actual memory read')
+        return snapshot
+
+    def revoke(owner, issuer, snapshot=None):
+        row = issued.get(id(issuer))
+        if (row is not None and row[0]() is owner and row[1]() is issuer
+                and (snapshot is None or row[2]() is snapshot)):
+            issued.pop(id(issuer))
+
+    def read(owner, address, width_bytes, *, transaction_id, issuer):
+        original_producer(owner)
+        snapshot = method(owner, address, width_bytes, transaction_id=transaction_id)
+        register(owner, issuer, snapshot)
+        return snapshot
+
+    return register, validate, revoke, read
+
+
+(_REGISTER_ACTUAL_SNAPSHOT, _VALIDATE_ACTUAL_SNAPSHOT,
+ _REVOKE_ACTUAL_SNAPSHOT, _READ_ACTUAL_SNAPSHOT) = _native_read_snapshot_anchor()
 
 
 def _native_instruction_memory_anchor():

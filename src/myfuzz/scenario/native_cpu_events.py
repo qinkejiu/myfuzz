@@ -27,6 +27,7 @@ class NativeBusObserver:
         self.samples = []
         self.offered = None
         self.failed = False
+        self._source_completions = []
 
     def _native(self, phase):
         result = {}
@@ -58,6 +59,8 @@ class NativeBusObserver:
                 or receipt.sequence != owner._sequence):
             raise ValueError('native-bus-live-receipt-scope')
         if self.epoch != epoch:
+            if self.epoch is not None:
+                self.revoke_source_completion()
             self.pending = None  # explicit reset cancels, never completes
             self.offered = None
             self.memory_sequence = owner._sequence_memory
@@ -92,6 +95,7 @@ class NativeBusObserver:
                 endpoint_id=self.contract['endpoint_id'],
                 clock_domain=self.contract['clock_domain'], **scope, **fields))
         current = self.pending
+        accepted_key = None
         if self.offered is None and pre['valid']:
             self.offered = pre
         if self.offered is not None and not self._stable(pre, self.offered):
@@ -106,6 +110,15 @@ class NativeBusObserver:
                     or receipt.tick_after != current['response_tick'] + 1
                     or pre['rdata'] != current['response']):
                 raise ValueError('native-bus-completion-without-matching-response')
+            if (getattr(owner, '_native_source_completion_session', None) is not None
+                    and pre['instruction']):
+                from .native_instruction_bus_completion import _ISSUE_NATIVE_COMPLETION
+                completion = _ISSUE_NATIVE_COMPLETION(self, current, pre, scope)
+                if completion is not None:
+                    self._source_completions.append(completion)
+            if current.get('read_handle') is not None:
+                from .memory_service import _REVOKE_ISSUED_READ
+                _REVOKE_ISSUED_READ(owner.service)
             record('native_bus_completed', transaction=deepcopy(current['transaction']),
                    native=pre, accepted_scope=current['accepted_scope'],
                    response_scope=current['response_scope'],
@@ -142,7 +155,13 @@ class NativeBusObserver:
             key = TransactionKey('local-execution', owner._case_id,
                 owner.artifact.plan.request.instance_id, epoch, 'memory', self.memory_sequence)
             self.pending = dict(state='accepted', native=pre, transaction=asdict(key),
+                key=key, backend_be=backend['m_req_be'],
                 accepted_tick=receipt.tick_after, accepted_scope=scope)
+            if (getattr(owner, '_native_source_completion_session', None) is not None
+                    and pre['instruction']):
+                from .memory_service import _ARM_ISSUED_READ
+                _ARM_ISSUED_READ(owner.service, key)
+            accepted_key = key
             record('native_backend_request_accepted', transaction=asdict(key), native=pre)
         if consumed:
             current = self.pending
@@ -159,22 +178,55 @@ class NativeBusObserver:
             record('native_backend_response_consumed', transaction=deepcopy(current['transaction']),
                    value=pending_response[0], native_post_is_offer_only=True)
         self.sequence, self.tick = receipt.sequence, receipt.tick_after
+        return accepted_key
 
     def bind_read_snapshot(self, key, snapshot):
-        if (self.pending is None or asdict(key) != self.pending['transaction']
+        if (self.pending is None or self.pending['key'] is not key
+                or 'read_snapshot' in self.pending
                 or snapshot.transaction_id != str(key) or len(snapshot.data) != 4):
             raise ValueError('native-bus-read-snapshot-key')
+        if (getattr(self.session, '_native_source_completion_session', None) is not None
+                and self.pending['native']['instruction']):
+            from .memory_service import _LOOKUP_ISSUED_READ
+            self.pending['read_handle'] = _LOOKUP_ISSUED_READ(
+                self.session.service, self.session.memory, key, snapshot)
         row = asdict(snapshot)
         row['data_hex'] = row.pop('data').hex()
         self.pending['memory_read_snapshot'] = row
+        self.pending['read_snapshot'] = snapshot
 
     def cancel_reset(self):
         """Explicit reset cancels a transfer; it never completes or revives it."""
         if self.failed:
             raise ValueError('native-bus-observer-terminal')
+        self.revoke_source_completion()
         self.pending = None
         self.offered = None
+
+    def revoke_source_completion(self):
+        """Release transient read and completion authority at a lifecycle edge."""
+        service = getattr(self.session, 'service', None)
+        if service is not None:
+            from .memory_service import _REVOKE_ISSUED_READ
+            _REVOKE_ISSUED_READ(service)
+        from .native_instruction_bus_completion import revoke_native_completions
+        revoke_native_completions(self)
+        self._source_completions.clear()
 
     def drain(self):
         result, self.samples = self.samples, []
         return result
+
+    def drain_source_completions(self):
+        result = tuple(self._source_completions)
+        self._source_completions.clear()
+        return result
+
+
+def _native_observer_anchor():
+    method = NativeBusObserver.observe
+    pin = (method, method.__code__)
+    return lambda: pin
+
+
+_NATIVE_OBSERVER_PRODUCER = _native_observer_anchor()

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+import sys
 
 from myfuzz.scenario.picorv32_native_online import (
     ROOT, SCHEDULE, PACKET_COUNT,
@@ -18,6 +19,8 @@ from myfuzz.scenario.picorv32_native_online import (
     make_picorv32_native_online_decoder, make_picorv32_native_online_factory)
 from myfuzz.scenario.session_runtime import replay_online_session
 from myfuzz.scenario.native_packet_session import NativePacketSession
+from myfuzz.scenario.native_packet_session import (
+    native_packet_source_completion_configuration)
 
 
 @dataclass
@@ -99,6 +102,8 @@ class PicoNativeOnlineRuntime:
         except BaseException as primary:
             self._fail(primary)
             raise
+        finally:
+            self.session._revoke_native_source_completion(sys.exc_info()[1])
 
     def replay(self, plan, reference):
         if not self._terminal:
@@ -115,13 +120,18 @@ class PicoNativeOnlineRuntime:
             execution = cpu._execution
         return replay_online_session(plan, self.factory, reference,
             native_max_cases=self.max_cases, native_reference_execution=execution,
-            native_source_binding=self.session._native_source_binding_configuration() is not None)
+            native_source_binding=self.session._native_source_binding_configuration() is not None,
+            native_source_completion=(
+                self.session._native_source_completion_configuration() is not None),
+            native_reference_session=(self.session if
+                self.session._native_source_completion_configuration() is not None else None))
 
 
 def make_picorv32_native_online_runtime(*, cache_dir: Path, base_dir: Path = ROOT,
                                        max_cases: int = PACKET_COUNT,
                                        native_completion_observation: bool = False,
-                                       native_source_binding: bool = False):
+                                       native_source_binding: bool = False,
+                                       native_source_completion: bool = False):
     """Construct only; begin explicitly starts/builds real hardware.
 
     No per-case pair.runner(), reset, memory replacement or direct GPIO ACCESS
@@ -137,15 +147,25 @@ def make_picorv32_native_online_runtime(*, cache_dir: Path, base_dir: Path = ROO
         raise ValueError('native_completion_observation must be boolean')
     if type(native_source_binding) is not bool:
         raise ValueError('native_source_binding must be boolean')
+    if type(native_source_completion) is not bool:
+        raise ValueError('native_source_completion must be boolean')
     if native_source_binding and not native_completion_observation:
         raise ValueError('native source binding requires native completion observation')
+    if native_source_completion and not native_completion_observation:
+        raise ValueError('native source completion requires native completion observation')
+    if native_source_completion and not native_source_binding:
+        raise ValueError('native source completion requires native source binding')
+    if native_source_completion:
+        native_packet_source_completion_configuration(max_cases)
     bootstrap = make_picorv32_native_online_bootstrap()
     decoder = make_picorv32_native_online_decoder()
     factory = make_picorv32_native_online_factory(cache_dir=cache_dir, base_dir=base_dir,
         native_completion_observation=native_completion_observation)
     runner = factory()
     session = NativePacketSession(bootstrap.template, runner, max_cases=max_cases,
-                                 native_source_binding=native_source_binding)
+        native_completion_observation=native_completion_observation,
+        native_source_binding=native_source_binding,
+        native_source_completion=native_source_completion)
     session.configure_runtime_paths(decoder.graph, decoder.runtime_contract,
         decoder.runtime_paths, source_ownership=decoder.ownership)
     return PicoNativeOnlineRuntime(session, decoder, factory, max_cases)

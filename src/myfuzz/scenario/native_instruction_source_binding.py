@@ -12,7 +12,10 @@ from weakref import ref
 
 from myfuzz.local_harness.native_session import GeneratedNativeMemorySession, _NATIVE_INSTRUCTION_ACCEPT_PRODUCER
 from .memory import InstructionAcceptance, PersistentMemory, _NATIVE_INSTRUCTION_MEMORY_PRODUCERS
-from .memory_service import MemoryService, _NATIVE_INSTRUCTION_SERVICE_PRODUCER
+from .memory import ReadSnapshot
+from .memory_service import (MemoryService, _NATIVE_INSTRUCTION_SERVICE_PRODUCER,
+                             _LOOKUP_ISSUED_READ)
+from .ledger import TransactionKey
 from .native_cpu_events import NativeBusObserver
 from .native_packet_session import NativePacketSession
 from .runner import ScenarioRunner, _NATIVE_INSTRUCTION_RUNNER_PRODUCERS
@@ -55,6 +58,108 @@ def _binding_document(binding):
     return document
 
 
+_CANDIDATE_REFUSAL = 'native_source_candidate_refused'
+
+
+def _refuse_candidate():
+    raise ValueError(_CANDIDATE_REFUSAL)
+
+
+def _classify_native_source_read(rows, snapshot, key, address, span, *,
+                                 epoch, component, testcase_id, execution='native-execution',
+                                 anchors=None, current_case_index=0):
+    """Non-authoritative policy over typed inputs; only the registry can grant a binding.
+
+    Each row is (binding, current case, registered admission, resolved source ID,
+    current source role). A None result is diagnostic-only for unrelated fetches.
+    A historical source span remains a candidate and is refused in a later case.
+    """
+    if (type(rows) is not tuple or (anchors is not None
+            and (type(anchors) is not tuple or len(anchors) != len(rows)))
+            or type(address) is not int or address < 0 or type(span) is not tuple
+            or len(span) != 3 or type(epoch) is not int or epoch < 0
+            or type(current_case_index) is not int or current_case_index < 0):
+        _refuse_candidate()
+    candidates = []
+    for index, item in enumerate(rows):
+        if type(item) is not tuple or len(item) != 5:
+            _refuse_candidate()
+        binding = item[0]
+        if type(binding) is not NativeInstructionSourceBinding:
+            _refuse_candidate()
+        source, acceptance = binding.source, binding.acceptance
+        if type(source) is not OnlineInstruction or type(acceptance) is not InstructionAcceptance:
+            _refuse_candidate()
+        anchor = (source.address, len(source.data), acceptance.memory_id,
+                  acceptance.generation, acceptance.byte_offset) if anchors is None else anchors[index]
+        if (type(anchor) is not tuple or len(anchor) != 5
+                or any(type(value) is not int or value < 0 for value in
+                       (anchor[0], anchor[1], anchor[3], anchor[4]))
+                or type(anchor[2]) is not str or not anchor[2]):
+            _refuse_candidate()
+        source_address, source_length, memory_id, generation, byte_offset = anchor
+        direct = source_address <= address < source_address + source_length
+        physical = (span[0] == memory_id and span[1] == generation
+                    and byte_offset <= span[2] < byte_offset + source_length)
+        if direct or physical:
+            candidates.append(item)
+    if not candidates:
+        return None
+    if len(candidates) != 1:
+        _refuse_candidate()
+    binding, case, registered, source_id, role = candidates[0]
+    source, acceptance, admission = binding.source, binding.acceptance, binding.admission
+    offset = address - source.address
+    if (type(snapshot) is not ReadSnapshot or type(key) is not TransactionKey
+            or type(component) is not str or not component
+            or type(testcase_id) is not str or not testcase_id
+            or type(execution) is not str or not execution
+            or binding.component != component or binding.execution != execution
+            or binding.reset_epoch != epoch
+            or binding.case_index != current_case_index
+            or key.execution_id != 'local-execution'
+            or key.testcase_id != testcase_id or key.source_component != component
+            or key.source_epoch != epoch or key.channel_id != 'memory'
+            or type(key.source_sequence) is not int or key.source_sequence < 1
+            or snapshot.transaction_id != str(key)
+            or type(offset) is not int or offset < 0 or offset % 4
+            or offset + 4 > len(source.data) or address % 4
+            or type(admission) is not SourceAdmission or registered is not admission
+            or role != 'fuzz_source' or admission.role != 'fuzz_source'
+            or admission.input_kind != 'instruction'
+            or admission.component != component or source.component != component
+            or admission.case_index != binding.case_index
+            or case.source is not source or case.case_id != admission.case_id
+            or case.path_id != admission.path_id
+            or case.direction != admission.direction
+            or admission.action_id != source.action_id
+            or admission.source_id != source_id
+            or admission.input_sha256 != hashlib.sha256(_canonical(
+                {**asdict(source), 'kind': 'instruction'})).hexdigest()
+            or acceptance.address != source.address
+            or acceptance.data != source.data
+            or acceptance.source_event_id != source.action_id
+            or len(acceptance.data) % 4
+            or len(acceptance.versions) != len(acceptance.data)
+            or len(acceptance.writer_event_ids) != len(acceptance.data)
+            or len(acceptance.writer_kinds) != len(acceptance.data)
+            or snapshot.memory_id != acceptance.memory_id
+            or snapshot.generation != acceptance.generation
+            or snapshot.byte_offset != acceptance.byte_offset + offset
+            or span != (snapshot.memory_id, snapshot.generation, snapshot.byte_offset)
+            or type(snapshot.data) is not bytes or len(snapshot.data) != 4
+            or snapshot.data != source.data[offset:offset + 4]
+            or snapshot.versions != acceptance.versions[offset:offset + 4]
+            or snapshot.writer_event_ids != acceptance.writer_event_ids[offset:offset + 4]
+            or snapshot.writer_kinds != acceptance.writer_kinds[offset:offset + 4]
+            or snapshot.writer_event_ids != (source.action_id,) * 4
+            or snapshot.writer_kinds != ('INSTRUCTION_SOURCE',) * 4
+            or len(set(snapshot.versions)) != 1
+            or snapshot.versions[0][0] != acceptance.generation):
+        _refuse_candidate()
+    return binding
+
+
 def _binding_registry():
     # Capture original producer identities, not an install-time callback.
     execution_pins, resolve_source = _NATIVE_INSTRUCTION_EXECUTION_PRODUCERS()
@@ -72,6 +177,7 @@ def _binding_registry():
         (ScenarioRunner, '_append_external_events', *runner_pins[1]),
         (ScenarioRunner, '_append_ordinary_observed_event', *runner_pins[2]),
         (ScenarioSession, '_native_source_binding_configuration', *execution_pins[1]),
+        (ScenarioSession, '_native_source_binding_case', *execution_pins[2]),
     )
     owners = {}
 
@@ -166,7 +272,8 @@ def _binding_registry():
 
         owners[owner_id] = dict(session=ref(session, expired), runner=ref(runner),
             cpu=ref(cpu), memory=ref(memory), execution=cpu._execution,
-            epoch=cpu.reset_epoch, revoked=False, acceptances={}, actions={}, issued={})
+            epoch=cpu.reset_epoch, revoked=False, bad=False,
+            acceptances={}, actions={}, issued={})
 
     def bind(session, case, case_index, admission, acceptance):
         frame = sys._getframe(1)
@@ -217,7 +324,9 @@ def _binding_registry():
             case_index, admission, source, acceptance)
         row['issued'][id(binding)] = dict(binding=binding, material=_binding_material(binding),
             service_event=service_event, service_material=_canonical(expected_event),
-            service_index=event_index, published=False)
+            service_index=event_index, published=False,
+            candidate_anchor=(source.address, len(source.data), acceptance.memory_id,
+                              acceptance.generation, acceptance.byte_offset))
         row['acceptances'][id(acceptance)] = acceptance
         row['actions'][source.action_id] = binding
         return binding
@@ -230,6 +339,52 @@ def _binding_registry():
             raise ValueError('native source binding is not an unchanged issued identity')
         pins[3][2](memory, binding.acceptance)
         return binding
+
+    def lookup_source_for_read(session, service, memory, key, snapshot, address, epoch):
+        """Return only an original, published live binding for this exact read."""
+        try:
+            runner, cpu, actual_memory = context(session)
+        except (AttributeError, RuntimeError, TypeError, ValueError) as exc:
+            raise ValueError(_CANDIDATE_REFUSAL) from exc
+        row = owners.get(id(session))
+        if (service is not cpu.service or memory is not actual_memory
+                or service.memory is not memory or type(key) is not TransactionKey
+                or type(snapshot) is not ReadSnapshot):
+            if row is not None and row['session']() is session:
+                row['bad'] = True
+            _refuse_candidate()
+        if row is None:
+            return None
+        try:
+            row, _, _, memory = installed(session)
+            if row['bad']:
+                _refuse_candidate()
+            rows = []
+            anchors = []
+            for issued in row['issued'].values():
+                binding = issued['binding']
+                case, role = pins[9][2](session, binding.case_index)
+                admission = runner._provenance.registry.get(binding.source.action_id)
+                source_id = resolve_source[0](session._runtime_prepared, case)
+                rows.append((binding, case, admission, source_id, role))
+                anchors.append(issued['candidate_anchor'])
+            span = pins[5][2](memory, address, 4)
+            binding = _classify_native_source_read(tuple(rows), snapshot, key,
+                address, span, epoch=epoch, component='cpu',
+                testcase_id=cpu._case_id, execution=cpu._execution,
+                anchors=tuple(anchors), current_case_index=len(session._cases) - 1)
+            if binding is None:
+                return None
+            issued = row['issued'].get(id(binding))
+            if (issued is None or issued['binding'] is not binding
+                    or not issued['published']):
+                _refuse_candidate()
+            validate(session, binding)
+            _LOOKUP_ISSUED_READ(service, memory, key, snapshot)
+            return binding
+        except (AttributeError, KeyError, RuntimeError, TypeError, ValueError) as exc:
+            row['bad'] = True
+            raise ValueError(_CANDIDATE_REFUSAL) from exc
 
     def publish(session, binding):
         frame = sys._getframe(1)
@@ -270,9 +425,9 @@ def _binding_registry():
         if row is not None and row['session']() is session:
             row['revoked'] = True
 
-    return install, bind, validate, revoke, setup, publish
+    return install, bind, validate, revoke, setup, publish, lookup_source_for_read
 
 
 (_install_actual_execution_producer, bind_actual_selected_instruction,
  validate_issued_binding, revoke_bindings, preflight_source_binding,
- publish_bound_source) = _binding_registry()
+ publish_bound_source, lookup_issued_source_for_read) = _binding_registry()

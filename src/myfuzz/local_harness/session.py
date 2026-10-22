@@ -19,7 +19,7 @@ from myfuzz.scenario.protocol_io import (
     BoundedLineReader, _deadline, command_deadline, end_local_process,
     read_startup_ready, write_local_command,
 )
-from .build import build_local_harness, local_build_identity
+from .build import build_local_harness, local_build_identity, build_local_harness_with_receipt
 from .runtime_artifact import LocalRuntimeArtifact
 from .wire import (MAX_REPLY_LINE_BYTES, DriverReceipt, parse_driver_ack,
                    parse_driver_ready, parse_driver_receipt)
@@ -28,6 +28,11 @@ from .axi4_fields import AXI_STEP_MAXIMA
 from .cva6_axi4_fields import CVA6_AXI_STEP_MAXIMA
 from .vexii_axi_fields import (IRQ_STEP_MAXIMA as REDUCED_AXI_IRQ_STEP_MAXIMA,
                               STEP_MAXIMA as REDUCED_AXI_STEP_MAXIMA)
+
+
+_BUILT_SESSION_PINS = WeakKeyDictionary()
+_BUILT_OPTED_SESSIONS = WeakKeyDictionary()
+_BUILT_REGISTRY_PINS = (_BUILT_SESSION_PINS, _BUILT_OPTED_SESSIONS)
 
 
 _command_timing_observer: ContextVar[Callable[[str, float], None] | None] = (
@@ -138,6 +143,10 @@ class GeneratedLocalSession:
                 or not 0 < command_timeout_seconds <= 3600):
             raise ValueError('invalid generated command deadline')
         self.command_timeout_seconds = float(command_timeout_seconds)
+        self._prepare_attempted = False
+        self._start_attempted = False
+        self._built_launches = []
+        self._built_preparation_failure = None
         self._binary: Path | None = None
         self._process: subprocess.Popen[str] | None = None
         self._reader = BoundedLineReader(max_line_bytes=MAX_REPLY_LINE_BYTES)
@@ -160,12 +169,34 @@ class GeneratedLocalSession:
 
     def prepare_local(self) -> None:
         """Compile and admit the exact artifact before testcase wall accounting."""
+        self._check_built_mode()
         if self._process is not None:
             raise RuntimeError('cannot rebuild a running generated harness')
         if self._native_reset_observation is not None:
             _NATIVE_RESET_CHECK_PRODUCERS[0](self)
-        self._binary = build_local_harness(self.artifact, base_dir=self.base_dir,
-                                           cache_dir=self.cache_dir)
+        self._prepare_attempted = True
+        if self in _BUILT_SESSION_PINS:
+            pin = _BUILT_SESSION_PINS[self]
+            if pin is None:
+                self._check_artifact_stable()
+                try:
+                    result = build_local_harness_with_receipt(self.artifact,
+                        base_dir=self.base_dir, cache_dir=self.cache_dir)
+                except BaseException as error:
+                    self._built_preparation_failure = copy.deepcopy(
+                        getattr(error, 'preparation_observation', None))
+                    raise
+                self._binary = result.binary_path
+                pin = (result, result.receipt_document(),
+                    result.receipt_sha256, result.observation_document(), self.artifact)
+                _BUILT_SESSION_PINS[self] = pin
+                _BUILT_OPTED_SESSIONS[self] = pin
+                self.validate_built_executable_receipt()
+            else:
+                self.validate_built_executable_receipt()
+        else:
+            self._binary = build_local_harness(self.artifact, base_dir=self.base_dir,
+                                               cache_dir=self.cache_dir)
         if self._native_reset_observation is not None:
             _NATIVE_RESET_CHECK_PRODUCERS[0](self)
             identity = local_build_identity(self.artifact, base_dir=self.base_dir)
@@ -176,6 +207,72 @@ class GeneratedLocalSession:
                 hashlib.sha256(self._binary.read_bytes()).hexdigest(), json.dumps(identity,sort_keys=True,separators=(',',':')))
             _NATIVE_RESET_BUILD_ISSUANCES[self] = self._native_reset_build_issuance
             self._native_reset_observation._prepared(self)
+
+    def _check_built_mode(self) -> None:
+        if (_BUILT_SESSION_PINS is not _BUILT_REGISTRY_PINS[0]
+                or _BUILT_OPTED_SESSIONS is not _BUILT_REGISTRY_PINS[1]
+                or (self in _BUILT_OPTED_SESSIONS) != (self in _BUILT_SESSION_PINS)):
+            raise ValueError('built executable receipt pin registry drift')
+        if (self in _BUILT_OPTED_SESSIONS
+                and _BUILT_OPTED_SESSIONS[self] is not _BUILT_SESSION_PINS[self]):
+            raise ValueError('fixed built executable receipt pin replaced')
+
+    def configure_built_executable_receipt(self) -> None:
+        self._check_built_mode()
+        if self._prepare_attempted or self._start_attempted or self._process is not None or self in _BUILT_SESSION_PINS:
+            raise ValueError('built executable receipt must be configured once before preparation')
+        _BUILT_OPTED_SESSIONS[self] = None
+        _BUILT_SESSION_PINS[self] = None
+
+    def _built_pin(self):
+        self._check_built_mode()
+        pin = _BUILT_SESSION_PINS.get(self)
+        if pin is None:
+            raise ValueError('built executable receipt has not been prepared')
+        return pin
+
+    def built_executable_receipt_document(self) -> dict:
+        return copy.deepcopy(self._built_pin()[1])
+
+    def build_preparation_observation_document(self) -> dict:
+        self._check_built_mode()
+        if self._built_preparation_failure is not None:
+            return copy.deepcopy(self._built_preparation_failure)
+        return copy.deepcopy(self._built_pin()[3])
+
+    def built_executable_launch_observations(self) -> tuple[dict, ...]:
+        self._check_built_mode()
+        return tuple(copy.deepcopy(self._built_launches))
+
+    def _built_executable_launch_diagnostics(self) -> tuple[dict, ...]:
+        """Retained facts only; this accessor never validates launch authority."""
+        return tuple(copy.deepcopy(self._built_launches))
+
+    def validate_built_executable_receipt(self) -> dict:
+        result, receipt, digest, observation, artifact = self._built_pin()
+        self._check_artifact_stable()
+        canonical = lambda value: json.dumps(value, sort_keys=True, separators=(',', ':'))
+        if (self.artifact is not artifact or self._binary != result.binary_path
+                or canonical(result.receipt_document()) != canonical(receipt)
+                or result.receipt_sha256 != digest):
+            raise ValueError('fixed built executable receipt or binary path changed')
+        if result.validate_current(self.artifact, base_dir=self.base_dir,
+                                  cache_dir=self.cache_dir) != self._binary:
+            raise ValueError('validated built executable path changed')
+        return copy.deepcopy(receipt)
+
+    def _built_closed(self, proc, *, aborted=False, error=None):
+        if self not in _BUILT_REGISTRY_PINS[1] or not self._built_launches:
+            return
+        row = self._built_launches[-1]
+        if row['pid'] != proc.pid:
+            return
+        row.update(returncode=proc.returncode, reaped=proc.returncode is not None,
+                   aborted=aborted)
+        if error is not None:
+            row['cleanup_error'] = repr(error)
+            if row['failure_stage'] is None:
+                row['failure_stage'] = 'end_or_reap'
 
     def configure_native_reset_observation(self, *, max_lifecycles=256, max_commands=4096):
         from .native_reset_observation import NativeResetObservation
@@ -209,15 +306,19 @@ class GeneratedLocalSession:
         return () if self._native_reset_observation is None else self._native_reset_observation.commands()
 
     def identity_document(self) -> dict[str, object]:
+        self._check_built_mode()
         self._check_artifact_stable()
         document = self._artifact_document
-        return {'schema_version': 'generated_local_session_identity.v1',
+        identity = {'schema_version': 'generated_local_session_identity.v1',
                 'runtime_artifact': copy.deepcopy(document),
                 'build_identity': local_build_identity(self.artifact, base_dir=self.base_dir),
                 'command_timeout_seconds': self.command_timeout_seconds}
+        if self in _BUILT_SESSION_PINS:
+            identity['built_executable_receipt'] = self.validate_built_executable_receipt()
+        return identity
 
     def _check_artifact_stable(self) -> None:
-        if self.artifact.runtime_document != self._artifact_document:
+        if json.dumps(self.artifact.runtime_document, sort_keys=True, separators=(',', ':')) != json.dumps(self._artifact_document, sort_keys=True, separators=(',', ':')):
             raise ValueError('generated driver artifact changed after session creation')
 
     def _expected_ready(self) -> tuple[str, int, int, str]:
@@ -282,7 +383,11 @@ class GeneratedLocalSession:
                 if proc.poll() is None:
                     proc.kill()
                 proc.wait(timeout=1)
+            except BaseException as error:
+                self._built_closed(proc, aborted=True, error=error)
+                raise
             finally:
+                self._built_closed(proc, aborted=True)
                 if self._native_reset_observation is not None:
                     self._native_reset_observation._closed(self, proc, aborted=True)
                 for stream in (proc.stdin, proc.stdout):
@@ -291,7 +396,19 @@ class GeneratedLocalSession:
         if revoke_error is not None:
             raise revoke_error
 
+    def _abort_failed_operation(self, primary, stage):
+        if self._built_launches and self._process is not None:
+            row = self._built_launches[-1]
+            if row['pid'] == self._process.pid:
+                row['failure_stage'] = stage
+                row['error'] = repr(primary)
+        try:
+            self._abort()
+        except BaseException as cleanup:
+            primary.add_note(stage + ' cleanup failure: ' + repr(cleanup))
+
     def begin_case(self, testcase_id: str) -> None:
+        self._check_built_mode()
         _NATIVE_RESET_OWNER_GUARD_PIN[0](self)
         if self._process is not None or type(testcase_id) is not str or not testcase_id:
             raise ValueError('generated testcase can begin exactly once')
@@ -306,16 +423,41 @@ class GeneratedLocalSession:
             except BaseException:
                 self._native_reset_observation._consumer_failed(self, 'prelaunch_build_drift')
                 raise
+        if self in _BUILT_SESSION_PINS:
+            self.validate_built_executable_receipt()
         self._execution = uuid.uuid4().hex
         self._sequence = 0
         self._acknowledged = 0
         self._tick_base = self.local_ticks
         self._case_id = testcase_id
         self._reader.reset()
+        launch_row = None
+        if self in _BUILT_SESSION_PINS:
+            receipt = self._built_pin()[1]
+            launch_row = dict(pid=None, execution_nonce=self._execution,
+                argv=[str(self._binary)], built_receipt_sha256=self._built_pin()[2],
+                artifact_digest=receipt['artifact_digest'], build_digest=receipt['build_digest'],
+                binary_sha256=receipt['binary_sha256'], observed_executable_sha256=None,
+                ready_artifact_digest=None, failure_stage=None, returncode=None,
+                reaped=False, aborted=False)
+        failure_stage = 'popen'
+        self._start_attempted = True
         try:
             self._process = subprocess.Popen((str(self._binary),), cwd=self.base_dir,
                                              stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                              stderr=subprocess.DEVNULL, text=True, bufsize=1)
+            if launch_row is not None:
+                launch_row['pid'] = self._process.pid
+                self._built_launches.append(launch_row)
+                failure_stage = 'live_executable'
+                if self._process.poll() is not None:
+                    raise ValueError('built executable exited before live validation')
+                with Path(f'/proc/{self._process.pid}/exe').open('rb') as executable:
+                    observed = hashlib.file_digest(executable, 'sha256').hexdigest()
+                launch_row['observed_executable_sha256'] = observed
+                if observed != receipt['binary_sha256'] or self._process.poll() is not None:
+                    raise ValueError('live executable differs from built executable receipt')
+            failure_stage = 'ready'
             if self._native_reset_observation is not None:
                 self._native_reset_observation._launched(self)
             if self._process.stdout is None:
@@ -323,15 +465,24 @@ class GeneratedLocalSession:
             ready = read_startup_ready(self._reader, self._process.stdout)
             parsed_ready = parse_driver_ready(ready, digest=digest, assert_ticks=asserted,
                                release_ticks=released)
+            if launch_row is not None:
+                launch_row['ready_artifact_digest'] = digest
             if self._native_reset_observation is not None:
                 self._native_reset_observation._ready(self, parsed_ready)
-        except BaseException:
+        except BaseException as primary:
+            if launch_row is not None:
+                launch_row['failure_stage'] = failure_stage
+                launch_row['error'] = repr(primary)
             if self._native_reset_observation is not None:
                 self._native_reset_observation._consumer_failed(self, 'startup_failed')
-            self._abort()
+            try:
+                self._abort()
+            except BaseException as cleanup:
+                primary.add_note('startup cleanup failure: ' + repr(cleanup))
             raise
 
     def command(self, operation: str, fields: tuple[int, ...]) -> DriverReceipt:
+        self._check_built_mode()
         _NATIVE_RESET_OWNER_GUARD_PIN[0](self)
         observer = _command_timing_observer.get()
         if observer is None:
@@ -362,6 +513,18 @@ class GeneratedLocalSession:
                 self._native_reset_observation._consumer_failed(self, 'command_process_not_running')
             raise
         _, _, _, kind = self._expected_ready()
+        native_taps = None
+        if 'native_completion_observation' in self._artifact_document:
+            if kind != 'native_memory_cpu':
+                raise ValueError('native tap contract on another runtime kind')
+            rows = self._artifact_document.get('protocol_tap_ports')
+            if (type(rows) is not list or len(rows) != 6
+                    or any(type(row) is not dict or type(row.get('name')) is not str
+                           or type(row.get('width')) is not int for row in rows)):
+                raise ValueError('invalid admitted native tap contract')
+            native_taps = {row['name']: row['width'] for row in rows}
+            if len(native_taps) != len(rows):
+                raise ValueError('duplicate admitted native tap')
         maxima = _OPERATIONS[kind].get(operation)
         if maxima is None and kind == 'apb3_register_observe':
             document = self._artifact_document
@@ -410,8 +573,8 @@ class GeneratedLocalSession:
                 parse_driver_ack(acknowledgement.strip(), execution=self._execution,
                                  sequence=self._sequence,
                                  current_tick=self.local_ticks - self._tick_base)
-            except BaseException:
-                self._abort()
+            except BaseException as primary:
+                self._abort_failed_operation(primary, 'ack')
                 raise
             self._acknowledged = self._sequence
         line = (f'CMD {self._execution} {sequence:x} {operation}'
@@ -434,9 +597,10 @@ class GeneratedLocalSession:
                                            sequence=sequence,
                                            current_tick=self.local_ticks - self._tick_base,
                                            kind=kind,
-                                           clock_schedule=self._artifact_document.get('clock_schedule'))
-        except BaseException:
-            self._abort()
+                                           clock_schedule=self._artifact_document.get('clock_schedule'),
+                                           native_taps=native_taps)
+        except BaseException as primary:
+            self._abort_failed_operation(primary, 'command')
             raise
         if observer is not None:
             observer._complete_actual_command(self, attempt, receipt)
@@ -445,17 +609,14 @@ class GeneratedLocalSession:
         if register_authority is not None:
             try:
                 register_authority._actual_command(self, operation, fields, receipt)
-            except BaseException:
-                self._abort()
+            except BaseException as primary:
+                self._abort_failed_operation(primary, 'consumer')
                 raise
         if storage_authority is not None:
             try:
                 storage_authority._actual_command(self, operation, fields, receipt)
             except BaseException as primary:
-                try:
-                    self._abort()
-                except BaseException as cleanup:
-                    primary.add_note('storage issuer cleanup failure: '+repr(cleanup))
+                self._abort_failed_operation(primary, 'consumer')
                 raise
         self._sequence = sequence
         self.local_ticks = self._tick_base + receipt.tick_after
@@ -486,7 +647,12 @@ class GeneratedLocalSession:
         proc, self._process = self._process, None
         try:
             if proc is not None:
-                end_local_process(proc)
+                try:
+                    end_local_process(proc)
+                except BaseException as error:
+                    self._built_closed(proc, error=error)
+                    raise
+                self._built_closed(proc)
                 if self._native_reset_observation is not None and guard_error is None:
                     self._native_reset_observation._closed(self, proc)
         except BaseException:

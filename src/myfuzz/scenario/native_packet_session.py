@@ -18,6 +18,13 @@ from .picorv32_native_online import (
 from .session_runtime import OnlineCase, OnlineInstruction, ScenarioSession
 
 
+NATIVE_SOURCE_COMPLETION_MAX_RAW_SAMPLES = 4096
+NATIVE_SOURCE_COMPLETION_MAX_WARMUP_SAMPLES = 512
+NATIVE_SOURCE_COMPLETION_MAX_CASES = (
+    (NATIVE_SOURCE_COMPLETION_MAX_RAW_SAMPLES
+     - NATIVE_SOURCE_COMPLETION_MAX_WARMUP_SAMPLES) // CPU_TICKS_PER_CASE)
+
+
 def native_packet_source_binding_configuration(max_cases):
     if type(max_cases) is not int or not 1 <= max_cases <= PACKET_COUNT:
         raise ValueError('native source binding max_cases must be within1..96')
@@ -27,6 +34,20 @@ def native_packet_source_binding_configuration(max_cases):
         stride_bytes=PACKET_BYTES, source_binding_schema='native_instruction_source_binding.v1',
         native_completion_observation_required=True, proof_scope='host_instruction_input_bound',
         grants_source_consumption=False, grants_retirement=False)
+
+
+def native_packet_source_completion_configuration(max_cases):
+    if type(max_cases) is not int or not 1 <= max_cases <= NATIVE_SOURCE_COMPLETION_MAX_CASES:
+        raise ValueError('native source completion max_cases exceeds frozen raw-sample bound')
+    return dict(schema_version='native_packet_source_completion.v1', enabled=True,
+        max_cases=max_cases, max_warmup_native_samples=NATIVE_SOURCE_COMPLETION_MAX_WARMUP_SAMPLES,
+        max_native_raw_samples=NATIVE_SOURCE_COMPLETION_MAX_RAW_SAMPLES,
+        native_samples_per_case=CPU_TICKS_PER_CASE,
+        max_completion_objects=256,
+        completion_schema_version='native_instruction_bus_completion.v1',
+        proof_scope='native_instruction_bus_transfer_completed',
+        native_completion_observation_required=True,
+        native_source_binding_required=True, grants_source_authority=False)
 
 
 def packet_boundary_snapshot(runner, expected_address, *, phase):
@@ -53,11 +74,22 @@ class NativePacketSession(ScenarioSession):
     """
 
     def __init__(self, template, runner, *, max_cases=PACKET_COUNT,
-                 native_source_binding=False, **kwargs):
+                 native_completion_observation=False, native_source_binding=False,
+                 native_source_completion=False, **kwargs):
+        if type(native_completion_observation) is not bool:
+            raise ValueError('native_completion_observation must be boolean')
         if type(native_source_binding) is not bool:
             raise ValueError('native_source_binding must be boolean')
+        if type(native_source_completion) is not bool:
+            raise ValueError('native_source_completion must be boolean')
+        if native_source_binding and not native_completion_observation:
+            raise ValueError('native source binding requires native completion observation')
+        if native_source_completion and not (native_completion_observation and native_source_binding):
+            raise ValueError('native source completion requires native completion observation and native source binding')
         if type(max_cases) is not int or not 1 <= max_cases <= PACKET_COUNT:
             raise ValueError('native packet max_cases must be within1..96')
+        completion_configuration = (native_packet_source_completion_configuration(max_cases)
+                                    if native_source_completion else None)
         if template != make_picorv32_native_online_bootstrap().template:
             raise ValueError('native packet session requires the fixed packet template')
         super().__init__(template, runner, **kwargs)
@@ -66,6 +98,10 @@ class NativePacketSession(ScenarioSession):
             self._native_source_binding_configuration_json = json.dumps(
                 native_packet_source_binding_configuration(max_cases), sort_keys=True,
                 separators=(',', ':'), ensure_ascii=False, allow_nan=False).encode('utf-8')
+        self._native_source_completion_configuration_json = (
+            json.dumps(completion_configuration, sort_keys=True, separators=(',', ':'),
+                       ensure_ascii=False, allow_nan=False).encode('utf-8')
+            if completion_configuration is not None else None)
         self._packet_cursor = INSTRUCTION_START
         self._packet_accepted_count = 0
         self._packet_terminal = False
@@ -75,6 +111,47 @@ class NativePacketSession(ScenarioSession):
         for address in (*range(INSTRUCTION_START, INSTRUCTION_END, PACKET_BYTES),
                         INSTRUCTION_END):
             super().declare_instruction_slots('cpu', address, 1)
+
+    def _native_source_completion_configuration(self):
+        raw = self._native_source_completion_configuration_json
+        recorded = (self._manifest_document or {}).get('native_source_completion')
+        if raw is None:
+            if recorded is not None:
+                raise ValueError('native source completion configuration was removed')
+            return None
+        if type(self) is not NativePacketSession:
+            raise ValueError('native source completion requires the code-owned packet session')
+        configuration = native_packet_source_completion_configuration(self._packet_max_cases)
+        if raw != json.dumps(configuration, sort_keys=True, separators=(',', ':'),
+                              ensure_ascii=False, allow_nan=False).encode('utf-8') or (
+                self._manifest_document is not None and
+                json.dumps(recorded, sort_keys=True, separators=(',', ':'),
+                           ensure_ascii=False, allow_nan=False).encode('utf-8') != raw):
+            raise ValueError('native source completion configuration drift')
+        return configuration
+
+    def _revoke_native_source_completion(self, primary=None):
+        if self._native_source_completion_configuration_json is None:
+            return
+        cpu = self.runner.sessions.get('cpu')
+        if cpu is None:
+            return
+        if getattr(cpu, '_native_source_completion_session', None) is not self:
+            return
+        try:
+            observer = getattr(cpu, '_native_bus_observer', None)
+            if observer is not None:
+                revoke = getattr(observer, 'revoke_source_completion', None)
+                if callable(revoke):
+                    revoke()
+            cpu._native_source_completion_session = None
+        except BaseException as cleanup:
+            if primary is None:
+                raise
+            try:
+                primary.add_note('native source completion revocation: ' + repr(cleanup))
+            except BaseException:
+                pass
 
     @property
     def packet_cursor(self):
@@ -94,7 +171,19 @@ class NativePacketSession(ScenarioSession):
         if self._native_source_binding_configuration() is not None:
             from .native_instruction_source_binding import preflight_source_binding
             preflight_source_binding(self)
-        return super().begin()
+        if self._native_source_completion_configuration() is not None:
+            cpu = self.runner.sessions.get('cpu')
+            observer = getattr(cpu, '_native_bus_observer', None)
+            from .native_cpu_events import NativeBusObserver
+            if (type(observer) is not NativeBusObserver or observer.session is not cpu
+                    or observer.failed or getattr(cpu, '_native_source_completion_session', None) is not None):
+                raise ValueError('native source completion requires a fresh owned observer')
+            cpu._native_source_completion_session = self
+        try:
+            return super().begin()
+        except BaseException as primary:
+            self._revoke_native_source_completion(primary)
+            raise
 
     def require_packet_boundary(self, expected_address, *, phase):
         observed = packet_boundary_snapshot(self.runner, expected_address, phase=phase)
@@ -114,6 +203,7 @@ class NativePacketSession(ScenarioSession):
         """Failure-only notification; never acknowledges decoder success."""
         self._packet_terminal = True
         self._revoke_native_source_bindings(primary)
+        self._revoke_native_source_completion(primary)
         self._halted = True
         self._halt_reason = self._halt_reason or 'uncertain_effect'
         if self.packet_failure is None:

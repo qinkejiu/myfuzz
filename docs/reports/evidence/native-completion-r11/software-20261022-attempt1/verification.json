@@ -1,0 +1,116 @@
+{
+  "schema_version": "r11_local_software_verification.v1",
+  "scope": "r11_local_software_and_offline_audit_regressions",
+  "command": [
+    "/usr/bin/python3",
+    "-B",
+    "-m",
+    "pytest",
+    "-q",
+    "-p",
+    "no:cacheprovider",
+    "tests/scenario/test_r11_controller_filesystem.py",
+    "tests/scenario/test_r11_typed_contract.py",
+    "tests/integration/test_r11_controller_lifecycle.py",
+    "tests/scenario/test_native_source_completion_audit_identity.py",
+    "tests/scenario/test_native_source_completion_terminal_replay.py",
+    "tests/scenario/test_native_source_completion_gate_checks.py",
+    "tests/integration/test_verify_picorv32_native_online_run_identity.py"
+  ],
+  "cwd": "/home/qinkejiu/myfuzz",
+  "environment": {
+    "PYTHONPATH": "src:.",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "started_at_utc": "2026-10-21T17:48:53.485953+00:00",
+  "finished_at_utc": "2026-10-21T17:48:58.351191+00:00",
+  "elapsed_seconds": 4.865238567999768,
+  "pid": 44636,
+  "returncode": 0,
+  "reaped_by_wait": true,
+  "input_bytes_unchanged": true,
+  "inputs": [
+    {
+      "path": "scripts/audit_native_source_completion_evidence.py",
+      "size": 197016,
+      "sha256": "c5922bc0b6c387511fde9f6f3fa61b9649a63b00dfbec1b3ea77e712513bb341"
+    },
+    {
+      "path": "scripts/task5_native_completion_r11/r11-external-launch-contract.v1.json",
+      "size": 23515,
+      "sha256": "359ab594be2ec8fab9f857fc4ceda988abe9abed6825be39b63b65b13596f083"
+    },
+    {
+      "path": "scripts/task5_native_completion_r11/r11-gate-script.v1.py",
+      "size": 39137,
+      "sha256": "1422dc3f595eb97f181a6a875d271af238031d7fbd7d5f9a2914c54ab4cc7124"
+    },
+    {
+      "path": "scripts/task5_native_completion_r11/r11-independent-auditor.v1.py",
+      "size": 197016,
+      "sha256": "c5922bc0b6c387511fde9f6f3fa61b9649a63b00dfbec1b3ea77e712513bb341"
+    },
+    {
+      "path": "scripts/task5_native_completion_r11/r11-one-shot-controller.v1.py",
+      "size": 63746,
+      "sha256": "1757a367762568feb7087e1271f6d6669448d84bc6dc61bf1480b9e2fd834886"
+    },
+    {
+      "path": "scripts/task5_native_completion_r11/r11-plan-schema.v1.json",
+      "size": 25231,
+      "sha256": "46db704b2295bb690474760ce309a397212446d9c75988bbd0a7f9aeacab1abe"
+    },
+    {
+      "path": "scripts/task5_native_completion_r11/r11-post-gate-audit-runner.v1.py",
+      "size": 60957,
+      "sha256": "f4f0270ae7b8c07bcab4da7c2eaf20fdd9415e5a3e765bec469be2a016ca5946"
+    },
+    {
+      "path": "scripts/task5_native_completion_r11/r11-source-byte-bootstrap.v1.py",
+      "size": 31508,
+      "sha256": "99fe90116b88496ce910abb3206adc7713c1e698fa5ee1d5a8c16419e9c3576b"
+    },
+    {
+      "path": "scripts/task5_native_completion_r11/r11-static-code-manifest.v1.json",
+      "size": 970,
+      "sha256": "de66e59556fb1f6ec782baac0f83a543da210fa4248b21a9666f9fa860740b9f"
+    },
+    {
+      "path": "tests/integration/test_r11_controller_lifecycle.py",
+      "size": 13545,
+      "sha256": "05dad2be75957730c61c87ed24c48127cb3f2556919c74c9589c96044c1f29d2"
+    },
+    {
+      "path": "tests/integration/test_verify_picorv32_native_online_run_identity.py",
+      "size": 5329,
+      "sha256": "cf1ad5ac7b65edd835ed87aed939ca628de0523326c9ca096881ff4c6cb1b514"
+    },
+    {
+      "path": "tests/scenario/test_native_source_completion_audit_identity.py",
+      "size": 30189,
+      "sha256": "d1ab631d526c09cca7fc70e2170586215e2549458dff75fac5735b0650b0f014"
+    },
+    {
+      "path": "tests/scenario/test_native_source_completion_gate_checks.py",
+      "size": 37234,
+      "sha256": "eaf0585c5bfe5877b3f48baac9c80b8f667d34796726c6de7bb4fb557ca41ad9"
+    },
+    {
+      "path": "tests/scenario/test_native_source_completion_terminal_replay.py",
+      "size": 11530,
+      "sha256": "50f2c2299ec16ef24f79049c86c2c00cd70d393460a29a66dd12ac0bba2d2907"
+    },
+    {
+      "path": "tests/scenario/test_r11_controller_filesystem.py",
+      "size": 11541,
+      "sha256": "0012acc577e4844c9b9eb4d66565e67ba39c9b3f34a37667e7830525c62944aa"
+    },
+    {
+      "path": "tests/scenario/test_r11_typed_contract.py",
+      "size": 1122,
+      "sha256": "06e6ba9a5ea7ceba40b66c3b0c1cfebc066e60d0873083a8ad054fa88fc09287"
+    }
+  ],
+  "log_sha256": "a5456d540140801f6f62884e332b693d9fe7e148d625f9168db9662c714c95e1",
+  "real_native_gate_executed": false
+}
