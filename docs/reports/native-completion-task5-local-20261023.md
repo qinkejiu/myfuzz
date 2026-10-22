@@ -69,3 +69,18 @@ check remains; no positive/controlled behavior was weakened.
 - It does not close P6/P7/P8 or the six-CPU/four-IP objective.
 - The remote r11 controller/package and independent audit are still required
   before calling Task 5 complete.
+
+
+## Source closure (post-audit)
+
+The gate executed the shared working tree; its exact source is now committed as
+`9573e7c` (`feat(native): integrate exact-source completion Task5 source and
+evidence`). This includes the seven modified modules and the previously
+untracked `native_instruction_bus_completion.py` identified by the independent
+audit, plus the verifier and gate script. The audit's F-1 finding (run not
+reproducible from `d8d88c7` alone) is therefore resolved by source integration;
+the module hashes were not archived in the gate bundle, so reproducibility is
+by committed source bytes and the archived script SHA, not a per-module receipt.
+
+Independent audit: `docs/reports/native-task5-local-independent-audit-20261023.md`
+(verdict: branch results supported; no remote Stage2/independent r11 auditor).
