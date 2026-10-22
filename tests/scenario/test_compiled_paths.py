@@ -686,14 +686,19 @@ class DeclaredFactTests(unittest.TestCase):
                                      'processor.data', 'processor.instruction')
         return compile_paths(request)
 
-    def test_all_six_flows_are_executable_when_every_fact_is_declared(self):
+    def test_f1_to_f5_can_be_executable_but_f6_needs_a_static_route(self):
         document = self.compile_probe()
-        self.assertEqual({'executable': 6, 'unsupported': 0, 'total': 6},
+        self.assertEqual({'executable': 5, 'unsupported': 1, 'total': 6},
                          document['counts'])
         for path in document['paths']:
-            self.assertEqual(STATUS_EXECUTABLE, path['status'])
-            self.assertEqual([], path['reason']['missing'])
-            self.assertIsNone(path['reason']['code'])
+            if path['flow_id'] == 'F6':
+                self.assertEqual(STATUS_UNSUPPORTED, path['status'])
+                self.assertEqual('dma-master-route-undeclared',
+                                 path['reason']['code'])
+            else:
+                self.assertEqual(STATUS_EXECUTABLE, path['status'])
+                self.assertEqual([], path['reason']['missing'])
+                self.assertIsNone(path['reason']['code'])
 
     def test_f5_keeps_the_irq_bound_on_both_ends(self):
         path = path_of(self.compile_probe(), 'F5')
@@ -710,9 +715,10 @@ class DeclaredFactTests(unittest.TestCase):
         path = path_of(document, 'F6')
         self.assertEqual(STATUS_UNSUPPORTED,
                          path_of(compile_document(SOC_RENDER_REQUEST), 'F6')['status'])
-        descriptor, = [row for row in path['sources']
-                       if row['kind'] == 'dma_transfer_descriptor']
-        self.assertEqual('feature:probe-mover', descriptor['origin_ref'])
+        self.assertEqual(STATUS_UNSUPPORTED, path['status'])
+        self.assertEqual('dma-master-route-undeclared', path['reason']['code'])
+        self.assertFalse([row for row in path['sources']
+                          if row['kind'] == 'dma_transfer_descriptor'])
         omissions = {row['code']: row
                      for row in document['runtime_path_contract_omissions']}
         self.assertIn('dma-master-route-undeclared', omissions)
@@ -909,6 +915,221 @@ class TwoInstancesOfOneProfileTests(unittest.TestCase):
         f4 = path_of(document, 'F4')
         self.assertEqual(STATUS_EXECUTABLE, f4['status'])
         self.assertEqual(2, len(f4['sources']))
+
+
+def _static_route_fingerprint(value):
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'),
+                                     ensure_ascii=False, allow_nan=False)
+                          .encode('utf-8')).hexdigest()
+
+
+def _dma_route_wiring_v2(mover, cpu):
+    from myfuzz.scenario.dma_route_intent import (
+        DmaMasterRouteIntent, dma_master_route_intents_document)
+
+    resources = [
+        {'resource_id': 'rom0', 'component_instance': cpu.instance_id,
+         'base': 0x10000, 'size': 0x8000, 'read': True, 'write': False,
+         'execute': True, 'initialization_policy': 'preload'},
+        {'resource_id': 'ram0', 'component_instance': cpu.instance_id,
+         'base': 0x80000000, 'size': 0x10000, 'read': True, 'write': True,
+         'execute': False, 'initialization_policy': 'on_demand'},
+    ]
+    common = {
+        'initiator_instance': mover.instance_id,
+        'initiator_endpoint_id': f'{mover.component_id}.master',
+        'target': {'kind': 'persistent_memory',
+                   'component_instance': cpu.instance_id,
+                   'resource_id': 'ram0'},
+        'base': 0x80000000, 'size': 0x10000,
+        'byte_enable': 15, 'readable_offsets': [], 'writable_offsets': [],
+        'accepted_write_values': (),
+    }
+    routes = dma_master_route_intents_document((
+        DmaMasterRouteIntent(route_id='copy.read', operation='read',
+                             permissions=('read',), **common),
+        DmaMasterRouteIntent(route_id='copy.write', operation='write',
+                             permissions=('write',), **common),
+    ))
+    bindings = []
+    for route in routes['routes']:
+        endpoint_id = route['initiator_endpoint_id']
+        bindings.append({
+            'route_id': route['route_id'],
+            'initiator': {
+                'profile_endpoint_sha256': _static_route_fingerprint({
+                    'profile_fingerprint': mover.profile.profile_fingerprint,
+                    'endpoint_id': endpoint_id}),
+                'template_id': 'master.test', 'template_version': '1',
+                'variant_id': 'declared-shape',
+                'contract_sha256': '1' * 64, 'selection_sha256': '2' * 64,
+            },
+            'target': {
+                'kind': 'persistent_memory',
+                'owner_profile_fingerprint': cpu.profile.profile_fingerprint,
+                'resource_sha256': _static_route_fingerprint(
+                    next(row for row in resources
+                         if row['resource_id'] == 'ram0')),
+            },
+        })
+    return {
+        'schema_version': 'wiring_contract.v2',
+        'delivery': 'transaction_level_explicit',
+        'global_interconnect': False, 'cycle_accurate': False,
+        'cpu': {'instance_id': cpu.instance_id,
+                'endpoint_id': 'processor.data'},
+        'windows': [], 'resources': resources,
+        'dma_master_routes': routes,
+        'dma_master_route_bindings': bindings,
+        'dma_master_routes_sha256': _static_route_fingerprint(routes),
+    }
+
+
+class StaticDmaRouteWiringTests(unittest.TestCase):
+    """P7-C preserves static route intent without creating live DMA edges."""
+
+    def test_wiring_v2_parses_closed_routes_and_profile_bindings(self):
+        mover = probe_device('renamed_mover', transfer=True)
+        cpu = real_cpu_component()
+        document = _dma_route_wiring_v2(mover, cpu)
+        wiring = load_path_wiring(document, profiles=(cpu.profile, mover.profile))
+
+        self.assertEqual('wiring_contract.v2', wiring.schema_version)
+        self.assertEqual(['copy.read', 'copy.write'],
+                         [route.route_id for route in wiring.dma_master_routes])
+        self.assertEqual(2, len(wiring.dma_master_route_bindings))
+        self.assertIn('dma_master_routes', wiring.declared_sections)
+        self.assertIn('dma_master_route_bindings', wiring.declared_sections)
+        self.assertEqual(document, dict(wiring.document))
+
+    def test_path_wiring_v2_parses_static_routes_without_promoting_them(self):
+        mover = probe_device('renamed_mover', transfer=True)
+        cpu = real_cpu_component()
+        contract = _dma_route_wiring_v2(mover, cpu)
+        document = {
+            'schema_version': 'path_wiring.v2',
+            'cpu': {'instance_id': cpu.instance_id,
+                    'data_endpoint': 'processor.data'},
+            'windows': contract['windows'],
+            'resources': contract['resources'],
+            'dma_master_routes': contract['dma_master_routes'],
+            'dma_master_route_bindings': contract['dma_master_route_bindings'],
+            'dma_master_routes_sha256': contract['dma_master_routes_sha256'],
+        }
+        wiring = load_path_wiring(document, profiles=(cpu.profile, mover.profile))
+
+        self.assertEqual('path_wiring.v2', wiring.schema_version)
+        self.assertEqual(['copy.read', 'copy.write'],
+                         [route.route_id for route in wiring.dma_master_routes])
+        self.assertEqual(2, len(wiring.dma_master_route_bindings))
+        self.assertEqual(document, dict(wiring.document))
+
+    def test_wiring_v1_rejects_route_fields_without_changing_v1_sections(self):
+        mover = probe_device('mover', transfer=True)
+        cpu = real_cpu_component()
+        document = _dma_route_wiring_v2(mover, cpu)
+        document['schema_version'] = 'wiring_contract.v1'
+        with self.assertRaises(PathCompilationError) as raised:
+            load_path_wiring(document, profiles=(cpu.profile, mover.profile))
+        self.assertEqual('wiring-contract-field-unknown', raised.exception.code)
+        old = load_path_wiring({
+            'schema_version': 'wiring_contract.v1',
+            'delivery': 'transaction_level_explicit',
+            'global_interconnect': False, 'cycle_accurate': False,
+            'cpu': {'instance_id': 'ibex', 'endpoint_id': 'processor.data'},
+            'windows': [],
+        })
+        self.assertNotIn('dma_master_routes', old.declared_sections)
+        self.assertNotIn('dma_master_routes', old.absent_sections)
+
+    def test_v2_missing_binding_duplicate_binding_and_intent_digest_refuse(self):
+        mover = probe_device('mover', transfer=True)
+        cpu = real_cpu_component()
+        original = _dma_route_wiring_v2(mover, cpu)
+        cases = []
+        missing = copy.deepcopy(original)
+        del missing['dma_master_route_bindings']
+        cases.append(missing)
+        duplicate = copy.deepcopy(original)
+        duplicate['dma_master_route_bindings'].append(
+            copy.deepcopy(duplicate['dma_master_route_bindings'][0]))
+        cases.append(duplicate)
+        bad_digest = copy.deepcopy(original)
+        bad_digest['dma_master_routes_sha256'] = '0' * 64
+        cases.append(bad_digest)
+        for document in cases:
+            with self.subTest(document=document), self.assertRaises(PathCompilationError):
+                load_path_wiring(document, profiles=(cpu.profile, mover.profile))
+
+    def test_declared_dma_routes_remain_runtime_unsupported(self):
+        mover = probe_device('renamed_mover', transfer=True)
+        cpu = real_cpu_component()
+        wiring = load_path_wiring(_dma_route_wiring_v2(mover, cpu),
+                                  profiles=(cpu.profile, mover.profile))
+        request = PathCompileRequest(cpu, (mover,), wiring, {},
+                                     'processor.data', 'processor.instruction')
+        document = compile_paths(request)
+        f6 = path_of(document, 'F6')
+
+        self.assertEqual(STATUS_UNSUPPORTED, f6['status'])
+        self.assertEqual('dma-route-live-topology-binding-required',
+                         f6['reason']['code'])
+        self.assertNotIn('dma-master-route-undeclared', missing_codes(f6))
+        self.assertIsNone(f6['runtime_path_identity'])
+        self.assertIn('dma_master_routes_sha256', document['identity']['wiring'])
+        self.assertEqual(_static_route_fingerprint(
+            wiring.document['dma_master_routes']),
+            document['identity']['wiring']['dma_master_routes_sha256'])
+        self.assertFalse(any(edge.get('relation') == 'DMA_MASTER_TRANSFER'
+                             for edge in document['runtime_path_contract']['edges']))
+
+    def test_mover_without_static_route_reports_the_route_gap(self):
+        mover = probe_device('renamed_mover', transfer=True)
+        cpu = real_cpu_component()
+        request = PathCompileRequest(cpu, (mover,), probe_wiring((mover,)), {},
+                                     'processor.data', 'processor.instruction')
+        f6 = path_of(compile_paths(request), 'F6')
+        self.assertEqual(STATUS_UNSUPPORTED, f6['status'])
+        self.assertEqual('dma-master-route-undeclared', f6['reason']['code'])
+
+    def test_route_master_must_match_the_transfer_feature_endpoint(self):
+        from myfuzz.composition.component_profile import load_component_profile
+        from myfuzz.composition.test_capability import load_ip_test_capability
+
+        profile_document = probe_profile('renamed_mover', transfer=True)
+        profile_document['endpoints'].append({
+            'endpoint_id': 'renamed_mover.other_master',
+            'function': 'memory_master', 'protocol': ['obi', '1'],
+            'fields': [{'role': 'req', 'aliases': ['other_req_o']},
+                       {'role': 'addr', 'aliases': ['other_addr_o']}],
+        })
+        profile = load_component_profile(profile_document)
+        capability = load_ip_test_capability(
+            probe_sidecar(profile, 'renamed_mover', transfer=True), profile=profile)
+        mover = PathComponent('renamed_mover', profile, capability, ())
+        cpu = real_cpu_component()
+        document = _dma_route_wiring_v2(mover, cpu)
+        routes = document['dma_master_routes']
+        for row in routes['routes']:
+            row['initiator_endpoint_id'] = 'renamed_mover.other_master'
+        from myfuzz.scenario.dma_route_intent import (
+            dma_master_route_intents_document, parse_dma_master_route_intents)
+        document['dma_master_routes'] = dma_master_route_intents_document(
+            parse_dma_master_route_intents(routes))
+        for row in document['dma_master_route_bindings']:
+            row['initiator']['profile_endpoint_sha256'] = _static_route_fingerprint({
+                'profile_fingerprint': profile.profile_fingerprint,
+                'endpoint_id': 'renamed_mover.other_master',
+            })
+        document['dma_master_routes_sha256'] = _static_route_fingerprint(
+            document['dma_master_routes'])
+        wiring = load_path_wiring(document, profiles=(cpu.profile, profile))
+        request = PathCompileRequest(cpu, (mover,), wiring, {},
+                                     'processor.data', 'processor.instruction')
+
+        with self.assertRaises(PathCompilationError) as raised:
+            compile_paths(request)
+        self.assertEqual('dma-route-transfer-endpoint-mismatch', raised.exception.code)
 
 
 if __name__ == '__main__':  # pragma: no cover

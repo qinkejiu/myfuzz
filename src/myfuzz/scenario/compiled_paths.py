@@ -67,6 +67,7 @@ import hashlib
 import json
 from pathlib import Path
 from types import SimpleNamespace
+from types import MappingProxyType
 
 from myfuzz.composition.component_profile import (
     FUNCTION_DIRECTIONS, ComponentProfile, ComponentProfileError,
@@ -82,6 +83,9 @@ from myfuzz.scenario.assertion_classes import (
     ASSERTION_CLASSES, EXPECTATIONS)
 from myfuzz.scenario.dependency import (
     DependencyGraph, DependencyRule, FuzzableSource)
+from myfuzz.scenario.dma_route_intent import (
+    DMA_MASTER_ROUTE_INTENT_SCHEMA, DmaMasterRouteIntent,
+    dma_master_route_intents_document, parse_dma_master_route_intents)
 from myfuzz.scenario.runtime_path_contract import (
     RuntimeEdgeContract, RuntimeNode, RuntimePathContract)
 from myfuzz.scenario.source_actions import (
@@ -95,7 +99,9 @@ from myfuzz.scenario.source_actions import (
 COMPILED_PATHS_SCHEMA = 'compiled_paths.v1'
 PATH_COMPILE_REQUEST_SCHEMA = 'path_compile_request.v1'
 PATH_WIRING_SCHEMA = 'path_wiring.v1'
+PATH_WIRING_SCHEMA_V2 = 'path_wiring.v2'
 WIRING_CONTRACT_SCHEMA = 'wiring_contract.v1'
+WIRING_CONTRACT_SCHEMA_V2 = 'wiring_contract.v2'
 SOC_RENDER_CONFIG_SCHEMA = 'soc_render_config.v1'
 
 STATUS_EXECUTABLE = 'executable'
@@ -434,6 +440,9 @@ class PathWiring:
     deliveries: tuple[WiringDelivery, ...] = ()
     environment_links: tuple[WiringEnvironmentLink, ...] = ()
     fixed_inputs: tuple[WiringFixedInput, ...] = ()
+    dma_master_routes: tuple[DmaMasterRouteIntent, ...] = ()
+    dma_master_route_bindings: tuple[Mapping[str, object], ...] = ()
+    dma_master_routes_sha256: str | None = None
     declared_sections: tuple[str, ...] = ()
     absent_sections: tuple[str, ...] = ()
     document: Mapping[str, object] = field(default_factory=dict)
@@ -441,6 +450,8 @@ class PathWiring:
 
 _WIRING_SECTIONS = ('cpu', 'windows', 'resources', 'deliveries',
                     'environment_links', 'fixed_inputs')
+_WIRING_SECTIONS_V2 = (*_WIRING_SECTIONS, 'dma_master_routes',
+                        'dma_master_route_bindings')
 
 
 def _wiring_window(row: Mapping[str, object], pointer: str, source: str) -> WiringWindow:
@@ -545,6 +556,122 @@ def _wiring_fixed_input(row: Mapping[str, object], pointer: str,
         width, constant, source)
 
 
+def _static_sha256(value: object, pointer: str, *, profile: bool = False) -> str:
+    text = _text(value, pointer, 'dma-route-binding-fingerprint-invalid')
+    digest = text.removeprefix('sha256:') if profile else text
+    if len(digest) != 64 or any(char not in '0123456789abcdef' for char in digest):
+        _refuse('dma-route-binding-fingerprint-invalid', pointer,
+                {'value': text, 'kind': 'profile' if profile else 'sha256'})
+    if profile and not text.startswith('sha256:'):
+        _refuse('dma-route-binding-fingerprint-invalid', pointer,
+                {'value': text, 'requires_prefix': 'sha256:'})
+    if not profile and text.startswith('sha256:'):
+        _refuse('dma-route-binding-fingerprint-invalid', pointer,
+                {'value': text, 'requires_prefix': False})
+    return text
+
+
+def _dma_template_binding(row: object, pointer: str) -> dict[str, object]:
+    row = _closed(_object(row, pointer, 'dma-route-binding-endpoint-object'),
+                  {'profile_endpoint_sha256', 'template_id', 'template_version',
+                   'variant_id', 'contract_sha256', 'selection_sha256'}, set(),
+                  pointer, 'dma-route-binding-endpoint')
+    return {
+        'profile_endpoint_sha256': _static_sha256(
+            row['profile_endpoint_sha256'], pointer + '/profile_endpoint_sha256'),
+        'template_id': _text(row['template_id'], pointer + '/template_id',
+                             'dma-route-binding-template-id'),
+        'template_version': _text(row['template_version'],
+                                  pointer + '/template_version',
+                                  'dma-route-binding-template-version'),
+        'variant_id': _text(row['variant_id'], pointer + '/variant_id',
+                            'dma-route-binding-variant'),
+        'contract_sha256': _static_sha256(row['contract_sha256'],
+                                          pointer + '/contract_sha256'),
+        'selection_sha256': _static_sha256(row['selection_sha256'],
+                                           pointer + '/selection_sha256'),
+    }
+
+
+def _dma_memory_target_binding(row: object, pointer: str) -> dict[str, object]:
+    row = _closed(_object(row, pointer, 'dma-route-binding-memory-object'),
+                  {'kind', 'owner_profile_fingerprint', 'resource_sha256'}, set(),
+                  pointer, 'dma-route-binding-memory')
+    if row['kind'] != 'persistent_memory':
+        _refuse('dma-route-binding-target-kind-mismatch', pointer + '/kind',
+                {'observed': row['kind'], 'expected': 'persistent_memory'})
+    return {
+        'kind': 'persistent_memory',
+        'owner_profile_fingerprint': _static_sha256(
+            row['owner_profile_fingerprint'],
+            pointer + '/owner_profile_fingerprint', profile=True),
+        'resource_sha256': _static_sha256(row['resource_sha256'],
+                                          pointer + '/resource_sha256'),
+    }
+
+
+def _dma_route_binding_rows(document: object,
+                            routes: tuple[DmaMasterRouteIntent, ...],
+                            pointer: str) -> tuple[Mapping[str, object], ...]:
+    rows = _array(document, pointer, 'dma-route-bindings-array-required')
+    expected_ids = [route.route_id for route in routes]
+    seen: set[str] = set()
+    bindings = []
+    for index, raw in enumerate(rows):
+        item_pointer = f'{pointer}/{index}'
+        row = _closed(_object(raw, item_pointer, 'dma-route-binding-object'),
+                      {'route_id', 'initiator', 'target'}, set(), item_pointer,
+                      'dma-route-binding')
+        route_id = _text(row['route_id'], item_pointer + '/route_id',
+                         'dma-route-binding-route-id')
+        if route_id in seen:
+            _refuse('dma-route-binding-id-duplicate', item_pointer + '/route_id',
+                    {'route_id': route_id})
+        seen.add(route_id)
+        route = next((value for value in routes if value.route_id == route_id), None)
+        if route is None:
+            _refuse('dma-route-binding-route-undeclared', item_pointer + '/route_id',
+                    {'route_id': route_id, 'declared_route_ids': expected_ids})
+        initiator = _dma_template_binding(row['initiator'],
+                                         item_pointer + '/initiator')
+        if route.target['kind'] == 'peripheral':
+            target = _dma_template_binding(row['target'], item_pointer + '/target')
+        else:
+            target = _dma_memory_target_binding(row['target'],
+                                                item_pointer + '/target')
+        bindings.append(MappingProxyType({
+            'route_id': route_id, 'initiator': MappingProxyType(initiator),
+            'target': MappingProxyType(target)}))
+    if [row['route_id'] for row in bindings] != expected_ids:
+        _refuse('dma-route-binding-order-or-set-mismatch', pointer,
+                {'route_ids': [row['route_id'] for row in bindings],
+                 'expected_route_ids': expected_ids})
+    return tuple(bindings)
+
+
+def _parse_dma_route_sections(row: Mapping[str, object], pointer: str):
+    try:
+        routes = parse_dma_master_route_intents(
+            row['dma_master_routes'], pointer=pointer + '/dma_master_routes')
+        canonical = dma_master_route_intents_document(routes)
+    except (KeyError, ValueError) as error:
+        _refuse('dma-route-intent-invalid', pointer + '/dma_master_routes',
+                {'error': str(error)})
+    if canonical != row['dma_master_routes']:
+        _refuse('dma-route-intent-not-canonical', pointer + '/dma_master_routes',
+                {'requires': 'route rows sorted by route_id and canonical row shape'})
+    digest = _static_sha256(row['dma_master_routes_sha256'],
+                            pointer + '/dma_master_routes_sha256')
+    expected_digest = hashlib.sha256(_canonical(canonical)).hexdigest()
+    if digest != expected_digest:
+        _refuse('dma-route-intent-digest-mismatch',
+                pointer + '/dma_master_routes_sha256',
+                {'declared': digest, 'computed': expected_digest})
+    bindings = _dma_route_binding_rows(row['dma_master_route_bindings'], routes,
+                                       pointer + '/dma_master_route_bindings')
+    return routes, bindings, digest
+
+
 def _from_wiring_contract(document: Mapping[str, object]) -> PathWiring:
     """Normalise the P7-B ``wiring_contract.v1`` document.
 
@@ -590,6 +717,46 @@ def _from_wiring_contract(document: Mapping[str, object]) -> PathWiring:
         document=dict(document))
 
 
+def _from_wiring_contract_v2(document: Mapping[str, object]) -> PathWiring:
+    """Read strict P7-B wiring v2 with static DMA intent and binding rows."""
+    row = _closed(document, {'schema_version', 'delivery', 'global_interconnect',
+                             'cycle_accurate', 'cpu', 'windows',
+                             'dma_master_routes', 'dma_master_route_bindings',
+                             'dma_master_routes_sha256'},
+                  {'resources', 'fixed_inputs'}, '', 'wiring-contract')
+    if row['global_interconnect'] is not False or row['cycle_accurate'] is not False:
+        _refuse('wiring-contract-claims-interconnect', '/global_interconnect')
+    cpu = _closed(_object(row['cpu'], '/cpu', 'wiring-contract-cpu'),
+                  {'instance_id', 'endpoint_id'}, {'template', 'variant_id'},
+                  '/cpu', 'wiring-contract-cpu')
+    windows = tuple(_wiring_window(item, f'/windows/{index}', WIRING_CONTRACT_SCHEMA_V2)
+                    for index, item in enumerate(
+                        _array(row['windows'], '/windows', 'wiring-contract-windows')))
+    resources = tuple(_wiring_resource(item, f'/resources/{index}',
+                                       WIRING_CONTRACT_SCHEMA_V2)
+                      for index, item in enumerate(
+                          _array(row.get('resources', []), '/resources',
+                                 'wiring-contract-resources')))
+    fixed_inputs = tuple(
+        _wiring_fixed_input(item, f'/fixed_inputs/{index}', WIRING_CONTRACT_SCHEMA_V2)
+        for index, item in enumerate(
+            _array(row.get('fixed_inputs', []), '/fixed_inputs',
+                   'wiring-contract-fixed-inputs')))
+    routes, bindings, digest = _parse_dma_route_sections(row, '')
+    declared = tuple(name for name in _WIRING_SECTIONS_V2 if name in row)
+    return PathWiring(
+        WIRING_CONTRACT_SCHEMA_V2,
+        _text(cpu['instance_id'], '/cpu/instance_id', 'wiring-contract-cpu-instance'),
+        _text(cpu['endpoint_id'], '/cpu/endpoint_id', 'wiring-contract-cpu-endpoint'),
+        windows=windows, resources=resources, fixed_inputs=fixed_inputs,
+        dma_master_routes=routes, dma_master_route_bindings=bindings,
+        dma_master_routes_sha256=digest,
+        declared_sections=declared,
+        absent_sections=tuple(name for name in _WIRING_SECTIONS_V2
+                              if name not in declared),
+        document=dict(document))
+
+
 def _from_path_wiring(document: Mapping[str, object]) -> PathWiring:
     """Read this module's own ``path_wiring.v1`` wiring contract."""
     row = _closed(document, {'schema_version', 'cpu'}, set(_WIRING_SECTIONS) - {'cpu'},
@@ -626,6 +793,50 @@ def _from_path_wiring(document: Mapping[str, object]) -> PathWiring:
         environment_links=links, fixed_inputs=fixed_inputs,
         declared_sections=tuple(name for name in _WIRING_SECTIONS if name in row),
         absent_sections=tuple(name for name in _WIRING_SECTIONS if name not in row),
+        document=dict(document))
+
+
+def _from_path_wiring_v2(document: Mapping[str, object]) -> PathWiring:
+    """Read strict internal v2 wiring without treating it as a live route."""
+    row = _closed(document, {'schema_version', 'cpu', 'dma_master_routes',
+                             'dma_master_route_bindings',
+                             'dma_master_routes_sha256'},
+                  set(_WIRING_SECTIONS) - {'cpu'}, '', 'path-wiring')
+    cpu = _closed(_object(row['cpu'], '/cpu', 'path-wiring-cpu'),
+                  {'instance_id'}, {'data_endpoint'}, '/cpu', 'path-wiring-cpu')
+    windows = tuple(_wiring_window(item, f'/windows/{index}', PATH_WIRING_SCHEMA_V2)
+                    for index, item in enumerate(
+                        _array(row.get('windows', []), '/windows', 'path-wiring-windows')))
+    resources = tuple(_wiring_resource(item, f'/resources/{index}', PATH_WIRING_SCHEMA_V2)
+                      for index, item in enumerate(
+                          _array(row.get('resources', []), '/resources',
+                                 'path-wiring-resources')))
+    deliveries = tuple(_wiring_delivery(item, f'/deliveries/{index}', PATH_WIRING_SCHEMA_V2)
+                       for index, item in enumerate(
+                           _array(row.get('deliveries', []), '/deliveries',
+                                  'path-wiring-deliveries')))
+    links = tuple(_wiring_link(item, f'/environment_links/{index}', PATH_WIRING_SCHEMA_V2)
+                  for index, item in enumerate(
+                      _array(row.get('environment_links', []), '/environment_links',
+                             'path-wiring-links')))
+    fixed_inputs = tuple(
+        _wiring_fixed_input(item, f'/fixed_inputs/{index}', PATH_WIRING_SCHEMA_V2)
+        for index, item in enumerate(
+            _array(row.get('fixed_inputs', []), '/fixed_inputs',
+                   'path-wiring-fixed-inputs')))
+    routes, bindings, digest = _parse_dma_route_sections(row, '')
+    data_endpoint = cpu.get('data_endpoint')
+    return PathWiring(
+        PATH_WIRING_SCHEMA_V2,
+        _text(cpu['instance_id'], '/cpu/instance_id', 'path-wiring-cpu-instance'),
+        (None if data_endpoint is None else
+         _text(data_endpoint, '/cpu/data_endpoint', 'path-wiring-cpu-data-endpoint')),
+        windows=windows, resources=resources, deliveries=deliveries,
+        environment_links=links, fixed_inputs=fixed_inputs,
+        dma_master_routes=routes, dma_master_route_bindings=bindings,
+        dma_master_routes_sha256=digest,
+        declared_sections=tuple(name for name in _WIRING_SECTIONS_V2 if name in row),
+        absent_sections=tuple(name for name in _WIRING_SECTIONS_V2 if name not in row),
         document=dict(document))
 
 
@@ -786,8 +997,12 @@ def _load_wiring_into(document: Mapping[str, object],
     schema = document.get('schema_version')
     if schema == PATH_WIRING_SCHEMA:
         return _from_path_wiring(document)
+    if schema == PATH_WIRING_SCHEMA_V2:
+        return _from_path_wiring_v2(document)
     if schema == WIRING_CONTRACT_SCHEMA:
         return _from_wiring_contract(document)
+    if schema == WIRING_CONTRACT_SCHEMA_V2:
+        return _from_wiring_contract_v2(document)
     if schema == SOC_RENDER_CONFIG_SCHEMA:
         return _from_soc_render_config(document, {row.component_id: row
                                                   for row in profiles})
@@ -1106,6 +1321,9 @@ def load_path_compile_request(document_or_path: object, *,
             'deliveries': wiring.deliveries,
             'environment_links': wiring.environment_links,
             'fixed_inputs': wiring.fixed_inputs,
+            'dma_master_routes': wiring.dma_master_routes,
+            'dma_master_route_bindings': wiring.dma_master_route_bindings,
+            'dma_master_routes_sha256': wiring.dma_master_routes_sha256,
             'declared_sections': wiring.declared_sections,
             'absent_sections': wiring.absent_sections,
             'document': wiring.document,
@@ -1633,11 +1851,11 @@ def _evaluate_f2(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring
         'component': cpu.instance_id,
         'endpoint_id': master.endpoint_id,
         'port': None,
-        'bit_offset': field.lsb,
-        'width': field.width,
+        'bit_offset': 0,
+        'width': 32,
         'register': field.register,
         'field': field.field,
-        'mask': field.read_mask << field.lsb,
+        'mask': 0xffffffff,
         'alignment': access['access_alignment'],
         'range': [access['address'],access['address']],
         'register_access': access,
@@ -1646,10 +1864,9 @@ def _evaluate_f2(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring
                             'read response stays bound',
     })
     assessment.prerequisites.append({
-        'kind': 'ram_byte_version',
-        'basis': 'F2 reads a committed version of the target, never a re-loaded '
-                 'initial value (plan line 78)',
-        'subject': {'memory_id': field.register},
+        'kind': 'ip_register_version',
+        'basis': 'F2 requires the current live IP register version before reading',
+        'subject': {'component': device.instance_id, 'register': field.register},
     })
     assessment.termination = {
         'kind': 'consumption',
@@ -1989,16 +2206,237 @@ def _evaluate_f5(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring
     }
 
 
+def _profile_endpoint_sha256(component: PathComponent, endpoint_id: str) -> str:
+    return hashlib.sha256(_canonical({
+        'profile_fingerprint': component.profile.profile_fingerprint,
+        'endpoint_id': endpoint_id,
+    })).hexdigest()
+
+
+def _wiring_resource_document(resource: WiringResource) -> dict[str, object]:
+    row = {
+        'resource_id': resource.resource_id,
+        'component_instance': resource.component_instance,
+        'base': resource.base, 'size': resource.size,
+        'read': resource.read, 'write': resource.write,
+        'execute': resource.execute,
+    }
+    if resource.initialization_policy is not None:
+        row['initialization_policy'] = resource.initialization_policy
+    return row
+
+
+def _validate_static_dma_routes(cpu: PathComponent, devices: tuple[PathComponent, ...],
+                                wiring: PathWiring) -> None:
+    """Bind v2 static intents to declared profiles without creating live routes."""
+    if not wiring.dma_master_routes:
+        if wiring.dma_master_route_bindings:
+            _refuse('dma-route-bindings-without-routes', '/wiring/dma_master_route_bindings')
+        return
+    components = {row.instance_id: row for row in (cpu, *devices)}
+    bindings = {row['route_id']: row for row in wiring.dma_master_route_bindings}
+    for index, route in enumerate(wiring.dma_master_routes):
+        pointer = f'/wiring/dma_master_routes/routes/{index}'
+        mover = components.get(route.initiator_instance)
+        if mover is None or mover.is_cpu:
+            _refuse('dma-route-initiator-instance-undeclared',
+                    pointer + '/initiator_instance',
+                    {'instance_id': route.initiator_instance,
+                     'declared_devices': sorted(row.instance_id for row in devices)})
+        endpoint = mover.endpoint(route.initiator_endpoint_id)
+        if endpoint is None:
+            _refuse('dma-route-initiator-endpoint-undeclared',
+                    pointer + '/initiator_endpoint_id',
+                    {'endpoint_id': route.initiator_endpoint_id,
+                     'declared_endpoints': sorted(row.endpoint_id
+                                                  for row in mover.endpoints())})
+        if endpoint.function not in MASTER_FUNCTIONS:
+            _refuse('dma-route-initiator-not-master',
+                    pointer + '/initiator_endpoint_id',
+                    {'endpoint_id': endpoint.endpoint_id,
+                     'declared_function': endpoint.function,
+                     'requires_one_of': sorted(MASTER_FUNCTIONS)})
+        feature = mover.capability.feature_contract if mover.capability else None
+        matching_transfer = tuple(
+            row for row in feature.operations
+            if row.operation == FEATURE_TRANSFER
+            and row.endpoint_id == route.initiator_endpoint_id) if feature else ()
+        if not matching_transfer:
+            _refuse('dma-route-transfer-endpoint-mismatch',
+                    pointer + '/initiator_endpoint_id',
+                    {'endpoint_id': route.initiator_endpoint_id,
+                     'transfer_endpoints': ([row.endpoint_id for row in feature.operations
+                                             if row.operation == FEATURE_TRANSFER]
+                                            if feature else []),
+                     'requires': 'the exact declared endpoint of a transfer feature '
+                                 'operation'})
+        binding = bindings[route.route_id]
+        initiator_binding = binding['initiator']
+        initiator_fingerprint = _profile_endpoint_sha256(mover,
+                                                          route.initiator_endpoint_id)
+        if initiator_binding['profile_endpoint_sha256'] != initiator_fingerprint:
+            _refuse('dma-route-profile-endpoint-fingerprint-mismatch',
+                    f'/wiring/dma_master_route_bindings/{index}/initiator'
+                    '/profile_endpoint_sha256',
+                    {'route_id': route.route_id,
+                     'declared': initiator_binding['profile_endpoint_sha256'],
+                     'computed': initiator_fingerprint})
+
+        target = route.target
+        if target['kind'] == 'persistent_memory':
+            owner_instance = target['component_instance']
+            owner = components.get(owner_instance)
+            if owner is None:
+                _refuse('dma-route-target-instance-undeclared',
+                        pointer + '/target/component_instance',
+                        {'instance_id': owner_instance,
+                         'declared_instances': sorted(components)})
+            resources = [row for row in wiring.resources
+                         if row.resource_id == target['resource_id']]
+            if len(resources) != 1:
+                _refuse('dma-route-target-resource-ambiguous-or-missing',
+                        pointer + '/target/resource_id',
+                        {'resource_id': target['resource_id'],
+                         'matches': len(resources)})
+            resource = resources[0]
+            if resource.component_instance != owner_instance:
+                _refuse('dma-route-target-resource-owner-mismatch',
+                        pointer + '/target/component_instance',
+                        {'declared': owner_instance,
+                         'resource_owner': resource.component_instance})
+            if (resource.base is None or resource.size is None
+                    or route.base < resource.base
+                    or route.base + route.size > resource.base + resource.size):
+                _refuse('dma-route-target-aperture-outside-resource',
+                        pointer + '/base',
+                        {'route': [route.base, route.base + route.size],
+                         'resource': [resource.base,
+                                      (resource.base + resource.size
+                                       if resource.base is not None
+                                       and resource.size is not None else None)]})
+            for permission in route.permissions:
+                if getattr(resource, permission) is not True:
+                    _refuse('dma-route-target-resource-permission-mismatch',
+                            pointer + '/permissions',
+                            {'resource_id': resource.resource_id,
+                             'permission': permission,
+                             'declared': getattr(resource, permission)})
+            target_binding = binding['target']
+            resource_sha256 = hashlib.sha256(
+                _canonical(_wiring_resource_document(resource))).hexdigest()
+            if target_binding['owner_profile_fingerprint'] != \
+                    owner.profile.profile_fingerprint:
+                _refuse('dma-route-target-profile-fingerprint-mismatch',
+                        f'/wiring/dma_master_route_bindings/{index}/target'
+                        '/owner_profile_fingerprint',
+                        {'route_id': route.route_id,
+                         'declared': target_binding['owner_profile_fingerprint'],
+                         'computed': owner.profile.profile_fingerprint})
+            if target_binding['resource_sha256'] != resource_sha256:
+                _refuse('dma-route-target-resource-fingerprint-mismatch',
+                        f'/wiring/dma_master_route_bindings/{index}/target'
+                        '/resource_sha256',
+                        {'route_id': route.route_id,
+                         'declared': target_binding['resource_sha256'],
+                         'computed': resource_sha256})
+        else:
+            target_instance = target['component_instance']
+            target_component = components.get(target_instance)
+            if target_component is None or target_component.is_cpu:
+                _refuse('dma-route-target-instance-undeclared',
+                        pointer + '/target/component_instance',
+                        {'instance_id': target_instance,
+                         'declared_devices': sorted(row.instance_id
+                                                    for row in devices)})
+            target_endpoint_id = target['endpoint_id']
+            target_endpoint = target_component.endpoint(target_endpoint_id)
+            if target_endpoint is None:
+                _refuse('dma-route-target-endpoint-undeclared',
+                        pointer + '/target/endpoint_id',
+                        {'endpoint_id': target_endpoint_id,
+                         'declared_endpoints': sorted(row.endpoint_id
+                                                      for row in target_component.endpoints())})
+            if (target_endpoint.protocol is None
+                    or FUNCTION_DIRECTIONS.get(target_endpoint.function) != 'protocol'):
+                _refuse('dma-route-target-not-protocol-slave',
+                        pointer + '/target/endpoint_id',
+                        {'endpoint_id': target_endpoint_id,
+                         'declared_function': target_endpoint.function})
+            windows = [row for row in wiring.windows
+                       if row.device_id == target['device_id']
+                       and row.target_instance == target_instance
+                       and row.endpoint_id == target_endpoint_id]
+            if len(windows) != 1:
+                _refuse('dma-route-target-window-ambiguous-or-missing',
+                        pointer + '/target',
+                        {'device_id': target['device_id'],
+                         'target_instance': target_instance,
+                         'endpoint_id': target_endpoint_id,
+                         'matches': len(windows)})
+            window = windows[0]
+            address = target_component.profile.address
+            if (route.base < window.base or route.base + route.size > window.base + window.size
+                    or address is None
+                    or route.base - window.base + route.size > address.window_size):
+                _refuse('dma-route-target-aperture-outside-window', pointer + '/base',
+                        {'route': [route.base, route.base + route.size],
+                         'window': [window.base, window.base + window.size],
+                         'profile_window_size': (address.window_size
+                                                 if address is not None else None)})
+            declared_operations = next((row.operations for row in
+                                        target_component.capability.endpoint_capabilities
+                                        if row.endpoint_id == target_endpoint_id), ()) \
+                if target_component.capability else ()
+            for permission in route.permissions:
+                if (target_component.profile.capabilities.get(permission) is not True
+                        or permission not in declared_operations):
+                    _refuse('dma-route-target-operation-undeclared',
+                            pointer + '/permissions',
+                            {'endpoint_id': target_endpoint_id,
+                             'operation': permission,
+                             'profile_capability': target_component.profile.capabilities.get(
+                                 permission),
+                             'endpoint_operations': list(declared_operations)})
+                offsets = (route.readable_offsets if permission == 'read'
+                           else route.writable_offsets)
+                for offset_index, offset in enumerate(offsets):
+                    absolute_offset = route.base - window.base + offset
+                    registers = [row for row in address.registers
+                                 if row.offset == absolute_offset]
+                    if len(registers) != 1:
+                        _refuse('dma-route-target-register-offset-undeclared',
+                                f'{pointer}/{"readable_offsets" if permission == "read" else "writable_offsets"}/{offset_index}',
+                                {'offset': offset,
+                                 'profile_offset': absolute_offset,
+                                 'matches': len(registers)})
+                    access = registers[0].access
+                    if ((permission == 'read' and access == 'wo')
+                            or (permission == 'write' and access == 'ro')):
+                        _refuse('dma-route-target-register-permission-mismatch',
+                                f'{pointer}/{"readable_offsets" if permission == "read" else "writable_offsets"}/{offset_index}',
+                                {'offset': absolute_offset, 'access': access,
+                                 'permission': permission})
+            target_binding = binding['target']
+            target_fingerprint = _profile_endpoint_sha256(target_component,
+                                                           target_endpoint_id)
+            if target_binding['profile_endpoint_sha256'] != target_fingerprint:
+                _refuse('dma-route-profile-endpoint-fingerprint-mismatch',
+                        f'/wiring/dma_master_route_bindings/{index}/target'
+                        '/profile_endpoint_sha256',
+                        {'route_id': route.route_id,
+                         'declared': target_binding['profile_endpoint_sha256'],
+                         'computed': target_fingerprint})
+
+
 def _evaluate_f6(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring,
                  devices: tuple[PathComponent, ...],
                  pointers: Mapping[str, str | None] | None = None) -> None:
-    movers = []
-    for device in devices:
-        feature = device.capability.feature_contract if device.capability else None
-        if feature is not None and FEATURE_TRANSFER in {row.operation
-                                                        for row in feature.operations}:
-            movers.append(device)
-    if not movers:
+    feature_providers = [row for row in devices
+                         if row.capability is not None
+                         and row.capability.feature_contract is not None
+                         and any(operation.operation == FEATURE_TRANSFER
+                                 for operation in row.capability.feature_contract.operations)]
+    if not feature_providers:
         assessment.need(
             'dma-master-not-declared',
             '/devices/*/test_capability/feature_contract',
@@ -2011,35 +2449,52 @@ def _evaluate_f6(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring
                                    else None)
                  for row in devices}})
         return
-    device = movers[0]
-    masters = tuple(row for row in device.endpoints()
-                    if row.function in MASTER_FUNCTIONS)
-    if not masters:
-        assessment.need('dma-master-endpoint-missing',
-                        f'/devices/{device.instance_id}/profile/endpoints',
-                        {'requires': 'an endpoint whose declared function is one of '
-                                     f'{sorted(MASTER_FUNCTIONS)}'})
-    targets = [row for row in wiring.resources
-               if row.read is True and row.write is True and row.component_instance]
-    if not targets:
-        assessment.need('dma-transfer-target-undeclared', '/wiring/resources',
-                        {'requires': 'a declared memory resource a real master can '
-                                     'write and read back'})
+    routes = wiring.dma_master_routes
+    if not routes:
+        assessment.need(
+            'dma-master-route-undeclared', '/wiring/dma_master_routes',
+            {'requires': 'an explicit route from the transfer feature endpoint to '
+                         'its declared persistent-memory or peripheral target'})
+        return
+    movers = {route.initiator_instance for route in routes}
+    if len(movers) != 1:
+        assessment.need('dma-route-mover-ambiguous', '/wiring/dma_master_routes',
+                        {'initiator_instances': sorted(movers),
+                         'requires': 'one explicitly selected transfer mover for F6'})
+        return
+    mover = next((row for row in feature_providers
+                  if row.instance_id in movers), None)
+    if mover is None:
+        # Global validation rejects this condition; retain the guard so a direct
+        # caller cannot turn a malformed PathWiring into a guessed F6 source.
+        assessment.need('dma-route-transfer-provider-missing',
+                        '/wiring/dma_master_routes',
+                        {'initiator_instance': next(iter(movers))})
+        return
+    endpoint_ids = {route.initiator_endpoint_id for route in routes}
+    if len(endpoint_ids) != 1:
+        assessment.need('dma-route-master-endpoint-ambiguous',
+                        '/wiring/dma_master_routes',
+                        {'initiator_endpoint_ids': sorted(endpoint_ids),
+                         'requires': 'all routes in one F6 path share one explicitly '
+                                     'declared transfer master endpoint'})
+        return
+    endpoint = mover.endpoint(next(iter(endpoint_ids)))
     image = _instruction_source(assessment, cpu, wiring, pointers)
-    if assessment.missing or not masters or not targets or image is None:
+    if image is None or assessment.missing or endpoint is None:
         return
     resource, image_source = image
     assessment.resource = resource
     assessment.sources.append(image_source)
-    width = _declared_width(device.profile, 'data')
-    assessment.endpoint(device, masters[0], 'dma_master')
+    width = _declared_width(mover.profile, 'data')
+    assessment.endpoint(mover, endpoint, 'dma_master')
     assessment.direction = DIRECTION_CPU_SOURCED
     assessment.sources.append({
-        'source_id': f'{device.instance_id}.{masters[0].endpoint_id}.transfer',
+        'source_id': f'{mover.instance_id}.{endpoint.endpoint_id}.transfer',
         'origin': ORIGIN_FUZZABLE,
         'kind': 'dma_transfer_descriptor',
-        'component': device.instance_id,
-        'endpoint_id': masters[0].endpoint_id,
+        'component': mover.instance_id,
+        'endpoint_id': endpoint.endpoint_id,
         'port': None,
         'bit_offset': 0,
         'width': width,
@@ -2048,13 +2503,21 @@ def _evaluate_f6(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring
         'mask': (1 << width) - 1 if width else None,
         'alignment': 4,
         'range': None,
-        'origin_ref': f'feature:{device.capability.feature_contract.provider_id}',
-        'constraint_basis': 'the declared transfer feature operation of a real '
-                            'data-movement provider',
+        'origin_ref': f'feature:{mover.capability.feature_contract.provider_id}',
+        'constraint_basis': 'the declared transfer feature operation and exact '
+                            'static master route intent',
     })
+    assessment.need(
+        'dma-route-live-topology-binding-required', '/wiring/dma_master_routes',
+        {'requires': 'bind every static intent to the live Runner master endpoint '
+                     'and target window before runtime DMA edges or execution are '
+                     'admitted',
+         'route_ids': [route.route_id for route in routes],
+         'intent_sha256': wiring.dma_master_routes_sha256})
     assessment.termination = {
-        'kind': 'delivery',
-        'basis': '完成 IRQ 追溯到真实组件输出 (plan line 82)',
+        'kind': 'incomplete',
+        'basis': 'static route intent does not prove a completion interrupt or CPU '
+                 'consumption (plan line 82)',
     }
 
 
@@ -2381,9 +2844,24 @@ def _runtime_declaration(assessments: list[_Assessment], cpu: PathComponent,
         index += 1
 
     for assessment in assessments:
+        flow = assessment.flow_id
+        if flow == 'F6':
+            if wiring.dma_master_routes:
+                omitted.append(_missing(
+                    'dma-route-live-topology-binding-required', '/wiring/dma_master_routes',
+                    {'flow_id': flow,
+                     'requires': 'static route intent must be bound to the live Runner '
+                                 'master endpoint and target window before a runtime '
+                                 'DMA_MASTER_TRANSFER edge can be emitted'}))
+            else:
+                omitted.append(_missing(
+                    'dma-master-route-undeclared', '/wiring',
+                    {'flow_id': flow,
+                     'requires': 'a declared DMA master route; a master declaration '
+                                 'without an explicit target hop is not a runtime edge'}))
+            continue
         if assessment.status != STATUS_EXECUTABLE:
             continue
-        flow = assessment.flow_id
         target = assessment.target
         image = next((row for row in assessment.sources
                       if row['kind'] == 'instruction_image'), None)
@@ -2421,14 +2899,26 @@ def _runtime_declaration(assessments: list[_Assessment], cpu: PathComponent,
                                         {'flow_id': flow,
                                          'target_instance': window.target_instance}))
                 continue
+            if flow == 'F4':
+                # F4 ends at the actual peripheral register response. Keeping
+                # both ends on the CPU contradicts the declared MMIO route
+                # and prevents the generic runtime topology binder admitting it.
+                nodes[target] = RuntimeNode(target, device.instance_id, 'logical')
             hop = f'{flow}.{"read_request" if flow == "F2" else "mmio_access"}'
             nodes[hop] = RuntimeNode(hop, cpu.instance_id, 'logical')
             add_rule(hop, image_node, 'PERSISTENT_STATE_RULE', 'persistent_state',
                      resource_component=resource.component_instance,
                      resource_id=resource.resource_id)
-            add_rule(target, hop, 'DATA_BINDING', 'mmio_route',
+            response = f'{flow}.read_response' if flow == 'F2' else target
+            if flow == 'F2':
+                nodes[response] = RuntimeNode(response, device.instance_id, 'logical')
+            add_rule(response, hop, 'DATA_BINDING', 'mmio_route',
                      initiator_component=cpu.instance_id, device_id=window.device_id,
                      base=window.base, size=window.size)
+            if flow == 'F2':
+                add_rule(target, response, 'DATA_BINDING', 'mmio_route',
+                         initiator_component=cpu.instance_id, device_id=window.device_id,
+                         base=window.base, size=window.size)
             continue
         if flow == 'F3':
             ram = next((row for row in wiring.resources
@@ -2483,16 +2973,6 @@ def _runtime_declaration(assessments: list[_Assessment], cpu: PathComponent,
                                           pin['port'], 0, pin['width'])
             add_rule(producer_node, pin_node, 'EVENT_ORDER', None)
             add_rule(entry_node, producer_node, 'EVENT_ORDER', 'direct_binding')
-            continue
-        if flow == 'F6':
-            omitted.append(_missing(
-                'dma-master-route-undeclared', '/wiring',
-                {'flow_id': flow,
-                 'requires': 'a declared route for the data-movement master: the '
-                             'wiring contract declares no hop from a master '
-                             'endpoint to the transfer target, so the copy cannot '
-                             'become a runtime edge even though every end of the '
-                             'flow is declared'}))
             continue
         omitted.append(_missing('runtime-hop-undeclared', '/paths',
                                 {'flow_id': flow,
@@ -2611,6 +3091,7 @@ def compile_paths(request: PathCompileRequest) -> dict:
     cpu, devices, wiring = request.cpu, request.devices, request.wiring
     components = (cpu, *devices)
 
+    _validate_static_dma_routes(cpu, devices, wiring)
     source_constraints, claims, register_claims = _declared_claims(components, wiring)
     annotations, layout_gaps = _layout_annotations(components, wiring)
     layout, policy = _compile_constraints(components, wiring, annotations,
@@ -2659,7 +3140,10 @@ def compile_paths(request: PathCompileRequest) -> dict:
                 'detail': assessment.missing[0]['detail'] if assessment.missing else None,
                 'missing': list(assessment.missing),
             },
-            'target': {'component': cpu.instance_id, 'node': assessment.target},
+            'target': {'component': (
+                assessment.windows[0].target_instance
+                if assessment.flow_id == 'F4' and assessment.windows else cpu.instance_id),
+                'node': assessment.target},
             'direction': assessment.direction,
             'endpoints': list(assessment.endpoints),
             'sources': list(assessment.sources),
@@ -2695,6 +3179,11 @@ def compile_paths(request: PathCompileRequest) -> dict:
                             'coverage_guided_searched', 'bug_confirmed'],
         })
 
+    from .f2_read_contract import build_f2_read_contract
+    for row in paths:
+        if row['flow_id'] == 'F2' and row['status'] == STATUS_EXECUTABLE:
+            row['execution_contract'] = build_f2_read_contract(row)
+
     return {
         'schema_version': COMPILED_PATHS_SCHEMA,
         'identity': {
@@ -2704,6 +3193,11 @@ def compile_paths(request: PathCompileRequest) -> dict:
                 'schema_version': wiring.schema_version,
                 'declared_sections': list(wiring.declared_sections),
                 'absent_sections': list(wiring.absent_sections),
+                **({'dma_master_routes_sha256': wiring.dma_master_routes_sha256,
+                    'dma_master_route_bindings_sha256': hashlib.sha256(
+                        _canonical(wiring.document['dma_master_route_bindings']))
+                        .hexdigest()}
+                   if wiring.dma_master_routes else {}),
             },
             'request_sha256': _digest(request.document) if request.document else None,
         },
@@ -2765,8 +3259,10 @@ def _component_identity(component: PathComponent) -> dict:
 __all__ = [
     'COMPILED_PATHS_SCHEMA', 'FLOW_DEFINITIONS', 'FLOW_IDS', 'ORIGINS',
     'PATH_COMPILE_REQUEST_SCHEMA', 'PATH_STATUSES', 'PATH_WIRING_SCHEMA',
+    'PATH_WIRING_SCHEMA_V2',
     'PREREQUISITE_KINDS_USED', 'SOC_RENDER_CONFIG_SCHEMA', 'STATUS_EXECUTABLE',
     'STATUS_UNSUPPORTED', 'TERMINATION_KINDS_USED', 'WIRING_CONTRACT_SCHEMA',
+    'WIRING_CONTRACT_SCHEMA_V2',
     'DeclaredSource', 'PathCompilationError', 'PathComponent', 'PathCompileRequest',
     'PathWiring', 'WiringDelivery', 'WiringEnvironmentLink', 'WiringResource',
     'WiringWindow', 'compile_paths', 'isa_contract', 'load_path_compile_request',
