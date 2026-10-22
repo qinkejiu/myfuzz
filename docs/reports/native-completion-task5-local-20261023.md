@@ -84,3 +84,20 @@ by committed source bytes and the archived script SHA, not a per-module receipt.
 
 Independent audit: `docs/reports/native-task5-local-independent-audit-20261023.md`
 (verdict: branch results supported; no remote Stage2/independent r11 auditor).
+
+
+## Final clean-HEAD rerun
+
+After integrating the exact source at `9573e7c` and the clean checkpoint
+`769975b`, the three-branch gate was rerun from the committed tree. Evidence:
+`docs/reports/evidence/native-completion-task5-final-20261023/`.
+
+- summary SHA-256: see the committed archive; `gate_pid=533319`,
+  `gate_run_id=950046912f4478317be3bb50849696130ba8bd1c84d72a72ac45f6ead58b5495`
+- positive/controlled `bounded_directed_gate_passed`; refusal
+  `native_source_completion_refusal_gate_passed`
+- all four processes in every branch exit 0; refusal is graceful and retains
+  the exact contradiction evidence.
+
+This supersedes the earlier archive for source-closure purposes; the earlier
+`native-completion-task5-local-20261023` archive remains as the audited package.
