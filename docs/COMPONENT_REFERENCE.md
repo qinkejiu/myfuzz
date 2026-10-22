@@ -1,5 +1,28 @@
 # myfuzz 组件清单与功能
 
+## 2026-10-22 Selected F4 runtime-path 组件
+
+- `scenario/instruction_image_binding.py`：显式 graph source 与 RAM resource/range/permissions 绑定；`session_runtime.py` 的 BoundOnlineInstruction 和版本24/25计划在执行前校验 source ID、路径、范围和预留槽位。
+- `integration/compiled_f4_runtime_path.py`：同次 D3 重编译、完整路径身份与候选 layout/来源映射；`compiled_f4.py` 在真实 session begin 前配置合同，`compiled_online_decoder.py`/`compiled_rfuzz.py` 保留逻辑和 runtime 身份；`scenario_rfuzz_live.py` 核对 decoder/session/plan 的完整保存交叉关联。实际门状态见[报告](reports/compiled-f4-runtime-path-admission-20261022.md)。
+
+## 2026-10-22 Reduced AXI 凭据导出组件增补
+
+- `scenario/observation_stream.py`：严格 JSON、不可变副本、source-owned token、FIFO ACK、操作/记录编号和独立计数/字节预算；仅来源发行基础设施，不自动授予 session 认证。
+- `scenario/reduced_axi_stream_source.py`：实际 session/observer/listener 绑定、receipt/lifecycle 同序导出、精确限额守卫、失败证据和计数/摘要链封存；真实协议失败与来源完整性失败分层。
+- `local_harness/vexii_axi_session.py`：默认关闭的显式 source admission、原始 command/reply 与 DriverReceipt 见证、native/cumulative tick 区分；未启用路径保持原行为。生产 Runner crosswalk 软件与限定 native first/fresh 已通过，能力仍为 observation_only，详见[实施报告](reports/reduced-axi-journal-crosswalk-20261022.md)。
+
+- `scenario/reduced_axi_journal.py`：完整全局 journal 重投影消费者、独立角色引用 sidecar、scope/receipt/lifecycle/seal 一致性检查和有界报告；已通过独立审阅及430项软件测试组合。仅 observation_only，离线真实性仍需可信外部摘要。
+
+## 2026-10-22 CPU 编程四字 DMA RAM 组件增补
+
+- `scenario/dma_ram_firmware.py`：有界 RV32I 四字源写入、DMA 配置、状态轮询、比较与结果存储的镜像生成；新增默认关闭的 `ordered_stores`，CVA6 启用逐 SW FENCE；仅接受声明的页对齐／不重叠布局和可编码值。
+- `scenario/cvw_dma_example.py`、`vexii_dma_example.py`、`cva6_dma_example.py`：地址布局包装；CVW 原执行镜像逐字节保留，Vexii MMIO 使用真实生成 PMA 内的 `0x40000000` 页。
+- `scenario/cvw_dma_runner.py`、`vexii_dma_runner.py`、`cva6_dma_runner.py`：未启动的独立真实 CPU/DMA sessions、共享 host RAM 与精确 MMIO Router；不预写源数据或 DMA 配置。
+- `local_harness/vexii_axi_session.py`：保留分离 AXI 接纳／响应，新增只读 `router` 暴露同一个 queued `mmio_router`；标准 Runner 调度目标步完成交付。
+- `scripts/verify_cvw_dma_ram.py`、`verify_vexii_dma_ram.py`、`verify_cva6_dma_ram.py`：固定组合原生正负例和完整 fresh、真实响应与 writer/version 证据门。见[CVW 报告](reports/cvw-dma-ram-20261022.md)、[Vexii 报告](reports/vexii-dma-ram-20261022.md)。CVA6 额外保留 64 位原始 lane／writer，门要求实际单字 AR 和单条 AW/B；[CVA6 状态](reports/cva6-dma-ram-20261022.md)以实际终态为准。不授予 IRQ/ISR、物理桥或通用 D4/F6。
+
+以下模块统计保持原扫描日期；本节是后续增补，未重新统计全库数量。
+
 日期：2026-10-08。本文把**现有系统实际存在的组件**按功能列全，并写明每个组件"负责什么、证据在哪里"。清单直接由源码扫描生成（340 个 Python 模块 / 175,416 行），不是凭印象归纳。
 
 > 结构讲解见 [系统说明](SYSTEM_OVERVIEW.md)；testcase 与数据流见 [testcase 与数据流](TESTCASE_AND_DATAFLOW.md)；状态与边界见 [当前工作进度](CURRENT_PROGRESS.md)。
@@ -149,6 +172,8 @@
 
 **CPU 适配目标与协议对应**（权威口径，与 [P6 逐协议行适配清单](superpowers/plans/2026-10-13-p6-per-protocol-row-checklist.md) §1.4 同源）：
 
+> **2026-10-21 状态索引更正：** 下表部分长描述保留了 2026-10-13/14 的历史阻断条件。BOOM 已有派生 profile/RTL 和定向 CPU/IP 运行；CVW 已有真实定向会话；VexiiRiscv 已有生成式 CPU/RAM 与 CPU/IP/IRQ 固定实例运行。三者都还有 generic 接入、持续搜索或 P6 行验收缺口，但不应再总括为 `skipped_unavailable`。当前逐行证据见 [P6 清单](superpowers/plans/2026-10-13-p6-per-protocol-row-checklist.md) 与 [BOOM 状态报告](reports/boom-adaptation-status-20261018.md)、[CVW 会话报告](reports/cvw-directed-session-20261018.md)、[Vexii CPU/IP/IRQ 报告](reports/vexiiriscv-cpu-ip-irq-20261018.md)。
+
 | CPU | 对应协议 | 本仓库会话实现 | 现状 |
 |---|---|---|---|
 | Ibex | OBI 指令 / 数据 | `cpu_session.py` | 可规划、已有真实 RTL 验收 |
@@ -161,7 +186,7 @@
 | PicoRV32 | AXI4-Lite ／ Wishbone ／ 原生完成式 | `axi_lite_session.py`、`wishbone_cpu_session.py`、`native_session.py` | 可规划 |
 | RVX | 流水完成式内存 | `rvx_memory_session.py` | 可规划 |
 
-**协议能力（不得用别的协议抵消）：** CPU 侧模板契约现有 `cpu.obi`／`cpu.axi4`／`cpu.axi4-lite`／`cpu.wishbone`／`cpu.native-memory`／`cpu.pipelined-memory`／**`cpu.tilelink`（两 variant，依 BOOM 真实声明）**／**`cpu.ahb-lite`（variant `cvw-external-bus`，依 CVW 真实声明，2026-10-13 补齐）**，全表共 **15** 条（CPU 侧 10 ＋ target 侧 5）。AHB-Lite 契约的角色名与两条真实形态事实：读数据在 CPU 边界叫 **`HRDATAEXT`**（`src/ebu/ebu.sv` 故意不含 `HRDATA`，其注释明写 "HRDATA is sent to all controllers at the core level"），**`HSELEXT` 是 CVW 片选扩展而非 AHB-Lite 信号**；`AHBW`/`PA_BITS`/`XLEN` 是 `cvw_t` 字段，故契约只声明参数化宽度并标注 `elaboration_status='not-elaborated'`。**AHB-Lite 仍未 elaboration、未跑任何交易，CVW 行仍为 `skipped_unavailable`——有契约不等于可用。** 注意仓库里的 `target.tl-ul` 是 TileLink-UL **目标（外设）**契约，与 BOOM／VexiiRiscv 的 TileLink 1.0 **CPU 端点**不是同一条目。
+**协议能力（不得用别的协议抵消）：** CPU 侧模板契约现有 `cpu.obi`／`cpu.axi4`／`cpu.axi4-lite`／`cpu.wishbone`／`cpu.native-memory`／`cpu.pipelined-memory`／**`cpu.tilelink`（两 variant，依 BOOM 真实声明）**／**`cpu.ahb-lite`（variant `cvw-external-bus`，依 CVW 真实声明，2026-10-13 补齐）**，全表共 **15** 条（CPU 侧 10 ＋ target 侧 5）。AHB-Lite 契约的角色名与两条真实形态事实：读数据在 CPU 边界叫 **`HRDATAEXT`**（`src/ebu/ebu.sv` 故意不含 `HRDATA`，其注释明写 "HRDATA is sent to all controllers at the core level"），**`HSELEXT` 是 CVW 片选扩展而非 AHB-Lite 信号**；`AHBW`/`PA_BITS`/`XLEN` 是 `cvw_t` 字段，故契约只声明参数化宽度并标注 `elaboration_status='not-elaborated'`。**AHB-Lite 当前状态（2026-10-21）：** CVW 已有真实定向 CPU/IP 会话，Caliptra SHA256 有生成式目标与 native DMA route consumption；CPU-side 通用在线事件接入、持续搜索与 P6 整行仍未验收。 注意仓库里的 `target.tl-ul` 是 TileLink-UL **目标（外设）**契约，与 BOOM／VexiiRiscv 的 TileLink 1.0 **CPU 端点**不是同一条目。
 
 **按组件列出的会话文件：**
 
@@ -312,7 +337,7 @@
 | 类别 | 位置 | 说明 |
 |---|---|---|
 | CPU profile | `configs/cpus/`（14 个：ibex、ibex_obi_local、ibex_rvfi_local、cv32e40p、cv32e20、cva6、picorv32 系列、rvx_core、zipaxi、boom…） | 源码位置、顶层、时钟/复位、端口 |
-| 外设 profile | `configs/peripherals/` | OpenTitan/PULP/ZipCPU 各 IP 的模块、地址宽度、原生总线 |
+| 外设 profile | `configs/peripherals/` | OpenTitan/PULP/ZipCPU/Caliptra 各 IP 的模块、地址宽度、原生总线；Caliptra SHA256 AHB-Lite 的 DMA target 边界见对应专项报告 |
 | 组合闭包 | `configs/soc/{closures,checkers,families}/` | 组合闭包与 checker profile |
 | 场景声明 | `configs/scenario/`、`configs/campaigns/`、`configs/designs/`、`configs/experiments/` | 路径、源、预算、矩阵 |
 | RTL | `third_party/rfuzz/upstream/ibex/`、`…/pulp_*`、`…/opentitan/`、`…/zipcpu/` 等 | 被钉住的真实 RTL 源码 |
@@ -338,7 +363,7 @@
 | 组件层 | 已验收范围 | 关键边界 |
 |---|---|---|
 | 入口／组合 | P0、P1 完成 | 组合器覆盖已声明的协议形态；不满足的形状在规划期拒绝 |
-| 单 DUT harness | 5 类 CPU 协议 ＋ OpenTitan/PULP/ZipCPU 多 IP 有真实运行证据 | 见 [运行能力表](LOCAL_HARNESS_RUNTIME.md) 的逐条限制 |
+| 单 DUT harness | 多类 CPU 协议 ＋ OpenTitan/PULP/ZipCPU/Caliptra IP 有真实运行证据；各组合的能力等级不同 | 见 [运行能力表](LOCAL_HARNESS_RUNTIME.md) 与专项报告的逐条限制 |
 | 场景执行 | P2～P5 按声明范围完成 | 十项边界见 [P5 阶段验收](reports/current-dataflow-p5-stage-acceptance-20261008.md) |
 | 证书 | 逐边 11/11、GPIO 链 27 条、UART 链 7 条认证 | 证书只证"产物内被见证"，不证 DUT 无其它行为 |
 | 接入 | 在线 RFuzz（Ibex＋双 PULP GPIO、Ibex＋OpenTitan UART） | 重 RTL 串行；跑时不可改 `src/` |
@@ -350,3 +375,12 @@
 
 > 组件分六层：**入口（怎么调）→ 组合（怎么连）→ 单 DUT harness（单个组件怎么真跑）→ 场景（多个 testcase 怎么连续跑）→ 接入（fuzzer 怎么驱动）→ 证据（凭什么信）**。
 > 每一层都有独立的门禁与边界；**上层能力不能自动继承下层证据**，每一份"已验收"都绑定它自己的源码身份与声明范围。
+
+## 2026-10-22 Compiled F4 built identity components
+
+- `local_harness.build.LocalHarnessBuildResult`：当前输入/缓存/输出校验后的稳定回执与独立 preparation observations；重复验证不发行替代身份。
+- `GeneratedLocalSession` opted built receipt：固定 prepare 回执、启动前验证、接受 READY 前的 live executable 摘要及保留的失败/退出生命周期。普通 session 默认不启用。
+- `integration.compiled_f4_build_join`：纯保存证据关联/交叉检查器，不签发启动权。
+- `compiled_rfuzz.verify_saved_compiled_f4_build_outputs`：核验实际保存的 join/prefix/replay 与同次执行结果，返回已核验字节摘要供 CLI 最终汇总。
+
+实现与验收状态以[报告](reports/compiled-f4-built-identity-20261022.md)为准；不授系统级通用接入。

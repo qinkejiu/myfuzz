@@ -55,9 +55,11 @@ real IP IRQ -> declared interrupt routing -> CPU
 
 ## 4. CPU 与外设矩阵
 
-**CPU 适配目标（权威口径，六核）：** Ibex（OBI 指令／数据）、CVA6（打包 64 位 AXI4 单主端口）、CV32E40P（分离 OBI 指令／数据）、BOOM（TileLink 1.0 指令／数据端点）、CVW/CORE-V Wally（AHB-Lite 外部总线 EBU）、VexiiRiscv（TileLink 内存总线）。逐行现状与协议缺口见 [P6 逐协议行适配清单](superpowers/plans/2026-10-13-p6-per-protocol-row-checklist.md) §1.4；其中 **BOOM／CVW／VexiiRiscv 记 `skipped_unavailable`**（缺 Chipyard 生成或源码／配置），**当前可执行三核为 Ibex／CVA6／CV32E40P**。本节此前的必测范围以真实 Ibex（OBI 边界）与真实 CVA6（compiler-proven packed AXI4 边界）为准。CVA6 的 AXI burst、ID、原子操作和 64→32 位 MMIO 行为需要独立能力检查，不能声称自动支持全部 AXI4。
+> **2026-10-21 当前目标范围更新：** 用户指定的首要目标为六颗 CPU、四个外设 IP 系列和真实 DMA 数据流；之后推进同协议组件无适配通用接入与 CPU/IP 事件扩充。四个系列为 OpenTitan、PULP、ZipCPU、Caliptra。原三系列矩阵和下方八配置仍是早期基线，不代表扩展目标已验收。实际证据、CPU 分级与缺口以[当前进度](CURRENT_PROGRESS.md)、[P6 逐协议行清单](superpowers/plans/2026-10-13-p6-per-protocol-row-checklist.md)及各专项报告为准。
 
-三个系列定义为不同上游项目生态，首选以下真实模块；每系列至少两个不同外设：
+**CPU 适配目标（权威口径，六核）：** Ibex（OBI 指令／数据）、CVA6（打包 64 位 AXI4 单主端口）、CV32E40P（分离 OBI 指令／数据）、BOOM（TileLink 1.0 指令／数据端点）、CVW/CORE-V Wally（AHB-Lite 外部总线 EBU）、VexiiRiscv（TileLink 内存总线）。逐行现状与协议缺口见 [P6 逐协议行适配清单](superpowers/plans/2026-10-13-p6-per-protocol-row-checklist.md) §1.4。BOOM、CVW、VexiiRiscv 均已有生成或定向真实运行证据；它们仍缺各自的 generic protocol、持续搜索或 P6 整行条件，不能再记作“当前不可用”。其余逐项分级以当前进度和对应报告为准。CVA6 的 AXI burst、ID、原子操作和 64→32 位 MMIO 行为需要独立能力检查，不能声称自动支持全部 AXI4。
+
+原三系列基线按不同上游项目生态选型，首选以下真实模块；每系列至少两个不同外设：
 
 | 系列 | 首批模块 | 外设协议 | 接入重点 |
 |---|---|---|---|
@@ -67,7 +69,7 @@ real IP IRQ -> declared interrupt routing -> CPU
 
 协议存在并不代表适配已完成。单 outstanding 的实现也必须遵守所选目标的实际握手。ziptimer 等目标的 byte-enable 语义不能凭端口存在推断；不支持部分写时明确拒绝或采用声明且验证的策略，不对有副作用 MMIO 自动做 read-modify-write。
 
-最终必测六格：Ibex × 三系列、CVA6 × 三系列。每格同时实例化本系列两个真实外设；此外两个 CPU 各有一个混合三系列 top，每 top 至少一个来自每系列的真实外设。合计八个配置。BOOM 暂不作为本轮完成门槛。
+原基线的必测六格：Ibex × 三系列、CVA6 × 三系列。每格同时实例化本系列两个真实外设；此外两个 CPU 各有一个混合三系列 top，每 top 至少一个来自每系列的真实外设。合计八个配置。BOOM 暂不作为该早期基线的完成门槛；这不改变当前六 CPU 扩展目标。
 
 ## 5. 验收与证据
 

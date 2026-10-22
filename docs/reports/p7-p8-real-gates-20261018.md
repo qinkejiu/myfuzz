@@ -95,15 +95,22 @@ Evidence: `docs/reports/evidence/dma-prefix-s4-real-9cbc323/`
 
 - **P6** is still fixed-instance `fresh_genomes`; persistent single-harness
   sessions, per-edge `RuntimePathContract` and closed-loop four-hit acceptance remain open for those rows. Shared mechanisms exist; provider integration and actual acceptance are incomplete.
-- **P7 I5** still needs the consolidated negative-fixture group and an
-  independent snapshot re-run; the CV32E20+timer I4 gate is the new-CPU/IP
-  execution evidence, not a full P7 formal acceptance by itself.
-- **P8 S1c** measured a 1.3699× UART-tick reduction ratio; search wall time improved from 72.352s to 58.919s (about 1.228×), below the original 5× goal;
-  the longer multi-tick harness command remains future work.
+- **P7 I5** now has a bounded independent audit: N1–N8 negative groups passed
+  (20 cases), and CVE2 + PULP timer produced two certified receipts with a full
+  fresh match. The original DUT exit receipts are unavailable, so the result
+  retains that evidence boundary; see [the I5 candidate record](p7-i5-candidate-20261018.md)
+  and [independent audit](P7_I5_ATTEMPT2_INDEPENDENT_AUDIT_20261018.md).
+- **P7-D4** now has protocol-neutral route consumption for PULP APB3, ZipCPU
+  Wishbone, and Caliptra AHB-Lite, each with a bounded native positive, an
+  in-window route refusal, and fresh replay evidence. D2/D3 F6 remains
+  unsupported and emits no `DMA_MASTER_TRANSFER` edge; this does not establish
+  a physical cross-protocol bridge or P7-E general onboarding. See the
+  [Caliptra D4 report](p7-d4-caliptra-protocol-neutral-dma-route-consumption-20261021.md).
+- **P8 S1c**'s earlier batching change measured a 1.3699× UART-tick reduction ratio; search wall time improved from 72.352s to 58.919s (about 1.228×), below the original 5× goal. A separate scalar-baseline run and partial saved-byte audit are now recorded in [the S1c measurement report](p8-s1c-scalar-measurement-attempt1-independent-20261018.md); they do not establish 5×. The longer multi-tick harness command remains future work.
 - **P8 S2/S3** final-source gates use shorter bounded case sets (three
   multi-word all-direction; two valid + two invalid) than the earlier
   six-case boot; the earlier evidence is retained and the reduction is
   documented, not hidden.
-- **CVW/Vexii/BOOM**: not fully adapted. [CVW now has a real directed D4 session](cvw-directed-session-20261018.md), while RFuzz online campaign remains open. [Vexii now has a fixed CPU/IP/IRQ chain](vexiiriscv-cpu-ip-irq-20261018.md), while online campaign and generic protocol authority remain open. BOOM has historical source/profile/RTL assets; current runnable availability must be established for a specific snapshot/toolchain rather than inferred from those historical assets.
+- **CVW/Vexii/BOOM**: not fully adapted. [CVW now has a real directed D4 session](cvw-directed-session-20261018.md), while RFuzz online campaign remains open. [Vexii now has a fixed CPU/IP/IRQ chain](vexiiriscv-cpu-ip-irq-20261018.md), while online campaign and generic protocol authority remain open. BOOM has a generated profile and bounded directed CPU/IP runs; generic TileLink coherent events, B-probe, DMA, and P6 row acceptance remain open. See [the BOOM adaptation status](boom-adaptation-status-20261018.md).
 - Independent acceptance audit is recorded separately; this document is an
   evidence index, not a substitute for it.

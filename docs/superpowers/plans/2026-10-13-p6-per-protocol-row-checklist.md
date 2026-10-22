@@ -2,6 +2,8 @@
 
 > **2026-10-18 native 新冻结实际增量（整行仍开放）：** [第二轮完成握手门及独立审计](../../reports/native-completion-directed-independent-20261018.md)实际exit0，CPU/IP/CPU三例共用进程；原/fresh各3247事件、47次native PRE valid&&ready完成（30 instruction/17 data），受控各1393事件、21完成。真实target62仅交付63后RAM/GPIO传播63，8个DUT均reaped0。仅规范化真实nonce的完整warm fresh匹配；source/tool/file+dir前后不变。该版本实际导出了mem_ready并验证backend响应T后native PRE T+1完成；不能把旧backend-only记录升级为这份新证据。来源四lane精确认证、四类反馈、持续RFuzz、独立APB相位与整行验收仍未完成。
 
+> **2026-10-18 BOOM 资产状态更正（不新增 P6 行通过）：** 较早的 §1.2、§1.4、§6 与 §7 清单把 BOOM 写成无 profile、无生成物或 unavailable，均是历史快照结论。当前本地已有派生 `BoomTile` profile/RTL、直接 coherent CPU/RAM 运行，以及单独的持久 Runner/Router→PULP GPIO A/D 路径；同一持久驱动的 C/E 缓存 RAM 补充在另一门通过。完整来源、逐事件字段边界及不合并证据的说明见[BOOM 当前适配状态](../../reports/boom-adaptation-status-20261018.md)。这不构成 generic TileLink coherent adapter、B-probe、DMA 或 P6 整行验收；用户指定的远端 42a9ce9 工作集也未因此视为当前本地 HEAD 的完整复制。
+
 
 日期：2026-10-13。上游依据：[总计划](2026-10-06-current-dataflow-fuzz-implementation-plan.md) 的 P6 节（第 313–337 行，含第 329–335 行的五行表）与阶段状态总览（第 163 行）。本文把 P6 的验收句落成**逐行、可执行、可判定的适配清单**，并标明每行当前**已有什么、缺什么**。
 
@@ -55,7 +57,7 @@
 | `picorv32_wb_irq` | `processor.memory` → `wishbone/classic` + `processor.interrupts` |
 | `picorv32` | `processor.memory` → `ready-valid-memory/1` |
 | `rvx_core` | `processor.memory` → `pipelined-completion-memory/1` |
-| `boom` | **无 profile**（本地缺 Chipyard checkout 与 Java/SBT/Mill） |
+| `boom` | **已生成 profile/RTL**（派生 `BoomTile`，来源与兼容补丁有锁；专用 CPU/RAM、CPU→PULP GPIO 门已实测；generic TileLink adapter/完整 per-edge 事件仍缺） |
 
 ※ `ibex`（无后缀）实测被拒 `full-top-required`；可规划的是 `ibex_obi_local`／`ibex_rvfi_local`。同理目标端基础 profile（`opentitan_gpio`、`opentitan_uart` 等）被拒，可规划的是各自的 `_local` 变体。
 
@@ -77,9 +79,9 @@
 | Ibex | OBI 指令 / 数据 | **可规划**：`ibex_obi_local`／`ibex_rvfi_local`，双 OBI ＋ 中断端点（无后缀 `ibex` 被拒 `full-top-required`） |
 | CVA6 | 打包 64 位 AXI4 单主端口 | **可规划**：`cva6`，`processor.memory.unified → axi4/1` ＋ 中断端点；已有 compiler-proven packed AXI4 边界 |
 | CV32E40P | 分离 OBI 指令 / 数据 | **可规划**：`cv32e20`／`cv32e20_rv32e`／`cv32e40p`／`cv32e40p_mtimer`，双 OBI ＋ 中断端点 |
-| BOOM | TileLink 1.0 指令 / 数据端点 | **`skipped_unavailable`**：`configs/cpus/boom/interface_description.json` 声明 `tilelink/1` 指令＋数据端点，但其 README 明写该目录是**参考用语义描述**（`sha256:` 占位全零，需先由 Chipyard 生成并回填）；仓库**无 `component_profile.json`**，故实测规划以 `FileNotFoundError` 失败。本地亦无 Chipyard checkout 与 Java/SBT/Mill |
+| BOOM | TileLink coherent 指令 / 数据共享端点 | **有实际派生 profile/RTL 和定向 CPU/IP 运行**：47-port `BoomTile`、39 个 coherent 字段；独立持久 GPIO A/D 路径及独立 C/E coherent RAM 补充见[状态报告](../../reports/boom-adaptation-status-20261018.md)。**未**完成 generic TileLink adapter、逐边 checker、B-probe 或 P6 在线搜索；旧 `skipped_unavailable` 仅代表历史快照 |
 | CVW（CORE-V Wally） | AHB-Lite 外部总线（EBU） | **已达会话级可执行（2026-10-14 实测）**，但**不升级为「已通过」**：生成的 CVW harness 启动真实核心，核心从**会话的内存服务**取回完整连续的 64 字节启动行，并**执行了会话供应的程序**——程序里 `lui/addi/lw` 计算出的地址 `0xC0000100` 出现在被接受的请求里（`test_the_session_boots_the_core_and_the_core_executes_the_supplied_program`，8 passed）。三个缺陷依次定位并修复：① 生成物把从属端的**低有效** `rst_ni` 直接接 harness 的**高有效** `reset`（核心跑、从属端一直复位；修法与 obi/axi4-lite/native 同族约定一致）；② 我最初「接受 beat 再扣住响应」的 hold **无效**（接受即拉高 `HREADYEXT`，交易已完成），改为**扣住 `req_ready`**；③ 从属端在 `COMPLETE` 丢掉 AHB 流水的下一拍地址相位 → 突发**每隔一拍丢一个**（地址步进 8 而非 4，取回的行错位）。P7：`cvw-ahb-pulp-gpio` 家族已注册，`--runtime` 实跑 D1→D4 ＋ capability report 全 ok，`compiled_paths {executable:4, unsupported:2}`；会话阶段当时**如实停在** `cvw-online-assembly-undeclared`（缺 `boot_image`／`online_decoder`／`runner_factory`），**未伪造会话**；该具体阻塞已于 **2026-10-18 关闭**（见文首追加与[定向会话报告](../../reports/cvw-directed-session-20261018.md)）。**仍未做**：RFuzz 在线 campaign（缺 `OnlineCaseDecoder` 等在线部件，现有为 directed fixed-image 会话）、F5 中断消费者、F6 DMA 提供者。分级：**Cross-component accepted（真实会话级交易）**，未到 Coverage-guided searched。 |
-| VexiiRiscv | TileLink 内存总线 | **`skipped_unavailable`**：同上，仓库无任何资产 |
+| VexiiRiscv | 受限双 AXI CPU 端口 | **已有固定实例真实 CPU/IP/IRQ 运行**：CPU→PULP GPIO→IRQ→ISR→RAM 链已在对应 profile 上通过；不等于 generic AXI 组件接入或 P6 整行通过，见[真实门报告](../../reports/vexiiriscv-cpu-ip-irq-20261018.md) |
 | OpenTitan 外设（8 类） | TL-UL | 见 §1.3（可规划者 7 个 `_local` 变体等） |
 | PULP 外设（4 类） | APB3 | 见 §1.3 |
 | ZipCPU 外设 | Wishbone · AXI4-Lite | 见 §1.3（`zipcpu_uart`／`zipcpu_timer`／`zipcpu_axiluart`） |
@@ -87,8 +89,8 @@
 
 **协议能力与目标的差距（必须写清，不得用别的协议抵消）：**
 
-- **TileLink 1.0 的 CPU 侧契约已于 2026-10-13 补齐**：依据 BOOM 的真实声明新增 `cpu.tilelink` 的两个 variant（`declared-four-role` 对应 `cpu.instruction_memory` 的 4 个角色；`declared-five-role-write-capable` 对应 `cpu.data_memory` 的 5 个角色，多一个 `write_data`），并新增协议插件 `src/myfuzz/protocols/plugins/tilelink.json`；`list_template_contracts()` 由 12 变为 **14**（CPU 侧 9＋target 侧 5）。**仍未做**：完整 TileLink-1.0 的 A/B/C/D/E 五通道契约（插件标注 `x-channel-mapping='not-declared'`）与 TileLink RTL adapter（`legal_adapters=[]` 是有意的）。
-- **AHB-Lite（EBU）已从"无声明可对齐"推进到"契约已立且顶层可 elaborate"**：已取得 **CVW 真实源码**（`third_party/cvw_upstream_reference`，顶层 commit `2f2ddfd`，tag `CVW_v0.9` 可钉定），`src/wally/wallypipelinedsoc.sv` 给出逐字 AHB-Lite CPU 边界：输出 `HCLK`/`HRESETn`/`HADDR`/`HWDATA`/`HWSTRB`/`HWRITE`/`HSIZE`/`HBURST`/`HPROT`/`HTRANS`/`HMASTLOCK`/`HREADY`/`HSELEXT`，输入 `HRDATAEXT`/`HREADYEXT`/`HRESPEXT`。**两个必须记住的真实形态事实**：① 读数据在 CPU 边界叫 **`HRDATAEXT`**（不是 `HRDATA`）；② `src/ebu/ebu.sv` **故意不含 `HRDATA`**，第 125 行注释明写 "HRDATA is sent to all controllers at the core level"，故 `ebu` 不是完整 CPU 边界；`HSELEXT` 是 CVW 的片选扩展、非标准 AHB-Lite 信号。**真实宽度**（读自 CVW 自身 header，rv32imc 配置）：`XLEN=32`、`AHBW=XLEN=32`、**`PA_BITS=34`**（`config/shared/config-shared.vh:18`），故 **`HADDR` 是 34 位、比数据端口宽**——把地址宽度钉成数据宽度会拒绝真实边界。CVW 是 SystemVerilog，**Verilator 可直接吃、不需要 JVM**；**顶层 elaboration 已实测通过**（`verilator --lint-only --top-module wallywrapper`，226 个 `.sv`，退出码 0），且该检查配有"删掉 `ebu.sv` 必须失败"的守卫（RED 已实测）。**2026-10-13 更新**：`configs/cpus/cvw/component_profile.json` 已落盘并由**真实 Verilator elaboration** 提取端口事实（18 端口、`HADDR`=34），**P7-A 通过（`ok cvw 9/9`，supervisor 可用/不可用两条路径结论一致）**；CPU 侧 adapter `src/myfuzz/protocols/rtl/beat_to_ahb_lite.sv` 已实现并带真实时序仿真与变异守卫，运行期渲染器也已有 `ahb_lite_cpu` 分支且形状与提取事实逐字段一致。**不入 source lock（2026-10-13 裁定）**：本仓 local profile（`ibex_rvfi_local`／`opentitan_*_local`）的官方约定是 `root:"."` ＋ sha256 pin 且**不登记 lock 记录**，CVW 遵循同一约定——实测移除该记录后 `verify_soc_sources.py` **恢复 29/29 全通**，保留则唯一失败项就是它。**仍缺**：adapter 未接进任何 profile、未跑任何真实 AHB 交易，故 CVW 行**仍登记 `skipped_unavailable`**——**通过 P7-A 与能 elaborate 都不等于可执行**。另需注意：仓库里的 `target.tl-ul` 是 **TileLink-UL 目标（外设）**契约，与 BOOM／VexiiRiscv 的 **TileLink 1.0 CPU 端点**不是同一条目。
+- **TileLink 的早期 CPU 角色契约于 2026-10-13 补齐，后续已生成物理 profile 并增加专用 coherent 观察路径**：`tilelink.json` 仍是抽象角色契约；`tilelink-coherent.json` 登记了真实 A/B/C/D/E 字段，当前保存事件能投影 accepted A/C/D/E 子集。PULP GPIO 另有 profile-specific uncached MMIO 路径。**仍未做**：完整的逐边握手/稳定性采样、跨通道关系与完整 checker/coverage、generic adapter 准入和 B-probe。C 通道旧 direct trace 的填充 mask 不是物理采样。详见[BOOM 状态报告](../../reports/boom-adaptation-status-20261018.md)；不把 accepted-beat journal 冒充通用 TL-UL 事件。
+- **AHB-Lite（EBU）的较早规划状态（2026-10-13 历史记录）：** 当时仅确认 CPU 边界声明、profile/elaboration 与从属端 runtime，报告中特别说明 `HRDATAEXT`、34 位 `HADDR`、外部窗口派生及版本锁约定。该段末“尚未运行真实交易／CVW 为 `skipped_unavailable`”只适用于该时点；真实 Caliptra SHA256 CPU/IP/RAM 链和 CVW→PULP GPIO 定向会话已分别完成，见[Caliptra 报告](../../reports/cvw-caliptra-cpu-chain-20261017.md)及[CVW 会话报告](../../reports/cvw-directed-session-20261018.md)。
 - **2026-10-14 增量：AHB 从属端已按 CVW 的真实主从方向重写，且上游阻断点已定位。**三件事必须一起读，否则会高估本行：
   ① **方向曾经写反**。原 adapter `src/myfuzz/protocols/rtl/beat_to_ahb_lite.sv` 把 harness 当成 AHB **主设备**去驱动 `HTRANS/HADDR`，而 CVW 才是主设备——这样永远不可能从 CPU 产生交易。已改为从属端 `src/myfuzz/protocols/rtl/ahb_lite_memory_target.sv`（消费 CPU 的 address/data phase、以 `HREADYEXT` 完成交易），并配有自检 testbench `tests/integration/rtl/ahb_lite_memory_target_tb.sv`（4 组：IDLE 不是交易、读的相位与完成、写在地址相位后一拍才采 `HWDATA/HWSTRB`、无人应答的交易被**保持**而不是伪造完成）。**首版从属端有真实死锁**：`req_valid_o` 曾在"需要 `HREADYEXT` 为低"的状态里才拉起，而 `HREADYEXT` 变低恰恰要等该请求被受理——自环死锁，实测 `transactions=0`；修为"地址相位被接受后一拍、写数据相位已锁存时才拉起请求"，testbench 由 FAIL(8) 转 **PASS**，`verilator --Wall` **0 warning**。
   ② **上游阻断点（新证据）**：把真实 CVW 接上从属端后，CPU 确实在驱动 `HTRANS=10/11 @ 0x8000_0000`，但 **`HSELEXT` 每一个周期都是 0**，故请求永不产生。根因不是本仓：`src/mmu/adrdec.sv` 的 `Sel = Match & Supported & AccessValid & SizeValid`，而 **CVW 六个已提交配置（rv32e/rv32gc/rv32i/rv32imc/rv64gc/rv64i）的 `EXT_MEM_SUPPORTED` 全部为 0**；且 `EXT_MEM_BASE == UNCORE_RAM_BASE == 0x80000000`，naive 打开会让两个区间同时选中同一地址（`uncore.sv` 再把两路响应合并到一条总线）。CVW 自己也知道：`testbench/testbench.sv:545` 仅在 `P.EXT_MEM_SUPPORTED` 时实例化 AHB RAM，否则 `assign HREADYEXT = 1'b1;`。
@@ -103,9 +105,9 @@
   **一条教训（记录在案）**：第一次只改了指针校验，命令返回 `status: complete` 但**六条流全 unsupported**——**"退出码 0"不等于"路径可执行"**，必须逐条读 `compiled_paths.v1.json` 才发现真正的阻塞点在 flow 级 `_cpu_master`。
   守卫：新增 `tests/integration/test_cvw_unified_master.py`（5 passed），其中 2 条经 RED 实测（禁用回落 → 2 failed）；回归 `test_p7b_to_p7c_chain.py ＋ test_auto_harness_test.py ＋ test_compiled_paths.py` 共 **71 passed**。
   **⑦ 2026-10-14：补上 AHB-Lite 会话类（boot 保持）。** 此前 `_OPERATIONS` 已登记 `ahb_lite_cpu` 的 `STEP_MEMORY`、driver 也早已发同形 beat，但**没有 session 类承认该 kind**——D4 报绿而仓里无法启动该 CPU。新增 `src/myfuzz/local_harness/ahb_lite_session.py`（`GeneratedAhbMemorySession`）：复用 native completion 面握手／预算／观测，改 `artifact_kind`、`read_request_be=15`（CVW 读断言全道；AXI4-Lite 是 0）与 **boot 保持**。boot 保持的必要性：CVW 在 reset 释放瞬间从 reset vector（现位于外部队列）取指，服务看到的**第一个请求**就可能是「程序还没到」的取指；拒绝是错的、填零更糟（核心会执行），只能**保持**——把地址**声明为指令槽**使其抛 `InstructionNotReady`，服务不吐 `rsp_valid`，从属端靠 `HREADYEXT` 拉低延长传输、不伪造错误完成；会话填入字节后恢复。**槽必须在取指到来前声明**（否则按未初始化 RAM 读出**静默 0**），故启动地址取自 artifact 自身的 `boot_contract.configured_boot_base`，在构造／`reset_local`／`begin_case` 幂等声明。验证 `tests/local_harness/test_ahb_lite_session.py` **6 passed**，其中 boot 保持一条经 **RED 实测**（去掉槽声明 → FAIL，返回静默 0）；会话注册与同族回归 **36 passed / 1 skipped**。
-  **仍未达成「可执行会话」**：上述证据来自**测试台**（boot 程序靠层次化 poke），不是生成的 harness 在跑；生成物能构建、能与真实 CVW 一起 elaborate，但**还没有一次会话级运行**。故 CVW 行**继续登记 `skipped_unavailable`**，分级停在「RTL operational（边界交易）」，未到「Cross-component accepted」；「配置已开启」「从属端模型正确」「elaboration 通过」「边界有交易」四者**都不得**冒充会话级可执行。
+  **该“仍未达成可执行会话”结论为 2026-10-14 当时状态。** 上述测试台证据本身仍不证明生成 harness 的会话能力；但随后 CVW 定向 PULP GPIO 会话已真实运行并 fresh 重放，见文首 2026-10-18 更新及[报告](../../reports/cvw-directed-session-20261018.md)。当前仍缺在线 RFuzz campaign、F5 中断消费者、F6 DMA 提供者与 P6 整行验收。
 - **TileLink 有意不进运行期各层（2026-10-13 决定，记此以免被读成漏做）**：`scenario/ip_base_coverage.py` 的 `_PROTOCOLS`、`scenario/ip_protocol_checker.py` 的 `_REQUIRED_SIGNALS`、`integration/campaign_report.py` 的 `_KNOWN_PROTOCOLS` 都是"协议 id → **运行期真实信号名**"的闭集。而 TileLink 插件自己声明 `x-channel-mapping='not-declared'`、`x-role-vocabulary='abstract-roles-only'`、`legal_adapters=[]`，仓库里也**没有** TileLink adapter／`component_profile.json`／真实 trace 源。即：**运行期不会有任何 TileLink trace 产生**，因此往这三个闭集里加 `tilelink` 只能靠**凭空发明** A/B/C/D/E 信号名，这正是本仓库"不按名字分支、不编造"所禁止的。**结论：不添加**；待真实 Chipyard 生成的 TileLink 端点与 adapter 到位、确有 trace 可校时再补，届时以被钉定 RTL 的真实端口名为准。
-- 因此 **BOOM、CVW、VexiiRiscv 三行按 `skipped_unavailable` 登记**：前者的阻断是"缺 Chipyard 生成与真实 profile"，后两者的阻断是"缺源码与配置"。**不得**用静态扫描结果、也不得用另一协议的 CPU 冒充这三行的证据（§1 的"技能分级"同样禁止一级推出下一级）。
+- 此处的 **`skipped_unavailable` 是 2026-10-13 的历史规划结果**：BOOM 后续已有派生 profile/RTL 与独立定向 CPU/IP 运行；CVW、Vexii 的状态也已由文首及 §7 后续记录更新。不能继续用旧 unavailable 描述覆盖这些证据，也不能把这些定向证据升级为 generic protocol 或 P6 整行通过。不得用静态扫描或另一协议 CPU 冒充真实路径证据。
 - 六行中**当前可执行的是三行**：Ibex、CVA6、CV32E40P；其协议（OBI／打包 AXI4）均已有 CPU 侧契约与真实 RTL 验收路径。
 
 ## 2. 五行的真实状态（逐行）
@@ -231,7 +233,7 @@
 5. **交互反馈**：`stage_hits`／`edge_hits`／`state_transition_hits`／`closed_loop_hits` 各带路径、源、真实生产/交付/消费事件；缺下游消费只算阶段到达。
 6. **断言与负例**：协议/跨组件/CPU-IP 三类断言分节；受控错误能被独立 checker 捕获并在新进程复现。
 7. **完整前缀 fresh replay**：从会话初态重放第 1～N 例，`matches=True`、`first_difference=None`。
-8. **能力分级逐项登记**：`Catalog → Generated → RTL operational → Cross-component accepted → Coverage-guided searched → Bug confirmed`**逐行给级**，一级不得自动推出下一级；不可执行的 CPU 记 `skipped_unavailable`（BOOM 目前即此）。
+8. **能力分级逐项登记**：`Catalog → Generated → RTL operational → Cross-component accepted → Coverage-guided searched → Bug confirmed`**逐行给级**，一级不得自动推出下一级；不可执行的 CPU 可按该具体构建快照记 `skipped_unavailable`。BOOM 当前已有派生 profile/RTL 与有界定向 CPU/IP 运行，但仍未通过 generic TileLink coherent 或 P6 整行验收；详见[BOOM 状态报告](../../reports/boom-adaptation-status-20261018.md)。
 
 ---
 
@@ -243,7 +245,7 @@
 
 ## 6. 已知边界与不做什么
 
-- **BOOM / CVW / VexiiRiscv 无本地可执行条件**：BOOM 无 profile 且缺 Chipyard checkout 与 Java/SBT/Mill；VexiiRiscv 无任何资产。**CVW 的阻断点已换**（2026-10-14 实测更正）：不再是"缺源码/配置/profile"——源码、派生配置、profile、真实 elaboration、从属端时序模型都已在位——而是**尚无真实 AHB 交易**，且上游 `EXT_MEM_SUPPORTED=0` 使外部端口在六个已提交配置里都不可达（详见 §1 的 2026-10-14 增量）。三者按计划记 `skipped_unavailable`，**不得**用静态扫描或另一协议的 CPU 抵消。
+- **历史 availability 记录（2026-10-13/17）**：当时 BOOM 尚无生成 profile，Vexii 尚无其后新增的生成式 profile/CPU/IP/IRQ 路径；CVW 的旧 unavailable 结论也已由 2026-10-18 directed session 覆盖。当前分别按文首、§7 及相应固定实例报告登记。BOOM 仍缺完整 generic TileLink adapter/事件契约；Vexii 的真实 CPU/IP/IRQ 是受限 AXI 固定组合；CVW 是 fixed-image directed session，均未因此满足五行整行条件。
 - **不生成具体 SoC Bus/Bridge/PLIC/全局 cycle-accurate 时序**；跨组件只交换事务、数据与事件。
 - **不宣称任意同协议组件即插即测**；每行只按实际通过的局部交易与跨组件路径登记能力。
 - **五行全部通过才等于 P6 通过**；单行通过只更新该行。

@@ -6,6 +6,23 @@ P1–P5 已按各阶段报告的声明范围验收，P6–P8 未验收；本次�
 
 用户原件 `SoC内部数据流动与去向.docx` 是取指、数据读、数据写、MMIO、中断和 DMA 六类数据流的设计来源，逐类目标与当前状态见[实施计划](superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md)。运行时路径应编译自受信组件事实和显式场景声明；该 Word 文件本身不是自动接线配置。
 
+## 2026-10-22 Selected F4 runtime-path 执行链
+
+同次 typed request/D3 → `compiled_f4_runtime_path.py` 严格恢复图、合同和路径/来源映射 → `instruction_image_binding.py` 对实际 RAM region 的精确绑定 → `ScenarioSession.configure_runtime_paths` 在 begin 前配置 → bound instruction case 使用 runtime 路径/source ID → decoder/session/plan 保存交叉关联与 fresh constructor 重新绑定。逻辑 D3 路径 ID 保留给 compiled receipt join。最终门状态见[报告](reports/compiled-f4-runtime-path-admission-20261022.md)。
+
+## 2026-10-22 Reduced AXI 来源导出执行链
+
+显式 `admit_observation_stream` → `reduced_axi_stream_source.py` 稳定 owner/observer/listener 注册 → 真实解析 receipt 与 begin/end 生命周期操作 → `observation_stream.py` 有界不可变发行队列 → Runner 导入及 journal 消费者。消费者、完整全局 journal、持久重载及限定 native first/fresh 已通过；终态保留 instruction-read pending，能力仅为 observation_only。source 封存保留原始 scope/refs，协议违例与捕获完整性错误分别处理。见[报告](reports/reduced-axi-journal-crosswalk-20261022.md)。
+
+## 2026-10-22 CVA6 四字 DMA RAM 执行链
+
+`scenario/dma_ram_firmware.py` 显式逐 SW FENCE → `cva6_dma_example.py`
+固定非缓存地址 → `cva6_dma_runner.py` 构造未启动 CPU/DMA、共享内存和
+queued Router → 标准 Runner 的 DMA/CPU 调度。`scripts/verify_cva6_dma_ram.py`
+从完整原始 64 位 AXI 与 Wishbone 样本独立关联真实响应、lane、
+writer/version、结果 stores，并重放两分支的完整动作。
+[运行状态与边界](reports/cva6-dma-ram-20261022.md)。
+
 ## 2026-10-18 native 显式观测执行链
 
 `verify_picorv32_native_online.py --native-completion-observation` 显式选择V2 raw请求，经 `local_harness/plan.py` 的typed native准入和 `native_contract.py` 的实际ABI绑定，生成被动抽头。实际CPU session每个verified receipt交给 `scenario/native_cpu_events.py`，真实RAM读后绑定不可变快照；Runner保留全部PRE/POST及对应传输事件。
@@ -28,6 +45,7 @@ configs/cpus + configs/peripherals + configs/scenario
 | `src/myfuzz/__main__.py`、`src/myfuzz/capabilities.py` | 当前 CLI 路由、显式历史兼容和文档证据能力查询 | 与脚本共用 parser/handler；等级、限制和证据链接 |
 | `src/myfuzz/local_harness/` | 生成并运行单个真实 CPU/IP 的 harness；维护局部协议、时钟和 session | 组件 profile、源码锁、生成 artifact、真实端口观察 |
 | `src/myfuzz/scenario/` | 连续 testcase、输入所有权、依赖路径、数据交付、持久 RAM/事务、检查与 replay | Genome、真实观察、证据包 |
+| `src/myfuzz/scenario/dma_ram_firmware.py`、`cvw_dma_runner.py`、`vexii_dma_runner.py` | 共享有界四字 RV32I DMA 固件、CPU 配置与标准 Runner 调度的 RAM 数据流组合 | 固定 CPU profile、真实源／控制请求与 master response、按字节 writer/version 和完整 fresh；实际证据分别见 CVW/Vexii DMA 报告，未覆盖 IRQ/ISR／通用 F6 |
 | `src/myfuzz/scenario/memory_service.py`、`memory.py`、`ledger.py` | host 模拟 RAM 的交易提交；成功写回调冻结完整交易键、实际窗口位置和启用字节版本，重复交易重用原凭据，失败保持 uncertain | `commit_document()` 是提交事实而非来源授权；受限 UART `sw`→host RAM 低字节与后续退休读回已有冻结源码门禁，仍不代表通用 RTL RAM 来源 |
 | `src/myfuzz/scenario/dependency.py`、`runtime_path_contract.py`、`replay.py`、`p2_acceptance.py` | P2 有边身份的 proof-DAG、显式静态拓扑契约、预编译路径及启动前 hook；声明范围的逐边来源和阶段门禁已验收 | 受信 node/edge 声明、所选路径、实际 Binding/MMIO/资源拓扑；超出声明的逐边来源仍需另证 |
 | `src/myfuzz/scenario/source_provenance.py`、`event_provenance.py`、`runtime_edge_index.py` | immutable源登记、追加前观察/来源元数据、typed RAM writer与物理边候选；不推断RTL因果 | 原始case/action、资源快照、graph/path/edge候选 |
@@ -79,3 +97,7 @@ configs/cpus + configs/peripherals + configs/scenario
 历史 UART 原生外部 taken 的冻结源码门禁、live-resource GC 与完整 saved prefix fresh replay 见 [native IRQ 来源报告](reports/current-dataflow-p2-uart-native-irq-20261006.md)。早期 GPIO/UART/FIFO 门禁按其原 captured source 解释，不自动升级；该冻结源软件总门禁为 166 项／56 子检查通过（150.20 秒），后续源码变更须保留其记录时身份。
 
 当前实施与门禁的持续更新集中在 [当前进度](CURRENT_PROGRESS.md)。本页维护代码入口和职责；运行能力表维护组件能力边界；`reports/` 保留各次通过、失败和重放的源码身份与证据。
+
+## Compiled F4 executable identity chain（2026-10-22）
+
+`local_harness/build.py` validated output receipt → opted `session.py` prepare/live executable/READY → `compiled_f4.py` stable execution binding and original/fresh process audits → `compiled_f4_build_join.py` strict D2/session/prefix/replay association → `compiled_rfuzz.py` saved-output verification → `auto_harness_test.py` checked byte hashes. Build timing/cache-hit diagnostics stay outside stable prefix identity. Status and bounded acceptance: [report](reports/compiled-f4-built-identity-20261022.md).

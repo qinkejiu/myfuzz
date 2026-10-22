@@ -1,6 +1,6 @@
 # P8 scalar measurement: remote source and tool dependencies
 
-Source inspection only, against scalar measurement `d7486c9` and the current actual continuous RX factory. No project imports, tests, frontend, build, model or remote operation were performed. Standard-library JSON/file/hash reads were used to inspect declarative inputs. This is a preparation checklist, not a proven transitive closure or a native/performance result. Task2 batching remains unimplemented pending measured attribution.
+This report records the source/dependency inspection stage for scalar measurement `d7486c9` and the continuous RX factory. At that stage, no project imports, tests, frontend, build, model or remote operation were performed. Standard-library JSON/file/hash reads inspected declarative inputs. It remains a preparation checklist, not a proven transitive closure or a native/performance result. Task2 batching remains unimplemented pending measured attribution.
 
 ## Execution entry and exact instances
 
@@ -71,4 +71,4 @@ The user reports `/root/fanzehui/myfuzz/project` is local42a9ce9 plus later omit
 
 ZipCPU metadata attempt2已实际完成（父4100959 exit0，1198个Git子进程均exit0）。只读采集包保存在 `evidence/p8-zipcpu-metadata-attempt2-20261018/actual-remote.tar.gz`，218,999,928 bytes，SHA256 `9a91c2cf3366345527708a7038ba406ea696e427e3f74ea662423382ce2578b5`；大包保留本地与远端原件，不纳入Git。下载回执与独立审计结果分别维护；目前独立对象闭包审计尚未完成，不能只凭控制器exit0授予源码准备完成。首轮因真实tracked symlink拒绝的失败记录保留。
 
-批量对象读取是新的未执行源码草稿，用于减少后续OpenTitan准备进程数量；旧实际控制保持原字节。尚未执行OpenTitan物化、完整P8项目冻结或标量运行。此处准备耗时不属于DMA吞吐证据，5×目标仍OPEN。
+批量对象读取是新的未执行源码草稿，用于减少后续OpenTitan准备进程数量；旧实际控制保持原字节。该准备检查点之后已完成一次项目映射关联与标量运行，见 [S1c 实测报告](p8-s1c-scalar-measurement-attempt1-independent-20261018.md)。此处准备耗时不属于DMA吞吐证据，5×目标仍OPEN。

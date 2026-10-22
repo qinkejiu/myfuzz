@@ -1,6 +1,6 @@
 # P8 S1c UART transport batching implementation plan
 
-> **For agentic workers:** Use subagent-driven-development or executing-plans task by task after design review. This document is a source-only design; no implementation, test, model, build or remote run was performed for it.
+> **For agentic workers:** Use subagent-driven-development or executing-plans task by task after design review. This remains a source-only batching design: no batching behavior, test or batching build has been implemented. Task 1's separate scalar measurement script has since run once; see the actual result below.
 
 **Goal:** Reduce pipe command overhead during the isolated UART RX waveform while retaining every actual clock edge and source/IRQ receipt.
 
@@ -42,6 +42,12 @@ At block32, the 3456 isolated calls could fit in about112 wire requests before m
 - `agent.md`: remote work only `/root/fanzehui` via jumpserver. This design does not authorize any remote/native operation; root coordinates the nonblocking heavy-worker lock, frozen independent copy and exact operation.
 
 ## Task 1: Bound and measure the scalar baseline
+
+### 2026-10-18 actual scalar attempt 1
+
+The reviewed measurement script was run once on the pinned remote project copy. The remote operation completed with exit 0 for source bytes `[0x5a, 0x00, 0xa5, 0xa5]`. A separate local saved-byte audit exited 0 with status `partial_scope_verified_open_checks_remain`: 29,636 events, four complete cases, 4,776 logical plan commands, 213.607 seconds whole-runtime wall and 2.244 seconds import. The run and evidence boundaries are documented in [the measurement report](p8-s1c-scalar-measurement-attempt1-independent-20261018.md).
+
+This is partial Task 1 evidence only. Timing includes build/startup/finalization; there is no fresh or failure replay, no independent original DUT exit receipt, no wire command/ACK/byte count, and no steady-state-only or native-only CPU measurement. It does not establish transport dominance or justify batching as a 5× optimization. Keep the acceptance checklist below open until its full cost, correctness and fresh-reference items are met.
 
 **Files:** extend `tests/integration/test_dma_prefix_replay_real.py` measurement harness or add `scripts/measure_dma_uart_transport.py`; consume `src/myfuzz/local_harness/session.py:observe_local_command_timings` without changing commands.
 

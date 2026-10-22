@@ -1,6 +1,6 @@
 # P8 S1c scalar transport measurement source
 
-Source increment only. No tests, model, build, remote execution, baseline measurement or performance claim was performed for this increment. This implements only Task1's bounded measurement harness from [the batching design](p8-s1c-batching-plan-20261018.md), with the limitations below explicit rather than guessed.
+This report records a source increment only. At that time, no tests, model, build, remote execution, baseline measurement or performance claim had been performed. It implements only Task1's bounded measurement harness from [the batching design](p8-s1c-batching-plan-20261018.md), with the limitations below explicit rather than guessed.
 
 `scripts/measure_dma_uart_transport.py` calls the existing `run_continuous_uart_rx()` once, using its original four bytes by default, unchanged default bounds and300000ms budget. It wraps only that call with the actual `observe_local_command_timings()` context manager. The observer's real signature is `(operation: str, elapsed_seconds: float)`, emitted in `GeneratedLocalSession.command()`'s `finally` after `_command_impl` returns or raises. The initial `_NATIVE_RESET_OWNER_GUARD_PIN[0](self)` call precedes observer lookup/timing and is excluded, including its failures. Therefore **observed command calls include `_command_impl` failures/prewire attempts after that initial guard and are not an actual wire-command count**. ACK time is included in the outer command duration when present. The script does not patch sessions, readers, driver, Runner, firmware, command streams or result fields.
 
@@ -24,7 +24,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 scripts/measure_dma_uart_transport.py \
 
 The lock example retains the established canonical shared lock; root must verify the new workspace README/current coordination before scheduling. There is no source-copy/lock-policy change in this increment. The script itself can build/run actual hardware when invoked, so it must not be run as a pure syntax check or smoke test.
 
-Next gate: independent source review, then root may authorize an isolated actual scalar measurement. A separately scheduled ordinary full/failure fresh replay remains necessary. Tasks2–5, protocol/driver/Runner batching, 5× performance and P8 acceptance remain open.
+At source-review time, the next gate was an isolated actual scalar measurement. That one-shot run and its saved-byte audit have since completed; see [the actual measurement report](p8-s1c-scalar-measurement-attempt1-independent-20261018.md). A separately scheduled ordinary full/failure fresh replay remains necessary. Tasks2–5, protocol/driver/Runner batching, 5× performance and P8 acceptance remain open.
 
 ## Receipt follow-up (source only)
 
