@@ -76,6 +76,31 @@ the full six-CPU/four-IP, P6/P7/P8 system is complete.
   rows 2–5 still lack per-edge `RuntimePathContract` and closed-loop four hits.
 - P8 S1c schedule thinning measured 1.37×, not 5×.
 
+
+
+## R11 Stage 2 (Task 5 remote) — prepared, not passed
+
+- Local package: `/home/qinkejiu/.native-gate/r11-stage2-5a6bfbeb4188`,
+  4,690 members, 127,054,293 bytes; Stage 2 manifest SHA-256
+  `54c61ce9ad87e1064c048114f98d8c90371cf8584d2b63f05e19b463f4fa4706`.
+  Source is committed HEAD `8485893` via `git archive` plus the pinned PicoRV32
+  gitlink; tool closure is a local CPython copy with a frozen environment.
+- Local admission preflight passed with the unmodified frozen controller
+  (claimed_run stubbed); 25/25 package verification checks passed; two
+  independent pre-upload reviewers accepted the same exact digest.
+- The operation tree was uploaded to
+  `/root/fanzehui/myfuzz/operations/r11-native-completion-20261023-5a6bfbeb4188`
+  and the manifest SHA matched on target. The one-shot controller then refused
+  at `file:type-or-links:control/protected-baselines-preflight.v1.json` (the
+  controller's own preflight map), before any claim, launch, cache or evidence;
+  a retry with `umask 077` could not run because the SSH target became
+  unreachable (`Connection timed out`). No gate, post-gate runner, independent
+  auditor or upload reviews were produced; the remote operation path is
+  consumed/unfinished.
+- **Verdict:** R11 Task 5 remains OPEN. The local package is reproducible and
+  reviewed, but neither the controller one-shot gate nor the independent remote
+  auditor passed.
+
 ## Open items at the 09:00 stop
 
 1. **Remote r11 Task 5:** no Stage2 source/tool package, upload, claim,
