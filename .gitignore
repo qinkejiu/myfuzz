@@ -63,6 +63,9 @@ temp/
 # audit's raw experiment trees (tens of GB); its written reports are cited from
 # docs/ by path and stay on disk, but the run bulk is not mirrored into git.
 /research/
+# Local git-object bundles (six ~140 MB tarballs) that back the compiled-path source
+# metadata; the reader works against this checkout, so they stay on disk only.
+/source-git-metadata/
 # Scratch directories earlier rounds left in the repository root (source copies of
 # probe hosts, compiled probes, elaboration audit trees).  They are never sources.
 /.tmp-*/
@@ -74,6 +77,9 @@ temp/
 # The written reports (docs/reports/*.md) and the small manifests already in the
 # index stay tracked; new bulk under this tree is not added automatically.  Use
 # `git add -f <path>` for a specific small artefact that must be versioned.
+# The whole raw-evidence tree is local reproduction material; the small files already
+# in the index stay tracked, everything else under it is disregarded.
+/docs/reports/evidence/
 /docs/reports/evidence/**/*.gz
 /docs/reports/evidence/**/*.tar
 /docs/reports/evidence/**/*.tar.gz
