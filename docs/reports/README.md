@@ -104,6 +104,7 @@
 | **P2 DMA：真不同器件与能力边界**：树内只有两颗 DMA RTL，`inprocess_generality_wbdmac` 与 `zipcpu_wbdmac` 经核对是**同一 RTL 的不同 profile**（不算新器件，测试钉住）；`wbdmac` 在统一入口 F6 **真跑通 4 字与 8 字块自主搬运**（控制口 keyed start `0x0fed0004`/`0x0fed0008` → 真实 read/write beat → 器件完成脉冲 → CPU 读回目标块逐字正确）；多通道、8 字节 beat、多 outstanding 按器件事实具名拒绝，其中深度 2 有**实测失败证据**（`wbdmac.v:472-491` 把请求计数当 ack 计数）；F6 case 行新增 `dma_device/dma_channels/dma_beat_bytes/dma_max_outstanding/dma_outstanding_peak`，既有 ZipDMA 47 条 case 行逐字节不变 | [P2 DMA 报告](p2-dma-capabilities-new-device-20261103.md)、[证据](../../runs/p2-dma-20261103/README.md) |
 | **P2 时钟：非整数比 / 更快模型 / 异步**：一格 = `1/(2·lcm(声明频率))` 的精确有理网格（50+30 MHz = `C3/R5`、实测 131/218 沿 = 30/50；50+30+60 MHz = `C6/R10/5`、实测 262/218 = 60/50），比 CPU 更快的模型在同一 tick 内多次推进（真子步进，`static_assert` 钉死「一 tick = 一个 CPU 周期」）；32.768 kHz RTC 的异步对与「更快模型的总线流量」按名拒绝（含精确网格与两侧格数，另有真实超时失败存档）；五条 p1 等速率/整数比 case 行去掉 `seconds` 后逐字节不变 | [P2 时序报告](p2-timing-ratios-async-20261103.md)、[证据](../../runs/p2-timing-20261103/README.md) |
 
+| **P2 验收汇总**：七条工作流逐条落点、整合后 1950 passed、七个复现脚本在同一棵整合树上 7/7 exit 0（707 s）、有意保持的拒绝逐条给到 RTL 行/端口事实、整合期修掉的三处交叉残留、被本轮取代的旧表述清单 | [P2 验收报告](p2-acceptance-final-20261103.md)、[最终批次](../../runs/final-verify-p2/README.md) |
 ## 2026-10-31 阶段一收尾
 
 | 范围 | 入口 |
