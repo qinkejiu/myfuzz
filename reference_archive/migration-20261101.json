@@ -1,0 +1,242 @@
+[
+  {
+    "original": "scripts/legacy/run_cva6_scheme1_vs_scheme4_10h_resume.py",
+    "archived": "reference_archive/legacy-scripts/run_cva6_scheme1_vs_scheme4_10h_resume.py",
+    "sha256": "f497a241f604abf856f9b9843230e28d166634608ee54c919f5b229e0e219ca0",
+    "bytes": 35783
+  },
+  {
+    "original": "scripts/legacy/run_cva6_scheme1_vs_scheme4_plus4_4h_resume.py",
+    "archived": "reference_archive/legacy-scripts/run_cva6_scheme1_vs_scheme4_plus4_4h_resume.py",
+    "sha256": "771d2e32d64a0d6a11eccf40ec0866a75e18c4fcad261d69c589a765f962774a",
+    "bytes": 1016
+  },
+  {
+    "original": "scripts/legacy/run_cva6_scheme1_vs_scheme4_plus5_4h_resume.py",
+    "archived": "reference_archive/legacy-scripts/run_cva6_scheme1_vs_scheme4_plus5_4h_resume.py",
+    "sha256": "c54ffdef57db4fffcdede9f3b0ffcbb5e5c8a9328692d2b5145bc7f0949a77cd",
+    "bytes": 1009
+  },
+  {
+    "original": "scripts/legacy/run_four_schemes_1000s.py",
+    "archived": "reference_archive/legacy-scripts/run_four_schemes_1000s.py",
+    "sha256": "6251a2ca7ffdeec63a6af429be3cfd46e38557296b3b7778a4189b6f61a5f24f",
+    "bytes": 4224
+  },
+  {
+    "original": "scripts/legacy/run_four_schemes_10h_hourly_common.py",
+    "archived": "reference_archive/legacy-scripts/run_four_schemes_10h_hourly_common.py",
+    "sha256": "e8dacb79817851fbfd0307f932fe03baec038c2fa35cb58d426030fdccf5abbb",
+    "bytes": 23770
+  },
+  {
+    "original": "scripts/legacy/run_ibex_all_bit_constraint_variants_pre_post_6h_resume.py",
+    "archived": "reference_archive/legacy-scripts/run_ibex_all_bit_constraint_variants_pre_post_6h_resume.py",
+    "sha256": "b3d83c2073689c11b383ca713c1bc4dee91dcf6841ae71f735b2333f180d3002",
+    "bytes": 5059
+  },
+  {
+    "original": "scripts/legacy/run_ibex_baseline_vs_lightweight_plus3_1000s.py",
+    "archived": "reference_archive/legacy-scripts/run_ibex_baseline_vs_lightweight_plus3_1000s.py",
+    "sha256": "876b2c7c3e04661d8651b159672afdc27bce75c15033835699d3731f0e25533e",
+    "bytes": 1013
+  },
+  {
+    "original": "scripts/legacy/run_ibex_baseline_vs_lightweight_plus_1000s.py",
+    "archived": "reference_archive/legacy-scripts/run_ibex_baseline_vs_lightweight_plus_1000s.py",
+    "sha256": "5983f56da135dd6934d6edbeba0227414922421056cf90466412ab8549bc78bd",
+    "bytes": 21770
+  },
+  {
+    "original": "scripts/legacy/run_ibex_baseline_vs_scheme5_bit_constraints_1000s.py",
+    "archived": "reference_archive/legacy-scripts/run_ibex_baseline_vs_scheme5_bit_constraints_1000s.py",
+    "sha256": "2daa2e07afdf7d77dca432b6d9e36479dde63bbb94970211c216a99adb9f88fa",
+    "bytes": 1128
+  },
+  {
+    "original": "scripts/legacy/run_ibex_baseline_vs_scheme5_vs_scheme6_1000s.py",
+    "archived": "reference_archive/legacy-scripts/run_ibex_baseline_vs_scheme5_vs_scheme6_1000s.py",
+    "sha256": "8b1bb61ee41c6d49c022b3dca2b7289a403b08a04b79a3748d8323ced8df7f1c",
+    "bytes": 1764
+  },
+  {
+    "original": "scripts/legacy/run_ibex_bit_constraints_ablation_1000s.py",
+    "archived": "reference_archive/legacy-scripts/run_ibex_bit_constraints_ablation_1000s.py",
+    "sha256": "211935fd6ec7f9725bba9326043dd3535506bca06065df9ce07f70ed395d9ada",
+    "bytes": 2615
+  },
+  {
+    "original": "scripts/legacy/run_ibex_opcode_bit_constraints_ablation_1000s.py",
+    "archived": "reference_archive/legacy-scripts/run_ibex_opcode_bit_constraints_ablation_1000s.py",
+    "sha256": "219846faa03a3b25378083e34e97b6f15626f8a67a6e7bc2ba3f6db17530690a",
+    "bytes": 2077
+  },
+  {
+    "original": "scripts/legacy/run_ibex_scheme1_vs_scheme4_plus2_10h_resume.py",
+    "archived": "reference_archive/legacy-scripts/run_ibex_scheme1_vs_scheme4_plus2_10h_resume.py",
+    "sha256": "61c1f0e0a2661415052ba3cd6d4a9a3ca9d8cc5f75a0ecad7691a0267bd7a016",
+    "bytes": 35941
+  },
+  {
+    "original": "scripts/legacy/run_ibex_scheme1_vs_scheme4_plus3_12h_resume.py",
+    "archived": "reference_archive/legacy-scripts/run_ibex_scheme1_vs_scheme4_plus3_12h_resume.py",
+    "sha256": "10ee01f5c10f8e0f27e04d8e86216fbfc5e0c52208c0078ee5f761cee2bd9d7c",
+    "bytes": 1189
+  },
+  {
+    "original": "descriptor-search-report.md",
+    "archived": "reference_archive/reports/descriptor-search-report.md",
+    "sha256": "13954349a5bfbce8b8de3e65f7a58ecd2f6a688fd017ce1ad77e9ac77d46302b",
+    "bytes": 6473
+  },
+  {
+    "original": "f6-cross-invocation-readonly-report.md",
+    "archived": "reference_archive/reports/f6-cross-invocation-readonly-report.md",
+    "sha256": "6ee6299b2e25907f441b647a92ffded52d050fbae4c9e4d9045f7cc844f3b53d",
+    "bytes": 7858
+  },
+  {
+    "original": "generic-case-budget-report.md",
+    "archived": "reference_archive/reports/generic-case-budget-report.md",
+    "sha256": "74c0f1c9b7e5c8a7856d180533b0d69d40aa6ebb4a5230c6a796e6c26706be10",
+    "bytes": 6534
+  },
+  {
+    "original": "performance-readonly-report.md",
+    "archived": "reference_archive/reports/performance-readonly-report.md",
+    "sha256": "263000a706e703cce78ee0db5f3e591c5d984c78b8be99091459c98ba7db9b6f",
+    "bytes": 9682
+  },
+  {
+    "original": "review-config-driven-report.md",
+    "archived": "reference_archive/reports/review-config-driven-report.md",
+    "sha256": "050a8708d2850252fd9f51e358661af71de21e589502c092067c5dfe66327d13",
+    "bytes": 5915
+  },
+  {
+    "original": "search-scenarios-cli-report.md",
+    "archived": "reference_archive/reports/search-scenarios-cli-report.md",
+    "sha256": "bb481f39666867dc28369a960321bd8125204bebc3ac8c10eafe8f4cf3420e2c",
+    "bytes": 3019
+  },
+  {
+    "original": "scripts/bench_shared_slot_export_writes.py",
+    "archived": "reference_archive/legacy-scripts/bench_shared_slot_export_writes.py",
+    "sha256": "c59e7b2ff27e68a584b67f4e3169879ff0611613f0e1a1f03eff3989e6c85b8b",
+    "bytes": 7838
+  },
+  {
+    "original": "scripts/benchmark_shared_all_flows.py",
+    "archived": "reference_archive/legacy-scripts/benchmark_shared_all_flows.py",
+    "sha256": "7ee270743ca6b09f9ad91351b614b5090cc8f3d5e46c2550cda9aa67f84d858a",
+    "bytes": 6445
+  },
+  {
+    "original": "scripts/measure_dma_uart_transport.py",
+    "archived": "reference_archive/legacy-scripts/measure_dma_uart_transport.py",
+    "sha256": "91eb4652ce81aa2dbddc4da200f9b90f26dd2bebdd2d4ffd5bc98cf9d793f8ee",
+    "bytes": 9594
+  },
+  {
+    "original": "scripts/measure_wire_reply_cost.py",
+    "archived": "reference_archive/legacy-scripts/measure_wire_reply_cost.py",
+    "sha256": "2b8cb7b17550e2631b3508cec64fa17fb493b4898893589b578ed191342475ad",
+    "bytes": 5381
+  },
+  {
+    "original": "scripts/legacy/README.md",
+    "archived": "reference_archive/legacy-scripts/previous-readme.md",
+    "sha256": "f7596495438e094d7dccac37226bacc93d8b24e6ebc6c3bd6a8270c050c2e4de",
+    "bytes": 1366
+  },
+  {
+    "original": "scripts/reproduce_stage1_review_findings.py",
+    "archived": "reference_archive/legacy-scripts/reproduce_stage1_review_findings.py",
+    "sha256": "c567d6334913b79b340a128c47d25f446c6dfb1507105d6232613af77cf9a618",
+    "bytes": 6591
+  },
+  {
+    "original": "scripts/prepare_p7_i5_snapshot.py",
+    "archived": "reference_archive/legacy-scripts/prepare_p7_i5_snapshot.py",
+    "sha256": "89a7c42963aac5c7761d76c9e0f80776209645cc2876e56743f96a0df0e83e02",
+    "bytes": 18670
+  },
+  {
+    "original": "scripts/run_p7_i5_acceptance.py",
+    "archived": "reference_archive/legacy-scripts/run_p7_i5_acceptance.py",
+    "sha256": "ca7e3121496dc0ff17211dbcff53fc02a9256f97dbbc6fd360f9501173730a0c",
+    "bytes": 18776
+  },
+  {
+    "original": "scripts/profile_online_host_cost.py",
+    "archived": "reference_archive/legacy-scripts/profile_online_host_cost.py",
+    "sha256": "9a83e6b31d1ae478d477f9a43d23e61ee73558d61d285a6029c9ef2c4648b73a",
+    "bytes": 4267
+  },
+  {
+    "original": "scripts/profile_online_step_breakup.py",
+    "archived": "reference_archive/legacy-scripts/profile_online_step_breakup.py",
+    "sha256": "d9ec0d138916f15069178c434aae09f98cca86f4323cc68da1fe557ca7e8f3ee",
+    "bytes": 5975
+  },
+  {
+    "original": "scripts/survey_online_trace_kinds.py",
+    "archived": "reference_archive/legacy-scripts/survey_online_trace_kinds.py",
+    "sha256": "e617ff35f6f81cac8d67ef9b4d6719b29dcd9152c50c53b7f44395f6762a2368",
+    "bytes": 2372
+  },
+  {
+    "original": "docs/IBEX_OBI_REUSE.md",
+    "archived": "reference_archive/docs/IBEX_OBI_REUSE.md",
+    "sha256": "cf36e660eae87dfa092b674441ffe9ffe82b9ba4326ce6363c931f6b81ac2725",
+    "bytes": 2084
+  },
+  {
+    "original": "docs/AXIL_UART_RUNTIME.md",
+    "archived": "reference_archive/docs/AXIL_UART_RUNTIME.md",
+    "sha256": "0bd151bb6bca8d65c112183ce9cf424afa1dd04a52eadfa96f9ed4eb63b011fb",
+    "bytes": 2434
+  },
+  {
+    "original": "docs/handover/dsh-f1-f4-20261030.md",
+    "archived": "reference_archive/docs/dsh-f1-f4-20261030.md",
+    "sha256": "81c55de30dad1ea75f92a9b87d9926eb9a1b315150712d5975a72018d71a9223",
+    "bytes": 6276
+  },
+  {
+    "original": "docs/superpowers/plans/2026-07-22-harness-runtime-implementation-plan.md",
+    "archived": "reference_archive/docs/old-plans/2026-07-22-harness-runtime-implementation-plan.md",
+    "sha256": "faea946d10828b38d246c9542105e087e06f6217df1b1ee77fb949d7768a63b9",
+    "bytes": 10825
+  },
+  {
+    "original": "docs/superpowers/plans/2026-07-22-composition-core.md",
+    "archived": "reference_archive/docs/old-plans/2026-07-22-composition-core.md",
+    "sha256": "9e8af8a4aa17aa0f35864d9333751167d592da8f15adaf986a932b512929d82a",
+    "bytes": 16569
+  },
+  {
+    "original": "docs/superpowers/plans/2026-07-22-composition-core-implementation-plan.md",
+    "archived": "reference_archive/docs/old-plans/2026-07-22-composition-core-implementation-plan.md",
+    "sha256": "f24939ae5c7086ee76c8acc30895a8a16e35d8a44954e0977028eb39bc8b1638",
+    "bytes": 14422
+  },
+  {
+    "original": "docs/superpowers/plans/2026-07-22-dependency-aware-shared-integration-plan.md",
+    "archived": "reference_archive/docs/old-plans/2026-07-22-dependency-aware-shared-integration-plan.md",
+    "sha256": "1c5ee1f31512dfb4f6fe2cd8bc6cb66dabd9cb44cc16dd398a9bf9a80f97a52c",
+    "bytes": 9518
+  },
+  {
+    "original": "docs/superpowers/plans/2026-07-22-contracts-and-integration.md",
+    "archived": "reference_archive/docs/old-plans/2026-07-22-contracts-and-integration.md",
+    "sha256": "723310a68fd99bd0e4abf9db5ce61740ac90817a4e57453e294faa6f31d075b4",
+    "bytes": 42804
+  },
+  {
+    "original": "docs/superpowers/plans/2026-07-22-harness-runtime.md",
+    "archived": "reference_archive/docs/old-plans/2026-07-22-harness-runtime.md",
+    "sha256": "38058575a3ab17f4c5313cca1a167734bce94b0bc7c59951a142259a3338f71c",
+    "bytes": 77287
+  }
+]

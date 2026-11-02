@@ -1,0 +1,38 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-timer-timed-ip-f1f4",
+  "description": "One untimed Ibex RVFI OBI CPU at 50 MHz reaches one Verilator --timing PULP APB3 timer declared at 10 MHz. This is the timed-IP + untimed-CPU direction of the mix: the timed target's contract states a 50000 ps half period (five grid steps of the 10000 ps reference half period) and the shared context advances one grid step per phase. The pinned timer RTL schedules no delayed events, so the claim is the timed build/link and the per-model phase path, not an event ordering.",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "targets": [
+    {
+      "name": "timer10t",
+      "profile": "configs/peripherals/pulp_timer_10mhz_timed/component_profile.json",
+      "active_id": "timer10t",
+      "window": {
+        "base": 1073745920,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": "configs/behaviors/pulp_timer_f5.json",
+      "pins": null,
+      "fixed_inputs": [],
+      "tuning": {}
+    }
+  ],
+  "image_start": 65536,
+  "image_end": 196608,
+  "notes": [
+    "The target profile is a declared composition variant of the pinned PULP apb_timer at 10 MHz with capabilities.verilator_timing_mode = timing.  Its RTL contains no delayed assignments or delayed tasks, so the model schedules no events; the run proves that an untimed CPU and a timed IP link against verilated_timing.cpp and are driven by the same phase grid, not that any delayed event ordered correctly.  That limitation is stated instead of being hidden.",
+    "The timed target's own half-period contract (50000 ps) is exactly five grid steps of the untimed CPU's 10000 ps reference half period (50/10 = 5), so the shared timed context advanced by the grid step reaches each target phase at the right real time.",
+    "No IRQ behavior and no DMA profile are declared, so F5/F6 are refused by name.  No event-order or timed-IP-behavior claim is made."
+  ]
+}

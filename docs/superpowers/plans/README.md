@@ -4,6 +4,10 @@
 
 # 实施计划索引
 
+## 2026-10-26 通用化框架（设计交接，未实现）
+
+[DS实施计划](2026-10-26-generic-runtime-ds-implementation-plan.md)与[框架规格](../specs/2026-10-26-generic-runtime-framework-design.md)：复用现有Runner与native权威，以能力/语义匹配替代具名分支，先做APB storage持久纵向门，再扩展协议、DMA和系统矩阵。启动说明见[DS交接](../../handover/DS_GENERIC_RUNTIME_TASK.md)。
+
 - [Selected compiled F4 runtime-path admission](2026-10-22-compiled-f4-runtime-path-admission.md)：同次 D3 路径、显式 image source、实际 session 与 fresh 连接；代码审查通过，最终门状态见[报告](../../reports/compiled-f4-runtime-path-admission-20261022.md)。
 
 - [CVA6 CPU-programmed DMA RAM](2026-10-22-cva6-dma-ram.md)：有序单字读写、64 位 lane／来源链和正负例完整 fresh；实际状态见报告。

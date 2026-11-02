@@ -1,0 +1,426 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "profile_only_i2c",
+  "kind": "peripheral",
+  "description": "Pinned PULP APB3 I2C master, one 7-bit electrical slave, one-byte read and held native IRQ.",
+  "source": {
+    "root": "third_party/soc-pulp-apb-i2c",
+    "revision": "git:84855413cc2c8e70209ee7f168a0225d3c5914a1",
+    "top_module": "apb_i2c",
+    "files": [
+      "i2c_master_defines.sv",
+      "i2c_master_bit_ctrl.sv",
+      "i2c_master_byte_ctrl.sv",
+      "apb_i2c.sv"
+    ],
+    "include_roots": [
+      "."
+    ],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "parameters": [
+        {
+          "name": "APB_ADDR_WIDTH",
+          "value": "12"
+        }
+      ],
+      "warning_policy": "recorded-nonfatal"
+    },
+    "top_port_selection": "all"
+  },
+  "clocks": [
+    {
+      "port": "HCLK",
+      "domain": "core",
+      "frequency_hz": 50000000
+    }
+  ],
+  "resets": [
+    {
+      "port": "HRESETn",
+      "domain": "sys_rst",
+      "polarity": "active_low",
+      "synchronous": false,
+      "release": "The controller uses asynchronous active-low HRESETn. Release must satisfy HCLK recovery/removal timing."
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "i2c.bus",
+      "function": "mmio_slave",
+      "protocol": [
+        "apb",
+        "3"
+      ],
+      "fields": [
+        {
+          "role": "paddr",
+          "aliases": [
+            "PADDR"
+          ]
+        },
+        {
+          "role": "psel",
+          "aliases": [
+            "PSEL"
+          ]
+        },
+        {
+          "role": "penable",
+          "aliases": [
+            "PENABLE"
+          ]
+        },
+        {
+          "role": "pwrite",
+          "aliases": [
+            "PWRITE"
+          ]
+        },
+        {
+          "role": "pwdata",
+          "aliases": [
+            "PWDATA"
+          ]
+        },
+        {
+          "role": "pready",
+          "aliases": [
+            "PREADY"
+          ]
+        },
+        {
+          "role": "prdata",
+          "aliases": [
+            "PRDATA"
+          ]
+        },
+        {
+          "role": "pslverr",
+          "aliases": [
+            "PSLVERR"
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "i2c.pins",
+      "function": "external_pins",
+      "fields": [
+        {
+          "role": "scl_pad_o",
+          "direction": "output",
+          "aliases": [
+            "scl_pad_o"
+          ]
+        },
+        {
+          "role": "scl_padoen_o",
+          "direction": "output",
+          "aliases": [
+            "scl_padoen_o"
+          ]
+        },
+        {
+          "role": "sda_pad_o",
+          "direction": "output",
+          "aliases": [
+            "sda_pad_o"
+          ]
+        },
+        {
+          "role": "sda_padoen_o",
+          "direction": "output",
+          "aliases": [
+            "sda_padoen_o"
+          ]
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "local_runtime_variant": "apb_i2c",
+    "address_width": 12,
+    "data_width": 32,
+    "read": true,
+    "write": true,
+    "byte_enable": false,
+    "partial_write": false,
+    "has_error": true,
+    "max_wait_cycles": 16,
+    "verilator_timing_mode": "no_timing"
+  },
+  "address": {
+    "window_size": 4096,
+    "alignment": 4096,
+    "registers": [
+      {
+        "name": "PRESCALER",
+        "offset": 0,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none"
+      },
+      {
+        "name": "CTRL",
+        "offset": 4,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none"
+      },
+      {
+        "name": "RX",
+        "offset": 8,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "none"
+      },
+      {
+        "name": "STATUS",
+        "offset": 12,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "none"
+      },
+      {
+        "name": "TX",
+        "offset": 16,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none"
+      },
+      {
+        "name": "CMD",
+        "offset": 20,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "self_clearing"
+      }
+    ]
+  },
+  "interrupts": [],
+  "port_actions": [
+    {
+      "port": "interrupt_o",
+      "action": "observe",
+      "reason": "Native registered level from irq_flag and IEN; source remains high until IACK, but no CPU IRQ binding is declared in this local profile."
+    },
+    {
+      "port": "scl_pad_i",
+      "action": "constant",
+      "value": 1,
+      "reason": "Idle pulled-up pin for register-only APB execution."
+    },
+    {
+      "port": "sda_pad_i",
+      "action": "constant",
+      "value": 1,
+      "reason": "Idle pulled-up pin for register-only APB execution."
+    }
+  ],
+  "evidence": {
+    "semantics": [
+      "All 17 physical top ports are accounted for: clock/reset, eight APB3 fields, six open-drain pin fields and observed interrupt_o.",
+      "APB address decoding uses PADDR[5:2]; only full-word writes are accepted because there is no PSTRB. PREADY=1 and PSLVERR=0.",
+      "scl_pad_o and sda_pad_o are constant zero; respective active-low output-enable pins determine drive-low or release. Pad inputs receive resolved pull-up and peer states.",
+      "Control bit 7 enables the core and bit 6 enables IRQ; command bits [7:4] are START/STOP/READ/WRITE and bit 0 acknowledges IRQ. IRQ is held from command completion until IACK.",
+      "The upstream byte controller uses #1 simulation delays; the generated Verilator executable selects --no-timing, which ignores those delays and preserves edge-clocked state updates.",
+      "Generated peer is a deterministic 7-bit slave at address 0x42. It ACKs the address and supplies byte 0xa5 on one master read while resolving both open-drain pads with pull-ups.",
+      "Accepted software sequence writes prescaler 2..16, CTRL=0xc0, TX=0x85, CMD=0x90; after native IRQ, CMD=0x01 acknowledges, then CMD=0x68 performs one byte read, NACK and STOP."
+    ],
+    "verified": [
+      "Four pinned source files and include closure replay under Verilator; 12 nonfatal warnings are recorded."
+    ],
+    "unknown": [
+      "This harness admits one deterministic I2C slave peer only; multi-master arbitration and clock stretching are unsupported.",
+      "Other APB_ADDR_WIDTH values and partial writes are not admitted.",
+      "Prescaler 0 or 1 is rejected because the pinned controller input filter and peer observed malformed sampling at those speeds.",
+      "Other addresses, repeated starts, multi-byte operations and write payloads are outside the accepted generated session."
+    ],
+    "local_source_manifest": {
+      "schema_version": "soc_sources.v1",
+      "components": [
+        {
+          "id": "profile_only_i2c",
+          "source": {
+            "root": "third_party/soc-pulp-apb-i2c",
+            "revision": "git:84855413cc2c8e70209ee7f168a0225d3c5914a1",
+            "top_module": "apb_i2c",
+            "files": [
+              "i2c_master_defines.sv",
+              "i2c_master_bit_ctrl.sv",
+              "i2c_master_byte_ctrl.sv",
+              "apb_i2c.sv"
+            ],
+            "include_roots": [
+              "."
+            ],
+            "repositories": []
+          },
+          "artifacts": [
+            {
+              "path": "i2c_master_defines.sv",
+              "sha256": "c7fd72652e757395ff8723e8a2482714b5416b05ca662e2d135a6b0104b1e905",
+              "kind": "license"
+            },
+            {
+              "path": "i2c_master_bit_ctrl.sv",
+              "sha256": "eac653e44503288d1b807675f0484e663eea5956d0b05bd08546477825ae355e",
+              "kind": "source"
+            },
+            {
+              "path": "i2c_master_byte_ctrl.sv",
+              "sha256": "2a24014648add68ba016672a149b81cc97ac891160e57a7caf1c2f155211899f",
+              "kind": "source"
+            },
+            {
+              "path": "apb_i2c.sv",
+              "sha256": "a57ab49abdf879e03db1582c9716eb84c5d14c9457f7dd86a239c95757ea0169",
+              "kind": "source"
+            },
+            {
+              "path": "src_files.yml",
+              "sha256": "3a966881494714332ea0beda314eefc81dfc0492d6f83b52ff14b8b42fce5029",
+              "kind": "provenance"
+            }
+          ],
+          "selected_content_hash": "sha256:17a792afefd7d412b6e587233913d07f80d3da5d0df21487cd65ca076d3b8b52",
+          "closure_status": "selected",
+          "source_status": "source_verified",
+          "elaboration_status": "elaboration_verified",
+          "runtime_status": "runtime_unverified",
+          "defines": [],
+          "typed_parameters": [
+            {
+              "name": "APB_ADDR_WIDTH",
+              "type": "integer",
+              "value": "12"
+            }
+          ],
+          "generator": {
+            "status": "not_invoked",
+            "tool_version": null,
+            "name": "none for selected checked-in files"
+          },
+          "dependencies": [],
+          "closure_note": "Four-file PULP APB I2C closure, include path and APB_ADDR_WIDTH=12 are hash-pinned in configs/soc/closures/pulp_i2c.json. Upstream has no standalone LICENSE file; the pinned i2c_master_defines.sv contains the original embedded OpenCores copyright/disclaimer and is recorded as the license artifact.",
+          "elaboration": {
+            "status": "elaboration_verified",
+            "top_module": "apb_i2c",
+            "tool": {
+              "name": "verilator",
+              "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+              "frontend": "verilator-lint"
+            },
+            "evidence": "inline-closure.json",
+            "evidence_sha256": "33e1e5ccd93ccba46ab8ea4a78d039521971e167301c4e222c585bc0994ddcb0",
+            "closure_files": 4,
+            "lint": {
+              "errors": 0,
+              "warnings": 12,
+              "exit_code": 0
+            },
+            "capability_findings": 3,
+            "unsupported": 2
+          }
+        }
+      ],
+      "elaboration_closures": {
+        "profile_only_i2c": {
+          "schema_version": "soc_elaboration_closure.v1",
+          "component": "profile_only_i2c",
+          "root": "third_party/soc-pulp-apb-i2c",
+          "top_module": "apb_i2c",
+          "tool": {
+            "name": "verilator",
+            "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+            "frontend": "verilator-lint"
+          },
+          "command": [
+            "verilator",
+            "--lint-only",
+            "-Wno-fatal",
+            "--top-module",
+            "apb_i2c",
+            "-GAPB_ADDR_WIDTH=12",
+            "-Ithird_party/soc-pulp-apb-i2c",
+            "third_party/soc-pulp-apb-i2c/i2c_master_defines.sv",
+            "third_party/soc-pulp-apb-i2c/i2c_master_bit_ctrl.sv",
+            "third_party/soc-pulp-apb-i2c/i2c_master_byte_ctrl.sv",
+            "third_party/soc-pulp-apb-i2c/apb_i2c.sv"
+          ],
+          "include_roots": [
+            "third_party/soc-pulp-apb-i2c"
+          ],
+          "defines": [],
+          "parameters": [
+            {
+              "name": "APB_ADDR_WIDTH",
+              "value": "12"
+            }
+          ],
+          "closure_files": [
+            {
+              "root": "third_party/soc-pulp-apb-i2c",
+              "path": "i2c_master_defines.sv",
+              "sha256": "c7fd72652e757395ff8723e8a2482714b5416b05ca662e2d135a6b0104b1e905"
+            },
+            {
+              "root": "third_party/soc-pulp-apb-i2c",
+              "path": "i2c_master_bit_ctrl.sv",
+              "sha256": "eac653e44503288d1b807675f0484e663eea5956d0b05bd08546477825ae355e"
+            },
+            {
+              "root": "third_party/soc-pulp-apb-i2c",
+              "path": "i2c_master_byte_ctrl.sv",
+              "sha256": "2a24014648add68ba016672a149b81cc97ac891160e57a7caf1c2f155211899f"
+            },
+            {
+              "root": "third_party/soc-pulp-apb-i2c",
+              "path": "apb_i2c.sv",
+              "sha256": "a57ab49abdf879e03db1582c9716eb84c5d14c9457f7dd86a239c95757ea0169"
+            }
+          ],
+          "status": "elaboration_verified",
+          "lint": {
+            "errors": 0,
+            "warnings": 12,
+            "exit_code": 0
+          },
+          "capability_findings": [
+            {
+              "topic": "apb3_full_word",
+              "observed": "PREADY is constant one, PSLVERR zero, and no PSTRB port exists; six 32-bit addressed register slots use low data bytes as documented in RTL.",
+              "evidence_path": "third_party/soc-pulp-apb-i2c/apb_i2c.sv:58-129",
+              "provenance": "rtl_read"
+            },
+            {
+              "topic": "open_drain_i2c",
+              "observed": "SCL/SDA output values are hardwired low; active-low output-enable pins drive low or release. Input pads receive resolved pull-up/peer levels.",
+              "evidence_path": "third_party/soc-pulp-apb-i2c/i2c_master_bit_ctrl.sv:541-542",
+              "provenance": "rtl_read"
+            },
+            {
+              "topic": "native_level_irq",
+              "observed": "interrupt_o is registered from irq_flag && IEN; irq_flag sets on command done or arbitration lost and clears on IACK.",
+              "evidence_path": "third_party/soc-pulp-apb-i2c/apb_i2c.sv:184-211",
+              "provenance": "rtl_read"
+            }
+          ],
+          "unsupported": [
+            {
+              "topic": "partial_write",
+              "reason": "No APB byte strobe exists.",
+              "evidence_path": "third_party/soc-pulp-apb-i2c/apb_i2c.sv:34-45"
+            },
+            {
+              "topic": "multi_master_arbitration",
+              "reason": "Only one local master and one deterministic peer are admitted in this harness.",
+              "evidence_path": "third_party/soc-pulp-apb-i2c/i2c_master_bit_ctrl.sv:300-330"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

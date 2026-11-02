@@ -68,3 +68,29 @@ def test_bound_response_is_never_candidate_input(inputs):
     b=dec.decode_candidate(wire(inputs,b'\x02'*4),cursor=0x10000,case_index=0)
     assert a.declaration==b.declaration
     assert a.candidate_bytes==b.candidate_bytes
+
+
+def test_decoder_transport_properties_are_read_only(inputs):
+    dec = decoder(inputs)
+    assert dec.path_id == row(inputs)['path_id']
+    assert dec.source_id == row(inputs)['execution_contract']['load_source_id']
+    assert dec.direction == row(inputs)['direction']
+    assert dec.max_input_bytes == 8 and dec.layout.byte_length == 4
+    for name in ('path_id', 'source_id', 'direction', 'max_input_bytes'):
+        with pytest.raises(AttributeError):
+            setattr(dec, name, 'changed')
+
+
+def test_candidate_refusal_keeps_typed_reason_and_valueerror_compatibility(inputs):
+    from myfuzz.scenario.compiled_f2_decoder import CompiledF2CandidateRefused
+    error = CompiledF2CandidateRefused('example', '/records/1', {'observed': 9})
+    assert isinstance(error, ValueError)
+    assert (error.code, error.pointer, error.detail) == ('example', '/records/1', {'observed': 9})
+    assert str(error) == 'compiled-F2-decoder-example'
+    dec = decoder(inputs)
+    with pytest.raises(CompiledF2CandidateRefused) as refused:
+        dec.decode_candidate(b'', cursor=0x10000, case_index=0)
+    assert refused.value.code == 'wire-record'
+    assert refused.value.pointer
+    with pytest.raises(CompiledF2CandidateRefused, match='sequence'):
+        dec.decode_sequence((wire(inputs),) * 9, cursor=0x10000, case_index=0)

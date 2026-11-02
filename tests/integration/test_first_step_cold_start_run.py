@@ -132,23 +132,23 @@ def _frozen_writer_receipt_keys() -> tuple[str, ...]:
     function = next(node for node in ast.walk(tree)
                     if isinstance(node, ast.FunctionDef)
                     and node.name == "persist_receipt")
-    for node in ast.walk(function):
-        if not (isinstance(node, ast.Call)
-                and isinstance(node.func, ast.Attribute)
-                and node.func.attr == "write"):
+    # The receipt body may be passed to ``write`` inline or bound to a local
+    # first (``receipt_text = json.dumps({...}); ...write(receipt_text)``); both
+    # forms carry the same frozen schema, so the literal is located by its own
+    # ``json.dumps`` call instead of by the surrounding ``write`` call.
+    for inner in ast.walk(function):
+        if not (isinstance(inner, ast.Call)
+                and isinstance(inner.func, ast.Attribute)
+                and inner.func.attr == "dumps"):
             continue
-        for inner in ast.walk(node):
-            if (isinstance(inner, ast.Call)
-                    and isinstance(inner.func, ast.Attribute)
-                    and inner.func.attr == "dumps"):
-                for argument in inner.args:
-                    if isinstance(argument, ast.Dict):
-                        # A `**mapping` entry has no key in the AST (its slot is
-                        # None); it is skipped rather than dereferenced.
-                        keys = tuple(key.value for key in argument.keys
-                                     if isinstance(key, ast.Constant))
-                        assert len(keys) >= 30, keys
-                        return keys
+        for argument in inner.args:
+            if isinstance(argument, ast.Dict):
+                # A `**mapping` entry has no key in the AST (its slot is
+                # None); it is skipped rather than dereferenced.
+                keys = tuple(key.value for key in argument.keys
+                             if isinstance(key, ast.Constant))
+                if len(keys) >= 30:
+                    return keys
     raise AssertionError("persist_receipt receipt dictionary was not found")
 
 

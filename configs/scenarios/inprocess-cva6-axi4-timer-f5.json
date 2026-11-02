@@ -1,0 +1,54 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-cva6-axi4-timer-f5",
+  "cpu_profile": "configs/cpus/cva6/component_profile.json",
+  "cpu_instance_id": "processor",
+  "cpu_timing": {
+    "reset_assert_ticks": 12,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "source_profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+  "source_timing": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "max_wait_cycles": 16
+  },
+  "active_id": "pulp_timer_active",
+  "source_port": "irq_o",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 16,
+  "trigger_writes": [
+    [
+      4,
+      0
+    ],
+    [
+      8,
+      0
+    ],
+    [
+      0,
+      4294967295
+    ]
+  ],
+  "status_offsets": [
+    0
+  ],
+  "status_cause_bits": null,
+  "clear_writes": [],
+  "target_window": {
+    "base": 1073745920,
+    "size": 4096
+  },
+  "image_start": 65536,
+  "image_end": 131072,
+  "assume_single_clock": true,
+  "notes": [
+    "CVA6 packed AXI4 CPU through the existing axi4_processor_memory_adapter; the target is the PULP APB3 timer at 0x40001000. Program slot is 0x12000, inside the execute-but-uncached 0x10000..0x20000 window.",
+    "The interrupt entry is the built model's irq_i input (2 bits). This host drives bit 0 only: the profile declares irq_i[0] as the machine-external entry (mip_d[riscv::IRQ_M_EXT] = irq_i[0], core/csr_regfile.sv:2073) and holds irq_i[1] (supervisor external, IRQ_S_EXT) at constant 0 (component profile port_actions, bits [1]). Bit 0 is taken in M-mode because the firmware bootstrap installs mtvec and enables mstatus.MIE + mie.MEIE; bit 1 is never claimed as a vector.",
+    "The take witness is rvfi_intr together with the commit lane's cause: an interrupt retirement with cause 0x800000000000000b (machine external) and the privilege it entered. The case line prints irq_takes from that witness; the run log prints the trap record and an irq_take line carrying the cause and mode.",
+    "F5 is the timer's declared pulse path: trigger writes [[4,0],[8,0],[0,0xffffffff]], status TIMER0_COUNT at offset 0, no clear. The ISR reads the count (not a cause: the profile declares no cause bits)."
+  ],
+  "description": "One CVA6 packed AXI4 CPU reaches the PULP APB3 timer. The CPU's declared interrupt entry is the two-bit irq_i port: bit 0 is the machine-external line this host drives from the timer's real irq_o[0], and bit 1 is the supervisor-external line the profile itself holds inactive (port_actions irq_i constant 0, bits [1]); the take is observed on the retirement face (an interrupt retire with cause 0x800000000000000b in M-mode), never inferred from an ISR store."
+}

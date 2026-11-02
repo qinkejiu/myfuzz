@@ -1,6 +1,7 @@
 """Focused software regressions; these fixtures do not claim RTL execution."""
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -111,6 +112,14 @@ def test_invalid_register_shape_cannot_enqueue_or_touch_target(change):
     adapter.mmio_ledger = TransactionLedger()
     adapter.reset_epoch = 1
     adapter._active = None
+    # Constructor state the current refusal path reads before it re-raises:
+    # the terminal flag, the default register-only (no shared memory) binding,
+    # and the observation record used for the abort/replay event.
+    adapter.shared_memory_service = None
+    adapter._cleanup_terminal = False
+    adapter._native = SimpleNamespace(execution_id='refused-shape-execution')
+    adapter.local_ticks = 0
+    adapter.source_events = []
     request = dict(channel='A', opcode=0, param=0, size=2, source=1,
                    address=0x400c, mask=0xf0, data=53 << 32,
                    request_sequence=1, reset_epoch=1)

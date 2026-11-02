@@ -271,7 +271,7 @@
     },
     {
       "path": "src/myfuzz/protocols/rtl/ahb_lite_memory_target.sv",
-      "sha256": "c577139848a9e11b3df7ecd62152a2126ced6b26c7935309382e14ec76e8c2a8"
+      "sha256": "5bee62516160cbb47b77525e919924fa86e374ddf4156865a807b58fad62265e"
     },
     {
       "path": "third_party/cvw_upstream_reference/config/rv32gc/act/cvw-rv32gc.yaml",
@@ -2075,5 +2075,24 @@
     "load_store_width": 32,
     "floating_point_width": 32,
     "double_precision_supported": false
+  },
+  "local_adapter_refresh": {
+    "reason": "Hold physical HREADYEXT in COMPLETE until actual rsp_valid_i; IDLE remains ready. Local harness adapter change only; upstream CPU files unchanged.",
+    "changed_path": "src/myfuzz/protocols/rtl/ahb_lite_memory_target.sv",
+    "previous_sha256": "c577139848a9e11b3df7ecd62152a2126ced6b26c7935309382e14ec76e8c2a8",
+    "sha256": "5bee62516160cbb47b77525e919924fa86e374ddf4156865a807b58fad62265e",
+    "previous_union": "sha256:b7bf3670a10af4866b43c19c8667f2219023a41a3e06c26afd1fa4529d79d838",
+    "union": "sha256:4e248da6937237ffccb798a7ea8ca7fdee0e8a23e7e280f6ce55b97b05ed679d",
+    "lint": {
+      "command": [
+        "verilator",
+        "--lint-only",
+        "-Wno-fatal",
+        "--top-module",
+        "ahb_lite_memory_target",
+        "src/myfuzz/protocols/rtl/ahb_lite_memory_target.sv"
+      ],
+      "exit_code": 0
+    }
   }
 }

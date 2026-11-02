@@ -125,6 +125,10 @@ def create_compiled_execution(*, artifacts, compiled_inputs, executor, **runtime
     prerequisite and checker mappings. Constructor startup is authorized by the
     caller; unsupported executors retain the default refusal.
     """
+    if executor in ('compiled_mmio', 'compiled_mmio_obi_apb'):
+        from myfuzz.integration.compiled_mmio import CompiledMmioRuntime
+        return CompiledMmioRuntime(artifacts=artifacts,compiled_inputs=compiled_inputs,
+            **runtime_options)
     if executor=='compiled_f4_obi_apb':
         from myfuzz.integration.compiled_f4 import CompiledF4Runtime
         return CompiledF4Runtime(artifacts=artifacts,compiled_inputs=compiled_inputs,
@@ -133,4 +137,105 @@ def create_compiled_execution(*, artifacts, compiled_inputs, executor, **runtime
         from myfuzz.integration.compiled_f2 import CompiledF2Runtime
         return CompiledF2Runtime(artifacts=artifacts,compiled_inputs=compiled_inputs,
             **runtime_options)
+    if executor=='compiled_f4_wishbone':
+        from myfuzz.integration.compiled_wishbone_f4 import WishboneF4Runtime
+        return WishboneF4Runtime(artifacts=artifacts,compiled_inputs=compiled_inputs,
+            **runtime_options)
     raise GeneratedExecutionRefused('compiled-executor-unsupported','/executor')
+
+
+def assess_compiled_f6_support(*, artifacts, compiled_inputs, base_dir):
+    """Pure closed F6 source/D2/D3 admission, without starting any runtime."""
+    from copy import deepcopy
+    import hashlib
+    from myfuzz.scenario.f6_execution_contract import (
+        F6ContractRefused, compile_f6_execution_contract, require_exact)
+    from myfuzz.local_harness.ibex_irq_receipt_contract import verify_ibex_irq_receipt_artifact
+    from myfuzz.local_harness.wbdmac_source_contract import verify_wbdmac_source_contract
+    from myfuzz.local_harness.dma_artifact_endpoint_links import _artifact_link
+    result = dict(schema_version='compiled_F6_support.v1', status='unsupported',
+        refusals=[], runtime_started=False, runtime_enforcement='not_admitted',
+        not_claimed=['native execution', 'live topology binding', 'IRQ/ISR certification'])
+    try:
+        if not isinstance(compiled_inputs, Mapping) or set(compiled_inputs) != {
+                'request','compiled','ownership','physical_port_map'}:
+            raise F6ContractRefused('f6-compiled-input-required','/compiled_inputs')
+        request = compiled_inputs['request']
+        contract = compile_f6_execution_contract(request, base_dir=base_dir)
+        admission = admit_compiled_artifacts(artifacts=artifacts, **compiled_inputs)
+        if admission['status'] != 'compatible':
+            result['refusals'] = deepcopy(admission['refusals'])
+            return result
+        # Authenticate actual supplied D2 objects without elaborating or startup.
+        import json
+        from myfuzz.composition.component_profile import bind_profile
+        from .renderer import render_local_harness
+        for role in ('cpu','dma'):
+            instance = contract[role]['instance_id']
+            artifact = artifacts[instance]
+            at = '/artifacts/' + instance
+            from .source_lock import verify_local_source_lock
+            verified = verify_local_source_lock(artifact.plan.profile, base_dir=Path(base_dir))
+            require_exact(verified, artifact.source_verification, pointer=at+'/source_verification')
+            document = artifact.runtime_document
+            def sha(value):
+                return hashlib.sha256(json.dumps(value,sort_keys=True,separators=(',',':'),
+                    ensure_ascii=False,allow_nan=False).encode()).hexdigest()
+            if (document.get('artifact_digest') != sha({k:v for k,v in document.items() if k!='artifact_digest'})
+                    or document.get('runtime_sv_sha256') != hashlib.sha256(artifact.runtime_sv.encode()).hexdigest()
+                    or document.get('cpp_sha256') != hashlib.sha256(artifact.cpp_text.encode()).hexdigest()
+                    or document.get('kind') != contract[role]['artifact_kind']):
+                raise F6ContractRefused('f6-generated-artifact-drift',at)
+            require_exact(artifact.plan.document(),document.get('plan'),pointer=at+'/plan')
+            require_exact(verified,document.get('source_verification'),pointer=at+'/runtime_document/source_verification')
+            if bind_profile(artifact.plan.profile,artifact.plan.facts) != artifact.plan.binding:
+                raise F6ContractRefused('f6-physical-binding-drift',at+'/binding')
+            if render_local_harness(artifact.plan) != artifact.structural:
+                raise F6ContractRefused('f6-structural-artifact-drift',at+'/structural')
+            require_exact(artifact.structural.abi_document,document.get('structural_abi'),pointer=at+'/structural_abi')
+            require_exact(artifact.structural.build_document,document.get('structural_build'),pointer=at+'/structural_build')
+            if role == 'cpu':
+                verify_ibex_irq_receipt_artifact(artifact, base_dir=Path(base_dir))
+                required = dict(rvfi_valid=1,rvfi_order=64,rvfi_insn=32,rvfi_trap=1,rvfi_mode=2,rvfi_halt=1,
+                    rvfi_pc_rdata=32,rvfi_pc_wdata=32,irq_decision_serial=64,irq_retirement_serial=64)
+                for port,width in required.items():
+                    exports = [r for r in document.get('physical_exports', [])
+                        if r.get('physical_port') == port]
+                    if (len(exports) != 1 or exports[0].get('direction') != 'output'
+                            or type(exports[0].get('width')) is not int or exports[0]['width'] != width
+                            or type(exports[0].get('bit_lo')) is not int or exports[0]['bit_lo'] != 0
+                            or type(exports[0].get('bit_hi')) is not int or exports[0]['bit_hi'] != width-1):
+                        raise F6ContractRefused('f6-native-isr-observation-required',
+                            at+'/physical_exports/'+port)
+                # Reproduce only the code-owned software projection after the
+                # actual source, bound facts and structural object passed above.
+                # Self-consistent hashes/exports cannot authenticate swapped wires.
+                from .runtime_renderer import _render_admitted_runtime
+                from .native_physical_observation import native_physical_observation_requested
+                projected = _render_admitted_runtime(artifact.plan, artifact.structural,
+                    verified, Path(base_dir).resolve(),
+                    native_raw=native_physical_observation_requested(artifact.plan.request))
+                if projected.runtime_sv != artifact.runtime_sv:
+                    raise F6ContractRefused('f6-runtime-physical-projection-mismatch',
+                        at+'/runtime_sv/u_component')
+                require_exact(projected.runtime_document['physical_exports'],
+                    document.get('physical_exports'),pointer=at+'/physical_exports')
+            else:
+                verify_wbdmac_source_contract(artifact.plan.profile, base_dir=base_dir)
+                require_exact(contract['dma']['master_endpoint_link'], _artifact_link(artifact),
+                    pointer=at+'/master_endpoint_link')
+                irq_exports = [r for r in document.get('physical_exports', [])
+                    if r.get('physical_port') == 'o_interrupt']
+                if (len(irq_exports) != 1 or irq_exports[0].get('direction') != 'output'
+                        or type(irq_exports[0].get('width')) is not int or irq_exports[0]['width'] != 1
+                        or type(irq_exports[0].get('bit_lo')) is not int or irq_exports[0]['bit_lo'] != 0
+                        or type(irq_exports[0].get('bit_hi')) is not int or irq_exports[0]['bit_hi'] != 0
+                        or irq_exports[0].get('role') != 'irq'
+                        or irq_exports[0].get('endpoint_id') != contract['irq']['producer_endpoint_id']):
+                    raise F6ContractRefused('f6-native-irq-export-required',at+'/physical_exports')
+        result.update(status='supported',execution_contract=deepcopy(contract),
+            artifact_digests=deepcopy(admission['artifact_digests']))
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as error:
+        result['refusals'].append(dict(code=getattr(error,'code','f6-source-admission-refused'),
+            pointer=getattr(error,'pointer','/compiled_inputs'), detail=str(error)))
+    return result

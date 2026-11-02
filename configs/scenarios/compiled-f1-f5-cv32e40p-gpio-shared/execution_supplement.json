@@ -1,0 +1,86 @@
+{
+  "schema_version": "compiled_execution_file_supplement.v1",
+  "request_supplements": {
+    "environment_links": [
+      {
+        "link_id": "external_b_pin8",
+        "component_instance": "peripheral",
+        "endpoint_id": "gpio.pins",
+        "bit_offset": 8,
+        "width": 1,
+        "event_kind": "level"
+      }
+    ],
+    "deliveries": [
+      {
+        "delivery_id": "peripheral_irq",
+        "producer_instance": "peripheral",
+        "producer_endpoint_id": "gpio.interrupts",
+        "producer_signal": "interrupt",
+        "consumer_instance": "processor",
+        "consumer_endpoint_id": "processor.interrupts",
+        "trigger": "pulse"
+      }
+    ]
+  },
+  "ownership": {
+    "fields": [
+      {
+        "component_id": "processor",
+        "port": "irq_i",
+        "width": 1
+      },
+      {
+        "component_id": "peripheral",
+        "port": "gpio_in",
+        "width": 32
+      }
+    ],
+    "owners": [
+      {
+        "component_id": "processor",
+        "port": "irq_i",
+        "bit_offset": 0,
+        "width": 1,
+        "kind": "bound",
+        "producer_ref": "peripheral.gpio.interrupts.irq"
+      },
+      {
+        "component_id": "peripheral",
+        "port": "gpio_in",
+        "bit_offset": 0,
+        "width": 8,
+        "kind": "fixed",
+        "producer_ref": "constant_zero"
+      },
+      {
+        "component_id": "peripheral",
+        "port": "gpio_in",
+        "bit_offset": 8,
+        "width": 1,
+        "kind": "source",
+        "producer_ref": "peripheral.in.irq_event"
+      },
+      {
+        "component_id": "peripheral",
+        "port": "gpio_in",
+        "bit_offset": 9,
+        "width": 23,
+        "kind": "fixed",
+        "producer_ref": "constant_zero"
+      }
+    ]
+  },
+  "physical_port_map": [
+    {
+      "component_id": "processor",
+      "port": "irq_i",
+      "physical_port": "irq_i"
+    },
+    {
+      "component_id": "peripheral",
+      "port": "gpio_in",
+      "physical_port": "gpio_in"
+    }
+  ]
+}

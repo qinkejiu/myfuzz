@@ -404,7 +404,7 @@ def fragment_image(image_id: str, component: str, address: int,
                        data.hex())
 
 
-def _check_instruction_bytes(data: bytes) -> None:
+def _check_instruction_bytes(data: bytes, *, isa=None) -> None:
     """Raise the versioned rejection for one unsupported instruction fragment."""
     if not isinstance(data, bytes) or not data or len(data) % 4:
         if isinstance(data, bytes):
@@ -416,11 +416,35 @@ def _check_instruction_bytes(data: bytes) -> None:
                "fragment.data", data=data)
     for offset in range(0, len(data), 4):
         word = int.from_bytes(data[offset:offset + 4], "little")
+        if word & 3 != 3:
+            from myfuzz.isa.constraints import RiscvInstructionProvider
+            if isa is None or 'C' not in isa.extensions or isa.instruction_alignment != 2:
+                reject(RejectionCode.ISA_DISALLOWED_OPERATION,
+                       'compressed instruction requires declared C extension',
+                       f'fragment[{offset}]')
+            provider = RiscvInstructionProvider(isa)
+            for half_offset in (0, 2):
+                half = int.from_bytes(data[offset + half_offset:offset + half_offset + 2], 'little')
+                quadrant, funct3 = half & 3, (half >> 13) & 7
+                rd, rs2 = (half >> 7) & 31, (half >> 2) & 31
+                compact_rd, compact_rs2 = 8 + ((half >> 7) & 7), 8 + ((half >> 2) & 7)
+                safe = (quadrant == 1 and funct3 in (0, 2, 3) and 12 <= rd <= 15
+                    or quadrant == 1 and funct3 == 4 and 12 <= compact_rd <= 15
+                        and (((half >> 10) & 3) != 3 or 12 <= compact_rs2 <= 15)
+                    or quadrant == 2 and funct3 == 0 and 12 <= rd <= 15
+                    or quadrant == 2 and funct3 == 4 and 12 <= rd <= 15 and 12 <= rs2 <= 15)
+                if not safe or not provider.is_legal_word(half, compressed=True):
+                    reject(RejectionCode.ISA_DISALLOWED_OPERATION,
+                           'F1 compressed pair requires safe straight-line ALU words',
+                           f'fragment[{offset + half_offset}]')
+            continue
         opcode, funct3 = word & 0x7f, (word >> 12) & 7
-        if opcode == 0x37 or (opcode == 0x13 and funct3 in (0, 4, 6, 7)):
+        if opcode == 0x37 or (opcode == 0x13 and funct3 in (0, 2, 3, 4, 6, 7)):
             continue
-        if opcode == 0x33 and funct3 in (6, 7) and word >> 25 == 0:
-            continue
+        if opcode == 0x33:
+            from myfuzz.isa.constraints import IsaContract, RiscvInstructionProvider
+            if RiscvInstructionProvider(isa or IsaContract(32, ('I',))).is_legal_word(word):
+                continue
         if opcode == 0x13 and funct3 in (1, 5):
             # RV32I OP-IMM shifts: imm[11:5] is reserved and must be 0 for
             # SLLI and SRLI, and exactly 0b0100000 for SRAI. Because those
@@ -460,9 +484,9 @@ def _check_instruction_bytes(data: bytes) -> None:
                f"fragment[{offset}]", opcode=opcode, funct3=funct3)
 
 
-def validate_instruction_bytes(data: bytes) -> None:
+def validate_instruction_bytes(data: bytes, *, isa=None) -> None:
     """Validate the supported 32-bit instruction subset before online admission."""
-    _check_instruction_bytes(data)
+    _check_instruction_bytes(data, isa=isa)
 
 
 def validate_instruction_bytes_detailed(data: bytes) -> Rejection | None:
@@ -481,10 +505,21 @@ def instruction_operator_id(data: bytes) -> str:
     for offset in range(0, len(data), 4):
         word = int.from_bytes(data[offset:offset + 4], 'little')
         opcode, funct3 = word & 0x7f, (word >> 12) & 7
+        if opcode == 0x33:
+            from myfuzz.isa.constraints import IsaContract
+            from myfuzz.isa.transducer import RiscvInstructionTransducer
+            templates = RiscvInstructionTransducer(IsaContract(32, ('I',))).templates
+            operation = next(t.name for t in templates if t.width == 32
+                             and t.fixed_value & 0x7f == 0x33
+                             and word & t.fixed_mask == t.fixed_value)
+            operations.append(operation)
+            continue
         operation = ('NOP' if word == 0x00000013 else
                      'LUI' if opcode == 0x37 else
                      'ADDI' if opcode == 0x13 and funct3 == 0 else
                      'SLLI' if opcode == 0x13 and funct3 == 1 else
+                     'SLTI' if opcode == 0x13 and funct3 == 2 else
+                     'SLTIU' if opcode == 0x13 and funct3 == 3 else
                      'XORI' if opcode == 0x13 and funct3 == 4 else
                      'SRLI' if (opcode == 0x13 and funct3 == 5
                                 and ((word >> 30) & 1) == 0) else

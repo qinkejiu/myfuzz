@@ -1,0 +1,84 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-tlul-timer-zipdma-route-read-f1f6",
+  "description": "One Ibex RVFI OBI CPU with one real TL-UL OpenTitan rv_timer and a ZipDMA in one process: the timer keeps its real F5 interrupt path and the DMA master reads a readable, static timer register (COMPARE_LOWER0_0) through the timer's own TL-UL A/D channels into an incrementing RAM block.  The route declares the timer's own protocol, so the host drives the beat on the same generic request port the CPU uses and completes it from the target's D response.",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "targets": [
+    {
+      "name": "tlultimer",
+      "profile": "configs/peripherals/opentitan_rv_timer_local/component_profile.json",
+      "active_id": "tlultimer_target",
+      "window": {
+        "base": 536887296,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": "configs/behaviors/opentitan_rv_timer_f5.json",
+      "pins": null,
+      "fixed_inputs": [],
+      "tuning": {}
+    }
+  ],
+  "dma_profile": "configs/peripherals/zipdma_smoke/component_profile.json",
+  "dma_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "dma_capability": "configs/scenarios/compiled-f1-f6-ibex-gpio-zipdma-shared/dma.test_capability.json",
+  "dma_behavior": "configs/behaviors/zipdma_f6.json",
+  "dma_block_words": 4,
+  "dma_increment_source": false,
+  "dma_increment_destination": true,
+  "dma_route": {
+    "kind": "target_window",
+    "direction": "read",
+    "target_name": "tlultimer",
+    "target_index": 0,
+    "target_profile": "configs/peripherals/opentitan_rv_timer_local/component_profile.json",
+    "target_window": {
+      "base": 536887296,
+      "size": 4096
+    },
+    "register": "COMPARE_LOWER0_0",
+    "offset": 280,
+    "address_mode": "fixed",
+    "evidence": {
+      "kind": "register_readback",
+      "register": "COMPARE_LOWER0_0",
+      "offset": 280,
+      "field": "compare_lower0_0",
+      "sampling": "pre_post_transfer",
+      "source": "third_party/soc-opentitan/hw/ip/rv_timer/rtl/rv_timer_reg_pkg.sv:COMPARE_LOWER0_0 (offset 0x118, swaccess rw, prim_subreg q->d) and rv_timer_reg_top.sv:timer_reg2hw_compare_lower0_0_reg; the rv_timer core only reads the compare value to detect expiry (timer_core.sv), it never writes the register, so a read returns the word the last F4 write stored"
+    },
+    "notes": [
+      "the routed register is COMPARE_LOWER0_0 at 0x118: the profile declares it SW rw/32-bit and the rv_timer core never writes it (it compares TIMER_V against it), so it is a readable, stable register a fixed read route can capture; TIMER_V_LOWER0 at 0x110 is the free-running counter and a read route there is refused by name because its value changes between the routed beats and the CPU's pre/post readback",
+      "the OpenTitan rv_timer is mapped at 0x20004000 rather than its SoC 0x40004000 because the pinned ZipDMA's SOURCE/DESTINATION CSR fields are 30-bit byte addresses (third_party/soc-zipcpu/rtl/zipdma/zipdma_ctrl.v:73-74,161-181,259-260 with ADDRESS_WIDTH=32, BUS_WIDTH=32): any byte address >= 0x40000000 cannot be encoded",
+      "the route's transport is the timer artifact's own beat port (beat_to_tlul): the host presents one held master read on a_valid/a_address/a_mask/a_data, the target accepts it on a_ready, and the beat completes on its own d_valid/d_data/d_error.  The case line states tlul_a_handshakes/tlul_d_handshakes for the routed beats and the CPU's own readback of the same register",
+      "the F6 firmware reads the routed register before and after the transfer as its evidence word; the DMA's four fixed read beats must all return that same word (the destination block is four equal words), and dma_ram_reads stays 0 because no routed beat is served from RAM"
+    ]
+  },
+  "notes": [
+    "F4 writes the routed register first (0x20004118), then F6 reads it back through the DMA: the read route itself does not reset the devices, so the value the F4 case stored is the transfer's source data",
+    "the timer keeps the real F5 interrupt path of configs/behaviors/opentitan_rv_timer_f5.json, so the same session covers F1-F6"
+  ],
+  "fuzz_seed_records": [
+    "F4:20004118:0badc0de"
+  ],
+  "dma_window": {
+    "base": 1073754112,
+    "size": 16
+  },
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true
+}

@@ -82,7 +82,7 @@ class WishboneCpuIrqAcceptance(unittest.TestCase):
                 timer = GeneratedZipTimerSession(timer_art, base_dir=ROOT, cache_dir=root/'cache')
                 router = DataflowRouter((DeviceWindow('timer', 0x40000000, 4, timer),))
                 cpu = GeneratedWishboneCpuSession(cpu_art, base_dir=ROOT, cache_dir=root/'cache',
-                    memory=memory, router=router)
+                    memory=memory, router=router, custom_irq_observations=True)
                 runner = ScenarioRunner(sessions={'cpu': cpu, 'timer': timer},
                     ownership=ownership, bindings=(binding,), irq_pulses={binding: 1})
                 instances.append((runner, cpu, memory))
@@ -109,6 +109,10 @@ class WishboneCpuIrqAcceptance(unittest.TestCase):
                 self.assertTrue(cpu_steps)
                 self.assertTrue(any(event['inputs'].get('irq') == 8 for event in cpu_steps))
                 self.assertTrue(any(event['outputs']['eoi'] == 8 for event in cpu_steps))
+                observations = [event['outputs']['custom_irq_observation'] for event in cpu_steps]
+                self.assertTrue(any(row['eoi_post'] == 8 for row in observations))
+                self.assertTrue(all(row['source_attribution'] == 'unknown'
+                                    and row['retirement'] == 'unknown' for row in observations))
                 self.assertEqual(0, cpu_steps[-1]['outputs']['eoi'])
                 self.assertTrue(all(event['outputs']['trap'] == 0 for event in cpu_steps))
                 handler_end = max(index for index, event in enumerate(cpu_steps)
@@ -123,3 +127,63 @@ class WishboneCpuIrqAcceptance(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+def test_real_timer_with_shared_declared_custom_irq_firmware():
+    """Real CPU executes the shared target-operation builder's custom ABI."""
+    from myfuzz.integration.declared_irq_consumption import build_profile_custom_irq_firmware
+    from myfuzz.integration.shared_f6_assembly import build_f6_custom_irq_cpu
+    from myfuzz.integration.rv32_fixed_firmware import _lui_addi_load, _addi, _sw, _jal
+    cpu_art = artifact(PROFILE, 'cpu')
+    timer_art = artifact('configs/peripherals/zipcpu_timer/component_profile.json', 'timer')
+    fw = build_profile_custom_irq_firmware(cpu_art, base_dir=ROOT, image_start=0, image_end=0x2000, first_fetch=0,
+        target_base=0x40000000, status_offsets=(0,), result_address=0xc40,
+        irq_bit=3,dispatcher_address=0x100)
+    dynamic = fw['dynamic_start']
+    words = [*_lui_addi_load(1,0x40000000), _addi(2,0,80), _sw(2,1,0),
+             *_lui_addi_load(3,0xd00), _addi(4,0,1), _sw(4,3,0)]
+    words.append(_jal(dynamic+4*len(words), dynamic+4*(len(words)-1)))
+    images = tuple(MemoryImage(s['name'],'cpu',s['address'],s['data_hex']) for s in fw['segments'])
+    images += (MemoryImage('main','cpu',dynamic,b''.join(w.to_bytes(4,'little') for w in words).hex()),)
+    with tempfile.TemporaryDirectory(prefix='myfuzz-pico-shared-irq-') as directory:
+        root=Path(directory)
+        instances = []
+        def factory():
+            timer=GeneratedZipTimerSession(timer_art,base_dir=ROOT,cache_dir=root/'cache')
+            memory=PersistentMemory(regions=(MemoryRegion('ram',0,8192),),
+                initialization_seed=0,max_initialized_bytes=8192)
+            shared=build_f6_custom_irq_cpu(artifact=cpu_art,base_dir=ROOT,cache_dir=root/'cache',
+                memory=memory,router=DataflowRouter((DeviceWindow('timer',0x40000000,4,timer),)),
+                irq_sources=(('timer','irq',3),))
+            cpu=shared.cpu; binding=shared.bindings[0]
+            runner=ScenarioRunner(sessions={'cpu':cpu,'timer':timer},ownership=shared.ownership,
+                                  bindings=shared.bindings,irq_pulses={binding:1})
+            from hashlib import sha256
+            contract_digest=sha256(json.dumps(shared.contract,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+            runner.configure_memory_dependency_evidence(runtime_contract_sha256=contract_digest)
+            instances.append(runner)
+            return runner
+        case=ScenarioGenome(testcase_id='shared-custom-irq', direction='CPU_TO_IP_TO_CPU',
+            path_id='shared-target-custom-irq',schedule_order=('timer','cpu'),
+            # Budget, not a behaviour claim: the scheduler alternates one timer
+            # and one CPU step, so 800 total steps leave ~400 CPU steps.  The
+            # shared dispatcher plus the observed custom-IRQ handler consumes
+            # ~235 of them before ``retirq`` (measured: eoi returns to 0 at CPU
+            # step ~379), and the resumed main line needs ~21 more (fetch the
+            # loop tail at dynamic+0x20, jump back, store 0xd00 at step ~400).
+            # 800 cut that iteration off, so the post-handler store the test
+            # asserts could never appear; 1200 leaves ~200 CPU steps of margin.
+            max_steps=1200,actions=(),initial_images=images)
+        trace=save_evidence_bundle(case,factory,root/'evidence',
+            budget=ResourceBudget(max_wall_time_ms=120000,max_materialized_bytes_per_memory=8192))
+        assert trace.status == 'complete'
+        assert replay_evidence_bundle(root/'evidence',factory).matches
+        runner=instances[0]
+        steps=[e for e in runner.events if e.get('component')=='cpu' and 'outputs' in e and 'inputs' in e]
+        assert any(e['outputs']['custom_irq_observation']['eoi_post']==8 for e in steps)
+        assert all(e['outputs']['trap']==0 for e in steps)
+        last=max(i for i,e in enumerate(steps) if e['outputs']['eoi']==8)
+        assert any(e['outputs']['data_req_accepted'] and e['outputs']['data_write']
+                   and e['outputs']['data_addr']==0xd00 for e in steps[last+1:])
+        assert any(e['outputs']['data_req_accepted'] and e['outputs']['data_write']
+                   and e['outputs']['data_addr']==fw['result_address'] for e in steps)

@@ -1,0 +1,437 @@
+{
+  "ISR_MMIO": "unknown",
+  "audit_kind": "independent_offline_raw_recheck",
+  "configuration_difference": [
+    "cpu_profile"
+  ],
+  "fresh_scope": "same-invocation-independent-native-sessions",
+  "grants_F5": false,
+  "grants_F6": false,
+  "internal_version": "unknown",
+  "reward_eligible": false,
+  "runs": {
+    "cv32e20-v1": {
+      "artifact_sha256": {
+        "config.json": "9d431d25836aab1fd724b12abcb0f70a4fa023ae8f3109fbd4ccd383544939a4",
+        "cpu-artifact.json": "fcbffb5d4f145bc7af311c4600b195e846f858e71a1094dce7006f27e4a8dc40",
+        "fresh/events.json": "789f11962a9db0e5b89cba04a1ec4a5224cb9cbabfb01c1d911b0d0d6b918fc3",
+        "fresh/executions.json": "8a6b1f61edf9107585acb3edfc7efde09017c19b9173ddf57a41f89be42113c4",
+        "fresh/local_commands.json": "933ecc7a0b90ca911821427edae22a55968beeee231b23c4aa0ba1a809271b79",
+        "fresh/result.json": "5f3508130876cb08cf3a50ab728083533021b53782324131cef71eedeb3a1540",
+        "original/events.json": "789f11962a9db0e5b89cba04a1ec4a5224cb9cbabfb01c1d911b0d0d6b918fc3",
+        "original/executions.json": "1b1b29429b71c6bdba1976f6a161ff097706d5139a3b138cacceb6b3c6f7b344",
+        "original/local_commands.json": "85105cf51a9c45707a944ed5abb846926a8995f7f5e6b14adfdcf570d0569fa2",
+        "original/result.json": "5f3508130876cb08cf3a50ab728083533021b53782324131cef71eedeb3a1540",
+        "program.json": "68803862791ae83b8afe71c9662a5f1e7b2656b595007947235881e9e5b5f9ec",
+        "summary.json": "43d711b691a2f00b68e7cc702e2883c6e091484dbc0be28156ae7955ef6eddfd",
+        "timer_active-artifact.json": "8c9309d14e7a63c7acfdb367946ae6584f4834463e8e917327f9404102817959",
+        "timer_idle-artifact.json": "1dc203d0d104f3932258f0683832b7fe3bd1b90c3335cb79a4757c28d81529f5"
+      },
+      "cpu_profile": "configs/cpus/cv32e20/component_profile.json",
+      "independent_processes": {
+        "fresh": {
+          "cpu": {
+            "artifact_digest": "396e252763c68e0086f61e8ceefbd33384a58cd5efe4269e4820efd0e0fe69d4",
+            "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/f20e147adec2c6fdde10e94eb5c507260d180ce1158c6439dd636f4d8852991f/harness",
+            "binary_sha256": "a3fdd2acca32344d6646d63662d61b34d4d5f3621cc98bcfedc35adda90dc27f",
+            "build_digest": "f20e147adec2c6fdde10e94eb5c507260d180ce1158c6439dd636f4d8852991f",
+            "component": "cpu",
+            "execution_nonce": "48f7789577ef4c028b36cd5477ff74bc",
+            "exit_code": 0,
+            "manifest_sha256": "e3911a6c956fb50582f9e6c7f1fc904b464e394e68a67ff320b2e4dc7ac8515c",
+            "pid": 3614715,
+            "reaped": true
+          },
+          "timer_active": {
+            "artifact_digest": "b884386e4db61081a855357cd3d845f30dc12042cf693ab6324ef146a4ca1bf9",
+            "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/9289a42310ea1c4aefd39a306ba64c57f07dc14b8cf9009e62a067083a042d48/harness",
+            "binary_sha256": "513284f90d73da0d988359c0126e73c112435812220f4e3d080aa9ec003c5f5b",
+            "build_digest": "9289a42310ea1c4aefd39a306ba64c57f07dc14b8cf9009e62a067083a042d48",
+            "component": "timer_active",
+            "execution_nonce": "6dd021e47c2b42a1ac86f3cd308ab4e0",
+            "exit_code": 0,
+            "manifest_sha256": "282ba0b6572ba95ee825e2cf1ebdbfcdbcfdaa610252e2155f93e34817625b88",
+            "pid": 3614747,
+            "reaped": true
+          },
+          "timer_idle": {
+            "artifact_digest": "fadb5648b0b6a8a3098defa8037a6f8a11e73eb2a2a3314d9df5bb3d080dd87e",
+            "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/51dda373943bc4062e5bc8491993109ecc60af13684b575a82c0c0f3b341687e/harness",
+            "binary_sha256": "2943f9a46c22a0440730516f02c6c70b2cd5811304f0b4b6916d51464c3cdd90",
+            "build_digest": "51dda373943bc4062e5bc8491993109ecc60af13684b575a82c0c0f3b341687e",
+            "component": "timer_idle",
+            "execution_nonce": "f4e96e6cee174a26a06ee57d9537e310",
+            "exit_code": 0,
+            "manifest_sha256": "4af0d067552d3da3fff428e29aebb210ff81a9c9392bf31ce79e99f8e2341f12",
+            "pid": 3614779,
+            "reaped": true
+          }
+        },
+        "original": {
+          "cpu": {
+            "artifact_digest": "396e252763c68e0086f61e8ceefbd33384a58cd5efe4269e4820efd0e0fe69d4",
+            "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/f20e147adec2c6fdde10e94eb5c507260d180ce1158c6439dd636f4d8852991f/harness",
+            "binary_sha256": "a3fdd2acca32344d6646d63662d61b34d4d5f3621cc98bcfedc35adda90dc27f",
+            "build_digest": "f20e147adec2c6fdde10e94eb5c507260d180ce1158c6439dd636f4d8852991f",
+            "component": "cpu",
+            "execution_nonce": "1167b85319454472bea1ce03afd2b1c7",
+            "exit_code": 0,
+            "manifest_sha256": "e3911a6c956fb50582f9e6c7f1fc904b464e394e68a67ff320b2e4dc7ac8515c",
+            "pid": 3614586,
+            "reaped": true
+          },
+          "timer_active": {
+            "artifact_digest": "b884386e4db61081a855357cd3d845f30dc12042cf693ab6324ef146a4ca1bf9",
+            "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/9289a42310ea1c4aefd39a306ba64c57f07dc14b8cf9009e62a067083a042d48/harness",
+            "binary_sha256": "513284f90d73da0d988359c0126e73c112435812220f4e3d080aa9ec003c5f5b",
+            "build_digest": "9289a42310ea1c4aefd39a306ba64c57f07dc14b8cf9009e62a067083a042d48",
+            "component": "timer_active",
+            "execution_nonce": "2ec38c252b6a4450aea0057a316bd173",
+            "exit_code": 0,
+            "manifest_sha256": "282ba0b6572ba95ee825e2cf1ebdbfcdbcfdaa610252e2155f93e34817625b88",
+            "pid": 3614618,
+            "reaped": true
+          },
+          "timer_idle": {
+            "artifact_digest": "fadb5648b0b6a8a3098defa8037a6f8a11e73eb2a2a3314d9df5bb3d080dd87e",
+            "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/51dda373943bc4062e5bc8491993109ecc60af13684b575a82c0c0f3b341687e/harness",
+            "binary_sha256": "2943f9a46c22a0440730516f02c6c70b2cd5811304f0b4b6916d51464c3cdd90",
+            "build_digest": "51dda373943bc4062e5bc8491993109ecc60af13684b575a82c0c0f3b341687e",
+            "component": "timer_idle",
+            "execution_nonce": "4b8ea1dcc7ff4d4e91718558e8f4257d",
+            "exit_code": 0,
+            "manifest_sha256": "4af0d067552d3da3fff428e29aebb210ff81a9c9392bf31ce79e99f8e2341f12",
+            "pid": 3614650,
+            "reaped": true
+          }
+        }
+      },
+      "path": "research/input-strategy-audit-20261027/runs/timer-native-irq-20261029/cv32e20-v1",
+      "phases": {
+        "fresh": {
+          "CPU_raw_take_event_id": 1982,
+          "CPU_sample_event_id": 1976,
+          "CPU_take_event_id": 1977,
+          "CPU_take_tick": 81,
+          "OR_group_sha256": "cafe6fec81fe3c072ba7d53506363231e888a69121da937ee6b1a532f465cca1",
+          "decision_serial": 1,
+          "event_count": 2634,
+          "first_retirement": {
+            "event_id": 2080,
+            "insn": 490733679,
+            "local_tick": 85,
+            "order": 38,
+            "pc": 66092,
+            "raw_post_event_id": 2086
+          },
+          "group_delivery_event_id": 1978,
+          "idle_high_samples": 0,
+          "idle_samples": 216,
+          "native_APB_writes": [
+            {
+              "event_id": 1636,
+              "local_tick": 74,
+              "offset": 4,
+              "value": 0
+            },
+            {
+              "event_id": 1740,
+              "local_tick": 82,
+              "offset": 8,
+              "value": 0
+            },
+            {
+              "event_id": 1868,
+              "local_tick": 91,
+              "offset": 0,
+              "value": 4294967295
+            }
+          ],
+          "raw_native_pulse": [
+            {
+              "event_id": 1872,
+              "local_tick": 91,
+              "phase": "post",
+              "value": 1
+            },
+            {
+              "event_id": 1877,
+              "local_tick": 92,
+              "phase": "pre",
+              "value": 1
+            }
+          ]
+        },
+        "original": {
+          "CPU_raw_take_event_id": 1982,
+          "CPU_sample_event_id": 1976,
+          "CPU_take_event_id": 1977,
+          "CPU_take_tick": 81,
+          "OR_group_sha256": "cafe6fec81fe3c072ba7d53506363231e888a69121da937ee6b1a532f465cca1",
+          "decision_serial": 1,
+          "event_count": 2634,
+          "first_retirement": {
+            "event_id": 2080,
+            "insn": 490733679,
+            "local_tick": 85,
+            "order": 38,
+            "pc": 66092,
+            "raw_post_event_id": 2086
+          },
+          "group_delivery_event_id": 1978,
+          "idle_high_samples": 0,
+          "idle_samples": 216,
+          "native_APB_writes": [
+            {
+              "event_id": 1636,
+              "local_tick": 74,
+              "offset": 4,
+              "value": 0
+            },
+            {
+              "event_id": 1740,
+              "local_tick": 82,
+              "offset": 8,
+              "value": 0
+            },
+            {
+              "event_id": 1868,
+              "local_tick": 91,
+              "offset": 0,
+              "value": 4294967295
+            }
+          ],
+          "raw_native_pulse": [
+            {
+              "event_id": 1872,
+              "local_tick": 91,
+              "phase": "post",
+              "value": 1
+            },
+            {
+              "event_id": 1877,
+              "local_tick": 92,
+              "phase": "pre",
+              "value": 1
+            }
+          ]
+        }
+      },
+      "semantic_results_equal": true,
+      "status": "verified"
+    },
+    "ibex-v1": {
+      "artifact_sha256": {
+        "config.json": "78ce4decbc46d5bcdfe88da013671afa208e12d9ccff6f3fbfea07aafa31d723",
+        "cpu-artifact.json": "e61fed2d06ea70670705e85fbbaa0d733e67ef968d18f4adfe31c809988fc33f",
+        "fresh/events.json": "e6aa0b623351f9865249f1c9a194ec42ab2a64e5ebf0a54b8a1061a1ea1b4ca2",
+        "fresh/executions.json": "4549e91c1fa8f88731e1fa24808b0a794ad2b93c50679ce2d0ede53eab6a9fa7",
+        "fresh/local_commands.json": "af139df99fd5e02154eeb83242a0a72ba07a6c281f706a941988331314cb14be",
+        "fresh/result.json": "e39629d41e3b46d0cc9af19c7a45beba88966d74093b89ceb40e45c1f5de38bb",
+        "original/events.json": "e6aa0b623351f9865249f1c9a194ec42ab2a64e5ebf0a54b8a1061a1ea1b4ca2",
+        "original/executions.json": "1b283772dcbd30eb881c2ff826f06c85c731802220e6a67463bb3b1112e005e0",
+        "original/local_commands.json": "72261ade7d88cfb9d6be37092cdb94a7e2045438ecc9a12dd0edab95e5d478f3",
+        "original/result.json": "e39629d41e3b46d0cc9af19c7a45beba88966d74093b89ceb40e45c1f5de38bb",
+        "program.json": "2edc07d37ed408db6cd5cb389f7657339fd5e504444273768a30877dc0d62909",
+        "summary.json": "21f680f678beffa459591c500c9f5087129ee546a7cdb1f5e8506583715c551d",
+        "timer_active-artifact.json": "8c9309d14e7a63c7acfdb367946ae6584f4834463e8e917327f9404102817959",
+        "timer_idle-artifact.json": "1dc203d0d104f3932258f0683832b7fe3bd1b90c3335cb79a4757c28d81529f5"
+      },
+      "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+      "independent_processes": {
+        "fresh": {
+          "cpu": {
+            "artifact_digest": "11aee60741bdaa15ce6c4d5dd2f6fc187269fe6951af4eb4a19f537c7f1425fc",
+            "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/fe738e83b40c261fa9ad920e16fd3169e1c82125344faf37396fb92281191974/harness",
+            "binary_sha256": "bf454a1007a8f67fc092c0c9dbcf11b2eafe572e0fb9b19b5ce3008511ee5d37",
+            "build_digest": "fe738e83b40c261fa9ad920e16fd3169e1c82125344faf37396fb92281191974",
+            "component": "cpu",
+            "execution_nonce": "f5f77e6380634bb0a3d8dabd6461ba99",
+            "exit_code": 0,
+            "manifest_sha256": "762f439da0c04d5cfe310bd047ca28b7607490768bc739ed7c6b79ae02f5ef71",
+            "pid": 3611923,
+            "reaped": true
+          },
+          "timer_active": {
+            "artifact_digest": "b884386e4db61081a855357cd3d845f30dc12042cf693ab6324ef146a4ca1bf9",
+            "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/9289a42310ea1c4aefd39a306ba64c57f07dc14b8cf9009e62a067083a042d48/harness",
+            "binary_sha256": "513284f90d73da0d988359c0126e73c112435812220f4e3d080aa9ec003c5f5b",
+            "build_digest": "9289a42310ea1c4aefd39a306ba64c57f07dc14b8cf9009e62a067083a042d48",
+            "component": "timer_active",
+            "execution_nonce": "5cad7d072fce4ef3bf73efe45e1e7fe1",
+            "exit_code": 0,
+            "manifest_sha256": "282ba0b6572ba95ee825e2cf1ebdbfcdbcfdaa610252e2155f93e34817625b88",
+            "pid": 3611955,
+            "reaped": true
+          },
+          "timer_idle": {
+            "artifact_digest": "fadb5648b0b6a8a3098defa8037a6f8a11e73eb2a2a3314d9df5bb3d080dd87e",
+            "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/51dda373943bc4062e5bc8491993109ecc60af13684b575a82c0c0f3b341687e/harness",
+            "binary_sha256": "2943f9a46c22a0440730516f02c6c70b2cd5811304f0b4b6916d51464c3cdd90",
+            "build_digest": "51dda373943bc4062e5bc8491993109ecc60af13684b575a82c0c0f3b341687e",
+            "component": "timer_idle",
+            "execution_nonce": "1f0498d5cd0b4777a7e4e1d6eefa028b",
+            "exit_code": 0,
+            "manifest_sha256": "4af0d067552d3da3fff428e29aebb210ff81a9c9392bf31ce79e99f8e2341f12",
+            "pid": 3611987,
+            "reaped": true
+          }
+        },
+        "original": {
+          "cpu": {
+            "artifact_digest": "11aee60741bdaa15ce6c4d5dd2f6fc187269fe6951af4eb4a19f537c7f1425fc",
+            "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/fe738e83b40c261fa9ad920e16fd3169e1c82125344faf37396fb92281191974/harness",
+            "binary_sha256": "bf454a1007a8f67fc092c0c9dbcf11b2eafe572e0fb9b19b5ce3008511ee5d37",
+            "build_digest": "fe738e83b40c261fa9ad920e16fd3169e1c82125344faf37396fb92281191974",
+            "component": "cpu",
+            "execution_nonce": "518c500d97404055a25bb791dacf6efa",
+            "exit_code": 0,
+            "manifest_sha256": "762f439da0c04d5cfe310bd047ca28b7607490768bc739ed7c6b79ae02f5ef71",
+            "pid": 3611794,
+            "reaped": true
+          },
+          "timer_active": {
+            "artifact_digest": "b884386e4db61081a855357cd3d845f30dc12042cf693ab6324ef146a4ca1bf9",
+            "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/9289a42310ea1c4aefd39a306ba64c57f07dc14b8cf9009e62a067083a042d48/harness",
+            "binary_sha256": "513284f90d73da0d988359c0126e73c112435812220f4e3d080aa9ec003c5f5b",
+            "build_digest": "9289a42310ea1c4aefd39a306ba64c57f07dc14b8cf9009e62a067083a042d48",
+            "component": "timer_active",
+            "execution_nonce": "5f609c01a190489f9549878491ea2ec3",
+            "exit_code": 0,
+            "manifest_sha256": "282ba0b6572ba95ee825e2cf1ebdbfcdbcfdaa610252e2155f93e34817625b88",
+            "pid": 3611826,
+            "reaped": true
+          },
+          "timer_idle": {
+            "artifact_digest": "fadb5648b0b6a8a3098defa8037a6f8a11e73eb2a2a3314d9df5bb3d080dd87e",
+            "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/51dda373943bc4062e5bc8491993109ecc60af13684b575a82c0c0f3b341687e/harness",
+            "binary_sha256": "2943f9a46c22a0440730516f02c6c70b2cd5811304f0b4b6916d51464c3cdd90",
+            "build_digest": "51dda373943bc4062e5bc8491993109ecc60af13684b575a82c0c0f3b341687e",
+            "component": "timer_idle",
+            "execution_nonce": "910b4c3ba2fa4142be1af987ab2c0c97",
+            "exit_code": 0,
+            "manifest_sha256": "4af0d067552d3da3fff428e29aebb210ff81a9c9392bf31ce79e99f8e2341f12",
+            "pid": 3611858,
+            "reaped": true
+          }
+        }
+      },
+      "path": "research/input-strategy-audit-20261027/runs/timer-native-irq-20261029/ibex-v1",
+      "phases": {
+        "fresh": {
+          "CPU_raw_take_event_id": 1982,
+          "CPU_sample_event_id": 1976,
+          "CPU_take_event_id": 1977,
+          "CPU_take_tick": 81,
+          "OR_group_sha256": "cafe6fec81fe3c072ba7d53506363231e888a69121da937ee6b1a532f465cca1",
+          "decision_serial": 1,
+          "event_count": 2636,
+          "first_retirement": {
+            "event_id": 2082,
+            "insn": 490733679,
+            "local_tick": 85,
+            "order": 38,
+            "pc": 66092,
+            "raw_post_event_id": 2088
+          },
+          "group_delivery_event_id": 1978,
+          "idle_high_samples": 0,
+          "idle_samples": 216,
+          "native_APB_writes": [
+            {
+              "event_id": 1636,
+              "local_tick": 74,
+              "offset": 4,
+              "value": 0
+            },
+            {
+              "event_id": 1740,
+              "local_tick": 82,
+              "offset": 8,
+              "value": 0
+            },
+            {
+              "event_id": 1868,
+              "local_tick": 91,
+              "offset": 0,
+              "value": 4294967295
+            }
+          ],
+          "raw_native_pulse": [
+            {
+              "event_id": 1872,
+              "local_tick": 91,
+              "phase": "post",
+              "value": 1
+            },
+            {
+              "event_id": 1877,
+              "local_tick": 92,
+              "phase": "pre",
+              "value": 1
+            }
+          ]
+        },
+        "original": {
+          "CPU_raw_take_event_id": 1982,
+          "CPU_sample_event_id": 1976,
+          "CPU_take_event_id": 1977,
+          "CPU_take_tick": 81,
+          "OR_group_sha256": "cafe6fec81fe3c072ba7d53506363231e888a69121da937ee6b1a532f465cca1",
+          "decision_serial": 1,
+          "event_count": 2636,
+          "first_retirement": {
+            "event_id": 2082,
+            "insn": 490733679,
+            "local_tick": 85,
+            "order": 38,
+            "pc": 66092,
+            "raw_post_event_id": 2088
+          },
+          "group_delivery_event_id": 1978,
+          "idle_high_samples": 0,
+          "idle_samples": 216,
+          "native_APB_writes": [
+            {
+              "event_id": 1636,
+              "local_tick": 74,
+              "offset": 4,
+              "value": 0
+            },
+            {
+              "event_id": 1740,
+              "local_tick": 82,
+              "offset": 8,
+              "value": 0
+            },
+            {
+              "event_id": 1868,
+              "local_tick": 91,
+              "offset": 0,
+              "value": 4294967295
+            }
+          ],
+          "raw_native_pulse": [
+            {
+              "event_id": 1872,
+              "local_tick": 91,
+              "phase": "post",
+              "value": 1
+            },
+            {
+              "event_id": 1877,
+              "local_tick": 92,
+              "phase": "pre",
+              "value": 1
+            }
+          ]
+        }
+      },
+      "semantic_results_equal": true,
+      "status": "verified"
+    }
+  },
+  "schema_version": "timer_native_irq_adaptation_audit.v1",
+  "scope": "Timer-native-pulse-to-CPU-first-handler",
+  "timer_artifacts_identical_between_CPU_runs": true
+}

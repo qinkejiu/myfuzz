@@ -11,6 +11,17 @@ from myfuzz.composition.component_profile import ComponentProfile, _source_locat
 
 def verify_local_source_lock(profile: ComponentProfile, *, base_dir: Path,
                              allow_source_only: bool = False) -> dict[str, object]:
+    from .execution_validation import execution_validation_active, static_validation
+    if not execution_validation_active() or not isinstance(profile, ComponentProfile) or type(allow_source_only) is not bool:
+        return _verify_local_source_lock(profile, base_dir=base_dir, allow_source_only=allow_source_only)
+    root = Path(base_dir).resolve()
+    key = ('local-source-lock', profile.profile_fingerprint, str(root), allow_source_only)
+    return static_validation(key, lambda: _verify_local_source_lock(
+        profile, base_dir=root, allow_source_only=allow_source_only))
+
+
+def _verify_local_source_lock(profile: ComponentProfile, *, base_dir: Path,
+                              allow_source_only: bool = False) -> dict[str, object]:
     """Verify one profile against the lock and pinned closure without lint replay.
 
     This is an explicit API; no artifact builder invokes it automatically yet.
@@ -31,8 +42,28 @@ def verify_local_source_lock(profile: ComponentProfile, *, base_dir: Path,
         raise ValueError('local-source-lock-allow-source-only-bool-required')
     if not isinstance(profile, ComponentProfile):
         raise ValueError('local-source-lock-profile-required')
+    # A component can carry its own source manifest, rather than requiring a
+    # row in the global component registry. It is a profile declaration, not
+    # an independent runtime or behavioral attestation: reuse the very same
+    # Git, source-closure and elaboration evidence checks as the central lock.
+    if 'local_source_manifest' in profile.evidence:
+        if allow_source_only:
+            raise ValueError('local-source-lock-profile-manifest-source-only-unsupported')
+        if profile.source != _source_locator(profile.source_document):
+            raise ValueError('local-source-lock-profile-source-inconsistent')
+        document = profile.evidence['local_source_manifest']
+        if not isinstance(document, dict):
+            raise ValueError('local-source-lock-profile-manifest-invalid')
+        raw = json.dumps(document, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()
+        return _verify_lock_document(profile, Path(base_dir).resolve(), document, raw,
+                                     allow_source_only=False)
     if allow_source_only and profile.component_id != 'rvx_core':
         raise ValueError('local-source-lock-source-only-component-unsupported')
+    if profile.component_id == 'zipdma_selected_wishbone':
+        if profile.source != _source_locator(profile.source_document):
+            raise ValueError('local-source-lock-profile-source-inconsistent')
+        from .zipdma_profile_session import verify_zipdma_profile
+        return verify_zipdma_profile(profile, base_dir=base_dir)
     # Reuse the profile loader's canonical parsing, including elaboration.
     # Builders consume source, so matching only its retained JSON is insufficient.
     if profile.source != _source_locator(profile.source_document):
@@ -60,6 +91,9 @@ def verify_local_source_lock(profile: ComponentProfile, *, base_dir: Path,
         # record of its own; see cvw_contract.py for the split.
         from .cvw_contract import verify_cvw_source_contract
         return verify_cvw_source_contract(profile, base_dir=base_dir)
+    if profile.component_id == 'cv32e40p_rvfi_local':
+        from .cv32e40p_rvfi_contract import verify_cv32e40p_rvfi_source_contract
+        return verify_cv32e40p_rvfi_source_contract(profile, base_dir=base_dir)
     if profile.component_id == 'ibex_rvfi_local':
         from .ibex_rvfi_contract import verify_ibex_rvfi_source_contract
         return verify_ibex_rvfi_source_contract(profile, base_dir=base_dir)
@@ -111,6 +145,11 @@ def verify_local_source_lock(profile: ComponentProfile, *, base_dir: Path,
     document = json.loads(raw)
     if not isinstance(document, dict):
         raise ValueError('invalid-lock-document')
+    return _verify_lock_document(profile, root, document, raw, allow_source_only)
+
+
+def _verify_lock_document(profile, root, document, raw, allow_source_only):
+    """Apply the same source/evidence verifier to either manifest location."""
     # Load trusted implementation beside this package, never a caller-supplied
     # script from base_dir (which may be a temporary source verification root).
     script = Path(__file__).resolve().parents[3] / 'scripts/verify_soc_sources.py'
@@ -166,9 +205,14 @@ def verify_local_source_lock(profile: ComponentProfile, *, base_dir: Path,
     elif (record['closure_status'], record['source_status'], record['elaboration_status']) != (
             'selected', 'source_verified', 'elaboration_verified'):
         raise ValueError('local-source-lock-unverified:' + profile.component_id)
+    closures = document.get('elaboration_closures', {})
+    if not isinstance(closures, dict):
+        raise ValueError('local-source-lock-inline-closures-invalid')
+    inline = closures.get(profile.component_id)
     result = verifier.verify_record(
         record, root, owners=verifier.document_owners(document, root),
-        allowed_roots=verifier.document_roots(document)[record['id']], replay=False)
+        allowed_roots=verifier.document_roots(document)[record['id']], replay=False,
+        inline_elaboration=inline)
     if source_only_rvx:
         # verify_record authenticated selected source bytes and Git provenance;
         # its no-evidence result deliberately keeps elaboration unverified.
@@ -178,7 +222,8 @@ def verify_local_source_lock(profile: ComponentProfile, *, base_dir: Path,
             'lock_sha256': hashlib.sha256(raw).hexdigest(),
         }
     # The verifier authenticated this evidence's hash, closure bytes and command.
-    evidence_raw = (root / record['elaboration']['evidence']).read_bytes()
+    evidence_raw = ((root / record['elaboration']['evidence']).read_bytes() if inline is None
+        else json.dumps(inline, sort_keys=True, separators=(',', ':'), allow_nan=False).encode())
     if hashlib.sha256(evidence_raw).hexdigest() != record['elaboration']['evidence_sha256']:
         raise ValueError('local-source-lock-evidence-changed')
     evidence = json.loads(evidence_raw)

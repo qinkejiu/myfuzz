@@ -50,8 +50,8 @@ _WRAPPER_PATH = 'configs/cpus/cvw/cvw_ahb_cpu_top.sv'
 _CONFIG_PATH = 'configs/cpus/cvw/config_extmem/config.vh'
 _UPSTREAM_ROOT = 'third_party/cvw_upstream_reference'
 
-_PROFILE_SHA256 = 'a04865cd0d851b3077dce10aff5a46db807cc27f2af963a5b0e953de53f3d4c4'
-_CLOSURE_SHA256 = '2131fcc44943c51ff1c28e08645877a547d0d35371fcfc18e27527b327e058bf'
+_PROFILE_SHA256 = 'ae16b81308e1ecb1d9a2f2a589895d15b2d8e70b1446780676ece52cf66a1d90'
+_CLOSURE_SHA256 = 'e33201b24fd668961566aa82954b802b29a6c838766f300527084e336dc05c15'
 _WRAPPER_SHA256 = '792f2d6a8ff71b959253b8e36c9fcb7c728c0702500d09550915762e55ebdba8'
 _CONFIG_SHA256 = 'a907fed4a6dc2840c84be34ad54a14c5cf63241074b996f4690be731930cf93b'
 
@@ -115,20 +115,20 @@ def verify_cvw_source_contract(profile, *, base_dir: Path) -> dict:
     # is the only way to know the read set rather than guess it.
     import tempfile
 
-    from myfuzz.composition.source_elaboration import run_verilator_elaboration
+    from myfuzz.composition.source_elaboration import run_verilator_elaboration, _elaboration_temporary_parent
 
     settings = profile.source.elaboration
     if settings is None:
         raise ValueError('cvw-elaboration-settings-missing')
     files = tuple(profile.source_document['files'])
     include_roots = tuple(profile.source_document['include_roots'])
-    with tempfile.TemporaryDirectory(prefix='.cvw-verify-', dir=root) as temporary:
+    with tempfile.TemporaryDirectory(prefix='cvw-verify-', dir=_elaboration_temporary_parent(root)) as temporary:
         run_verilator_elaboration(
             source_root=root, top_module=profile.source.top_module,
             source_files=files, include_roots=include_roots,
             defines=settings.defines, parameters=settings.parameters,
             warning_policy=settings.warning_policy, selected_top_ports=None,
-            output_dir=Path(temporary) / 'evidence')
+            output_dir=Path(temporary) / 'evidence', output_root=Path(temporary))
         manifest = json.loads(
             (Path(temporary) / 'evidence' / 'manifest.json').read_text(encoding='utf-8'))
     selected = {}
@@ -205,3 +205,21 @@ def verify_cvw_source_contract(profile, *, base_dir: Path) -> dict:
         ],
         'selected_files': len(selected),
     }
+
+
+def cvw_instruction_fetch_granule(profile, *, base_dir: Path) -> int:
+    """Derive current-image materialization alignment from pinned CPU config.
+
+    This is cache-line fetch supply, not instruction retirement or a future
+    candidate. Every supplied byte still belongs to the current declared source.
+    """
+    root=Path(base_dir).resolve()
+    raw=_read_pinned(root,_PROFILE_PATH,_PROFILE_SHA256,'cvw-profile')
+    if load_component_profile(json.loads(raw))!=profile:raise ValueError('cvw-profile-object-mismatch')
+    config=_read_pinned(root,_CONFIG_PATH,_CONFIG_SHA256,'cvw-config').decode('utf-8')
+    enabled=re.findall(r'^localparam logic ICACHE_SUPPORTED\s*=\s*([01]);',config,re.MULTILINE)
+    bits=re.findall(r"^localparam ICACHE_LINELENINBITS\s*=\s*32'd([0-9]+);",config,re.MULTILINE)
+    if len(enabled)!=1 or len(bits)!=1:raise ValueError('cvw-instruction-fetch-granule-unknown')
+    granule=int(bits[0])//8 if enabled[0]=='1' else 4
+    if int(bits[0])%8 or granule<4 or granule&(granule-1):raise ValueError('cvw-instruction-fetch-granule-invalid')
+    return granule

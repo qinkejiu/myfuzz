@@ -1,0 +1,58 @@
+{
+  "commit": {
+    "after": 256,
+    "before": 0,
+    "command_sequence": 14,
+    "context": {
+      "address": 1073745924,
+      "be": 15,
+      "command_scope": {
+        "command_sequence": 14,
+        "component": "peripheral",
+        "reset_epoch": 0
+      },
+      "offset": 4,
+      "source_transaction": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "processor",
+        "source_epoch": 0,
+        "source_sequence": 1,
+        "testcase_id": "shared-f5"
+      },
+      "value": 256,
+      "write": true
+    },
+    "epoch": 0,
+    "tick": 16
+  },
+  "joins": [
+    {
+      "acceptance_event": 309,
+      "delivery_event": 343,
+      "native_APB_event": 373,
+      "source_transaction": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "processor",
+        "source_epoch": 0,
+        "source_sequence": 1,
+        "testcase_id": "shared-f5"
+      }
+    },
+    {
+      "acceptance_event": 464,
+      "delivery_event": 498,
+      "native_APB_event": 528,
+      "source_transaction": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "processor",
+        "source_epoch": 0,
+        "source_sequence": 2,
+        "testcase_id": "shared-f5"
+      }
+    }
+  ],
+  "schema_version": "compiled_F4_chain.v3"
+}

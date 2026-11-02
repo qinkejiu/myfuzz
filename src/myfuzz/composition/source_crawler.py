@@ -656,6 +656,8 @@ def _pinned_source_reader(locator: SourceLocator, *, base_dir: Path):
     Shared by supervised crawling and direct elaboration so host capability
     cannot weaken source identity checks.
     """
+    from myfuzz.local_harness.execution_validation import static_validation
+
     if _PIN_RE.fullmatch(locator.revision) is None:
         raise SourceCrawlError("invalid-source-pin")
     if locator.repositories and not locator.revision.startswith("git:"):
@@ -724,11 +726,21 @@ def _pinned_source_reader(locator: SourceLocator, *, base_dir: Path):
                 owners = [(repo, rev) for repo, rev in repository_owners if repo == path or repo in path.parents]
                 owner, owner_revision = max(owners, key=lambda item: len(item[0].parts))
                 tree_path = path.relative_to(owner).as_posix()
-                blob = subprocess.run(
-                    ["git", "-C", str(owner), "cat-file", "blob", f"{owner_revision}:{tree_path}"],
-                    capture_output=True, check=False,
+                def verified_blob():
+                    blob = subprocess.run(
+                        ["git", "-C", str(owner), "cat-file", "blob", f"{owner_revision}:{tree_path}"],
+                        capture_output=True, check=False,
+                    )
+                    if blob.returncode != 0 or blob.stdout != path.read_bytes():
+                        raise SourceCrawlError(f"git-content-mismatch:{relative}")
+                    return blob.stdout
+
+                # Share immutable pinned bytes across readers in this execution;
+                # working bytes are still compared on every reader's first read.
+                blob_content = static_validation(
+                    ("pinned-source-blob", owner, owner_revision, tree_path), verified_blob,
                 )
-                if blob.returncode != 0 or blob.stdout != content:
+                if blob_content != content:
                     raise SourceCrawlError(f"git-content-mismatch:{relative}")
             contents[relative] = content
         return contents[relative]
@@ -802,9 +814,9 @@ class SourceCrawler:
         elaborated_ports: tuple[ElaboratedPortFact, ...] = ()
         elaboration_evidence: bytes | None = None
         if locator.elaboration is not None:
-            from .source_elaboration import run_verilator_elaboration
+            from .source_elaboration import run_verilator_elaboration, _elaboration_temporary_parent
 
-            with tempfile.TemporaryDirectory(prefix=".myfuzz-elaboration-", dir=root) as temporary:
+            with tempfile.TemporaryDirectory(prefix="myfuzz-elaboration-", dir=_elaboration_temporary_parent(root)) as temporary:
                 temporary_root = Path(temporary)
                 output = temporary_root / "evidence"
                 settings = locator.elaboration
@@ -818,6 +830,7 @@ class SourceCrawler:
                     warning_policy=settings.warning_policy,
                     selected_top_ports=selected_top_ports,
                     output_dir=output,
+                    output_root=temporary_root,
                 )
                 manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
             source_records = manifest.get("sources")

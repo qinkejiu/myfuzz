@@ -1,0 +1,35 @@
+{
+  "schema_version": "compiled_execution_file_supplement.v1",
+  "request_supplements": {
+    "environment_links": [
+      {"link_id": "external_b_pin8", "component_instance": "gpio_b", "endpoint_id": "gpio.pins", "bit_offset": 8, "width": 1, "event_kind": "level"}
+    ],
+    "deliveries": [
+      {"delivery_id": "gpio_b_irq", "producer_instance": "gpio_b", "producer_endpoint_id": "gpio.interrupts", "producer_signal": "interrupt", "consumer_instance": "cpu", "consumer_endpoint_id": "processor.interrupts", "trigger": "pulse"}
+    ],
+    "fixed_inputs": [
+      {"component_instance": "gpio_a", "port": "gpio_in", "bit_offset": 0, "width": 32, "constant": 0},
+      {"component_instance": "gpio_b", "port": "gpio_in", "bit_offset": 0, "width": 8, "constant": 0},
+      {"component_instance": "gpio_b", "port": "gpio_in", "bit_offset": 9, "width": 23, "constant": 0}
+    ]
+  },
+  "ownership": {
+    "fields": [
+      {"component_id": "cpu", "port": "irq_external_i", "width": 1},
+      {"component_id": "gpio_a", "port": "gpio_in", "width": 32},
+      {"component_id": "gpio_b", "port": "gpio_in", "width": 32}
+    ],
+    "owners": [
+      {"component_id": "cpu", "port": "irq_external_i", "bit_offset": 0, "width": 1, "kind": "bound", "producer_ref": "gpio_b.gpio.interrupts.irq"},
+      {"component_id": "gpio_a", "port": "gpio_in", "bit_offset": 0, "width": 32, "kind": "fixed", "producer_ref": "constant_zero"},
+      {"component_id": "gpio_b", "port": "gpio_in", "bit_offset": 0, "width": 8, "kind": "fixed", "producer_ref": "constant_zero"},
+      {"component_id": "gpio_b", "port": "gpio_in", "bit_offset": 8, "width": 1, "kind": "source", "producer_ref": "gpio_b.in.irq_event"},
+      {"component_id": "gpio_b", "port": "gpio_in", "bit_offset": 9, "width": 23, "kind": "fixed", "producer_ref": "constant_zero"}
+    ]
+  },
+  "physical_port_map": [
+    {"component_id": "cpu", "port": "irq_external_i", "physical_port": "irq_external_i"},
+    {"component_id": "gpio_a", "port": "gpio_in", "physical_port": "gpio_in"},
+    {"component_id": "gpio_b", "port": "gpio_in", "physical_port": "gpio_in"}
+  ]
+}

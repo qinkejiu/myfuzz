@@ -194,3 +194,16 @@ class DataflowRouterTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_empty_router_represents_pure_RAM_and_rejects_unmapped_MMIO():
+    import pytest
+    router=DataflowRouter(())
+    assert router.windows==() and not router.owns(0x10000) and not router.owns(0x40000000)
+    assert router.pending_targets==router.ready_targets==()
+    ledger=TransactionLedger();key=TransactionKey('exec','pure-ram','cpu',0,'data',1)
+    with pytest.raises(ValueError,match='no declared real target'):
+        router.transact(ledger,key,address=0x40000000,write=False,wdata=0,be=15,beat_bytes=4)
+    assert router.acceptances==router.deliveries==[]
+    with pytest.raises(ValueError):DataflowRouter([])
+    with pytest.raises(ValueError):DataflowRouter((object(),))

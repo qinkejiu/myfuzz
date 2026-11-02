@@ -1,0 +1,16 @@
+{
+  "schema_version": "inprocess_dma_behavior.v1",
+  "description": "ZipDMA F6 declaration for a four-word transfer at one-byte beat size: the control-status bits the completion criterion reads, and the block length the run executes.",
+  "notes": [
+    "dma_transfer_size_bytes 1 in the scenario selects ZipDMA size code 3 in both the source and destination size fields (third_party/soc-zipcpu/rtl/zipdma/zipdma_ctrl.v:119-129,246-252), so the plan's start word is 0x00330000 instead of 0x00000000",
+    "with a one-byte beat size the pinned ZipDMA issues one lane beat per byte: mwb_sel carries 1, 2, 4, 8 for the four bytes of each word (third_party/soc-zipcpu/rtl/zipdma/zipdma_mm2s.v:528-544,611-626 and zipdma_s2mm.v:205-233,369-391).  A four-word block therefore completes as 16 source beats and 16 destination beats, which is what the scenario's dma_observation_expectations states",
+    "the host applies each declared lane mask with Memory::write's byte enables, so the destination word is assembled from the device's own strobes; the host never re-writes a full word to make the comparison succeed",
+    "the block stays four words: this file describes the byte-enable increment, not a longer block (configs/behaviors/zipdma_len8_f6.json states the eight-word declaration)",
+    "busy_bit 31 and err_bit 30 are the ZipDMA CONTROL_STATUS bits (third_party/soc-zipcpu/rtl/zipdma/zipdma_ctrl.v:116-117); declaring them states where the completion criterion reads, not that any run observed them",
+    "no transfer, completion, IRQ or RTL run is claimed by this declaration"
+  ],
+  "block_words": 4,
+  "busy_bit": 31,
+  "err_bit": 30,
+  "status_kind": "status"
+}

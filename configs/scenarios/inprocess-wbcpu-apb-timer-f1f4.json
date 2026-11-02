@@ -1,0 +1,27 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-wbcpu-apb-timer-f1f4",
+  "cpu_profile": "configs/cpus/picorv32_wb_irq_rvfi/component_profile.json",
+  "cpu_timing": {"reset_assert_ticks": 4, "reset_release_ticks": 4, "max_wait_cycles": 16},
+  "source_profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+  "source_timing": {"reset_assert_ticks": 2, "reset_release_ticks": 3, "max_wait_cycles": 16},
+  "active_id": "target",
+  "source_port": "irq_o",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 16,
+  "trigger_writes": [[4, 0], [8, 0], [0, 4294967295]],
+  "status_offsets": [0],
+  "status_cause_bits": null,
+  "clear_writes": [],
+  "target_window": {"base": 1073741824, "size": 4096},
+  "image_start": 0,
+  "image_end": 131072,
+  "assume_single_clock": true,
+  "notes": [
+    "One Wishbone CPU (PicoRV32) and the PULP APB3 timer target on the same fixed RAM image; no DMA model is declared, so F6 is refused by name (unsupported-f6:no-dma-model)",
+    "the RAM image starts at 0 because this CPU's own boot contract declares reset_vector 0 (boot_address_required false); the entry takes the boot address from that contract and refuses a RAM image that does not contain it",
+    "this CPU declares a 32-bit irq vector rather than a one-bit machine-external input, and no per-bit wiring is declared for it: the host holds the vector at zero and the entry refuses F5 by name (unsupported-f5:cpu-irq-unwired:wishbone:32-bit-irq-held-at-zero).  The timer's four declared F5 facts are present in this declaration and are still not used",
+    "the target window is the timer's declared 4 KiB APB window at 0x40000000",
+    "the cpu and target declare 50 MHz, so assume_single_clock states that one host tick drives both models"
+  ]
+}

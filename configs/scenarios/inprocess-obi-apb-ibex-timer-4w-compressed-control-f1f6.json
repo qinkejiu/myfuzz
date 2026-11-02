@@ -1,0 +1,67 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-apb-ibex-pulp-timer-zipdma-4w-compressed-control-f1f6",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "source_profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+  "source_timing": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "max_wait_cycles": 16
+  },
+  "active_id": "pulp_timer_active",
+  "source_port": "irq_o",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 16,
+  "trigger_writes": [
+    [
+      4,
+      0
+    ],
+    [
+      8,
+      0
+    ],
+    [
+      0,
+      4294967295
+    ]
+  ],
+  "status_offsets": [
+    0
+  ],
+  "status_cause_bits": null,
+  "clear_writes": [],
+  "dma_profile": "configs/peripherals/zipdma_smoke/component_profile.json",
+  "dma_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "dma_capability": "configs/scenarios/compiled-f1-f6-ibex-gpio-zipdma-shared/dma.test_capability.json",
+  "dma_block_words": 4,
+  "target_window": {
+    "base": 1073745920,
+    "size": 4096
+  },
+  "dma_window": {
+    "base": 1073754112,
+    "size": 16
+  },
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "notes": [
+    "trigger_writes and status_offsets repeat the values already used by configs/scenarios/inprocess-irq-pulp-timer-profile.json; the entry re-checks them against the timer register map and interrupt declarations",
+    "dma_window must not overlap the APB target window; the timer owns 0x40000000..0x40000fff",
+    "the timer declares 50 MHz, the CPU 50 MHz and the ZipDMA a nominal 1 Hz simulation rate, so assume_single_clock states that one host tick drives all three models",
+    "f1_program_words 4 declares a four-record-word compressed image and f1_allow_compressed_control widens the admitted parcel set with C.J/C.JAL/C.JR/C.JALR/C.BEQZ/C.BNEZ.  Every target must be a strictly forward instruction start of the image (or the appended return jump); C.JR/C.JALR are admitted only when their base register is statically proven to hold one exact constant address, and C.JR x0 is a reserved encoding.  A backward compressed transfer would be a loop and is refused by name, as are the FP/stack-pointer/RV64 forms.  The retirement evidence is the parcel/word RVFI trace: prog_retires counts instructions, prog_trace_hash (FNV-1a 32 over pc/insn/rd/wdata with the 16-bit parcel as insn) is compared with the Python reference trace.  Evidence: runs/round1-f1-controlflow/."
+  ],
+  "f1_program_words": 4,
+  "f1_allow_compressed": true,
+  "f1_allow_compressed_control": true
+}

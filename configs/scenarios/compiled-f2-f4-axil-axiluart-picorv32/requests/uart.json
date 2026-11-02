@@ -1,0 +1,23 @@
+{
+  "schema_version": "local_harness.v2",
+  "profile_path": "configs/peripherals/zipcpu_axiluart/component_profile.json",
+  "instance_id": "peripheral",
+  "reset_assert_ticks": 8,
+  "reset_release_ticks": 8,
+  "max_wait_cycles": 16,
+  "tuning": {
+    "endpoint_policies": [
+      {
+        "endpoint_id": "uart.bus",
+        "template_id": "target.axi4-lite",
+        "template_version": "1",
+        "variant_id": "single-outstanding-error-codes",
+        "max_outstanding": 1
+      }
+    ],
+    "fixed_inputs": [
+      {"endpoint_id": "uart.pins", "role": "rx", "value": 1},
+      {"endpoint_id": "uart.pins", "role": "cts_n", "value": 0}
+    ]
+  }
+}

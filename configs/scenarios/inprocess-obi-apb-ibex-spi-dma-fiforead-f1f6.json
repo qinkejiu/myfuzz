@@ -1,0 +1,168 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-apb-ibex-spi-dma-fiforead-f1f6",
+  "description": "One Ibex RVFI OBI CPU with two address-routed APB3 targets (PULP timer carrying F5, PULP SPI at 0x20002000 carrying a readable, poppable RX FIFO) and a ZipDMA whose master reads the RX FIFO and writes the popped words to an incrementing RAM block.",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "targets": [
+    {
+      "name": "timer",
+      "profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+      "active_id": "pulp_timer_active",
+      "window": {
+        "base": 1073745920,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": "configs/behaviors/pulp_timer_f5.json",
+      "pins": null,
+      "fixed_inputs": [],
+      "tuning": {}
+    },
+    {
+      "name": "pulp_spi_rxfifo",
+      "profile": "configs/peripherals/pulp_spi/component_profile.json",
+      "active_id": "pulp_spi_target",
+      "window": {
+        "base": 536879104,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": null,
+      "pins": null,
+      "fixed_inputs": [
+        {
+          "endpoint_id": "spi.pins",
+          "role": "sdi0",
+          "value": 1
+        },
+        {
+          "endpoint_id": "spi.pins",
+          "role": "sdi1",
+          "value": 1
+        },
+        {
+          "endpoint_id": "spi.pins",
+          "role": "sdi2",
+          "value": 1
+        },
+        {
+          "endpoint_id": "spi.pins",
+          "role": "sdi3",
+          "value": 1
+        }
+      ],
+      "tuning": {
+        "fixed_inputs": [
+          {
+            "endpoint_id": "spi.pins",
+            "role": "sdi0",
+            "value": 1
+          },
+          {
+            "endpoint_id": "spi.pins",
+            "role": "sdi1",
+            "value": 1
+          },
+          {
+            "endpoint_id": "spi.pins",
+            "role": "sdi2",
+            "value": 1
+          },
+          {
+            "endpoint_id": "spi.pins",
+            "role": "sdi3",
+            "value": 1
+          }
+        ]
+      }
+    }
+  ],
+  "dma_profile": "configs/peripherals/zipdma_smoke/component_profile.json",
+  "dma_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "dma_capability": "configs/scenarios/compiled-f1-f6-ibex-gpio-zipdma-shared/dma.test_capability.json",
+  "dma_behavior": "configs/behaviors/zipdma_len8_f6.json",
+  "dma_block_words": 8,
+  "dma_increment_source": false,
+  "dma_increment_destination": true,
+  "dma_route": {
+    "kind": "fifo",
+    "direction": "read",
+    "target_name": "pulp_spi_rxfifo",
+    "target_index": 1,
+    "target_profile": "configs/peripherals/pulp_spi/component_profile.json",
+    "target_window": {
+      "base": 536879104,
+      "size": 4096
+    },
+    "register": "RXFIFO",
+    "offset": 32,
+    "address_mode": "fixed",
+    "evidence": {
+      "kind": "fifo_level",
+      "register": "STATUS",
+      "offset": 0,
+      "field": "rx_fifo_level",
+      "bits": [
+        20,
+        16
+      ],
+      "depth": 10,
+      "expected_word": 4294967295,
+      "sampling": "pre_post_transfer",
+      "source": "third_party/soc-pulp-apb-spi/spi_master_apb_if.sv:198-199,217 (PRDATA = spi_data_rx on a read of REG_RXFIFO and spi_data_rx_ready asserted by that same access), third_party/soc-pulp-axi-spi/spi_master_fifo.sv:76-88,153-155 (elements decrements only on ready_i && valid_o, data_o is the head), third_party/soc-pulp-apb-spi/apb_spi_master.sv:109,114 (STATUS = {tx fill, rx fill, ctrl status}; rx fill is bits [20:16] with BUFFER_DEPTH=10)"
+    },
+    "notes": [
+      "the routed port is the SPI RX FIFO at offset 0x20: the pinned RTL returns the FIFO head as PRDATA and asserts the FIFO's ready input on that same APB access (spi_master_apb_if.sv:198-199,217), so one APB read pops exactly one entry (spi_master_fifo.sv:76-88,153-155). The TX FIFO at 0x18 is NOT poppable: its read arm has no case (spi_master_apb_if.sv:185-212 falls through to PRDATA=0) and its only consumer is the SPI controller's DATA_TX stream, so a read of TXFIFO is refused by name instead of being called a FIFO read",
+      "the fill is a real SPI read transaction: an F4 case writes SPILEN with data_len=256 bits, a second F4 case writes STATUS bit 0 (spi_rd), and the controller shifts 8 words in from the declared sdi tie-off. STATUS reads between the fill and the transfer are the level time series",
+      "sdi0..sdi3 are tied to 1, so every received word is 0xffffffff: the declared expected_word is that word, not a value the host could obtain from a register",
+      "the transfer pops the eight entries the fill left (level 8 -> 0); the RAM destination block receives the popped words and no routed beat is served from RAM (dma_ram_reads 0)"
+    ]
+  },
+  "dma_window": {
+    "base": 1073754112,
+    "size": 16
+  },
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "dma_host_support": {
+    "status": "implemented_fifo_read_route",
+    "reason": "the host presents each accepted DMA master read beat on the declared target APB3 request port at offset 0x20 with PWRITE=0, holds the beat until the target answers, returns the captured PRDATA to the DMA on mwb_dat_r, and the DMA writes it to the incrementing RAM block. The F6 firmware reads the declared STATUS word before and after the transfer, so the FIFO level before and after the pops is a CPU readback and not an inference.",
+    "where": [
+      "scripts/run_inprocess_f1f6.py (dma_route_support fifo-read branch; DMA_ROUTE_FIFO/DMA_ROUTE_LEVEL_*/DMA_ROUTE_EXPECT_READ_VALUE macros)",
+      "scripts/inprocess_obi_apb_f1f4_spike.cpp (MasterRoute read state machine; dma_route_level() on the declared bits; FIFO-read pass criterion)"
+    ],
+    "limits": [
+      "one outstanding master beat (the device's own limit)",
+      "the route target must be an APB3 target of this build and its routed port must declare a pop-on-read side effect",
+      "the declared depth must hold the whole block: a block larger than the FIFO is refused by name instead of being run as a partial pop"
+    ]
+  },
+  "notes": [
+    "the PULP SPI is mapped at 0x20002000 rather than its SoC 0x40002000 because the pinned ZipDMA's SOURCE/DESTINATION CSR fields are 30-bit byte addresses (third_party/soc-zipcpu/rtl/zipdma/zipdma_ctrl.v:73-74,161-181,259-260 with ADDRESS_WIDTH=32, BUS_WIDTH=32): any byte address >= 0x40000000 is truncated",
+    "the route is a FIFO read, so the DMA source address is the fixed RX FIFO port (ZipDMA control bit 18 disables the source increment) and the RAM destination increments; LENGTH is 32 bytes for eight words",
+    "a read route does not reset the devices before its case: the RX FIFO content the fill left is the transfer's source data, and the host prints dma_route_reset_before_case 0",
+    "the level evidence is the declared field of the STATUS word the CPU read before and after the transfer: level before must equal the number of accepted reads and level after must be zero"
+  ],
+  "fuzz_seed_records": [
+    "F4:20002010:01000000",
+    "F4:20002000:00000001"
+  ]
+}

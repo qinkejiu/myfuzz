@@ -126,11 +126,11 @@ module ahb_lite_memory_target #(
     // high while idle, so the address phase of a new transfer is presented while
     // the manager has not yet driven HWDATA; HREADYEXT goes low as soon as the
     // transfer is captured and only returns high to complete it.
-    assign HREADYEXT   = rst_ni && (state_q == IDLE || state_q == COMPLETE);
+    assign HREADYEXT   = rst_ni && (state_q == IDLE || (state_q == COMPLETE && rsp_valid_i));
     assign HRDATAEXT   = rsp_rdata_i;
     assign HRESPEXT    = rsp_error_i;
-    // Held high in COMPLETE: the service drives rsp_valid in the same cycle the
-    // request is accepted, so the response is taken on the completion edge.
+    // COMPLETE may wait for a queued real target response. Readiness alone
+    // cannot complete the CPU transfer; HREADYEXT also requires rsp_valid.
     assign rsp_ready_o = rst_ni && (state_q == COMPLETE);
 
     always_ff @(posedge clk_i) begin

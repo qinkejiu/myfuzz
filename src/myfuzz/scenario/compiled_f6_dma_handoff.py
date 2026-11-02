@@ -463,7 +463,9 @@ def validate_compiled_f6_static(compiled: dict, static_wiring: dict) -> dict:
     for index, row in enumerate(paths):
         pointer = f'/compiled_paths/paths/{index}'
         flow = row['flow_id']
-        if (set(row) != _PATH_ROW_KEYS
+        f2_executable = flow == 'F2' and row.get('status') == STATUS_EXECUTABLE
+        expected_keys = _PATH_ROW_KEYS | ({'execution_contract'} if f2_executable else set())
+        if (set(row) != expected_keys
                 or type(row['path_id']) is not str
                 or not row['path_id'].startswith(flow + ':')
                 or row['path_id'] in path_ids
@@ -508,6 +510,13 @@ def validate_compiled_f6_static(compiled: dict, static_wiring: dict) -> dict:
                     'endpoints', 'sources', 'bound_inputs', 'prerequisites',
                     'not_claimed'))):
             _fail('compiled-f6-handoff-compiler-schema-invalid', pointer)
+        if f2_executable:
+            from .f2_read_contract import validate_f2_read_contract
+            try:
+                validate_f2_read_contract(row)
+            except (TypeError, ValueError, KeyError) as error:
+                raise CompiledF6DmaHandoffError(
+                    'compiled-f6-handoff-compiler-schema-invalid', pointer) from error
         path_ids.add(row['path_id'])
     counts = compiled['counts']
     expected_counts = {

@@ -1,0 +1,14 @@
+{
+  "schema_version": "generic_scenario_descriptor.v1",
+  "scenario_id": "ibex-pulp-gpio-f5",
+  "root": ".",
+  "compose": "configs/scenarios/compiled-f5-ibex-pulp-gpio/compose.json",
+  "supplement": "configs/scenarios/compiled-f5-ibex-pulp-gpio/execution_supplement.json",
+  "capability": "configs/scenarios/compiled-f4-obi-apb-ibex/test_capability.json",
+  "flow_ids": ["F5"],
+  "executors": {"F5": "compiled_f5_obi_gpio"},
+  "f4_records": null,
+  "f2_records": null,
+  "f5_records": ["0000000100000000"],
+  "rounds": 32
+}

@@ -1,0 +1,7 @@
+{
+  "cpu_profile": "configs/cpus/cv32e20/component_profile.json",
+  "timer_request": "configs/peripherals/pulp_timer/irq_request.json",
+  "timer_active_base": 1073745920,
+  "timer_idle_base": 1073750016,
+  "pulse_width_ticks": 16
+}

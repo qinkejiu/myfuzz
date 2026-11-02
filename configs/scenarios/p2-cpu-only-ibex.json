@@ -1,0 +1,32 @@
+{
+  "schema_version": "p0_cpu_only.v1",
+  "description": "P2 CPU-only program-fuzz scenario: the pinned Ibex RVFI CPU model, host RAM, no target IP/DMA. The CPU artifact is resolved from configs/cpus/ibex_rvfi_local/component_profile.json (rendered, matched by artifact_digest, built on a miss) instead of pointing at a prebuilt cache entry. --fuzz generates a different RV32 program per case and executes it; the data-only shape stays available as --fuzz-mode data.",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_artifact_source": "profile",
+  "artifact_cache": "runs/p2-cpu-only-20261103/artifacts",
+  "instance_id": "cpu",
+  "ram_base": 65536,
+  "ram_size": 65536,
+  "boot_address": 65536,
+  "program_address": 65664,
+  "program_data_address": 73728,
+  "program_data_words": 16,
+  "program_max_words": 8,
+  "mailbox_address": 69632,
+  "result_address": 69636,
+  "reset_assert_ticks": 8,
+  "reset_release_ticks": 8,
+  "max_ticks": 20000,
+  "records": [
+    "0x1",
+    "0x2",
+    "0x3",
+    "0x100",
+    "0xffffffff"
+  ],
+  "required_observations": [
+    "rvfi_valid",
+    "rvfi_pc_rdata",
+    "rvfi_insn"
+  ]
+}

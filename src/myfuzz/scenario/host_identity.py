@@ -98,6 +98,9 @@ HARNESS_HOST_SOURCE_PATHS = HOST_SOURCE_PATHS + (
     # Native source completion policy, typed issuance consumer and full replay.
     'src/myfuzz/scenario/native_instruction_bus_completion.py',
     'src/myfuzz/scenario/session_runtime.py',
+    # Typed fresh-replay normalizer: it decides which execution identities a
+    # replay may rewrite, so changing it changes what "replay matches" means.
+    'src/myfuzz/scenario/replay_normalize.py',
 )
 
 

@@ -1,0 +1,60 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-wb-apb-pulp-i2c-fuzz",
+  "cpu_profile": "configs/cpus/picorv32_wb_irq_rvfi/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 4,
+    "reset_release_ticks": 4,
+    "max_wait_cycles": 16
+  },
+  "source_profile": "configs/peripherals/pulp_i2c/component_profile.json",
+  "source_timing": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "max_wait_cycles": 16
+  },
+  "active_id": "target",
+  "target_window": {
+    "base": 1073741824,
+    "size": 4096
+  },
+  "image_start": 0,
+  "image_end": 131072,
+  "assume_single_clock": true,
+  "f1_program_words": 4,
+  "handler_wait_iterations": 128,
+  "source_fixed_inputs": [
+    {
+      "endpoint_id": "i2c.pins",
+      "role": "scl_pad_i",
+      "value": 1
+    },
+    {
+      "endpoint_id": "i2c.pins",
+      "role": "sda_pad_i",
+      "value": 1
+    }
+  ],
+  "source_tuning": {
+    "fixed_inputs": [
+      {
+        "endpoint_id": "i2c.pins",
+        "role": "scl_pad_i",
+        "value": 1
+      },
+      {
+        "endpoint_id": "i2c.pins",
+        "role": "sda_pad_i",
+        "value": 1
+      }
+    ]
+  },
+  "notes": [
+    "the same PULP apb_i2c APB3 target and the same fixed pad inputs as inprocess-obi-apb-pulp-i2c-fuzz.json, now driven by one PicoRV32 Wishbone CPU; no CPU x IP code is added, only the CPU profile and the RAM image change",
+    "the RAM image starts at 0 because this CPU's own boot contract declares reset_vector 0; the entry takes the boot address from that contract and refuses an image that does not contain it",
+    "the target window is the I2C profile's 4 KiB APB window at 0x40000000",
+    "this CPU declares a 32-bit irq vector and no per-bit wiring is declared for it, so the host holds it at zero and F5 is refused by name; the I2C profile also declares no interrupt source, so F5 would be unavailable either way",
+    "no DMA model is declared, so F6 is refused by name (unsupported-f6:no-dma-model:APB)",
+    "the cpu and target declare 50 MHz, so assume_single_clock states that one host tick drives both models"
+  ]
+}

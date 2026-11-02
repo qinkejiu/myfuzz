@@ -1210,3 +1210,25 @@ def test_artifact_rejects_deep_json_with_stable_refusal():
     document['compiled_f6_handoff']['compiled_paths']['gaps'] = nested
     refuse(CompiledF6RuntimePath, document,
            'compiled-f6-runtime-path-invalid-json', '/')
+
+
+def test_static_validator_accepts_only_reconstructed_executable_f2_contract(tmp_path):
+    from myfuzz.scenario.compiled_f6_dma_handoff import (
+        CompiledF6DmaHandoffError, validate_compiled_f6_static)
+
+    request, compiled = _compiled_f5_probe_with_static_dma_routes(tmp_path)
+    f2 = next(row for row in compiled['paths'] if row['flow_id'] == 'F2')
+    assert f2['status'] == 'executable'
+    assert f2['execution_contract']['schema_version'] == 'compiled_F2_read_contract.v1'
+    assert validate_compiled_f6_static(compiled, request.wiring.document)['status'] == 'unsupported'
+    for mutation in ('changed', 'missing', 'extra'):
+        changed = deepcopy(compiled)
+        row = next(item for item in changed['paths'] if item['flow_id'] == 'F2')
+        if mutation == 'changed':
+            row['execution_contract']['address'] += 4
+        elif mutation == 'missing':
+            row.pop('execution_contract')
+        else:
+            row['unexpected'] = True
+        with pytest.raises(CompiledF6DmaHandoffError):
+            validate_compiled_f6_static(changed, request.wiring.document)

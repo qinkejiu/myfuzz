@@ -1,0 +1,23 @@
+{
+  "schema_version": "irq_reset_native.v1",
+  "case": "reset-then-irq",
+  "notes": "One organic declared-output IRQ case: the fixed image writes the declared trigger, the target's real o_int pulse reaches the CPU through the installed OR group, the CPU takes the external interrupt, and a measured whole-scenario reset lands inside the taken handler. Lineage is exact epoch-qualified serial identity: the passive sideband counter is cleared by the same reset, so only the new epoch and a fresh take identity separate post-reset evidence from pre-reset evidence.",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "source_request": "configs/peripherals/zipcpu_timer_irq/request.json",
+  "source_adapter": "declared-output.v1",
+  "source_port": "o_int",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 32,
+  "active_id": "wb_timer_active",
+  "idle_id": "wb_timer_idle",
+  "active_base": 1073745920,
+  "idle_base": 1073750016,
+  "trigger_writes": [
+    [
+      0,
+      8
+    ]
+  ],
+  "reset_policy": "warm_all",
+  "post_reset_steps": 1500
+}

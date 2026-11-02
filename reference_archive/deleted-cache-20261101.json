@@ -1,0 +1,80 @@
+[
+  {
+    "path": "runs/axil-native-cache-20261030b",
+    "kind": "historical rebuildable Verilator cache",
+    "impact": "old build binaries and warm cache removed; rebuilding may not reproduce identical hashes",
+    "status": "deleted"
+  },
+  {
+    "path": "runs/axil-native-cache-20261030c",
+    "kind": "historical rebuildable Verilator cache",
+    "impact": "old build binaries and warm cache removed; rebuilding may not reproduce identical hashes",
+    "status": "deleted"
+  },
+  {
+    "path": "runs/axil-native-cache-20261030d",
+    "kind": "historical rebuildable Verilator cache",
+    "impact": "old build binaries and warm cache removed; rebuilding may not reproduce identical hashes",
+    "status": "deleted"
+  },
+  {
+    "path": "runs/axil-native-cache-20261030e",
+    "kind": "historical rebuildable Verilator cache",
+    "impact": "old build binaries and warm cache removed; rebuilding may not reproduce identical hashes",
+    "status": "deleted"
+  },
+  {
+    "path": "runs/axil-native-cache-20261030f",
+    "kind": "historical rebuildable Verilator cache",
+    "impact": "old build binaries and warm cache removed; rebuilding may not reproduce identical hashes",
+    "status": "deleted"
+  },
+  {
+    "path": "runs/axil-native-cache-20261030g",
+    "kind": "historical rebuildable Verilator cache",
+    "impact": "old build binaries and warm cache removed; rebuilding may not reproduce identical hashes",
+    "status": "deleted"
+  },
+  {
+    "path": "runs/axil-native-cache-20261030h",
+    "kind": "historical rebuildable Verilator cache",
+    "impact": "old build binaries and warm cache removed; rebuilding may not reproduce identical hashes",
+    "status": "deleted"
+  },
+  {
+    "path": "runs/boom-f2f4-probe/cache",
+    "kind": "historical rebuildable Verilator cache",
+    "impact": "old build binaries and warm cache removed; rebuilding may not reproduce identical hashes",
+    "status": "deleted"
+  },
+  {
+    "path": "runs/boom-f2f4-probe5/cache",
+    "kind": "historical rebuildable Verilator cache",
+    "impact": "old build binaries and warm cache removed; rebuilding may not reproduce identical hashes",
+    "status": "deleted"
+  },
+  {
+    "path": "runs/boom-f2f4-probe6/cache",
+    "kind": "historical rebuildable Verilator cache",
+    "impact": "old build binaries and warm cache removed; rebuilding may not reproduce identical hashes",
+    "status": "deleted"
+  },
+  {
+    "path": "runs/boom-f2f4-probe7/cache",
+    "kind": "historical rebuildable Verilator cache",
+    "impact": "old build binaries and warm cache removed; rebuilding may not reproduce identical hashes",
+    "status": "deleted"
+  },
+  {
+    "path": "runs/boom-f2f4-probe8/cache",
+    "kind": "historical rebuildable Verilator cache",
+    "impact": "old build binaries and warm cache removed; rebuilding may not reproduce identical hashes",
+    "status": "deleted"
+  },
+  {
+    "path": "runs/boom-f2f4-probe9/cache",
+    "kind": "historical rebuildable Verilator cache",
+    "impact": "old build binaries and warm cache removed; rebuilding may not reproduce identical hashes",
+    "status": "deleted"
+  }
+]

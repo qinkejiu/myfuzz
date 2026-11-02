@@ -1,0 +1,24 @@
+{
+  "schema_version": "inprocess_source_behavior.v1",
+  "description": "PULP APB3 GPIO F5 behavior plus the dir-resolved pad model: the transition pulse on interrupt[0], the reviewed enable/type/PADOUT sequence, INTSTATUS at 0x24 and PADIN at 0x08.",
+  "notes": [
+    "F5 facts and the pins block come from configs/scenarios/inprocess-obi-apb-gpio-pins.json, which declares trigger_offsets [4, 24, 28, 12], status_offset 36, source_port interrupt, source_bit_offset 0, pulse_width_ticks 16 and pins {padin_offset 8, external_value 0, pad_resolution device_drives_when_dir_bit_high_else_host}",
+    "the trigger values are the reviewed sequence recorded in configs/scenarios/inprocess-obi-apb-gpio-pins-f1f5.json: GPIOEN(4)=0xffffffff, INTEN(24)=1, INTTYPE_LOW(28)=1 (pin 0 rise) and PADOUT(12)=43 (0x2b, the pin-0 rise the device's own edge probe observes)",
+    "the last PADOUT value is case stimulus in scripts/run_inprocess_gpio.py (its F5 record carries the per-offset values); 43 is the value of the recorded run runs/stage2-breadth-gpio-20261101/run1 (F5:ffffffff:00000001:00000001:0000002b) and of the f1f5 scenario, not a property of the device",
+    "status_offsets [36] is INTSTATUS (ro, read_clears); clear_writes stays empty because the ISR read itself clears the held status, and status_cause_bits stays null because the cause pins are recorded by the run, not declared here",
+    "pins: PADIN at offset 8 is the readable pad word, external_value 0 is the host driver value, and a pin is driven by the device's own out bit while its dir bit is high",
+    "this file states device facts only: the executor still cross-checks them against configs/peripherals/pulp_gpio_causal_local/component_profile.json, and the declaration does not prove the pad causality"
+  ],
+  "source_port": "interrupt",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 16,
+  "trigger_writes": [[4, 4294967295], [24, 1], [28, 1], [12, 43]],
+  "status_offsets": [36],
+  "status_cause_bits": null,
+  "clear_writes": [],
+  "pins": {
+    "padin_offset": 8,
+    "external_value": 0,
+    "pad_resolution": "device_drives_when_dir_bit_high_else_host"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "ibex-zipdma-feedback-slots",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "dma_profile": "configs/peripherals/zipdma_smoke/component_profile.json",
+  "dma_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "dma_capability": "configs/scenarios/compiled-f1-f6-ibex-gpio-zipdma-shared/dma.test_capability.json",
+  "layout": {"slot_count": 16},
+  "feedback_seed": "0110c00008000000",
+  "feedback_cases": 12
+}

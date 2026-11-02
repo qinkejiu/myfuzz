@@ -1,7 +1,10 @@
 """Real pinned CVA6 through a generated 64-bit AXI4 memory service."""
 from pathlib import Path
+import json
 import tempfile
 import unittest
+
+from myfuzz.scenario.replay_normalize import declared_identity_values
 
 from myfuzz.local_harness import (
     load_local_harness_request, plan_local_harness, render_local_harness,
@@ -106,10 +109,57 @@ class Cva6Axi4ServiceRealAcceptance(unittest.TestCase):
             self.assertEqual(0x600dcafe,
                 memory.read(0x404, 4, transaction_id='saved-readback').value)
             replay = replay_evidence_bundle(bundle, factory)
-            self.assertTrue(replay.matches, replay)
+            # A fresh replay necessarily runs a *new* native process, and
+            # ``GeneratedLocalSession.begin_case`` mints a fresh execution
+            # nonce for it; every bounded full-AXI scope records that nonce
+            # under ``scope.execution_id``.  ``replay_evidence_bundle`` now
+            # normalizes exactly that one declared identity field, each side
+            # with its own value, so the comparison still matches while every
+            # payload, address, data, tick and memory version stays byte exact.
+            self.assertIs(True, replay.matches, replay.difference_context)
+            self.assertEqual('full', replay.verification_scope)
+            self.assertIsNone(replay.first_difference)
+            report = json.loads((bundle / 'replay_report.json').read_text(
+                encoding='utf-8'))
+            self.assertIs(True, report['matches'])
+            normalization = report['normalization']
+            self.assertEqual('typed_replay_normalizer.v1',
+                             normalization['schema_version'])
+            self.assertEqual('per_side_own_values_in_first_appearance_order',
+                             normalization['mapping'])
+            self.assertIs(True, normalization['applied'])
+            self.assertEqual(['execution_id'], normalization['fields'])
+            saved = json.loads((bundle / 'trace.json').read_text(encoding='utf-8'))
+            replayed_events = replay.actual_trace.events
+            # The only values the framework rewrote are the ones stored under
+            # the declared identity field name - the per-run scope nonce and the
+            # constant ledger transaction identity, never a payload value.
+            def declared(events):
+                values = declared_identity_values(events)
+                return {value for field_values in values.values()
+                        for value in field_values}
+
+            self.assertEqual(len(declared(saved['events'])),
+                             normalization['rewrites']['reference'])
+            self.assertEqual(len(declared(replayed_events)),
+                             normalization['rewrites']['actual'])
+            saved_nonces = {event['scope']['execution_id']
+                            for event in saved['events']
+                            if isinstance(event.get('scope'), dict)}
+            replayed_nonces = {event['scope']['execution_id']
+                               for event in replayed_events
+                               if isinstance(event.get('scope'), dict)}
+            # The two runs really did mint disjoint scope nonces; the declared
+            # normalization is the only reason the scopes compare equal.
+            self.assertTrue(saved_nonces)
+            self.assertTrue(replayed_nonces)
+            self.assertEqual(set(), saved_nonces & replayed_nonces)
             self.assertEqual(0x600dcafe,
                 instances[1][1].read(0x404, 4,
                                     transaction_id='replayed-readback').value)
+            self.assertEqual(0x600dcafe,
+                instances[1][1].read(0x400, 4,
+                                    transaction_id='replayed-first').value)
             self.assertNotEqual(instances[0][0]._execution,
                                 instances[1][0]._execution)
 

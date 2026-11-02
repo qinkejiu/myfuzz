@@ -53,7 +53,17 @@ class IbexObiRuntimeAcceptance(unittest.TestCase):
         runtime = self.cpu_artifact.runtime_document
         self.assertEqual('obi_cpu', runtime['kind'])
         self.assertEqual(66, len(self.cpu_artifact.plan.facts.ports))
-        self.assertEqual(23, len(runtime['physical_exports']))
+        # 23 real full-top OBI/clock pins plus the two passive controller
+        # decision probes this pinned Ibex full top gains: ``runtime_renderer``
+        # adds ``irq_masked_pre``/``irq_taken_pre`` in its "pinned full-top
+        # Ibex profile" block (disposition 'observe', outputs only, never a
+        # driver), so the export set is 25.  Pinned explicitly so a future
+        # probe addition shows up as itself instead of as an off-by-two count.
+        exports = runtime['physical_exports']
+        self.assertEqual(25, len(exports))
+        self.assertEqual({'irq_masked_pre', 'irq_taken_pre'},
+                         {row['physical_port'] for row in exports
+                          if str(row.get('runtime_name', '')).startswith('probe_')})
         self.assertEqual(20, len(runtime['backend_ports']))
         memory = PersistentMemory(regions=(MemoryRegion('ram', 0, 0x30000),),
             initialization_seed=9, max_initialized_bytes=0x30000)

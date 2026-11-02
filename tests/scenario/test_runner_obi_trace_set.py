@@ -9,6 +9,7 @@ import pytest
 from myfuzz.scenario.runner import ScenarioRunner
 from myfuzz.scenario.ownership import compile_ownership
 from myfuzz.local_harness.native_physical_observation import verify_cpu_obi_protocol_traces
+from tests.local_harness.driver_text_support import strip_dut_eval_timing
 
 ROOT=Path(__file__).resolve().parents[2]
 SAVED=ROOT/'docs/reports/evidence/ibex-raw-obi-20261017/first.json.gz'
@@ -20,7 +21,57 @@ PROVENANCE_PATHS={
     ('selected_template','executor','binding','implementation_sources',0,'sha256'):'src/myfuzz/local_harness/runtime_renderer.py',
     ('selected_template','executor','binding','implementation_sources',1,'sha256'):'src/myfuzz/local_harness/template_contracts.py',
 }
-DERIVED_PATHS={('selected_template','executor','identity_sha256'),('artifact_digest',)}
+# Derived identities: leaves whose value is *computed from* other leaves of the
+# same document, so they can only follow what they are derived from and never
+# carry a second, independent claim.  They are allowed to differ from the pinned
+# 2026-10-17 archive while this fixture still proves what it exists for: the
+# archived raw CPU taps + `runtime_sv` + the physical/protocol mapping are
+# unchanged, so the archived certification is reproduced by current code.
+DERIVED_PATHS={
+    # Whole-executor identity and whole-document digest; both are recomputed and
+    # compared with these very leaves in `_verify_document_digests` below.
+    ('selected_template','executor','identity_sha256'),
+    ('artifact_digest',),
+    # Component-profile digests, plus the two leaves derived from them.  The
+    # profile (configs/cpus/ibex_obi_local/component_profile.json) is a live
+    # input this snapshot does not pin: PROVENANCE_PATHS pins the four *source*
+    # byte sets, and the profile stays editable.  In the current tree the only
+    # edit is declarative completion: the machine-external interrupt field
+    # already declared `role: external` but omitted `direction`/`width`, and
+    # that field now states `input`/`1` -- the very facts the plan and the
+    # physical mapping already used, so no physical or SV fact changed (the
+    # leaves below are the only ones `_changed_leaves` reports for `plan`,
+    # `structural_abi` and `structural_build`; every port, disposition, trace
+    # and driver-field leaf is still byte-identical).  The digests follow by
+    # construction:
+    #   plan.profile_sha256                = sha256(profile bytes)
+    #   structural_build.profile_sha256    = the same value, copied
+    #   binding.profile_sha256             = the same value, copied
+    #   structural_abi.plan_sha256         = sha256(plan document), and the plan
+    #                                        document embeds plan.profile_sha256
+    # None of them carries the runtime SV bytes or a physical/backend port, so
+    # none can hide a change in the archived mapping; those stay pinned by
+    # PROVENANCE_PATHS and by the explicit runtime_sv assertion in the
+    # `artifact` fixture.
+    ('plan','profile_sha256'),
+    ('structural_build','profile_sha256'),
+    ('selected_template','executor','binding','profile_sha256'),
+    ('structural_abi','plan_sha256'),
+    # Digest of the rendered driver C++ text.  Its generator is
+    # `driver_renderer.py`, which is not itself part of the pinned provenance
+    # set, while its declared implementation sources (`runtime_renderer.py`,
+    # `template_contracts.py`) are PROVENANCE_PATHS, i.e. expressly allowed to
+    # differ.  Since the archive was cut, the driver template gained env-gated
+    # DUT-eval timing instrumentation (MYFUZZ_DUT_TIMING_DIR): with that
+    # variable unset every `dut.eval()` is still one plain eval, so the driver's
+    # protocol behaviour and its command/observation bytes are unchanged, only
+    # the emitted text is.  So *this document leaf* is derived from the current
+    # render and may differ; the archived driver itself is still compared byte
+    # for byte in the `artifact` fixture, with that one instrumentation layer
+    # normalised away on the current side by
+    # `tests.local_harness.driver_text_support.strip_dut_eval_timing`.
+    ('cpp_sha256',),
+}
 
 
 def _sha(data):
@@ -93,7 +144,16 @@ def artifact(current_artifact):
     # these snapshots do not establish current native execution equivalence.
     _verify_fixture_documents(result.runtime_document,historical)
     assert _sha(result.runtime_sv.encode()) == historical['runtime_sv_sha256']
-    assert _sha(result.cpp_text.encode()) == historical['cpp_sha256']
+    # The archived driver is still compared byte for byte, with only the
+    # post-archive DUT-eval timing instrumentation normalised away (shared with
+    # tests/local_harness/test_ahb_startup.py and
+    # test_apb_storage_probe_generation.py).  That instrumentation is behaviour
+    # neutral while MYFUZZ_DUT_TIMING_DIR is unset: every `eval_dut(dut)` is one
+    # plain `dut.eval()`.  Nothing else is dropped, so once normalised the
+    # current driver bytes must equal the archived digest exactly; the document
+    # leaf `cpp_sha256` follows the instrumented render, which is why it is a
+    # DERIVED_PATHS entry.
+    assert _sha(strip_dut_eval_timing(result.cpp_text).encode()) == historical['cpp_sha256']
     replay_artifact=replace(result,runtime_document=historical,
         source_verification=historical['source_verification'])
     assert verify_cpu_obi_protocol_traces(replay_artifact)

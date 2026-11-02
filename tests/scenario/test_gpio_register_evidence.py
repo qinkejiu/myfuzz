@@ -338,3 +338,44 @@ def test_invalid_configuration_is_rejected(kwargs):
     values.update(kwargs)
     with pytest.raises(ValueError):
         module.GpioRegisterEvidenceConsumer(**values)
+
+
+def test_real_mixed_journal_remains_current_after_tick129_without_output_history():
+    """Replay original native observations; no saved annotation grants proof."""
+    import gzip
+    import json
+    from pathlib import Path
+    from myfuzz.scenario.gpio_register_evidence import GpioRegisterEvidenceConsumer
+    fixture=json.loads(gzip.decompress((Path(__file__).with_name('fixtures') /
+        'mixed_gpio_output_history_regression.json.gz').read_bytes()))
+    assert len(fixture['source_sha256'])==64
+    raw={row['event_id']:row for row in fixture['events']}
+    assert raw[5808]['local_tick']==129
+    c=GpioRegisterEvidenceConsumer(component='gpio_b',register='gpioen',bit_lo=8,width=1,
+        runtime_contract_sha256='a'*64)
+    for event_id in range(1,max(raw)+1):
+        c.consume(raw.get(event_id,dict(event_id=event_id,kind='ignored_non_native_record')))
+        if event_id==5808:
+            assert not c._incomplete, c.report()['reason']
+            assert not c._tracker._states['gpio_b']['degraded']
+    report=c.report()
+    assert report['register_status']=='verified',report['reason']
+    assert report['certificates'][-1]['writer_event_ids']==[3413]
+    assert report['certificates'][-1]['read_event_id']==7155
+    assert report['certificates'][-1]['bit_resources'][0]['version']==1961
+    assert c._tracker._output_cache=={}
+    assert c._tracker.output_resources_at('gpio_b',0,129)==[]
+
+
+def test_current_only_history_policy_survives_both_tracker_reset_paths():
+    c=consumer()
+    assert c._tracker.retain_output_history is False
+    c.consume(dict(event_id=1,kind='gpio_reset',component='gpio',reset_epoch=1))
+    assert c._tracker.retain_output_history is False
+    c.consume(dict(event_id=2,kind='reset_barrier',policy='warm_all'))
+    assert c._tracker.retain_output_history is False
+    for n in range(1,151):
+        c.consume(tick(n,epoch=1) | dict(event_id=n+2))
+    assert not c._incomplete,c.report()['reason']
+    assert not c._tracker._states['gpio']['degraded']
+    assert c._tracker._output_cache=={}

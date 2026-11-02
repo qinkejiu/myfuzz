@@ -1,4 +1,5 @@
 """Native-only current-value witnesses. Pure reducers and JSON are not authority."""
+from myfuzz.local_harness.execution_validation import static_validation
 from copy import deepcopy
 from dataclasses import asdict, dataclass
 import sys
@@ -193,7 +194,8 @@ _AUTHORITIES=WeakKeyDictionary();_LIVE=WeakKeyDictionary();_TOKENS=WeakKeyDictio
 _REGISTRIES=(_AUTHORITIES,_LIVE,_TOKENS)
 _REDUCER=(reduce_storage_samples,reduce_storage_samples.__code__)
 _FACT_FUNCTIONS=MappingProxyType({name:(value,value.__code__) for name,value in (
-    ('_source_facts',_source_facts),('storage_version_basis',storage_version_basis))})
+    ('_source_facts',_source_facts),('storage_version_basis',storage_version_basis),
+    ('static_validation',static_validation))})
 
 
 class ApbStorageRegisterVersionAuthority:
@@ -218,13 +220,16 @@ class ApbStorageRegisterVersionAuthority:
                          source_base=str(target.base_dir.absolute()))
 
     def _source_contract(self):
+        static_validation(('storage_version_source', self),
+            lambda: hashlib.sha256(Path(__file__).read_bytes()).hexdigest())
         if self.target.artifact.runtime_document!=self.target._artifact_document:
             raise ValueError('storage-version-source-contract-drift')
         document=self.target._artifact_document.get('storage_observation')
         if type(document) is not dict:raise ValueError('storage-version-source-contract-required')
-        contract=_SOURCE_FUNCTIONS['validate_apb_storage_source_contract'][0](
-            document.get('source_contract'),self.artifact.plan.profile,
-            base_dir=self.target.base_dir)
+        contract=static_validation(('storage_source_contract', self),
+            lambda: _SOURCE_FUNCTIONS['validate_apb_storage_source_contract'][0](
+                document.get('source_contract'),self.artifact.plan.profile,
+                base_dir=self.target.base_dir))
         selection=document.get('selection')
         if (type(selection) is not dict
                 or selection.get('contract_id')!=contract['contract_id']
@@ -342,7 +347,10 @@ class ApbStorageRegisterVersionAuthority:
     def _actual_begin(self,target,operation,fields):
         from myfuzz.local_harness.session import _NATIVE_RESET_CHECK_PRODUCERS, _STORAGE_VERSION_LOOKUP_PINS, _NATIVE_RESET_OWNER_GUARD_PIN
         _NATIVE_RESET_OWNER_GUARD_PIN[0](self.target)
-        _NATIVE_RESET_CHECK_PRODUCERS[0](self.target)
+        # The installed observer's guard already performs the producer check;
+        # the observer-less guard returns early and still needs it explicitly.
+        if self.target._native_reset_observation is None:
+            _NATIVE_RESET_CHECK_PRODUCERS[0](self.target)
         if _STORAGE_VERSION_LOOKUP_PINS['_storage_version_authority'][0](self.target) is not self:
             raise ValueError('storage-version-independent-entry-origin-required')
         self._frame(target,'_command_impl')
@@ -442,7 +450,8 @@ class ApbStorageRegisterVersionAuthority:
     def _actual_command(self,target,operation,fields,receipt):
         from myfuzz.local_harness.session import _NATIVE_RESET_CHECK_PRODUCERS, _STORAGE_VERSION_LOOKUP_PINS, _NATIVE_RESET_OWNER_GUARD_PIN
         _NATIVE_RESET_OWNER_GUARD_PIN[0](self.target)
-        _NATIVE_RESET_CHECK_PRODUCERS[0](self.target)
+        if self.target._native_reset_observation is None:
+            _NATIVE_RESET_CHECK_PRODUCERS[0](self.target)
         if _STORAGE_VERSION_LOOKUP_PINS['_storage_version_authority'][0](self.target) is not self:
             raise ValueError('storage-version-independent-entry-origin-required')
         self._frame(target,'_command_impl',receipt)
@@ -571,7 +580,8 @@ class ApbStorageRegisterVersionAuthority:
                 write_history_sha256=hashlib.sha256(json.dumps(live['writes'],sort_keys=True,separators=(',',':'),allow_nan=False).encode()).hexdigest(),
                 field_version=len(live['writes']),write_count=len(live['writes']),version_basis=storage_version_basis(facts.register),
                 reset_epoch=reset_epoch,command_sequence=state['sequence'],pid=t.process.pid,execution=t._execution,
-                build_identity_sha256=live['build_digest'],producer_source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                build_identity_sha256=live['build_digest'],producer_source_sha256=static_validation(('storage_version_source', self),
+                    lambda: hashlib.sha256(Path(__file__).read_bytes()).hexdigest()),
                 artifact_digest=doc['artifact_digest'],source_contract_digest=facts.digest,probe_digest=probe['digest'],
                 reset_waveform_observed=state['reset_waveform_observed'],grants_reset_prerequisite=False,
                 history_scope='complete_commands_since_first_measured_state_not_unobserved_startup',routed_context_authenticated=False)

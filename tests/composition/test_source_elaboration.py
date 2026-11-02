@@ -59,17 +59,27 @@ def fixture() -> tuple[dict[str, object], dict[str, object]]:
 
 
 class SourceElaborationTests(unittest.TestCase):
-    def test_generated_sibling_evidence_is_excluded_from_source_closure(self) -> None:
+    def test_prefixed_source_directory_remains_in_source_closure(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source = root / 'design.sv'
             source.write_text('module design; endmodule\n')
             sibling = root / '.myfuzz-elaboration-other'
             sibling.mkdir()
-            (sibling / 'ports.tree.json').write_text('{"running":true}')
+            hidden_hdl = sibling / 'real.svh'
+            hidden_hdl.write_text('`define REAL_SOURCE 1\n')
             closure = source_elaboration._closure(
                 root, ((source, 'design.sv'),), (root,))
-            self.assertEqual({source}, set(closure))
+            self.assertEqual({source, hidden_hdl}, set(closure))
+
+    def test_temporary_directory_parent_avoids_source_root(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / 'rtl'
+            root.mkdir()
+            (root / 'temp').mkdir()
+            with mock.patch('tempfile.gettempdir', return_value=str(root / 'temp')):
+                with self.assertRaisesRegex(ElaborationError, 'outside source root'):
+                    source_elaboration._elaboration_temporary_parent(root)
 
     def test_structured_packed_array_becomes_one_parent_aggregate_leaf(self) -> None:
         tree, metadata = fixture()

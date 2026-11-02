@@ -14,14 +14,17 @@ class IrqPulseDelivery:
     unsupported; it does not replace or extend the first pulse.
     """
 
-    def __init__(self, *, width_ticks: int) -> None:
+    def __init__(self, *, width_ticks: int, require_observed_baseline: bool = False) -> None:
         if isinstance(width_ticks, bool) or not isinstance(width_ticks, int) \
                 or not 1 <= width_ticks <= 4096:
             raise ValueError("IRQ pulse width must be in 1..4096 CPU ticks")
+        if type(require_observed_baseline) is not bool:
+            raise ValueError('IRQ baseline policy must be boolean')
+        self.require_observed_baseline = require_observed_baseline
         self.width_ticks = width_ticks
         self.events: list[dict] = []
         self.status = "active"
-        self.source_level = 0
+        self.source_level = None if self.require_observed_baseline else 0
         self._source_count = 0
         self._source_event_id: int | None = None
         self._active_source_event_id: int | None = None
@@ -39,10 +42,15 @@ class IrqPulseDelivery:
             raise ValueError("IRQ source level must be one bit")
         if source_tick < 0 or cpu_tick < self._last_cpu_tick:
             raise ValueError("IRQ local tick moved backwards")
+        if self.source_level is None:
+            self.source_level = level
+            return
         if level == self.source_level:
             return
         self.source_level = level
         if level == 0:
+            if self._source_event_id is None:
+                return
             self.events.append({"kind": "source_end", "source_tick": source_tick,
                                 "cpu_tick": cpu_tick,
                                 "source_event_id": self._source_event_id,
@@ -144,7 +152,7 @@ class IrqPulseDelivery:
             self.events.append({"kind": "pulse_cancelled_by_reset",
                                 "source_event_id": self._active_source_event_id,
                                 "cpu_tick": cpu_tick})
-        self.source_level = 0
+        self.source_level = None if self.require_observed_baseline else 0
         self._source_event_id = None
         self._active_source_event_id = None
         self._source_trigger = None

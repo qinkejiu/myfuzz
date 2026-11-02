@@ -1,0 +1,25 @@
+{
+  "schema_version": "generic_scenario_descriptor.v1",
+  "scenario_id": "axil-axiluart-picorv32-mmio",
+  "root": "configs/scenarios/compiled-f2-f4-axil-axiluart-picorv32",
+  "compose": "compose.json",
+  "supplement": "execution_supplement.json",
+  "capability": "test_capability.json",
+  "flow_ids": [
+    "F2",
+    "F4"
+  ],
+  "executors": {
+    "F2": "compiled_mmio",
+    "F4": "compiled_mmio"
+  },
+  "f4_records": [
+    "55000000",
+    "2a000000",
+    "34120000"
+  ],
+  "f2_records": [
+    "00100040"
+  ],
+  "rounds": 128
+}

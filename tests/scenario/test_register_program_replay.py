@@ -218,3 +218,45 @@ def test_fresh_canonical_plan_hash_must_match_even_when_events_match(actual_fact
     reference = replace(trace,genome_sha256=hashlib.sha256(changed).hexdigest())
     comparison = replay_online_session(changed,actual_factory,reference,register_runtime_factory=adapter)
     assert not comparison.matches
+
+
+def prefix_adapter(session):
+    return RegisterProgramRuntime(session, cpu_component='cpu',
+        sidecars={'gpio_a': SIDECAR}, advance_rounds=3)
+
+
+@pytest.mark.parametrize('prefix', [1, 2, 3])
+def test_register_actual_advance_prefix_exports_and_replays_exactly(actual_factory, prefix):
+    batches = []
+    def counted_factory():
+        runner = actual_factory()
+        calls = []
+        batches.append(calls)
+        runner.step_batch = lambda order: calls.append(tuple(order))
+        return runner
+    session = ScenarioSession(ScenarioGenome('prefix', 'CPU_TO_IP', 'register_program',
+        ('cpu', 'gpio_a', 'gpio_b'), 144, ()), counted_factory())
+    session.declare_instruction_slots('cpu', 0x11000, 32)
+    runtime = prefix_adapter(session)
+    session.begin()
+    runtime.submit(request(target_instance='gpio_a'),
+        stop_after_advance=lambda index: index + 1 == prefix)
+    trace = session.finish()
+    plan = session.encode_plan()
+    document = json.loads(plan)
+    assert len(document['cases'][0]['advances']) == prefix
+    assert replay_online_session(plan, counted_factory, trace,
+                                 register_runtime_factory=prefix_adapter).matches
+    assert batches == [[('cpu', 'gpio_a', 'gpio_b')] * prefix] * 2
+
+
+@pytest.mark.parametrize('advances', [[], [['cpu']],
+    [['gpio_b', 'gpio_a', 'cpu']], [['cpu', 'gpio_a', 'gpio_b']] * 4,
+    [['cpu', 'gpio_a', 'gpio_b'], ['cpu']]])
+def test_register_prefix_rejects_empty_excess_and_arbitrary_schedule(actual_factory, advances):
+    from myfuzz.scenario.session_runtime import validate_register_program_plan
+    _, plan, _ = recorded(actual_factory)
+    document = json.loads(plan)
+    document['cases'][0]['advances'] = advances
+    with pytest.raises(ValueError):
+        validate_register_program_plan(document)

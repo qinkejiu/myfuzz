@@ -1,0 +1,43 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-ahb-sha256-f1f4",
+  "description": "One Ibex RVFI OBI CPU reaches one unmodified Caliptra v2.1.2 sha256_ctrl AHB-Lite register target in one process. The target artifact states its own ahb-lite protocol, the host samples the slave port's own address phase and data phase (hsel/htrans/haddr/hwrite/hsize/hwdata/hreadyin/hreadyout/hrdata/hresp), and each case states the protocol of the target it was routed to.",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "targets": [
+    {
+      "name": "sha",
+      "profile": "configs/peripherals/caliptra_sha256/component_profile.json",
+      "active_id": "sha_active",
+      "window": {
+        "base": 1073741824,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": null,
+      "pins": null,
+      "fixed_inputs": [],
+      "tuning": {}
+    }
+  ],
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "handler_wait_iterations": 128,
+  "notes": [
+    "The target is the pinned unmodified Caliptra sha256_ctrl (third_party/caliptra_upstream_reference, revision 49370266) behind the generated ahb_lite_mmio_target manager: the generated model exposes the slave's ten declared roles as passive taps, so both AHB phases are sampled from the DUT's own pins rather than reconstructed from the host request.",
+    "The window is the profile's own 4 KiB at 0x40000000: it does not overlap the RAM image 0x10000..0x30000 and clears the 4 GiB bound.",
+    "The profile declares two active-low asynchronous resets (reset_n and cptra_pwrgood); the generated request drives both low during initialization, and debugUnlock_or_scan_mode_switch is a declared constant 0. The error/notification outputs are passive observations with no IRQ contract, so no behavior file is declared and F5 is refused by name.",
+    "Registers used: NAME0(0x00, ro, the pinned SHA256_CORE_NAME0 constant), CTRL(0x10, wo singlepulse INIT/NEXT/MODE), STATUS(0x18, ro READY/VALID/WNTZ_BUSY), BLOCK0..15(0x80..0xbc, wo) and DIGEST0..7(0x100..0x11c, ro).",
+    "F4 records write BLOCK words and CTRL; F2 records read NAME0, STATUS and the DIGEST words. The real digest read back after a written block is compared with hashlib in the evidence README, which is what makes the run more than a bus handshake.",
+    "No DMA is declared: the host's routed-DMA admission does not list the ahb-lite protocol, so an F6 record is refused by name (see runs/p2-ahb-target-20261103/README.md)."
+  ]
+}

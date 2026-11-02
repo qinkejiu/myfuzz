@@ -1,0 +1,13 @@
+{
+  "name": "cv32e20-newid-irq-adapter-zipdma-i2c",
+  "target": {
+    "base": 1073754112,
+    "write_values": [
+      85,
+      170
+    ],
+    "profile": "configs/peripherals/shared_profile_target/component_profile.json"
+  },
+  "cpu_profile": "configs/cpus/cv32e20_profile_irq_adapter/component_profile.json",
+  "dma_profile": "configs/peripherals/shared_profile_dma/component_profile.json"
+}

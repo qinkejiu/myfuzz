@@ -1,0 +1,15 @@
+{
+  "name": "cv32e20-zipdma-profile-only-i2c",
+  "cpu_request": "configs/scenarios/compiled-f1-f6-cv32e20-gpio-dma-shared/requests/cpu.json",
+  "dma_request": "configs/scenarios/compiled-f1-f6-ibex-gpio-zipdma-shared/requests/dma.json",
+  "dma_capability": "configs/scenarios/compiled-f1-f6-ibex-gpio-zipdma-shared/dma.test_capability.json",
+  "target": {
+    "request": "configs/peripherals/profile_only_i2c/shared_target_request.json",
+    "capability": "configs/peripherals/profile_only_i2c/test_capability.json",
+    "base": 1073754112,
+    "write_values": [
+      85,
+      170
+    ]
+  }
+}

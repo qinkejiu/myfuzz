@@ -1,9 +1,11 @@
 """Host-to-runner STEP retransmission returns the complete original receipt."""
 
 import unittest
+from unittest.mock import patch
+from copy import deepcopy
 
 from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
-from myfuzz.scenario.runner import ScenarioRunner
+from myfuzz.scenario.runner import ScenarioRunner, StepReceipt
 
 
 class CountingSession:
@@ -87,6 +89,24 @@ class StepCommandReceiptTests(unittest.TestCase):
         self.assertEqual(1, self.runner.step("cpu")["count"])
         receipt = self.command(1, 0, {})
         self.assertEqual(1, receipt.outputs["count"])
+        self.assertEqual(1, self.session.local_ticks)
+
+    def test_scheduler_does_not_copy_unused_receipt_and_keeps_outputs_detached(self):
+        copies = []
+
+        def tracked_copy(value):
+            if isinstance(value, StepReceipt):
+                copies.append(value)
+            return deepcopy(value)
+
+        with patch('myfuzz.scenario.runner.deepcopy', side_effect=tracked_copy):
+            outputs = self.runner.step('cpu')
+        self.assertEqual([], copies)
+        outputs['count'] = 99
+        receipt = self.command(1, 0, {})
+        self.assertEqual(1, receipt.outputs['count'])
+        receipt.events[0]['outputs']['count'] = 99
+        self.assertEqual(1, self.command(1, 0, {}).events[0]['outputs']['count'])
         self.assertEqual(1, self.session.local_ticks)
 
     def test_public_event_snapshot_cannot_rewrite_authoritative_trace(self):

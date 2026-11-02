@@ -41,6 +41,8 @@ import json
 import re
 import shutil
 from collections.abc import Mapping, Sequence
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field, fields as dataclass_fields, is_dataclass, replace
 from os import PathLike
 from pathlib import Path
@@ -1588,6 +1590,15 @@ class PhysicalFacts:
     #: the elaboration did not publish the options and a generated filelist
     #: build must fail closed.
     include_roots: tuple[str, ...] | None = None
+    #: Which code path produced these facts: ``"frontend"`` for a Verilator JSON
+    #: walk, ``"stored-port-evidence"`` for the authenticated artifact reuse in
+    #: :mod:`myfuzz.composition.stored_elaboration`.  The two are not
+    #: interchangeable as evidence, so every document that carries port facts
+    #: can say which one it is.
+    evidence_source: str = "frontend"
+    #: SHA-256 of the stored port artifact when ``evidence_source`` is
+    #: ``"stored-port-evidence"``; empty for a frontend elaboration.
+    evidence_sha256: str = ""
 
     def port(self, name: str) -> ElaboratedPortFact | None:
         for item in self.ports:
@@ -1747,7 +1758,7 @@ def supervisor_available() -> tuple[bool, str]:
 
 def _direct_pinned_closure_hash(root: Path, contents: dict[str, bytes],
                                 include_roots: tuple[str, ...], read,
-                                revision: str) -> str:
+                                revision: str, *, closure=()) -> str:
     """Reconcile direct elaboration with a pin covering full include roots.
 
     Most profiles pin their explicit source list. Some generated local target
@@ -1758,6 +1769,15 @@ def _direct_pinned_closure_hash(root: Path, contents: dict[str, bytes],
     from myfuzz.composition.source_crawler import _content_hash
 
     content_hash = _content_hash(contents)
+    if revision.startswith('sha256:') and revision != content_hash and closure:
+        explicit_contents = dict(contents)
+        for path in closure:
+            read(path)
+        content_hash = _content_hash(contents)
+        if revision == content_hash:
+            return content_hash
+        contents.clear()
+        contents.update(explicit_contents)
     if revision.startswith("sha256:") and revision != content_hash:
         for directory in include_roots:
             for path in sorted((root / directory).rglob("*")):
@@ -1786,6 +1806,7 @@ def _direct_elaboration(profile: ComponentProfile, *, base_dir: Path,
         _closure,
         _tool_source_allowlist,
         _validate_metadata_closure,
+        _elaboration_temporary_parent,
         extract_physical_ports,
     )
 
@@ -1808,7 +1829,7 @@ def _direct_elaboration(profile: ComponentProfile, *, base_dir: Path,
     if locator.elaboration is not None and filelist_defines:
         _error(f"elaboration-filelist-defines-unsupported:{profile.component_id}")
     content_hash = _direct_pinned_closure_hash(
-        root, contents, include_roots, read, locator.revision)
+        root, contents, include_roots, read, locator.revision, closure=initial_closure)
     if locator.revision.startswith("sha256:") and locator.revision != content_hash:
         _error(f"content-hash-mismatch:{profile.component_id}")
     if not files:
@@ -1826,7 +1847,7 @@ def _direct_elaboration(profile: ComponentProfile, *, base_dir: Path,
                for item in selected_top_ports) or len(set(selected_top_ports)) != len(selected_top_ports):
             _error("selected-top-ports-invalid")
         selected = tuple(sorted(selected_top_ports))
-    with tempfile.TemporaryDirectory(prefix=".myfuzz-elaboration-", dir=root) as temporary:
+    with tempfile.TemporaryDirectory(prefix="myfuzz-elaboration-", dir=_elaboration_temporary_parent(root)) as temporary:
         tree_path = Path(temporary) / "ports.tree.json"
         meta_path = Path(temporary) / "ports.meta.json"
         command = [
@@ -1926,7 +1947,7 @@ def elaborate_rtl_module(*, base_dir: Path, source_root: str, top_module: str,
     """
     import subprocess
     import tempfile
-    from myfuzz.composition.source_elaboration import ElaborationError, extract_physical_ports
+    from myfuzz.composition.source_elaboration import ElaborationError, extract_physical_ports, _elaboration_temporary_parent
 
     root = (Path(base_dir) / source_root).resolve()
     if not root.is_dir():
@@ -1956,7 +1977,7 @@ def elaborate_rtl_module(*, base_dir: Path, source_root: str, top_module: str,
     tool = shutil.which("verilator")
     if tool is None:
         _error(f"elaboration-tool-missing:{top_module}")
-    with tempfile.TemporaryDirectory(prefix=".myfuzz-elaboration-", dir=root) as temporary:
+    with tempfile.TemporaryDirectory(prefix="myfuzz-elaboration-", dir=_elaboration_temporary_parent(root)) as temporary:
         tree_path = Path(temporary) / "ports.tree.json"
         meta_path = Path(temporary) / "ports.meta.json"
         command = [
@@ -2021,6 +2042,412 @@ def elaborate_rtl_module(*, base_dir: Path, source_root: str, top_module: str,
     )
 
 
+# Pin one execution's frontend choice through body and exit revalidation.
+_ELABORATION_MODE = ContextVar('myfuzz_elaboration_mode', default=None)
+
+
+@contextmanager
+def elaboration_mode_scope(mode):
+    if mode not in (None, 'direct', 'supervised', 'stored'):
+        _error(f'invalid-elaboration-mode:{mode}')
+    token = _ELABORATION_MODE.set(mode)
+    try:
+        yield
+    finally:
+        _ELABORATION_MODE.reset(token)
+
+
+#: Declared closure (explicit list or pinned filelist expansion) per profile.
+#: The key holds the profile document digest and the filelist digest, so an
+#: edited profile or filelist cannot reuse a stale list.
+_CLOSURE_DECLARATIONS: dict[tuple, tuple[tuple[Path, ...], tuple[str, ...]]] = {}
+_CLOSURE_DECLARATIONS_LIMIT = 64
+
+#: Regular files under one include root, with the stat stamp of every directory
+#: the walk entered.  Re-validating those stamps is how an added, removed or
+#: renamed entry (which always changes its parent's mtime) is still seen while
+#: the walk itself is not repeated.
+_INCLUDE_LISTINGS: dict[str, tuple[tuple[tuple[str, tuple], ...], tuple[str, ...]]] = {}
+_INCLUDE_LISTINGS_LIMIT = 256
+
+
+def _directory_stamp(directory: Path) -> tuple:
+    info = directory.stat()
+    # ctime as well as mtime: an entry added and removed again, or a restored
+    # directory mtime, still changes the inode change time.
+    return (info.st_ctime_ns, info.st_mtime_ns, info.st_ino, info.st_dev)
+
+
+def _closure_declaration(profile, source_root: Path):
+    """The declared file list and include roots, cached by declaration bytes."""
+    from myfuzz.composition.source_crawler import _declared_files, _safe_child
+    from myfuzz.local_harness.execution_validation import file_digest
+
+    filelist = profile.source.filelist
+    marker = None
+    if isinstance(filelist, str) and filelist:
+        marker = file_digest(_safe_child(source_root, filelist))
+    key = (str(source_root), profile.profile_fingerprint, marker)
+    cached = _CLOSURE_DECLARATIONS.get(key)
+    if cached is not None:
+        return cached
+    files, include_roots, _defines = _declared_files(
+        source_root, profile.source, lambda path: path.read_bytes())
+    declaration = (tuple(files), tuple(include_roots))
+    if len(_CLOSURE_DECLARATIONS) >= _CLOSURE_DECLARATIONS_LIMIT:
+        _CLOSURE_DECLARATIONS.pop(next(iter(_CLOSURE_DECLARATIONS)))
+    _CLOSURE_DECLARATIONS[key] = declaration
+    return declaration
+
+
+def _include_root_files(directory: Path):
+    """Regular files below one include root, re-walking only when a dir changed."""
+    cached = _INCLUDE_LISTINGS.get(str(directory))
+    if cached is not None:
+        try:
+            if all(_directory_stamp(Path(path)) == stamp for path, stamp in cached[0]):
+                return cached[1]
+        except OSError:
+            return None
+    rows = []
+    names = []
+    pending = [directory]
+    while pending:
+        current = pending.pop()
+        try:
+            rows.append((str(current), _directory_stamp(current)))
+            entries = sorted(current.iterdir())
+        except OSError:
+            return None
+        for entry in entries:
+            if entry.is_symlink():
+                continue
+            if entry.is_dir():
+                pending.append(entry)
+            elif entry.is_file():
+                names.append(entry.relative_to(directory).as_posix())
+    listing = (tuple(sorted(rows)), tuple(sorted(names)))
+    if len(_INCLUDE_LISTINGS) >= _INCLUDE_LISTINGS_LIMIT:
+        _INCLUDE_LISTINGS.pop(next(iter(_INCLUDE_LISTINGS)))
+    _INCLUDE_LISTINGS[str(directory)] = listing
+    return listing[1]
+
+
+def source_closure_rows(profile: ComponentProfile, *, base_dir: Path,
+                        fresh: bool = False) -> tuple[tuple[str, str], ...] | None:
+    """``(path, sha256)`` for every source byte this profile's closure declares.
+
+    These are the exact rows an elaboration or a source-lock verification can
+    re-read later: the explicit source list (or a pinned filelist expansion) and
+    every regular file under the declared include roots.  ``fresh`` re-reads
+    every byte; the default re-reads only files whose stat stamp changed.
+    ``None`` means the closure could not be observed.
+    """
+    from myfuzz.composition.source_crawler import SourceCrawlError, _safe_child
+    from myfuzz.local_harness.execution_validation import file_digest, file_digest_now
+
+    observe = file_digest_now if fresh else file_digest
+    try:
+        root = Path(base_dir).resolve()
+        source_root = _safe_child(root, profile.source.source_root)
+        files, include_roots = _closure_declaration(profile, source_root)
+        rows = []
+        for path in files:
+            digest = observe(path)
+            if digest is None:
+                return None
+            rows.append((str(path), digest))
+        for relative in include_roots:
+            directory = _safe_child(source_root, relative)
+            names = _include_root_files(directory)
+            if names is None:
+                return None
+            for name in names:
+                digest = observe(directory / name)
+                if digest is None:
+                    return None
+                rows.append((str(directory / name), digest))
+    except (SourceCrawlError, OSError, ValueError):
+        return None
+    return tuple(sorted(set(rows)))
+
+
+def source_closure_identity(profile: ComponentProfile, *, base_dir: Path) -> str | None:
+    """Content identity of exactly the source bytes this profile declares.
+
+    The identity covers the explicit source list (or a pinned filelist's
+    expansion) *and* every regular file under the declared include roots: the
+    same bytes ``SourceCrawler``/``_direct_elaboration`` are prepared to read,
+    so a change inside an include root is seen even when the pinned revision
+    only covers the explicit list.  Every byte is digested (re-read only when
+    its stat stamp changed) and every include-root directory stamp is checked,
+    so a second observation of an unchanged closure is cheap while an edited,
+    added or removed source byte is still seen.
+
+    ``None`` means the closure could not be observed (unresolvable root,
+    unreadable filelist); a caller must then treat the identity as unknown and
+    keep recomputing rather than assume equality.
+    """
+    from myfuzz.local_harness.execution_validation import identity_of
+
+    rows = source_closure_rows(profile, base_dir=base_dir)
+    if rows is None:
+        return None
+    return identity_of("component-profile-source-closure", profile.source.revision, rows)
+
+
+def _stored_evidence_identity(profile: ComponentProfile, *, base_dir: Path) -> str:
+    """Identity of the authenticated port evidence a ``stored`` path reads.
+
+    ``stored_elaboration`` reads ``source_manifest.json`` beside the pinned
+    source plus the ``physical_ports`` file it names.  Neither is part of the
+    source closure, so a reuse of stored facts has to observe them separately.
+    """
+    from myfuzz.composition.source_crawler import SourceCrawlError, _safe_child
+    from myfuzz.local_harness.execution_validation import file_digest, identity_of
+
+    try:
+        source_root = _safe_child(Path(base_dir).resolve(), profile.source.source_root)
+    except (SourceCrawlError, OSError, ValueError):
+        return "unresolved"
+    manifest_path = source_root / "source_manifest.json"
+    if manifest_path.is_symlink() or not manifest_path.is_file():
+        return "absent"
+    manifest_digest = file_digest(manifest_path)
+    if manifest_digest is None:
+        return "unreadable"
+    evidence_digest = "undeclared"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        declared = manifest.get("physical_ports") if isinstance(manifest, dict) else None
+        if isinstance(declared, str):
+            evidence_path = (source_root / declared).resolve()
+            if evidence_path.is_relative_to(source_root) and evidence_path.is_file():
+                evidence_digest = file_digest(evidence_path) or "unreadable"
+            else:
+                evidence_digest = "missing"
+    except (OSError, ValueError):
+        evidence_digest = "unreadable"
+    return identity_of("stored-elaboration-evidence", manifest_digest, evidence_digest)
+
+
+#: The profile file each accepted fingerprint was loaded from.  A reused
+#: static result must also observe the *file* a gate re-reads, not only the
+#: object loaded from it, so the path is remembered when a caller has one.
+_PROFILE_SOURCES: dict[str, str] = {}
+_PROFILE_SOURCES_LIMIT = 64
+
+#: One parse per lock-document digest, so looking up the elaboration evidence
+#: one profile's gate reads costs a digest rather than a re-parse.
+_LOCK_RECORDS: dict[str, tuple[str, dict]] = {}
+_LOCK_RECORDS_LIMIT = 16
+
+#: Local profile id -> central ``sources.lock.json`` record id, where the local
+#: profile is a declared delta over a central record.
+_LOCK_RECORD_IDS = {
+    "opentitan_gpio_local": "opentitan_gpio",
+    "opentitan_rv_timer_local": "opentitan_rv_timer",
+    "opentitan_sysrst_ctrl_local": "opentitan_sysrst_ctrl",
+    "opentitan_spi_host_local": "opentitan_spi_host",
+    "opentitan_uart_local": "opentitan_uart",
+    "opentitan_i2c_local": "opentitan_i2c",
+    "opentitan_spi_device_local": "opentitan_spi_device",
+}
+
+
+def remember_profile_source(profile: ComponentProfile, path) -> None:
+    """Remember which profile file an accepted fingerprint was loaded from."""
+    fingerprint = getattr(profile, "profile_fingerprint", None)
+    if not isinstance(fingerprint, str):
+        return
+    if len(_PROFILE_SOURCES) >= _PROFILE_SOURCES_LIMIT:
+        _PROFILE_SOURCES.pop(next(iter(_PROFILE_SOURCES)))
+    _PROFILE_SOURCES[fingerprint] = str(Path(path))
+    register_source_lock_identity()
+
+
+def profile_source_path(profile: ComponentProfile) -> str | None:
+    """The profile file this exact profile object was loaded from, if known."""
+    return _PROFILE_SOURCES.get(getattr(profile, "profile_fingerprint", ""))
+
+
+def _lock_component_record(root: Path, component_id: str):
+    """The lock record one profile's gate reads, parsed once per lock bytes."""
+    from myfuzz.local_harness.execution_validation import file_digest
+
+    path = root / "configs/soc/sources.lock.json"
+    digest = file_digest(path)
+    if digest is None:
+        return None
+    cached = _LOCK_RECORDS.get(str(path))
+    if cached is not None and cached[0] == digest:
+        return cached[1].get(component_id)
+    try:
+        document = json.loads(path.read_bytes())
+        records = {record["id"]: record for record in document["components"]
+                   if isinstance(record, dict) and isinstance(record.get("id"), str)}
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    if len(_LOCK_RECORDS) >= _LOCK_RECORDS_LIMIT:
+        _LOCK_RECORDS.pop(next(iter(_LOCK_RECORDS)))
+    _LOCK_RECORDS[str(path)] = (digest, records)
+    return records.get(component_id)
+
+
+def source_lock_input_rows(profile: ComponentProfile, *, base_dir: Path,
+                           allow_source_only: bool = False,
+                           profile_path=None, fresh: bool = False):
+    """``(path, sha256)`` rows one pinned-source verification reads.
+
+    The declared source closure, the profile file, the lock document, the
+    verifier that applies it, the elaboration evidence the record names and the
+    component-specific profile a selected contract re-verifies.  ``None`` means
+    a row could not be observed, which is never treated as unchanged.
+    """
+    from myfuzz.local_harness.execution_validation import file_digest, file_digest_now
+
+    observe = file_digest_now if fresh else file_digest
+    try:
+        root = Path(base_dir).resolve()
+        rows = list(source_closure_rows(profile, base_dir=root, fresh=fresh) or ())
+        if not rows:
+            return None
+        path = profile_path if profile_path is not None else profile_source_path(profile)
+        if path is None:
+            return None
+        profile_digest = observe(path)
+        if profile_digest is None:
+            return None
+        rows.append((str(path), profile_digest))
+        lock = root / "configs/soc/sources.lock.json"
+        if lock.is_file():
+            digest = observe(lock)
+            if digest is None:
+                return None
+            rows.append((str(lock), digest))
+        verifier = Path(__file__).resolve().parents[3] / "scripts/verify_soc_sources.py"
+        if verifier.is_file():
+            digest = observe(verifier)
+            if digest is None:
+                return None
+            rows.append((str(verifier), digest))
+        record = _lock_component_record(root, _LOCK_RECORD_IDS.get(
+            profile.component_id, profile.component_id))
+        if isinstance(record, dict):
+            elapsed = record.get("elaboration")
+            evidence = elapsed.get("evidence") if isinstance(elapsed, dict) else None
+            if isinstance(evidence, str):
+                observed = (root / evidence).resolve()
+                if observed.is_relative_to(root) and observed.is_file():
+                    digest = observe(observed)
+                    if digest is None:
+                        return None
+                    rows.append((str(observed), digest))
+        if profile.component_id == "zipdma_selected_wishbone":
+            selected = root / "configs/peripherals/zipdma_smoke/profile.json"
+            if selected.is_file():
+                digest = observe(selected)
+                if digest is None:
+                    return None
+                rows.append((str(selected), digest))
+    except (OSError, ValueError, TypeError):
+        return None
+    return tuple(sorted(set(rows)))
+
+
+def source_lock_input_identity(profile: ComponentProfile, *, base_dir: Path,
+                               allow_source_only: bool = False,
+                               profile_path=None) -> str | None:
+    """Content identity of everything one pinned-source verification reads.
+
+    The lock document, the verifier that applies it, the elaboration evidence
+    the record names, the profile file and every declared source byte.  A gate
+    that accepted these bytes may be reused while they are unchanged; an edited
+    profile file, lock, evidence file or source byte produces a different
+    identity and verifies again.
+
+    ``None`` means an input could not be observed, which is never treated as
+    unchanged.
+    """
+    from myfuzz.local_harness.execution_validation import identity_of
+
+    rows = source_lock_input_rows(profile, base_dir=base_dir,
+                                  allow_source_only=allow_source_only,
+                                  profile_path=profile_path)
+    if rows is None:
+        return None
+    return identity_of("component-profile-source-lock-inputs", str(Path(base_dir).resolve()),
+                       profile.profile_fingerprint, profile.source.revision,
+                       allow_source_only is True, rows)
+
+
+def _source_lock_key_identity(key):
+    """Identity for a raw ``local-source-lock`` key (validators we do not own)."""
+    if not isinstance(key, tuple) or len(key) != 4:
+        return None
+    _, fingerprint, root, allow_source_only = key
+    if type(allow_source_only) is not bool or not isinstance(fingerprint, str):
+        return None
+    path = _PROFILE_SOURCES.get(fingerprint)
+    if path is None:
+        return None
+    try:
+        profile = load_component_profile(json.loads(Path(path).read_bytes()))
+    except (OSError, ValueError):
+        return None
+    if profile.profile_fingerprint != fingerprint:
+        return None
+    return source_lock_input_identity(profile, base_dir=Path(root),
+                                      allow_source_only=allow_source_only,
+                                      profile_path=path)
+
+
+_SOURCE_LOCK_IDENTITY_REGISTERED = False
+
+
+def register_source_lock_identity() -> None:
+    """Let a reused exit boundary observe a raw source-lock gate's inputs.
+
+    ``source_lock.py`` registers ``('local-source-lock', fingerprint, root,
+    allow_source_only)``; the profile that fingerprint names is re-read from
+    the remembered profile file and its current inputs are digested, so a
+    caller that cannot pass an identity still gets the *same* observation
+    rather than a second full verification.
+    """
+    global _SOURCE_LOCK_IDENTITY_REGISTERED
+    if _SOURCE_LOCK_IDENTITY_REGISTERED:
+        return
+    from myfuzz.local_harness.execution_validation import register_key_identity
+    register_key_identity("local-source-lock", _source_lock_key_identity)
+    _SOURCE_LOCK_IDENTITY_REGISTERED = True
+
+
+def elaboration_input_identity(profile: ComponentProfile, *, base_dir: Path,
+                               selected_top_ports: tuple[str, ...] | None = None) -> str | None:
+    """Content identity of the inputs one elaboration of this profile reads.
+
+    Deliberately independent of the execution *mode* order: the profile bytes
+    (``profile_fingerprint``), the pinned revision, the resolved base
+    directory, the bounded port selection, the source closure bytes and the
+    stored port evidence.  Nothing call-order or timestamp shaped is part of
+    it, so two callers that read the same bytes share one result and a caller
+    that reads different bytes never does.
+
+    ``None`` means the closure could not be observed and the caller must not
+    reuse a previous result.
+    """
+    from myfuzz.local_harness.execution_validation import identity_of
+
+    closure = source_closure_identity(profile, base_dir=base_dir)
+    if closure is None:
+        return None
+    return identity_of(
+        "component-profile-elaboration-inputs", str(Path(base_dir).resolve()),
+        profile.profile_fingerprint, profile.source.revision,
+        tuple(selected_top_ports) if selected_top_ports is not None else None,
+        closure, _stored_evidence_identity(profile, base_dir=base_dir))
+
+
 def elaborate_profile(profile: ComponentProfile, *, base_dir: Path,
                       selected_top_ports: tuple[str, ...] | None = None,
                       mode: str = "auto") -> PhysicalFacts:
@@ -2030,14 +2457,75 @@ def elaborate_profile(profile: ComponentProfile, *, base_dir: Path,
     campaign supervisor, ``direct`` uses the bounded one-shot fallback, and
     ``auto`` prefers the supervisor and falls back only when the host provably
     cannot own a process group.
+
+    ``stored`` (and ``auto``) first consults
+    :mod:`myfuzz.composition.stored_elaboration`: a component that publishes
+    authenticated port evidence next to its pinned source does not need a
+    frontend walk at all.  ``supervised`` and ``direct`` never read that
+    evidence, so a caller that wants the frontend still gets it by name.
+
+    One identity, one frontend walk: :func:`elaboration_input_identity` covers
+    every byte the walk reads, so the same profile/revision/closure elaborated
+    by planning, by the runtime admission, by the builder and by the exit
+    re-authentication costs one walk per process, and a changed byte costs a
+    new one.  The identity is observed on every reuse, never cached by call
+    order.
     """
-    if mode not in ("auto", "supervised", "direct"):
+    if mode not in ("auto", "supervised", "direct", "stored"):
         _error(f"invalid-elaboration-mode:{mode}")
-    available, reason = supervisor_available()
-    if mode == "supervised" and not available:
-        _error(f"elaboration-supervisor-unavailable:{profile.component_id}:{reason}")
+    if mode == "auto" and _ELABORATION_MODE.get() is not None:
+        mode = _ELABORATION_MODE.get()
+    from myfuzz.local_harness.execution_validation import (
+        identity_memo, static_validation,
+    )
+
+    register_source_lock_identity()
+    root = Path(base_dir).resolve()
+    selection = tuple(selected_top_ports) if selected_top_ports is not None else None
+    key = ('component-profile-elaboration', profile.profile_fingerprint, str(root),
+           selection, mode)
+
+    def observe():
+        return elaboration_input_identity(profile, base_dir=root,
+                                          selected_top_ports=selection)
+
+    def validate():
+        return identity_memo(
+            ('component-profile-elaboration', str(root), selection, mode), observe(),
+            lambda: _elaborate_profile(profile, base_dir=root,
+                                       selected_top_ports=selected_top_ports, mode=mode))
+
+    return static_validation(key, validate, identity=observe)
+
+
+def _elaborate_profile(profile: ComponentProfile, *, base_dir: Path,
+                       selected_top_ports: tuple[str, ...] | None,
+                       mode: str) -> PhysicalFacts:
+    # This callback always executes cold at an accepting validation boundary.
     selection = _top_port_selection(_document(profile.source_document)) \
         if getattr(profile, "source_document", None) is not None else "all"
+    if mode in ("auto", "stored") and selected_top_ports is None and isinstance(profile, ComponentProfile):
+        from myfuzz.composition.stored_elaboration import (
+            StoredElaborationError, stored_elaboration_facts,
+        )
+        try:
+            stored = stored_elaboration_facts(profile, base_dir=Path(base_dir))
+        except StoredElaborationError as error:
+            raise ComponentProfileError(
+                f"elaboration-evidence-error:{profile.component_id}:{error}") from error
+        if stored is not None:
+            # Stored evidence is the *complete* ANSI port list of the top (the
+            # text re-read refuses any port it cannot represent), so it is never
+            # a bounded selection.  It also always covers every declared port,
+            # which a ``declared`` selection exists to work around.
+            return stored
+        if mode == "stored" and selected_top_ports is None:
+            # Naming the mode means naming the evidence: silently falling back
+            # to a frontend walk would hide that the component publishes none.
+            _error(f"stored-evidence-not-declared:{profile.component_id}")
+    available, reason = (False, "") if mode == "direct" else supervisor_available()
+    if mode == "supervised" and not available:
+        _error(f"elaboration-supervisor-unavailable:{profile.component_id}:{reason}")
     if selection == "declared" and selected_top_ports is None:
         selected_top_ports = _declared_top_ports(profile)
     if mode == "direct" or (mode == "auto" and not available):
@@ -2338,3 +2826,5 @@ __all__ = [
     "load_profiles",
     "profile_pin",
 ]
+
+

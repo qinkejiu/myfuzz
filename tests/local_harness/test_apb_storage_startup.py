@@ -55,7 +55,7 @@ def test_buffer_bound_rejects_excessive_snapshots():
         snapshot_max={'wide':'f'*100000},source_contract_digest=c['source_contract_digest'],probe_digest=c['probe_digest'],reset_mapping=c['reset_mapping'])
 
 from tests.local_harness.test_generic_apb_identity import generated
-from tests.local_harness.test_apb_storage_probe_generation import selected,ROOT,SELECTOR
+from tests.local_harness.test_apb_storage_probe_generation import selected,ROOT,SELECTOR,stable_driver_cpp
 
 
 def selected_startup(generated):
@@ -93,7 +93,7 @@ def test_default_cpp_bytes_unchanged_and_no_selector_key(generated):
     from myfuzz.local_harness import runtime_renderer,render_local_harness
     item=generated[0]
     base=runtime_renderer.render_local_runtime(item.plan,render_local_harness(item.plan),item.source_verification,base_dir=ROOT)
-    assert old.render_local_driver(base,base_dir=ROOT).cpp_text==render_local_driver(base,base_dir=ROOT).cpp_text
+    assert stable_driver_cpp(old.render_local_driver(base,base_dir=ROOT).cpp_text)==stable_driver_cpp(render_local_driver(base,base_dir=ROOT).cpp_text)
     assert 'apb_storage_startup' not in base.plan.request.tuning.document()
 
 
@@ -191,7 +191,7 @@ def test_storage_probe_without_startup_keeps_old_cpp(generated):
     if generated[0].plan.profile.source.top_module!='apb_timer':pytest.skip('registered timer only')
     base=selected(generated);old=types.ModuleType('myfuzz.local_harness._before_a2_storage');old.__file__=str(ROOT/'src/myfuzz/local_harness/driver_renderer.py')
     exec((ROOT/'.superpowers/apb-storage-startup-a2/driver_renderer.before.py').read_text(),old.__dict__)
-    assert old.render_local_driver(base,base_dir=ROOT).cpp_text==render_local_driver(base,base_dir=ROOT).cpp_text
+    assert stable_driver_cpp(old.render_local_driver(base,base_dir=ROOT).cpp_text)==stable_driver_cpp(render_local_driver(base,base_dir=ROOT).cpp_text)
 
 
 def test_selector_closed_roundtrip_and_duplicates():

@@ -111,6 +111,7 @@
         {
           "role": "in",
           "direction": "input",
+          "width": 32,
           "aliases": [
             "gpio_in"
           ]
@@ -142,6 +143,18 @@
           "aliases": [
             "gpio_in_sync"
           ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "function": "interrupt_source",
+      "fields": [
+        {
+          "role": "irq",
+          "direction": "output",
+          "width": 1,
+          "aliases": ["interrupt"]
         }
       ]
     }
@@ -261,18 +274,26 @@
       }
     ]
   },
-  "interrupts": [],
+  "interrupts": [
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "source_id": "interrupt",
+      "bit": 0,
+      "polarity": "active_high",
+      "trigger": "pulse",
+      "pulse_width_cycles": 1,
+      "clock_domain": "core",
+      "hold": "An enabled synchronized GPIO transition produces a native one-clock pulse; consecutive transitions can extend the aggregate output.",
+      "clear": "The transition pulse ends when the synchronized sampled value catches up; reading INTSTATUS clears the separately held status."
+    }
+  ],
   "port_actions": [
     {
       "port": "dft_cg_enable_i",
       "action": "constant",
       "value": 0,
       "reason": "DFT disabled in this functional scenario. At the pinned revision this input is declared but unused; sampling enables are computed from r_gpio_en, not this input."
-    },
-    {
-      "port": "interrupt",
-      "action": "observe",
-      "reason": "Active-high s_rise_int pulse from synchronized GPIO transitions. This is not the held r_status bitmap; observe without pulse-to-level conversion."
     }
   ],
   "evidence": {

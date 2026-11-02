@@ -1,0 +1,24 @@
+{
+  "name": "cv32e20-zipdma-i2c-timer-f5",
+  "target": {
+    "base": 1073754112,
+    "write_values": [
+      85,
+      170
+    ],
+    "profile": "configs/peripherals/embedded_profile_target/component_profile.json"
+  },
+  "cpu_profile": "configs/cpus/shared_profile_cpu/component_profile.json",
+  "dma_profile": "configs/peripherals/embedded_profile_dma/component_profile.json",
+  "declared_irq_behavior": "configs/peripherals/pulp_timer/irq_behavior.json",
+  "declared_irq_base": 1073758208,
+  "declared_irq_capability": "configs/peripherals/pulp_timer_irq/test_capability.json",
+  "declared_irq_prepare_only": {
+    "phase_address": 159744,
+    "scratch_address": 159808,
+    "result_address": 159872,
+    "dma_handler_address": 66208,
+    "target_handler_address": 66816,
+    "group_id": "shared-external"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": "generic_scenario_descriptor.v1",
+  "scenario_id": "wishbone-uart",
+  "root": "configs/scenarios/compiled-f4-obi-wb-uart-setup",
+  "compose": "compose.json",
+  "supplement": "execution_supplement.json",
+  "capability": "test_capability.json",
+  "flow_ids": ["F4"],
+  "executors": {
+    "F4": "compiled_f4_wishbone"
+  },
+  "f4_records": ["55000000", "2a000000", "78563412"],
+  "f2_records": null,
+  "rounds": 128
+}

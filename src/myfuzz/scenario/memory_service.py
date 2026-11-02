@@ -119,10 +119,13 @@ class MemoryService:
              width_bytes: int) -> ReadSnapshot:
         payload = {"op": "read", "address": address, "width_bytes": width_bytes}
         had_armed_read = _HAS_ARMED_ISSUED_READ(self)
+        f6_token = _f6_dma_read_arm(self, key)
         try:
             self.memory.validate_read(address, width_bytes)
             native_armed = _IS_ARMED_ISSUED_READ(self, key)
         except BaseException:
+            if f6_token is not None:
+                _revoke_f6_dma_read(self)
             if had_armed_read:
                 _REVOKE_ISSUED_READ(self)
             raise
@@ -131,9 +134,9 @@ class MemoryService:
 
         def commit() -> ReadSnapshot:
             nonlocal committed_snapshot, committed_event
-            if native_armed:
+            if native_armed or f6_token is not None:
                 snapshot = _READ_ACTUAL_SNAPSHOT(self.memory, address, width_bytes,
-                                                 transaction_id=str(key), issuer=self)
+                    transaction_id=str(key), issuer=f6_token if f6_token is not None else self)
             else:
                 snapshot = self.memory.read(address, width_bytes,
                                             transaction_id=str(key))
@@ -165,6 +168,8 @@ class MemoryService:
 
         try:
             result = self.ledger.execute_once(key, payload, commit)
+            if f6_token is not None:
+                _register_f6_dma_read(self, key, result, committed_event, payload)
             if native_armed:
                 if committed_snapshot is None:
                     raise ValueError('armed native read was replayed without a callback')
@@ -172,6 +177,8 @@ class MemoryService:
                                       committed_event, payload)
             return result
         except BaseException:
+            if f6_token is not None:
+                _revoke_f6_dma_read(self)
             if native_armed:
                 _REVOKE_ISSUED_READ(self)
             raise
@@ -429,3 +436,209 @@ def _issued_read_registry():
  _REVOKE_ISSUED_READ,
  _REGISTER_ISSUED_READ, _LOOKUP_ISSUED_READ,
  _VALIDATE_ISSUED_READ) = _issued_read_registry()
+
+
+class _F6ReadToken:
+    """Weak-referenceable per-read issuer; separate from CPU instruction issuer."""
+
+
+def _f6_dma_read_registry():
+    from weakref import WeakKeyDictionary
+    owners=WeakKeyDictionary()
+    original=None
+    read=MemoryService.read;read_code=read.__code__
+    ledger_execute=TransactionLedger.execute_once;ledger_code=ledger_execute.__code__
+
+    def seal(cls):
+        nonlocal original
+        if original is not None:raise ValueError('F6 DMA read provider already sealed')
+        original=cls,cls.step_local,cls.step_local.__code__
+
+    def typed(key):
+        from .f6_ram_dma_policy import _key
+        return _key(key)
+
+    def original_service(service):
+        if (type(service) is not MemoryService or MemoryService.read is not read
+                or read.__code__ is not read_code or 'read' in vars(service)
+                or type(service.ledger) is not TransactionLedger
+                or TransactionLedger.execute_once is not ledger_execute
+                or ledger_execute.__code__ is not ledger_code
+                or 'execute_once' in vars(service.ledger)):
+            raise ValueError('F6 read requires original service and ledger methods')
+
+    def native_receipt(receipt,session):
+        from myfuzz.local_harness.wire import DriverReceipt
+        if (type(receipt) is not DriverReceipt or receipt.status!='result'
+                or type(receipt.execution) is not str or receipt.execution!=session._execution
+                or any(type(getattr(receipt,n)) is not int for n in ('sequence','tick_before','tick_after','new_ticks'))
+                or not 0<receipt.sequence<2**64 or receipt.new_ticks!=1
+                or not 0<=receipt.tick_before<receipt.tick_after<2**64
+                or receipt.tick_after!=receipt.tick_before+1):
+            raise ValueError('F6 read requires an actual complete typed native receipt')
+
+    def check_session(session):
+        from myfuzz.local_harness.wishbone_dma_session import (
+            _f6_dma_session_instance_data_is_canonical,
+            _f6_dma_session_type_allowlist)
+        try:
+            allowed = _f6_dma_session_type_allowlist()
+        except (AttributeError, ImportError, TypeError, ValueError) as error:
+            raise ValueError('F6 read requires original native DMA producer') from error
+        base_session = allowed[0]
+        if (not _f6_dma_session_instance_data_is_canonical(session)
+                or original is None or original[0] is not base_session
+                or type(session) not in allowed
+                or base_session.step_local is not original[1]
+                or original[1].__code__ is not original[2]
+                or 'step_local' in vars(session)):
+            raise ValueError('F6 read requires original native DMA producer')
+        if type(session) is allowed[1]:
+            # The scheduler class intentionally wraps one base native step.
+            # Its class method and code are pinned by the shared exact class
+            # allowlist; step_frame below still proves this receipt originated
+            # inside the sealed base step_local implementation.
+            return
+        if type(session).step_local is not original[1]:
+            raise ValueError('F6 read requires original native DMA producer')
+
+    def step_frame(session,frame):
+        check_session(session)
+        if (frame.f_code is not original[2]
+                or frame.f_globals is not original[1].__globals__
+                or frame.f_locals.get('self') is not session):
+            raise ValueError('F6 read requires actual native accepted-read/response callback')
+
+    def arm(session,key):
+        from .dma_route_admission import DmaMasterRouteAdmission
+        from .f6_ram_dma_policy import F6RamDmaPolicy
+        admission=session._dma_route_admission
+        if (type(admission) is not DmaMasterRouteAdmission
+                or type(admission._beat_policy) is not F6RamDmaPolicy):
+            return False
+        frame=sys._getframe(1);step_frame(session,frame);typed(key)
+        original_service(session.memory_service)
+        local=frame.f_locals;pre=local.get('pre',{})
+        native_receipt(local.get('receipt'),session)
+        if _HAS_ARMED_ISSUED_READ(session.memory_service):
+            raise ValueError('F6 DMA service must not share an armed instruction issuer')
+        if (local.get('key') is not key or local.get('admission') is not admission
+                or local.get('target') is not None or local.get('invalid') is not False
+                or local.get('selected_fault') is not False or pre.get('mwb_we') != 0
+                or pre.get('mwb_cyc') != 1 or pre.get('mwb_stb') != 1
+                or any(type(pre.get(n)) is not int or pre[n]!=0
+                       for n in ('mwb_stall','mwb_ack','mwb_err'))
+                or local.get('stall') != 0 or session._pending is not None
+                or key.channel_id != 'dma-memory'
+                or (key.execution_id,key.testcase_id,key.source_component,key.source_epoch,key.source_sequence)
+                != (session._execution,session._case_id,session.source_component,session.reset_epoch,session._source_sequence)
+                or not any(r['transaction']==asdict(key) for r in admission.route_matches)):
+            raise ValueError('F6 read is not an admitted normal native RAM read')
+        service=session.memory_service
+        state=owners.setdefault(service,dict(session=ref(session),memory=service.memory,
+            ledger=service.ledger,rows={},armed=None))
+        if (state['session']() is not session or state['memory'] is not service.memory
+                or state['ledger'] is not service.ledger or state['armed'] is not None
+                or key in state['rows'] or len(state['rows'])>=64):
+            raise ValueError('F6 read issuance owner/replay/capacity conflict')
+        state['armed']=(key,_F6ReadToken(),local['address'],local['receipt'])
+        return True
+
+    def armed(service,key):
+        state=owners.get(service)
+        if state is None or state['armed'] is None:return None
+        original_service(service);typed(key)
+        if state['armed'][0] is not key:raise ValueError('F6 read differs from armed key')
+        return state['armed'][1]
+
+    def revoke(service):
+        state=owners.get(service)
+        if state is not None:state['armed']=None
+
+    def register(service,key,snapshot,event,payload):
+        frame=sys._getframe(1);original_service(service);typed(key)
+        state=owners.get(service);arm=state['armed'] if state is not None else None
+        if arm is None or arm[0] is not key:raise ValueError('F6 read has no native arm')
+        _VALIDATE_ACTUAL_SNAPSHOT(service.memory,arm[1],snapshot)
+        entry=service.ledger._entries.get(key)
+        if (frame.f_code is not read_code or frame.f_globals is not globals()
+                or frame.f_locals.get('self') is not service
+                or frame.f_locals.get('committed_snapshot') is not snapshot
+                or frame.f_locals.get('committed_event') is not event
+                or type(snapshot) is not ReadSnapshot or snapshot.transaction_id != str(key)
+                or payload != dict(op='read',address=arm[2],width_bytes=4)
+                or entry is None or entry.status != 'complete' or entry.receipt is not snapshot
+                or entry.payload_digest != TransactionLedger._digest(payload)
+                or not service.events or service.events[-1] is not event):
+            raise ValueError('F6 read requires original completed service callback')
+        state['rows'][key]=dict(key=key,snapshot=snapshot,handle=object(),token=arm[1],entry=entry,
+            snapshot_pin=repr(asdict(snapshot)),event=event,
+            event_pin=json.dumps(event,sort_keys=True,allow_nan=False),
+            scope=(key.execution_id,key.testcase_id,key.source_component,key.source_epoch),
+            acceptance=(arm[3],json.dumps(asdict(arm[3]),sort_keys=True,allow_nan=False)),response=None)
+        state['armed']=None
+
+    def complete(session,pending,receipt):
+        from .dma_route_admission import DmaMasterRouteAdmission
+        from .f6_ram_dma_policy import F6RamDmaPolicy
+        admission=session._dma_route_admission
+        if type(admission) is not DmaMasterRouteAdmission or type(admission._beat_policy) is not F6RamDmaPolicy:return
+        step_frame(session,sys._getframe(1))
+        state=owners.get(session.memory_service)
+        if state is None:return
+        transaction=pending.get('transaction')
+        matches=[row for row in state['rows'].values() if asdict(row['key'])==transaction]
+        if not matches:return  # writes and sealed ERR never issued a read
+        row,=matches
+        native_receipt(receipt,session)
+        pre=receipt.payload.get('pre_backend',{})
+        if (type(pre.get('mwb_cyc')) is not int or pre['mwb_cyc']!=1
+                or type(pre.get('mwb_ack')) is not int or pre['mwb_ack']!=1
+                or type(pre.get('mwb_err')) is not int or pre['mwb_err']!=0
+                or type(pre.get('mwb_stall')) is not int or pre['mwb_stall']!=1
+                or pre.get('mwb_dat_r')!=row['snapshot'].value):
+            raise ValueError('F6 native read response requires actual PRE CYC and ACK')
+        if (row['response'] is not None or session._pending is not pending
+                or sys._getframe(1).f_locals.get('deliver') is not True
+                or receipt.status != 'result' or receipt.new_ticks != 1
+                or receipt.execution != row['key'].execution_id
+                or row['scope']!=(session._execution,session._case_id,session.source_component,session.reset_epoch)
+                or receipt.sequence<=row['acceptance'][0].sequence
+                or receipt.tick_after<=row['acceptance'][0].tick_after
+                or type(pending.get('error')) is not int or pending['error']!=0
+                or type(pending.get('rdata')) is not int or pending['rdata']!=row['snapshot'].value):
+            raise ValueError('F6 native read response is duplicate or contradictory')
+        row['response']=(receipt,json.dumps(pending,sort_keys=True,allow_nan=False),
+                         json.dumps(asdict(receipt),sort_keys=True,allow_nan=False))
+
+    def validate(session,service,key,snapshot,handle):
+        check_session(session);original_service(service);typed(key)
+        state=owners.get(service);row=state['rows'].get(key) if state is not None else None
+        if (row is None or state['session']() is not session or session.memory_service is not service
+                or state['memory'] is not service.memory or state['ledger'] is not service.ledger
+                or row['key'] is not key or row['snapshot'] is not snapshot or row['handle'] is not handle
+                or repr(asdict(snapshot)) != row['snapshot_pin']
+                or snapshot.generation != service.memory.generation
+                or row['scope'] != (session._execution,session._case_id,session.source_component,session.reset_epoch)
+                or service.ledger._entries.get(key) is not row['entry']
+                or row['entry'].status != 'complete' or row['entry'].receipt is not snapshot
+                or json.dumps(row['event'],sort_keys=True,allow_nan=False) != row['event_pin']
+                or json.dumps(asdict(row['acceptance'][0]),sort_keys=True,allow_nan=False)!=row['acceptance'][1]
+                or row['response'] is None
+                or json.dumps(asdict(row['response'][0]),sort_keys=True,allow_nan=False)!=row['response'][2]):
+            raise ValueError('F6 read is not an unchanged issued native result and response')
+        return json.loads(row['event_pin'])
+
+    def results(session):
+        check_session(session)
+        state=owners.get(session.memory_service)
+        if state is None:return ()
+        if state['session']() is not session:raise ValueError('F6 read issuer owner mismatch')
+        return tuple((row['key'],row['snapshot'],row['handle']) for row in state['rows'].values())
+
+    return seal,arm,armed,revoke,register,complete,validate,results
+
+
+(_seal_f6_dma_read_provider,_arm_f6_dma_read,_f6_dma_read_arm,_revoke_f6_dma_read,
+ _register_f6_dma_read,_complete_f6_dma_read,_validate_f6_dma_read,
+ _f6_dma_read_results)=_f6_dma_read_registry()

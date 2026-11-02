@@ -1,0 +1,112 @@
+{
+  "cpu": {
+    "data_endpoint": "processor.data",
+    "instance_id": "cpu",
+    "request": "../compiled-f6-ibex-wbdmac-storage/requests/cpu.json"
+  },
+  "devices": [
+    {
+      "base": 1073741824,
+      "bus_endpoint": "dma.control",
+      "device_id": "dma",
+      "instance_id": "dma",
+      "request": "requests/dma.json",
+      "size": 16,
+      "template": {
+        "template_id": "target.wishbone-pipelined",
+        "template_version": "1",
+        "variant_id": "dma-selected"
+      }
+    },
+    {
+      "base": 1073745920,
+      "bus_endpoint": "gpio.bus",
+      "device_id": "peripheral",
+      "instance_id": "peripheral",
+      "request": "../compiled-f4-obi-apb-ibex/requests/peripheral.json",
+      "size": 4096
+    }
+  ],
+  "dma_master_route_bindings": [
+    {
+      "initiator_template": {
+        "template_id": "master.wishbone-pipelined",
+        "template_version": "1",
+        "variant_id": "dma-selected"
+      },
+      "route_id": "base.read"
+    },
+    {
+      "initiator_template": {
+        "template_id": "master.wishbone-pipelined",
+        "template_version": "1",
+        "variant_id": "dma-selected"
+      },
+      "route_id": "base.write"
+    }
+  ],
+  "dma_master_routes": {
+    "routes": [
+      {
+        "accepted_write_values": {
+          "kind": "values",
+          "values": []
+        },
+        "base": 65536,
+        "byte_enable": 15,
+        "initiator_endpoint_id": "dma.memory",
+        "initiator_instance": "dma",
+        "operation": "read",
+        "permissions": [
+          "read"
+        ],
+        "readable_offsets": [],
+        "route_id": "base.read",
+        "size": 131072,
+        "target": {
+          "component_instance": "cpu",
+          "kind": "persistent_memory",
+          "resource_id": "shared_ram"
+        },
+        "writable_offsets": []
+      },
+      {
+        "accepted_write_values": {
+          "kind": "values",
+          "values": []
+        },
+        "base": 65536,
+        "byte_enable": 15,
+        "initiator_endpoint_id": "dma.memory",
+        "initiator_instance": "dma",
+        "operation": "write",
+        "permissions": [
+          "write"
+        ],
+        "readable_offsets": [],
+        "route_id": "base.write",
+        "size": 131072,
+        "target": {
+          "component_instance": "cpu",
+          "kind": "persistent_memory",
+          "resource_id": "shared_ram"
+        },
+        "writable_offsets": []
+      }
+    ],
+    "schema_version": "dma_master_route_intent.v1"
+  },
+  "memory": [
+    {
+      "base": 65536,
+      "component_instance": "cpu",
+      "execute": true,
+      "initialization_policy": "preload",
+      "read": true,
+      "resource_id": "shared_ram",
+      "size": 131072,
+      "write": true
+    }
+  ],
+  "schema_version": "harness_compose.v2"
+}

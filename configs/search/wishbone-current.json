@@ -1,0 +1,10 @@
+{
+  "schema_version": "dependency_search_scenario.v1",
+  "name": "wishbone-current-single-f4",
+  "backend": "descriptor",
+  "descriptor": "configs/scenarios/compiled-f4-obi-wb-uart-setup/generic_scenario.json",
+  "flow": "F4",
+  "records": ["F4:55000000", "F4:2a000000"],
+  "goal": {"id": "single-storage-current", "description": "Live current register state and same-case certified Wishbone F4 readback; no cross-testcase read-only consumer."},
+  "rounds": 128
+}

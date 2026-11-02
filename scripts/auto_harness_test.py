@@ -22,16 +22,19 @@ MMIO windows and memory regions, read from its wiring declaration) before
 anything is generated.  A mismatch is refused with a ``code`` and a JSON
 ``pointer``, never adapted.
 
-``--executor compiled-f4-rfuzz`` selects the code-owned compiled route instead
-of a family.  It is accepted only when exactly one executable D3 F4 target and
+``--executor compiled-f4-rfuzz`` or ``--executor compiled-f2-rfuzz`` selects the code-owned compiled route instead
+of a family.  It is accepted only for its selected executable D3 F2/F4 target and
 ``--client-binary`` are both named; it cannot be combined with ``--runtime`` and
 it never falls back to a family.  ``--rounds-per-case`` (default 128, 1..4096)
 bounds the compiled route's local advance rounds per candidate case; a
 non-default value is refused without a compiled executor.  That route writes
 the usual stages plus
-``compiled_f4_prefix.json``, ``compiled_f4_replay.json``,
+``compiled_f4_prefix.json``, ``compiled_f4_replay.json`` (F4),
+``compiled_f2_prefix.json``, ``compiled_f2_replay.json``,
+``compiled_f2_build_join.v1.json``, ``compiled_f2_receipt_join.v1.json`` (F2),
 ``compiled_receipt_join.v1.json`` and the same ``fresh-verification.json`` from
-``CompiledF4Runtime.replay`` on fresh native processes.
+the selected runtime replay on fresh native processes. F2 also writes
+``compiled_assertion_results.v1.json`` and ``compiled_assertion_evidence.v1.json``.
 
 Exit codes
 ----------
@@ -76,6 +79,7 @@ is never guessed - an unknown family id is refused with the known ids.
 from __future__ import annotations
 
 import argparse
+from contextlib import nullcontext
 import json
 from pathlib import Path
 import sys
@@ -85,6 +89,8 @@ sys.path.insert(0, str(ROOT / 'src'))
 
 from myfuzz.local_harness.auto_harness_test import (  # noqa: E402
     DEFAULT_CACHE_DIR, run_auto_harness_test)
+from myfuzz.local_harness.session import record_local_commands
+from myfuzz.runtime.recorded_commands import recorded_command_documents
 
 
 def configure_parser(parser: argparse.ArgumentParser) -> None:
@@ -107,11 +113,15 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
                              'composition is validated against it before generation')
     parser.add_argument('--executor', default=None,
                         help='a code-owned compiled executor instead of a runtime '
-                             'family (currently compiled-f4-rfuzz). It is selected '
-                             'only when exactly one executable compiled F4 target '
+                             'family (compiled-f4-rfuzz, compiled-f2-rfuzz or compiled-f6-rfuzz). It is selected '
+                             'only for its explicitly selected executable F2/F4 target '
                              'and --client-binary are both named; it never falls '
                              'back to a runtime family and cannot be combined with '
                              '--runtime')
+    parser.add_argument('--f6-deliveries', type=Path, default=None,
+                        help='explicit generic PathDelivery array for F6 IRQ wiring')
+    parser.add_argument('--f6-execution', type=Path, default=None,
+                        help='explicit closed Task1 F6 execution marker JSON')
     parser.add_argument('--client-binary', type=Path, default=None,
                         help='the RFuzz client binary used by an RFuzz live session; '
                              'a family whose own directed session assembly is '
@@ -132,6 +142,10 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
                              'its own 128 and refuses a non-default value')
     parser.add_argument('--max-runs-per-batch', type=int, default=1,
                         help='RFuzz runs per batch, 1..8')
+    parser.add_argument('--record-local-commands', action='store_true',
+                        help='record F4 original and fresh component commands for offline coverage')
+    parser.add_argument('--record-max-commands', type=int, default=4096,
+                        help='maximum captured commands per component execution')
     parser.add_argument('--skip-session', action='store_true',
                         help='explicitly request D1..D3 + the report only; a '
                              'named runtime family is still validated')
@@ -142,26 +156,55 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
 
 
 def run(args: argparse.Namespace) -> int:
-    summary = run_auto_harness_test(
-        cpu=args.cpu, ips=list(args.ip), compose=args.compose,
-        output=args.output, base_dir=args.base_dir.resolve(),
-        runtime=args.runtime, client_binary=args.client_binary,
-        cache_dir=args.cache_dir, build_cache=args.build_cache,
-        budget_seconds=args.budget_seconds, max_tests=args.max_tests,
-        search_seed=args.search_seed,
-        max_runs_per_batch=args.max_runs_per_batch,
-        skip_session=args.skip_session, label=args.label,
-        ip_capabilities=list(args.ip_capability), executor=args.executor,
-        rounds_per_case=args.rounds_per_case)
+    recording = (record_local_commands(max_commands=args.record_max_commands)
+                 if args.record_local_commands else nullcontext(None))
+    with recording as trace:
+        summary = run_auto_harness_test(
+            cpu=args.cpu, ips=list(args.ip), compose=args.compose,
+            output=args.output, base_dir=args.base_dir.resolve(),
+            runtime=args.runtime, client_binary=args.client_binary,
+            cache_dir=args.cache_dir, build_cache=args.build_cache,
+            budget_seconds=args.budget_seconds, max_tests=args.max_tests,
+            search_seed=args.search_seed,
+            max_runs_per_batch=args.max_runs_per_batch,
+            skip_session=args.skip_session, label=args.label,
+            ip_capabilities=list(args.ip_capability), executor=args.executor,
+            rounds_per_case=args.rounds_per_case, f6_execution=args.f6_execution,
+            f6_deliveries=args.f6_deliveries)
+    if trace is not None and summary['exit_code'] == 0:
+        try:
+            save_command_recordings(args.output, trace)
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            print(json.dumps({'status': 'recording_failed', 'reason': str(error)}))
+            return 1
     print(json.dumps(summary, sort_keys=True, ensure_ascii=False,
                      default=str))
     return summary['exit_code']
 
 
+def save_command_recordings(output, trace):
+    output = Path(output)
+    join = json.loads((output / 'compiled_f4_build_join.v1.json').read_text())
+    executions = {phase: join[phase]['execution_audit']['identities']
+                  for phase in ('original', 'fresh')}
+    documents = recorded_command_documents(trace.export_sessions(), executions=executions,
+                                            scope='RFuzz F4', audited=True)
+    for phase, name in (('original', 'local_commands.json'),
+                        ('fresh', 'fresh_local_commands.json')):
+        with (output / name).open('x', encoding='utf8') as stream:
+            json.dump(documents[phase], stream, indent=2, sort_keys=True)
+            stream.write('\n')
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     configure_parser(parser)
-    return run(parser.parse_args(argv))
+    args = parser.parse_args(argv)
+    if args.record_local_commands and args.executor != 'compiled-f4-rfuzz':
+        parser.error('--record-local-commands requires --executor compiled-f4-rfuzz')
+    if not 1 <= args.record_max_commands <= 4096:
+        parser.error('--record-max-commands must be between 1 and 4096')
+    return run(args)
 
 
 if __name__ == '__main__':

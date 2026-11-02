@@ -1,0 +1,39 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-apb-timer-async-grid-refusal",
+  "description": "One Ibex RVFI CPU at its pinned 50 MHz declaration and one PULP APB3 timer declared at 32768 Hz, the rate of an independent RTC crystal. The two clocks are not a divided reference pair: the exact common grid is lcm(50000000,32768) = 12800000000 Hz, which makes the timer's half period 390625 grid steps and the CPU's 256, so the pair has no usable common phase grid and the entry refuses the session by name, stating the exact grid, both step counts and the reason (one synchronous grid, no phase-independent sampler). No model run, no bus success and no case line are produced.",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "targets": [
+    {
+      "name": "timer_rtc",
+      "profile": "configs/peripherals/pulp_timer_32768hz_rtc/component_profile.json",
+      "active_id": "timer_rtc",
+      "window": {
+        "base": 1073745920,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": null,
+      "pins": null,
+      "fixed_inputs": [],
+      "tuning": {}
+    }
+  ],
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": false,
+  "notes": [
+    "The 32768 Hz profile is a declared composition variant of the pinned PULP apb_timer: same RTL, source revision, reset and pin contract, only clocks[0].frequency_hz differs.  It declares an independent oscillator, not a divided reference; the pinned profile is not edited.",
+    "The expected refusal is \"unsupported: declared clock rates differ (50000000,32768); no common phase grid fits the 1024-step phase-grid bound: the exact grid is 12800000000 Hz, so the reference CPU half period is 256 grid steps and timer_rtc half period is 390625 grid steps; this host clocks every model from one synchronous grid and implements no phase-independent sampler, so an asynchronous pair is refused by name instead of being rounded or truncated\".  The specific text states the exact grid rather than rounding the declared rates.",
+    "assume_single_clock is explicitly false: the only other admitted schedule would be to declare one shared tick for every model, which rounds a declared rate by declaration and is not what this scenario asks for."
+  ]
+}

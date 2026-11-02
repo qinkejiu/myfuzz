@@ -49,3 +49,16 @@ def test_refused_f2_retains_partial_without_authority(admitted):
     args=f2_args(admitted);args.update(execution_binding=None,original={},fresh={},runtime_path_id=None,logical_path_id=None)
     doc=module().build_compiled_f2_build_join(**args,error='construction refused')
     assert doc['status']=='refused' and doc['execution_binding_sha256'] is None
+
+
+def test_refusal_with_f2_binding_preserves_observed_receipts(admitted):
+    args=f2_args(admitted)
+    expected_receipts=deepcopy(args['execution_binding']['built_executable_receipts'])
+    args['fresh']={'unavailable': {'peripheral': {'startup': 'not reached'}}}
+    mod=module()
+    doc=mod.build_compiled_f2_build_join(**args,error='fresh startup failed')
+    assert doc['status']=='refused'
+    assert doc['built_executable_receipts']==expected_receipts
+    assert doc['fresh']==args['fresh']
+    mod.verify_compiled_f2_build_join(doc, **{k:args[k] for k in (
+        'artifacts','execution_binding','original','fresh')})

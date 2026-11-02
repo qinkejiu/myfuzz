@@ -1,0 +1,35 @@
+{
+  "schema_version": "ip_test_capability.v3",
+  "component_id": "opentitan_gpio_local",
+  "profile_fingerprint": "sha256:e0f3612b2d85e73b21c1f4c7cbb5cdd7e564af8af84fdd5e2127f8ece9c12017",
+  "endpoint_capabilities": [
+    {
+      "endpoint_id": "opentitan_gpio.mmio",
+      "operations": [
+        "request",
+        "accept",
+        "response",
+        "read",
+        "write",
+        "wait",
+        "error"
+      ]
+    }
+  ],
+  "register_semantics": [
+    {
+      "register": "INTR_ENABLE",
+      "field": "value",
+      "lsb": 0,
+      "width": 32,
+      "access": "rw",
+      "read_mask": 4294967295,
+      "write_mask": 4294967295,
+      "side_effect": "none",
+      "reset_value": 0,
+      "evidence_ref": "rtl:third_party/soc-opentitan/hw/top_earlgrey/ip_autogen/gpio/rtl/gpio_reg_top.sv:223-247,807-809,895;sha256=1da28b2ed10ca9a6620688ab37573aed21a0b7bba913718e5b809c3aaa660672"
+    }
+  ],
+  "observation_mappings": [],
+  "register_aliases": []
+}

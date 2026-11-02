@@ -18,6 +18,22 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class UartDirectFallbackTests(unittest.TestCase):
+    def test_actual_include_closure_pin_does_not_include_unused_headers(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'top.sv').write_bytes(b'module top; endmodule')
+            (root / 'defs.svh').write_bytes(b'`define WIDTH 32')
+            (root / 'unused.svh').write_bytes(b'not part of the source closure')
+            expected = _content_hash({name: (root / name).read_bytes()
+                                      for name in ('top.sv', 'defs.svh')})
+            contents = {'top.sv': (root / 'top.sv').read_bytes()}
+            def read(path):
+                contents[path.relative_to(root).as_posix()] = path.read_bytes()
+            self.assertEqual(expected, _direct_pinned_closure_hash(
+                root, contents, ('.',), read, expected,
+                closure=(root / 'top.sv', root / 'defs.svh')))
+            self.assertNotIn('unused.svh', contents)
+
     def test_full_include_root_pin_rejects_modified_header(self):
         with tempfile.TemporaryDirectory(prefix="myfuzz-uart-direct-pin-") as directory:
             root = Path(directory)

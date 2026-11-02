@@ -1,0 +1,25 @@
+{
+  "schema_version": "generic_scenario_descriptor.v1",
+  "scenario_id": "obi-tlul-gpio-mmio",
+  "root": "configs/scenarios/compiled-f2-f4-obi-tlul-gpio",
+  "compose": "compose.json",
+  "supplement": "execution_supplement.json",
+  "capability": "test_capability.json",
+  "flow_ids": [
+    "F2",
+    "F4"
+  ],
+  "executors": {
+    "F2": "compiled_mmio",
+    "F4": "compiled_mmio"
+  },
+  "f4_records": [
+    "550000000000000000000000000000000000",
+    "aa0000000000000000000000000000000000",
+    "341200000000000000000000000000000000"
+  ],
+  "f2_records": [
+    "04000040"
+  ],
+  "rounds": 128
+}

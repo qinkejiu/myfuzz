@@ -1,0 +1,15 @@
+{
+  "schema_version": "inprocess_dma_behavior.v1",
+  "description": "ZipDMA F6 declaration for an eight-word (32-byte) block, with the control-status bits the completion criterion reads.",
+  "notes": [
+    "block_words 8 is the transfer size this scenario declares, not the ZipDMA device maximum: the LENGTH register is a 32-bit byte count (third_party/soc-zipcpu/rtl/zipdma/zipdma_ctrl.v:44-46,263-264), so 8 words = 32 bytes is encodable. The pinned configs/peripherals/zipdma_smoke profile fixes ADDRESS_WIDTH=32, BUS_WIDTH=32, LGMEMLEN=6 and OPT_LITTLE_ENDIAN=1.",
+    "this file passes the declaration/planning layer in src/myfuzz/composition/dma_transfer.py (ZipDMA declaration bound 1..64 words), but the current in-process host still refuses block_words > 4: src/myfuzz/composition/inprocess_behavior.py caps block_words at 4, scripts/run_inprocess_f1f6.py caps dma_block_words at 4, src/myfuzz/integration/f6_dma_behavior.py fixes block_words=length_words=4, and scripts/inprocess_obi_wb_dma_spike.cpp executes a fixed four-word record. The scenario is therefore declaration-only until those four bounds are raised together.",
+    "busy_bit 31 and err_bit 30 are the ZipDMA CONTROL_STATUS bits (third_party/soc-zipcpu/rtl/zipdma/zipdma_ctrl.v:116-117); declaring them here states where the completion criterion reads, it does not prove the RTL raises either bit in any run",
+    "the transfer the plan describes is a full-word, single-outstanding RAM-to-RAM block: start word 0x00000000 (full-word control write while idle, data[31]=0), LENGTH 32 bytes, master SEL 0xf from the reset full-word size code, incrementing source and destination",
+    "no transfer, completion, IRQ or RTL run is claimed by this declaration"
+  ],
+  "block_words": 8,
+  "busy_bit": 31,
+  "err_bit": 30,
+  "status_kind": "status"
+}

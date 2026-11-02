@@ -1,0 +1,15 @@
+# Search scenarios and CLI report
+
+Implemented `myfuzz.search.config` and `myfuzz.search.cli`; the wrapper imports production code and adds only `src` to the module path. Existing GPIO execution flags remain available. Help explicitly identifies the default Ibex dual GPIO scope.
+
+The closed `dependency_search_scenario.v1` schema permits only declared keys and backends. Descriptor paths resolve within the project root, records are bounded byte strings, flows and goals are validated, and configuration cannot specify Python imports or factories. Storage `records: null` with `flow: mixed` selects the descriptor's finite registered storage domain; explicit record lists use the descriptor runner's finite catalog. Goal specifications are recorded metadata and cannot grant observation authority.
+
+Shipped configurations: `configs/search/timer-ibex.json`, `spi-cv32e40p.json`, `gpio-f5.json`, and `dma-f6.json`. The first two select registered storage execution; F5/F6 use explicit packed records and report unknown state and no live state conditioning. Record fallback has no wall budget hook and refuses `--seconds`; omit this flag for F5/F6. Descriptor fresh mode shares the output root with original mode and checks any supplied `--original` against `OUTPUT/original`. GPIO-only ablations are rejected for descriptor execution.
+
+`--preflight`/`--plan-only` require no execution arguments and report capabilities, configuration identity, production wrapper source identity, and catalog identity scope without native execution. Execution writes the configuration and source identity to `search-configuration.json`.
+
+Validation: initial RED run produced four failures from missing config/CLI support. Final `PYTHONPATH=src python3 -m pytest -q tests/search/test_search_config_cli.py`: **9 passed**. All four shipped preflights were exercised by subprocess tests. No native simulations, commits, resets, cleans, or historical run/candidate changes were performed.
+
+Follow-up: added `memory-mixed-ibex.json` with explicit F1/F3/F4/F2 records; all six paths now have shipped configuration coverage. Storage configuration strictly requires `mixed` and `records: null`; it cannot silently fall back. Scenario campaigns consistently use `OUTPUT/original` and `OUTPUT/fresh`, including GPIO. Each mode receives its own provenance file, and fresh checks the original scenario and source identity before dispatch. Legacy GPIO invocations without a scenario retain their leaf-output convention. The record-local-commands flag is passed directly to the descriptor driver. `goal.id` is explicitly a human label for the backend-defined objective, not arbitrary goal execution. Unmaterialized GPIO catalog identity remains pending runtime binding.
+
+Follow-up RED: three new tests failed for missing storage refusal, memory configuration, and campaign GPIO output semantics. Final verification: **13 passed**, including all five shipped preflights and mocked GPIO campaign/fresh identity checks. No native execution was performed.

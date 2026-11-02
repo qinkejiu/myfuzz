@@ -1,12 +1,14 @@
 """Bounded-memory, ordered event storage for long online RTL sessions.
 
 Only completed chunks are pickled to a private temporary file.  A small
-current chunk and one read cache remain resident.  The public snapshot reads
-detached event values, matching the old Runner.events ownership contract.
+current chunk and a bounded least-recently-used set of read chunks remain
+resident.  The public snapshot reads detached event values, matching the old
+Runner.events ownership contract.
 """
 
 from __future__ import annotations
 
+from collections import OrderedDict
 from collections.abc import Iterator, Sequence
 from copy import deepcopy
 from dataclasses import fields, is_dataclass
@@ -14,23 +16,58 @@ from array import array
 from bisect import bisect_right
 import hashlib
 import json
+import os
 from pathlib import Path
 import pickle
 import struct
 import tempfile
 import zlib
 
+# Measured tradeoff (scripts/bench_event_journal_cache.py, recorded 38 421-event
+# journal): the steady-state per-step path drains the tail chunk while a handful
+# of historical ``event_id`` readers touch one to three older chunks, so a
+# single-slot cache misses on every step (2.83 chunk loads/step, 71.5 ms/step).
+# A three-slot cache still misses 0.042 loads/step; four slots miss 0.008 and
+# cost 62 MB resident (measured with tracemalloc; one 2 048-event chunk of real
+# events is 2 680 980 B pickled / ~15.4 MB live, so the bound is
+# ``chunk_cache_size * chunk_size`` events, and it does not grow with the
+# journal).  ``1`` reproduces the old single-chunk behaviour for an A/B.
+_DEFAULT_CHUNK_CACHE_SIZE = 4
+# Same-workload A/B switch for the lead: one value per process, read when the
+# journal is created (a Runner creates exactly one).  ``1`` reproduces the
+# pre-change single-chunk behaviour; the constructor keyword still wins.
+_CHUNK_CACHE_ENV = "MYFUZZ_EVENT_JOURNAL_CHUNK_CACHE"
+
+
+def _configured_chunk_cache_size() -> int:
+    raw = os.environ.get(_CHUNK_CACHE_ENV, "").strip()
+    if not raw:
+        return _DEFAULT_CHUNK_CACHE_SIZE
+    try:
+        value = int(raw, 10)
+    except ValueError:
+        raise ValueError(f"{_CHUNK_CACHE_ENV} must be a positive integer") from None
+    if value < 1:
+        raise ValueError(f"{_CHUNK_CACHE_ENV} must be a positive integer")
+    return value
+
 
 class EventJournal(Sequence[dict]):
-    def __init__(self, *, chunk_size: int = 2048) -> None:
+    def __init__(self, *, chunk_size: int = 2048,
+                 chunk_cache_size: int | None = None) -> None:
         if type(chunk_size) is not int or chunk_size < 1:
             raise ValueError("event journal chunk_size must be positive")
+        if chunk_cache_size is None:
+            chunk_cache_size = _configured_chunk_cache_size()
+        elif type(chunk_cache_size) is not int or chunk_cache_size < 1:
+            raise ValueError("event journal chunk_cache_size must be positive")
         self._chunk_size = chunk_size
+        self._chunk_cache_size = chunk_cache_size
         self._file = tempfile.TemporaryFile(mode="w+b", prefix="myfuzz-events-")
         self._offsets: list[int] = []
         self._current: list[dict] = []
-        self._cached_index = -1
-        self._cached_chunk: list[dict] = []
+        self._cache: OrderedDict[int, list[dict]] = OrderedDict()
+        self._chunk_loads = 0
         self._count = 0
 
     def close(self) -> None:
@@ -53,15 +90,32 @@ class EventJournal(Sequence[dict]):
     def __len__(self) -> int:
         return self._count
 
+    @property
+    def chunk_loads(self) -> int:
+        """Number of chunk unpickles so far; read-only measurement counter."""
+        return self._chunk_loads
+
+    @property
+    def chunk_cache_size(self) -> int:
+        """Resident read-chunk capacity; read-only measurement accessor."""
+        return self._chunk_cache_size
+
     def _chunk(self, number: int) -> list[dict]:
         if number == len(self._offsets):
             return self._current
-        if number != self._cached_index:
-            self._file.flush()
-            self._file.seek(self._offsets[number])
-            self._cached_chunk = pickle.load(self._file)
-            self._cached_index = number
-        return self._cached_chunk
+        cache = self._cache
+        chunk = cache.get(number)
+        if chunk is not None:
+            cache.move_to_end(number)
+            return chunk
+        self._file.flush()
+        self._file.seek(self._offsets[number])
+        chunk = pickle.load(self._file)
+        self._chunk_loads += 1
+        cache[number] = chunk
+        if len(cache) > self._chunk_cache_size:
+            cache.popitem(last=False)
+        return chunk
 
     def __getitem__(self, index):
         if isinstance(index, slice):

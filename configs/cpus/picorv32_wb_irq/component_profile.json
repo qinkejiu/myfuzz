@@ -107,6 +107,7 @@
       "fields": [
         {
           "role": "custom",
+          "width": 32,
           "aliases": [
             "irq"
           ]
@@ -121,7 +122,8 @@
     "max_outstanding": 1,
     "error_response": false,
     "instruction_identity_port": "mem_instr",
-    "evidence": "picorv32.v top declarations have 32-bit address/data and four byte lanes. max_outstanding=1 is the planned environment limit. No physical error response exists. The physical Wishbone top has no err or stall. The plugin requires err, so a later local transactor needs an explicit no-error/no-stall variant. picorv32.v assigns wbm_adr_o <= mem_addr (byte address) and wbm_sel_o <= mem_wstrb, including zero select on reads; later transactor tests must verify read select behavior."
+    "evidence": "picorv32.v top declarations have 32-bit address/data and four byte lanes. max_outstanding=1 is the planned environment limit. No physical error response exists. The physical Wishbone top has no err or stall. The plugin requires err, so a later local transactor needs an explicit no-error/no-stall variant. picorv32.v assigns wbm_adr_o <= mem_addr (byte address) and wbm_sel_o <= mem_wstrb, including zero select on reads; later transactor tests must verify read select behavior.",
+    "address_units": "byte"
   },
   "port_actions": [
     {
@@ -221,6 +223,30 @@
     "unknown": [
       "No standard RISC-V machine-external CSR/trap ABI is implemented or claimed.",
       "Only IRQ3 from the pinned ziptimer and the focused custom handler are covered; nested interrupts, all other IRQ bits and ABI context preservation are unassessed."
-    ]
+    ],
+    "custom_irq_abi": {
+      "schema_version": "custom_irq_abi.v1",
+      "abi": "picorv32_custom0",
+      "input_port": "irq",
+      "eoi_port": "eoi",
+      "trap_port": "trap",
+      "width": 32,
+      "handler_address": 16,
+      "retirq_encoding": 67108875,
+      "source_files": {
+        "picorv32.v": "0836050971b3c6cdd28ac3b1e5719a67fb645161912bef1e472e63995ceb0622"
+      }
+    },
+    "boot_fetch": {
+      "source_file": "picorv32.v",
+      "source_sha256": "0836050971b3c6cdd28ac3b1e5719a67fb645161912bef1e472e63995ceb0622",
+      "base_mask": 0,
+      "fixed_bits": 0
+    },
+    "local_harness": {
+      "reset_assert_ticks": 8,
+      "reset_release_ticks": 8,
+      "max_wait_cycles": 16
+    }
   }
 }

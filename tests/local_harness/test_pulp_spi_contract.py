@@ -7,7 +7,7 @@ from pathlib import Path
 import unittest
 
 from myfuzz.composition.component_profile import (
-    bind_profile, elaborate_profile, load_component_profile)
+    ComponentProfileError, bind_profile, elaborate_profile, load_component_profile)
 from myfuzz.composition.soc_port_dispositions import build_port_dispositions
 from myfuzz.local_harness.source_lock import verify_local_source_lock
 from myfuzz.local_harness.template_contracts import select_template_contract
@@ -103,6 +103,109 @@ class PulpSpiContractTests(unittest.TestCase):
         self.assertEqual(2, ports['events_o'].width)
         self.assertEqual(2, ports['spi_mode'].width)
         self.assertEqual('input', ports['spi_sdi1'].direction)
+
+
+IRQ_PROFILE = ROOT / 'configs/peripherals/inprocess_verify_pulp_spi_irq/component_profile.json'
+
+
+def _contract():
+    return importlib.import_module('myfuzz.local_harness.pulp_spi_contract')
+
+
+class PulpSpiDeclaredInterruptTests(unittest.TestCase):
+    """A declared event output is admitted as a pulse, never as a latched status.
+
+    The two event bits are one-cycle pulses (``apb_spi_master.sv:116-117``) and the
+    status word has no read-mux arm, so the contract has to admit the declaration
+    the RTL actually implements and refuse the two claims it does not: a held
+    (latched) level and a software clear.
+    """
+
+    def document(self):
+        return json.loads(IRQ_PROFILE.read_text())
+
+    def profile(self):
+        return load_component_profile(self.document())
+
+    def test_declared_end_of_transfer_pulse_is_admitted(self):
+        result = _contract().verify_pulp_spi_source_contract(self.profile(), base_dir=SOURCES)
+        self.assertEqual(1, len(result['declared_interrupts']))
+        declared = result['declared_interrupts'][0]
+        self.assertEqual(('spi.events', 'eot', 1, 'pulse', 1),
+                         (declared['endpoint_id'], declared['role'], declared['bit'],
+                          declared['trigger'], declared['pulse_width_cycles']))
+        # The declaration changes who owns the wire, not what the device is: the
+        # status word still reads back 0 and there is still no clear to claim.
+        semantics = result['interrupt_semantics']
+        self.assertIsNone(semantics['latched_status'])
+        self.assertIsNone(semantics['software_clear'])
+        self.assertEqual(0, semantics['status_register']['readback_value'])
+        self.assertEqual('absent', semantics['status_register']['read_mux'])
+
+    def test_an_undeclared_profile_still_needs_the_observation_action(self):
+        document = self.document()
+        document['interrupts'] = []
+        document['port_actions'] = []
+        with self.assertRaisesRegex(ValueError, 'pulp-spi-native-event-observation-required'):
+            _contract().verify_pulp_spi_source_contract(load_component_profile(document),
+                                                       base_dir=SOURCES)
+
+    def test_a_declared_pulse_without_its_width_is_refused(self):
+        profile = self.profile()
+        without = replace(profile, interrupts=(replace(profile.interrupts[0],
+                                                       pulse_width_cycles=None),))
+        with self.assertRaisesRegex(ValueError, 'pulp-spi-interrupt-pulse-width-required'):
+            _contract().verify_pulp_spi_source_contract(without, base_dir=SOURCES)
+        # The document path refuses the same omission even earlier, by its own name.
+        document = self.document()
+        del document['interrupts'][0]['pulse_width_cycles']
+        with self.assertRaisesRegex(ComponentProfileError, 'interrupt-pulse-width-required'):
+            load_component_profile(document)
+
+    def test_a_latched_level_claim_is_refused(self):
+        profile = self.profile()
+        held = replace(profile, interrupts=(replace(profile.interrupts[0], trigger='level',
+                                                    pulse_width_cycles=None),))
+        with self.assertRaisesRegex(ValueError, 'pulp-spi-interrupt-must-be-pulse'):
+            _contract().verify_pulp_spi_source_contract(held, base_dir=SOURCES)
+
+    def test_a_status_clear_claim_is_refused(self):
+        profile = self.profile()
+        for side_effect in ('read_clears', 'write_1_to_clear'):
+            registers = tuple(replace(register, side_effect=side_effect)
+                              if register.offset == 0x28 else register
+                              for register in profile.address.registers)
+            claimed = replace(profile, address=replace(profile.address,
+                                                       registers=registers))
+            with self.subTest(side_effect=side_effect), \
+                    self.assertRaisesRegex(ValueError,
+                                           'pulp-spi-interrupt-clear-claim-unsupported'):
+                _contract().verify_pulp_spi_source_contract(claimed, base_dir=SOURCES)
+
+    def test_an_event_bit_the_rtl_does_not_drive_is_refused(self):
+        profile = self.profile()
+        for bit in (2, None):
+            outside = replace(profile, interrupts=(replace(profile.interrupts[0], bit=bit),))
+            with self.subTest(bit=bit), \
+                    self.assertRaisesRegex(ValueError, 'pulp-spi-interrupt-bit-unsupported'):
+                _contract().verify_pulp_spi_source_contract(outside, base_dir=SOURCES)
+
+    def test_a_source_that_is_not_the_event_output_is_refused(self):
+        profile = self.profile()
+        endpoints = tuple(replace(endpoint, function='external_pins')
+                          if endpoint.endpoint_id == 'spi.events' else endpoint
+                          for endpoint in profile.endpoints)
+        with self.assertRaisesRegex(ValueError, 'pulp-spi-interrupt-endpoint-unsupported'):
+            _contract().verify_pulp_spi_source_contract(replace(profile, endpoints=endpoints),
+                                                       base_dir=SOURCES)
+
+    def test_two_owners_of_the_event_output_are_refused(self):
+        document = self.document()
+        document['port_actions'] = [{'port': 'events_o', 'action': 'observe',
+                                     'reason': 'the same wire declared twice'}]
+        with self.assertRaisesRegex(ValueError, 'pulp-spi-event-port-double-declared'):
+            _contract().verify_pulp_spi_source_contract(load_component_profile(document),
+                                                       base_dir=SOURCES)
 
 
 if __name__ == '__main__':

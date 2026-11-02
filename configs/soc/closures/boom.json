@@ -1,0 +1,308 @@
+{
+  "closure_files": [
+    {
+      "path": "EICG_wrapper.v",
+      "root": "configs/cpus/boom/generated",
+      "sha256": "8532a50a212f146f10208717be24168a2de73a9754786da272d0dbfcd556c307"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.top.mems.v",
+      "root": "configs/cpus/boom/generated",
+      "sha256": "97ae4679a1ec21f4f424c56e23b1b1948e77d934c8c11461b56de47160a1a280"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.top.v",
+      "root": "configs/cpus/boom/generated",
+      "sha256": "78bc69803c7b993cd1ddfcdb585d477bd27a83710bb1ce426e217aedbbdfaced"
+    },
+    {
+      "path": "plusarg_reader.v",
+      "root": "configs/cpus/boom/generated",
+      "sha256": "482a63c1f24a7ac920909620bd0df108e6954eabf9520de6e72334a2b5450efb"
+    }
+  ],
+  "command": [
+    "verilator",
+    "--lint-only",
+    "-Wno-fatal",
+    "--top-module",
+    "BoomTile",
+    "configs/cpus/boom/generated/EICG_wrapper.v",
+    "configs/cpus/boom/generated/chipyard.TestHarness.SmallBoomConfig.top.mems.v",
+    "configs/cpus/boom/generated/chipyard.TestHarness.SmallBoomConfig.top.v",
+    "configs/cpus/boom/generated/plusarg_reader.v"
+  ],
+  "component": "boom",
+  "defines": [],
+  "include_roots": [],
+  "lint": {
+    "errors": 0,
+    "exit_code": 0,
+    "warnings": 0
+  },
+  "parameters": [],
+  "port_evidence": {
+    "artifact": {
+      "path": "configs/cpus/boom/evidence/derived-20261017/physical_ports.json",
+      "sha256": "80878201d383247fc8eba54d7b4caa710c6b9e96bd62b346fe322ed5e7559310"
+    },
+    "derivation": "stored-port-evidence-reverified-against-pinned-text",
+    "manifest": {
+      "path": "configs/cpus/boom/generated/source_manifest.json",
+      "sha256": "0e3718bdc000dd2a8b965e20eb4e00b8071a786f7961d62372956f90a6bc6053"
+    },
+    "not_claimed": [
+      "frontend_port_extraction",
+      "source_elaboration_json_tree"
+    ],
+    "ports": [
+      {
+        "direction": "input",
+        "name": "auto_hartid_in",
+        "width": 1
+      },
+      {
+        "direction": "input",
+        "name": "auto_int_local_in_0_0",
+        "width": 1
+      },
+      {
+        "direction": "input",
+        "name": "auto_int_local_in_1_0",
+        "width": 1
+      },
+      {
+        "direction": "input",
+        "name": "auto_int_local_in_1_1",
+        "width": 1
+      },
+      {
+        "direction": "input",
+        "name": "auto_int_local_in_2_0",
+        "width": 1
+      },
+      {
+        "direction": "input",
+        "name": "auto_int_local_in_3_0",
+        "width": 1
+      },
+      {
+        "direction": "output",
+        "name": "auto_tl_other_masters_out_a_bits_address",
+        "width": 32
+      },
+      {
+        "direction": "output",
+        "name": "auto_tl_other_masters_out_a_bits_data",
+        "width": 64
+      },
+      {
+        "direction": "output",
+        "name": "auto_tl_other_masters_out_a_bits_mask",
+        "width": 8
+      },
+      {
+        "direction": "output",
+        "name": "auto_tl_other_masters_out_a_bits_opcode",
+        "width": 3
+      },
+      {
+        "direction": "output",
+        "name": "auto_tl_other_masters_out_a_bits_param",
+        "width": 3
+      },
+      {
+        "direction": "output",
+        "name": "auto_tl_other_masters_out_a_bits_size",
+        "width": 4
+      },
+      {
+        "direction": "output",
+        "name": "auto_tl_other_masters_out_a_bits_source",
+        "width": 3
+      },
+      {
+        "direction": "input",
+        "name": "auto_tl_other_masters_out_a_ready",
+        "width": 1
+      },
+      {
+        "direction": "output",
+        "name": "auto_tl_other_masters_out_a_valid",
+        "width": 1
+      },
+      {
+        "direction": "input",
+        "name": "auto_tl_other_masters_out_b_bits_address",
+        "width": 32
+      },
+      {
+        "direction": "input",
+        "name": "auto_tl_other_masters_out_b_bits_corrupt",
+        "width": 1
+      },
+      {
+        "direction": "input",
+        "name": "auto_tl_other_masters_out_b_bits_mask",
+        "width": 8
+      },
+      {
+        "direction": "input",
+        "name": "auto_tl_other_masters_out_b_bits_opcode",
+        "width": 3
+      },
+      {
+        "direction": "input",
+        "name": "auto_tl_other_masters_out_b_bits_param",
+        "width": 2
+      },
+      {
+        "direction": "input",
+        "name": "auto_tl_other_masters_out_b_bits_size",
+        "width": 4
+      },
+      {
+        "direction": "input",
+        "name": "auto_tl_other_masters_out_b_bits_source",
+        "width": 3
+      },
+      {
+        "direction": "output",
+        "name": "auto_tl_other_masters_out_b_ready",
+        "width": 1
+      },
+      {
+        "direction": "input",
+        "name": "auto_tl_other_masters_out_b_valid",
+        "width": 1
+      },
+      {
+        "direction": "output",
+        "name": "auto_tl_other_masters_out_c_bits_address",
+        "width": 32
+      },
+      {
+        "direction": "output",
+        "name": "auto_tl_other_masters_out_c_bits_data",
+        "width": 64
+      },
+      {
+        "direction": "output",
+        "name": "auto_tl_other_masters_out_c_bits_opcode",
+        "width": 3
+      },
+      {
+        "direction": "output",
+        "name": "auto_tl_other_masters_out_c_bits_param",
+        "width": 3
+      },
+      {
+        "direction": "output",
+        "name": "auto_tl_other_masters_out_c_bits_size",
+        "width": 4
+      },
+      {
+        "direction": "output",
+        "name": "auto_tl_other_masters_out_c_bits_source",
+        "width": 3
+      },
+      {
+        "direction": "input",
+        "name": "auto_tl_other_masters_out_c_ready",
+        "width": 1
+      },
+      {
+        "direction": "output",
+        "name": "auto_tl_other_masters_out_c_valid",
+        "width": 1
+      },
+      {
+        "direction": "input",
+        "name": "auto_tl_other_masters_out_d_bits_corrupt",
+        "width": 1
+      },
+      {
+        "direction": "input",
+        "name": "auto_tl_other_masters_out_d_bits_data",
+        "width": 64
+      },
+      {
+        "direction": "input",
+        "name": "auto_tl_other_masters_out_d_bits_denied",
+        "width": 1
+      },
+      {
+        "direction": "input",
+        "name": "auto_tl_other_masters_out_d_bits_opcode",
+        "width": 3
+      },
+      {
+        "direction": "input",
+        "name": "auto_tl_other_masters_out_d_bits_param",
+        "width": 2
+      },
+      {
+        "direction": "input",
+        "name": "auto_tl_other_masters_out_d_bits_sink",
+        "width": 3
+      },
+      {
+        "direction": "input",
+        "name": "auto_tl_other_masters_out_d_bits_size",
+        "width": 4
+      },
+      {
+        "direction": "input",
+        "name": "auto_tl_other_masters_out_d_bits_source",
+        "width": 3
+      },
+      {
+        "direction": "output",
+        "name": "auto_tl_other_masters_out_d_ready",
+        "width": 1
+      },
+      {
+        "direction": "input",
+        "name": "auto_tl_other_masters_out_d_valid",
+        "width": 1
+      },
+      {
+        "direction": "output",
+        "name": "auto_tl_other_masters_out_e_bits_sink",
+        "width": 3
+      },
+      {
+        "direction": "input",
+        "name": "auto_tl_other_masters_out_e_ready",
+        "width": 1
+      },
+      {
+        "direction": "output",
+        "name": "auto_tl_other_masters_out_e_valid",
+        "width": 1
+      },
+      {
+        "direction": "input",
+        "name": "clock",
+        "width": 1
+      },
+      {
+        "direction": "input",
+        "name": "reset",
+        "width": 1
+      }
+    ],
+    "ports_sha256": "549531b19373096959885bfc7a7a41b1bc6f26084ed9eaa4246bedec66aa7ede",
+    "source_revision": "sha256:4f960fdd6c96dccfe1bb7788fd628e368304b7280e5449cf3ae5463e982f2c30",
+    "top_module": "BoomTile"
+  },
+  "root": "configs/cpus/boom/generated",
+  "schema_version": "soc_elaboration_closure.v1",
+  "status": "elaboration_verified",
+  "tool": {
+    "frontend": "verilator-lint",
+    "name": "verilator",
+    "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67"
+  },
+  "top_module": "BoomTile"
+}

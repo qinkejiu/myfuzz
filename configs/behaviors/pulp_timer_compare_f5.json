@@ -1,0 +1,21 @@
+{
+  "schema_version": "inprocess_source_behavior.v1",
+  "description": "PULP APB3 timer F5 behavior for the second timer0 source: the compare-equality pulse on irq_o[1], the register writes that make the equality a one-shot, and the compare word the ISR reads.",
+  "notes": [
+    "source_bit_offset 1 is the profile's timer0_compare source (configs/peripherals/pulp_timer_irq/component_profile.json interrupts: timer0_overflow bit 0, timer0_compare bit 1, timer1_overflow bit 2, timer1_compare bit 3) and the RTL wiring apb_timer.sv `irq_o[2*k+1:2*k]` with k=0, i.e. bit 1 is timer0's compare output",
+    "timer.sv (pinned at git:03eba2e6965f5363df12621882bc70498c551a73) drives irq_o[1] when `REG_CMP != 0 && REG_TIMER == REG_CMP && prescaler == cycle_counter`; the compare source is suppressed while the compare register is zero, so the example trigger value 3 is nonzero by construction",
+    "the offsets are the profile's own map: TIMER0_COUNT 0, TIMER0_CTRL 4, TIMER0_CMP 8 (timer.sv REG_TIMER/REG_TIMER_CTRL/REG_CMP = 0/1/2, APB_ADDR_WIDTH 12, PADDR[4] selects the timer instance)",
+    "trigger_writes [[4,0],[8,3],[0,3]]: CTRL 0 keeps counting disabled (timer.sv increments REG_TIMER only while CTRL[0] is 1), CMP 3 is written first and resets the count to 0 by the RTL's own `reset timer if compare register is written`, then COUNT 3 makes REG_TIMER == REG_CMP a one-shot equality; the RTL resets the count to 0 on the event, so the source does not re-arm (contrast with an enabled counter, which re-arms every CMP+1 clocks)",
+    "status_offsets [8] is TIMER0_CMP (rw, 32-bit), so the ISR reads the compare word and the case reports isr_read_register_kind compare; the timer has no cause/status word (the IRQ bits are native equality outputs, not held status), so status_cause_bits stays null",
+    "clear_writes stays empty: the profile and timer.sv state automatic counter reset on the event and no acknowledge register; there is nothing for the handler to write",
+    "pulse_width_ticks 24 is the host's declared delivery width, not an RTL width: the native pulse is one HCLK and the host stretches it; the same behavior is declared with 16 (overflow) and 32 (timer1 overflow) by the sibling files, so the stretch is a scenario choice and the file says so",
+    "this file states device facts only: the executor still cross-checks them against configs/peripherals/pulp_timer_irq/component_profile.json (register map and interrupt declarations), and the declaration does not prove the RTL raises the pulse"
+  ],
+  "source_port": "irq_o",
+  "source_bit_offset": 1,
+  "pulse_width_ticks": 24,
+  "trigger_writes": [[4, 0], [8, 3], [0, 3]],
+  "status_offsets": [8],
+  "status_cause_bits": null,
+  "clear_writes": []
+}

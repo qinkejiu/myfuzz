@@ -188,7 +188,8 @@ class PersistentMemory:
     """A sparse, versioned memory with immutable read results."""
 
     def __init__(self, *, regions: tuple[MemoryRegion, ...],
-                 initialization_seed: int, max_initialized_bytes: int) -> None:
+                 initialization_seed: int, max_initialized_bytes: int,
+                 instruction_isa=None) -> None:
         _natural(initialization_seed, "initialization_seed")
         _natural(max_initialized_bytes, "max_initialized_bytes")
         if not isinstance(regions, tuple) or not regions:
@@ -209,6 +210,18 @@ class PersistentMemory:
                     raise ValueError("overlapping memory windows")
                 self._windows.append((base, end, region))
         self.initialization_seed = initialization_seed
+        if instruction_isa is not None:
+            from myfuzz.isa.constraints import IsaContract
+            # The provider validates both widths; the declared xlen is what the
+            # host materializes instruction words for, so a real 64-bit core is
+            # admitted with its own contract instead of being described as RV32.
+            if (not isinstance(instruction_isa, IsaContract)
+                    or instruction_isa.xlen not in (32, 64)
+                    or not set(instruction_isa.extensions) <= {'I', 'M', 'C'}
+                    or 'I' not in instruction_isa.extensions
+                    or ('C' in instruction_isa.extensions and instruction_isa.instruction_alignment != 2)):
+                raise ValueError('instruction ISA must be declared RV32I/M/C or RV64I/M/C')
+        self.instruction_isa = instruction_isa
         self.max_initialized_bytes = max_initialized_bytes
         self.generation = 0
         self.step_count = 0
@@ -227,11 +240,17 @@ class PersistentMemory:
 
     def identity_document(self) -> dict:
         """Immutable memory configuration used to guard replay identity."""
-        return {"regions": [asdict(region) for region in self._regions],
+        result = {"regions": [asdict(region) for region in self._regions],
                 "initialization_seed": self.initialization_seed,
                 "initialization_algorithm": "memory-init-v1",
                 "max_initialized_bytes": self.max_initialized_bytes,
                 "instruction_slots": sorted(self._instruction_slots)}
+        if self.instruction_isa is not None:
+            result['instruction_isa'] = {'xlen': self.instruction_isa.xlen,
+                                         'extensions': list(self.instruction_isa.extensions)}
+            if 'C' in self.instruction_isa.extensions:
+                result['instruction_isa']['instruction_alignment'] = self.instruction_isa.instruction_alignment
+        return result
 
     def state_summary(self) -> dict:
         """Digest every persistent byte, writer, and version without reading RAM."""
@@ -364,6 +383,21 @@ class PersistentMemory:
             self._bytes[key] = ByteCell(value, (self.generation, 0),
                                         "INITIAL_IMAGE", "initial-image")
 
+    def reinstall_image(self, address: int, data: bytes, *, event_id: str) -> tuple[str, int, tuple[int, int]]:
+        """Replace bytes from a declared initial image after a reset barrier."""
+        if not isinstance(data, bytes) or not data or not event_id:
+            raise ValueError('reset image requires bytes and an event identity')
+        region, offset = self._resolve(address, 1, write=False)
+        if offset + len(data) > region.size:
+            raise ValueError('reset image crosses memory window')
+        keys = [(region.memory_id, offset + index) for index in range(len(data))]
+        if any(key not in self._initial_images for key in keys):
+            raise ValueError('reset image must replace declared initial image bytes')
+        version = self._next_version(region.memory_id)
+        for key, value in zip(keys, data):
+            self._bytes[key] = ByteCell(value, version, 'RESET_IMAGE', event_id)
+        return region.memory_id, offset, version
+
     def declare_instruction_slots(self, address: int, count: int = 1) -> None:
         """Reserve empty aligned words without materializing RAM."""
         _natural(count, "count")
@@ -380,7 +414,7 @@ class PersistentMemory:
     def accept_instructions(self, address: int, data: bytes, *, source_event_id: str) -> InstructionAcceptance:
         """Fill reserved words once and record the input source for every byte."""
         from .rv32i_sources import validate_instruction_bytes
-        validate_instruction_bytes(data)
+        validate_instruction_bytes(data, isa=self.instruction_isa)
         if not isinstance(source_event_id, str) or not source_event_id:
             raise ValueError("instruction source_event_id must be nonempty")
         region, offset = self._resolve(address, 4, write=False)

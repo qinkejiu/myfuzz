@@ -62,7 +62,7 @@ file.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 import hashlib
 import json
 from pathlib import Path
@@ -395,6 +395,8 @@ class WiringDelivery:
     consumer_endpoint_id: str | None
     trigger: str | None
     source: str
+    # Absolute DUT bit within the declared consumer field; required for vectors.
+    consumer_bit_offset: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -407,6 +409,7 @@ class WiringEnvironmentLink:
     width: int | None
     event_kind: str | None
     source: str
+    bit_offset: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -495,7 +498,7 @@ def _wiring_resource(row: Mapping[str, object], pointer: str, source: str) -> Wi
 def _wiring_delivery(row: Mapping[str, object], pointer: str, source: str) -> WiringDelivery:
     row = _closed(row, {'delivery_id', 'producer_instance', 'consumer_instance'},
                   {'producer_endpoint_id', 'producer_signal', 'consumer_endpoint_id',
-                   'trigger'}, pointer, 'wiring-delivery')
+                   'trigger', 'consumer_bit_offset'}, pointer, 'wiring-delivery')
     optional = {name: (None if row.get(name) is None else
                        _text(row[name], f'{pointer}/{name}', f'wiring-delivery-{name}'))
                 for name in ('producer_endpoint_id', 'producer_signal',
@@ -507,15 +510,20 @@ def _wiring_delivery(row: Mapping[str, object], pointer: str, source: str) -> Wi
         optional['producer_endpoint_id'], optional['producer_signal'],
         _text(row['consumer_instance'], pointer + '/consumer_instance',
               'wiring-delivery-consumer'),
-        optional['consumer_endpoint_id'], optional['trigger'], source)
+        optional['consumer_endpoint_id'], optional['trigger'], source,
+        None if row.get('consumer_bit_offset') is None else _integer(
+            row['consumer_bit_offset'], pointer + '/consumer_bit_offset', 'wiring-delivery-consumer-bit'))
 
 
 def _wiring_link(row: Mapping[str, object], pointer: str, source: str) -> WiringEnvironmentLink:
     row = _closed(row, {'link_id', 'component_instance'},
-                  {'endpoint_id', 'width', 'event_kind'}, pointer, 'wiring-link')
+                  {'endpoint_id', 'width', 'event_kind', 'bit_offset'}, pointer, 'wiring-link')
     width = row.get('width')
     event_kind = row.get('event_kind')
     endpoint_id = row.get('endpoint_id')
+    bit_offset = row.get('bit_offset')
+    if bit_offset is not None and (width is None or endpoint_id is None):
+        _refuse('wiring-link-segment-incomplete', pointer)
     return WiringEnvironmentLink(
         _text(row['link_id'], pointer + '/link_id', 'wiring-link-id'),
         _text(row['component_instance'], pointer + '/component_instance',
@@ -526,7 +534,9 @@ def _wiring_link(row: Mapping[str, object], pointer: str, source: str) -> Wiring
          _integer(width, pointer + '/width', 'wiring-link-width', minimum=1)),
         (None if event_kind is None else
          _text(event_kind, pointer + '/event_kind', 'wiring-link-event-kind')),
-        source)
+        source,
+        (None if bit_offset is None else
+         _integer(bit_offset, pointer + '/bit_offset', 'wiring-link-offset', minimum=0)))
 
 
 def _wiring_fixed_input(row: Mapping[str, object], pointer: str,
@@ -1053,10 +1063,10 @@ _SUPPLEMENTS = {
                ('component_instance', 'base', 'size', 'read', 'write', 'execute',
                 'initialization_policy'), 'resources'),
     'deliveries': (WiringDelivery, _wiring_delivery, 'delivery_id', 'delivery',
-                   ('producer_endpoint_id', 'producer_signal',
-                    'consumer_endpoint_id', 'trigger'), 'deliveries'),
+                   ('producer_instance', 'producer_endpoint_id', 'producer_signal',
+                    'consumer_instance', 'consumer_endpoint_id', 'trigger', 'consumer_bit_offset'), 'deliveries'),
     'environment_links': (WiringEnvironmentLink, _wiring_link, 'link_id', 'link',
-                          ('endpoint_id', 'width', 'event_kind'),
+                          ('component_instance', 'endpoint_id', 'width', 'event_kind', 'bit_offset'),
                           'environment_links'),
 }
 
@@ -1117,6 +1127,7 @@ class PathCompileRequest:
     #: Declared role pointers, cross-checked against function-based resolution.
     cpu_data_endpoint_id: str | None = None
     cpu_instruction_endpoint_id: str | None = None
+    base_dir: str = '.'
 
     def components(self) -> tuple[PathComponent, ...]:
         return (self.cpu, *self.devices)
@@ -1214,7 +1225,7 @@ def load_path_compile_request(document_or_path: object, *,
     base = Path(base_dir)
     document = _read_json(document_or_path, 'request-unreadable')
     row = _closed(document, {'schema_version', 'cpu', 'devices', 'wiring'},
-                  {'memory', 'deliveries', 'environment_links', 'sources'},
+                  {'memory', 'deliveries', 'environment_links', 'fixed_inputs', 'sources', 'f6_execution'},
                   '', 'request')
     if row['schema_version'] != PATH_COMPILE_REQUEST_SCHEMA:
         _refuse('unsupported-request-schema', '/schema_version',
@@ -1331,6 +1342,26 @@ def load_path_compile_request(document_or_path: object, *,
         fields_now[attribute] = merged
         wiring = PathWiring(**fields_now)
 
+    if 'fixed_inputs' in row:
+        additions = tuple(_wiring_fixed_input(item, f'/fixed_inputs/{index}', 'fixed-inputs-supplement')
+                          for index, item in enumerate(
+                              _array(row['fixed_inputs'], '/fixed_inputs', 'request-fixed-inputs')))
+        fixed = list(wiring.fixed_inputs)
+        for index, addition in enumerate(additions):
+            if any(old.component_instance == addition.component_instance and old.port == addition.port
+                   and old.bit_offset < addition.bit_offset + addition.width
+                   and addition.bit_offset < old.bit_offset + old.width for old in fixed):
+                _refuse('fixed-input-overlap', f'/fixed_inputs/{index}',
+                        {'component_instance': addition.component_instance, 'port': addition.port})
+            fixed.append(addition)
+        wiring = replace(wiring, fixed_inputs=tuple(fixed))
+
+    if 'f6_execution' in row and wiring.dma_master_routes:
+        # F6's bound DMA declaration replays the complete wiring document.
+        # Keep the caller's original request bytes/supplements as its identity;
+        # only the explicitly marked typed wiring gets this complete view.
+        wiring=load_path_wiring(_f6_complete_wiring_document(wiring))
+
     claims = tuple(DeclaredSource(f'/sources/{index}', item)
                    for index, item in enumerate(
                        _array(row.get('sources', []), '/sources', 'request-sources')))
@@ -1357,7 +1388,7 @@ def load_path_compile_request(document_or_path: object, *,
                     for instance_id, profile, capability, _ in parsed_devices)
     return PathCompileRequest(cpu, devices, wiring, dict(document),
                               data_pointer or wiring.cpu_data_endpoint_id,
-                              role_pointers['instruction_endpoint'])
+                              role_pointers['instruction_endpoint'], str(base.resolve()))
 
 
 # ---------------------------------------------------------------------------
@@ -1437,7 +1468,8 @@ def _effective_field_width(component: PathComponent, endpoint, profile_field,
     if width:
         return width
     links = [row for row in wiring.environment_links
-             if row.component_instance == component.instance_id and row.width]
+             if row.component_instance == component.instance_id and row.width
+             and row.bit_offset is None]
     named = [row for row in links if row.endpoint_id == endpoint.endpoint_id]
     if len(named) == 1:
         return named[0].width
@@ -1816,13 +1848,21 @@ def _compile_register_source_access(assessment,cpu,master,device,endpoint,window
 
 def _evaluate_f2(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring,
                  mmio: tuple, unresolved: tuple = (),
-                 pointers: Mapping[str, str | None] | None = None) -> None:
+                 pointers: Mapping[str, str | None] | None = None,
+                 selected_register: tuple[str, str] | None = None) -> None:
     pointers = pointers or {}
     master = _cpu_master(assessment, cpu, FUNCTION_DATA_MASTER,
                          'cpu-data-master-missing',
                          pointers.get(FUNCTION_DATA_MASTER))
     image = _instruction_source(assessment, cpu, wiring, pointers)
     readable = _read_candidates(assessment, mmio, unresolved)
+    if selected_register is not None:
+        readable = [(window, device, endpoint, [r for r in rows if r.register == selected_register[1]])
+                    for window, device, endpoint, rows in readable if device.instance_id == selected_register[0]]
+        readable = [row for row in readable if row[3]]
+        if not readable:
+            assessment.need('selected-mmio-read-register-unavailable', '/f6_execution/shared_slots/read_register',
+                            {'component': selected_register[0], 'register': selected_register[1]})
     if assessment.missing or master is None or image is None or not readable:
         return
     resource, image_source = image
@@ -1939,13 +1979,21 @@ def _evaluate_f3(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring
 
 def _evaluate_f4(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring,
                  mmio: tuple, unresolved: tuple = (),
-                 pointers: Mapping[str, str | None] | None = None) -> None:
+                 pointers: Mapping[str, str | None] | None = None,
+                 selected_register: tuple[str, str] | None = None) -> None:
     pointers = pointers or {}
     master = _cpu_master(assessment, cpu, FUNCTION_DATA_MASTER,
                          'cpu-data-master-missing',
                          pointers.get(FUNCTION_DATA_MASTER))
     image = _instruction_source(assessment, cpu, wiring, pointers)
     writable = _write_candidates(assessment, mmio, unresolved)
+    if selected_register is not None:
+        writable = [(window, device, endpoint, [r for r in rows if r.register == selected_register[1]])
+                    for window, device, endpoint, rows in writable if device.instance_id == selected_register[0]]
+        writable = [row for row in writable if row[3]]
+        if not writable:
+            assessment.need('selected-mmio-write-register-unavailable', '/f6_execution/shared_slots/register',
+                            {'component': selected_register[0], 'register': selected_register[1]})
     if assessment.missing or master is None or image is None or not writable:
         return
     resource, image_source = image
@@ -1996,18 +2044,51 @@ def _evaluate_f4(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring
             width = _effective_field_width(device, endpoint_row, profile_field, wiring)
             if width is None:
                 continue
+            # A fully zero-fixed field is not a fuzz source. This agrees with
+            # the Runner's zero initialization; nonzero fixed inputs need a
+            # separate runtime value authority before they can be excluded.
+            if len(profile_field.aliases) == 1:
+                fixed_bits = set()
+                for fixed in wiring.fixed_inputs:
+                    if (fixed.component_instance == device.instance_id
+                            and fixed.port == profile_field.aliases[0] and fixed.constant == 0):
+                        fixed_bits.update(range(fixed.bit_offset, fixed.bit_offset + fixed.width))
+                if all(bit in fixed_bits for bit in range(width)):
+                    continue
+            # Explicit external slices retain their physical mutation domain
+            # independently of whether this composition declares an IRQ route.
+            pin_links = [link for link in wiring.environment_links
+                if link.component_instance == device.instance_id
+                and link.endpoint_id == endpoint_row.endpoint_id
+                and link.bit_offset is not None]
+            if len(pin_links)>1:
+                assessment.need('external-pin-source-ambiguous','/wiring/environment_links',
+                    {'component':device.instance_id,'endpoint_id':endpoint_row.endpoint_id,
+                     'requires':'one explicit external pin segment'})
+                return
+            offset = pin_links[0].bit_offset if pin_links else 0
+            source_width = pin_links[0].width if pin_links else width
+            if (type(source_width) is not int or source_width<1 or offset<0 or offset+source_width>width):
+                assessment.need('external-pin-segment-out-of-range','/wiring/environment_links',
+                    {'component':device.instance_id,'endpoint_id':endpoint_row.endpoint_id,'field_width':width})
+                return
+            shared_irq = (bool(pin_links) and any(
+                delivery.producer_instance == device.instance_id
+                and delivery.consumer_instance == cpu.instance_id
+                for delivery in wiring.deliveries))
             assessment.sources.append({
-                'source_id': f'{device.instance_id}.{profile_field.role}.external',
+                'source_id': (f'{device.instance_id}.{profile_field.role}.irq_event' if shared_irq
+                              else f'{device.instance_id}.{profile_field.role}.external'),
                 'origin': ORIGIN_FUZZABLE,
                 'kind': 'external_pin',
                 'component': device.instance_id,
                 'endpoint_id': endpoint_row.endpoint_id,
                 'port': profile_field.aliases[0] if profile_field.aliases else None,
-                'bit_offset': 0,
-                'width': width,
+                'bit_offset': offset,
+                'width': source_width,
                 'register': None,
                 'field': None,
-                'mask': (1 << width) - 1,
+                'mask': (1 << source_width) - 1,
                 'alignment': 1,
                 'range': None,
                 'origin_ref': f'wiring:{wiring.schema_version}',
@@ -2028,9 +2109,43 @@ def _evaluate_f4(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring
     }
 
 
+def _selected_interrupt_shape(device, endpoint, delivery):
+    """Resolve a delivery to one declared interrupt, without guessing a role."""
+    shapes = [row for row in device.profile.interrupts
+              if row.endpoint_id == endpoint.endpoint_id]
+    signal = delivery.producer_signal
+    if signal is not None:
+        fields = {field.role: field for field in endpoint.fields}
+        shapes = [shape for shape in shapes if signal in
+                  (shape.role, shape.source_id, *getattr(fields.get(shape.role), 'aliases', ()))]
+    return shapes[0] if len(shapes) == 1 else None
+
+
+def _interrupt_source_physical(endpoint, shape):
+    """Resolve one selected IRQ role to a bounded declared output alias."""
+    fields = [field for field in endpoint.fields if field.role == shape.role]
+    if len(fields) != 1:
+        return None
+    field = fields[0]
+    if (_effective_direction(endpoint, field) != 'output' or len(field.aliases) != 1
+            or shape.source_id and shape.source_id != field.aliases[0]
+            or type(shape.bit) is not int or shape.bit < 0):
+        return None
+    span = field.bit_range
+    if span is not None:
+        low, high = span
+    elif type(field.width) is int and field.width > 0:
+        low, high = 0, field.width - 1
+    else:
+        return None
+    if not low <= shape.bit <= high:
+        return None
+    return field.aliases[0], shape.bit
+
+
 def _evaluate_f5(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring,
                  devices: tuple[PathComponent, ...],
-                 pointers: Mapping[str, str | None] | None = None) -> None:
+                 pointers: Mapping[str, str | None] | None = None, *, selected_producer=None) -> None:
     entry = None
     entry_matches = cpu.endpoints_with_function(FUNCTION_INTERRUPT_ENTRY)
     if not entry_matches:
@@ -2058,7 +2173,31 @@ def _evaluate_f5(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring
                             {'requires': f'a field with role '
                                          f'{contract.irq_entry_role!r}',
                              'declared_roles': sorted(row.role for row in entry.fields)})
-    if not wiring.deliveries:
+    # A generic delivery to another CPU endpoint is not an IRQ.  The legacy
+    # SoC format's interrupt_routes section is itself IRQ-specific and its
+    # parser intentionally leaves the consumer endpoint implicit.
+    irq_deliveries = tuple(delivery for delivery in wiring.deliveries
+        if entry is not None and delivery.consumer_instance == cpu.instance_id
+        and (delivery.consumer_endpoint_id == entry.endpoint_id
+             or delivery.consumer_endpoint_id is None
+             and delivery.source == SOC_RENDER_CONFIG_SCHEMA))
+    # Explicit vector routes must name distinct lines.  A shared physical
+    # line is an IRQ group, not multiple independent direct bindings.
+    explicit_bits = [d.consumer_bit_offset for d in irq_deliveries
+                     if d.consumer_bit_offset is not None]
+    if len(explicit_bits) != len(set(explicit_bits)):
+        _refuse('interrupt-delivery-bit-conflict', '/wiring/deliveries',
+                {'requires': 'distinct vector bits for independent direct bindings'})
+    if selected_producer is None and len(irq_deliveries) > 1 and explicit_bits:
+        _refuse('interrupt-delivery-ambiguous', '/wiring/deliveries',
+                {'requires': 'explicit producer selection for multiple vector routes'})
+    # Shared dispatch explicitly selects the pin-source member. Other group
+    # members (e.g. DMA completion) must not contribute missing GPIO/status
+    # requirements or silently become this F5 path's producer. Runtime group
+    # admission separately binds the physical path to actual OR membership.
+    if selected_producer is not None:
+        irq_deliveries=tuple(d for d in irq_deliveries if d.producer_instance==selected_producer)
+    if not irq_deliveries:
         assessment.need('interrupt-delivery-missing', '/wiring/deliveries',
                         {'requires': 'a declared delivery from a real IP interrupt '
                                      'producer to the CPU interrupt entry; IRQ 的生产者'
@@ -2067,9 +2206,7 @@ def _evaluate_f5(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring
                          'absent_sections': list(wiring.absent_sections),
                          'wiring_schema': wiring.schema_version})
     producers = []
-    for delivery in wiring.deliveries:
-        if delivery.consumer_instance != cpu.instance_id:
-            continue
+    for delivery in irq_deliveries:
         device = next((row for row in devices
                        if row.instance_id == delivery.producer_instance), None)
         if device is None:
@@ -2108,16 +2245,20 @@ def _evaluate_f5(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring
                                  'requires': f'an endpoint with function '
                                              f'{FUNCTION_INTERRUPT_SOURCE!r}'})
                 continue
-        shapes = [row for row in device.profile.interrupts
-                  if row.endpoint_id == producer.endpoint_id]
-        if not shapes:
+        shape = _selected_interrupt_shape(device, producer, delivery)
+        if shape is None:
             assessment.need('interrupt-producer-shape-undeclared',
                             f'/devices/{device.instance_id}/profile/interrupts',
                             {'endpoint_id': producer.endpoint_id,
                              'requires': 'a declared polarity and trigger for the '
                                          'producer; the IRQ shape is never inferred'})
             continue
-        shape = shapes[0]
+        if _interrupt_source_physical(producer, shape) is None:
+            assessment.need('interrupt-producer-physical-port-invalid',
+                            f'/devices/{device.instance_id}/profile/interrupts',
+                            {'endpoint_id': producer.endpoint_id, 'role': shape.role,
+                             'requires': 'one declared output alias and an in-range physical bit'})
+            continue
         if contract.irq_entry_polarity is not None and (
                 shape.polarity != contract.irq_entry_polarity):
             _refuse('interrupt-shape-mismatch', '/wiring/deliveries',
@@ -2127,6 +2268,10 @@ def _evaluate_f5(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring
         if shape.trigger not in ('level', 'pulse'):
             _refuse('interrupt-trigger-undeclared', '/wiring/deliveries',
                     {'delivery_id': delivery.delivery_id, 'trigger': shape.trigger})
+        if delivery.trigger is not None and delivery.trigger != shape.trigger:
+            _refuse('interrupt-trigger-mismatch', '/wiring/deliveries',
+                    {'delivery_id': delivery.delivery_id,
+                     'producer_trigger': shape.trigger, 'delivery_trigger': delivery.trigger})
         readable = _readable_rows(device.capability)
         if not readable:
             assessment.need(
@@ -2148,13 +2293,72 @@ def _evaluate_f5(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring
     assessment.direction = DIRECTION_IP_SOURCED
     assessment.delivery = delivery
     assessment.endpoint(device, producer, 'interrupt_producer')
-    pin_field = next((item for endpoint_row in device.profile.endpoints
-                      for item in endpoint_row.fields
-                      if _effective_direction(endpoint_row, item) == 'input'), None)
-    if pin_field is not None:
-        owner = next(endpoint_row for endpoint_row in device.profile.endpoints
-                     if pin_field in endpoint_row.fields)
-        width = _effective_field_width(device, owner, pin_field, wiring)
+    # Only an explicit environment link to an external-pins endpoint can
+    # nominate the source. A bus input is owned by its routed initiator even
+    # if it appears first in the profile or carries an input direction.
+    candidates = []
+    segments = {}
+    unresolved_candidates = 0
+    for link in wiring.environment_links:
+        if link.component_instance != device.instance_id or link.endpoint_id is None:
+            continue
+        owner = device.endpoint(link.endpoint_id)
+        if owner is None or (link.bit_offset is not None and owner.function != FUNCTION_EXTERNAL_PINS):
+            _refuse('wiring-link-segment-endpoint-invalid' if link.bit_offset is not None
+                    else 'wiring-link-endpoint-invalid', '/wiring/environment_links',
+                    {'link_id': link.link_id, 'endpoint_id': link.endpoint_id})
+        if owner is None or owner.function != FUNCTION_EXTERNAL_PINS:
+            continue
+        if link.bit_offset is not None and (
+                type(link.bit_offset) is not int or link.bit_offset < 0
+                or type(link.width) is not int or link.width < 1):
+            _refuse('wiring-link-segment-out-of-range', '/wiring/environment_links',
+                    {'link_id': link.link_id})
+        if link.bit_offset is not None and not any(
+                _effective_direction(owner, item) == 'input' and len(item.aliases) == 1
+                for item in owner.fields):
+            _refuse('wiring-link-segment-endpoint-invalid', '/wiring/environment_links',
+                    {'link_id': link.link_id, 'endpoint_id': link.endpoint_id})
+        for pin_field in owner.fields:
+            width = _effective_field_width(device, owner, pin_field, wiring)
+            if (width is None and link.width is not None and link.bit_offset is None
+                    and _effective_direction(owner, pin_field) == 'input'
+                    and len(pin_field.aliases) == 1):
+                unresolved_candidates += 1
+            if (link.bit_offset is not None and _effective_direction(owner, pin_field) == 'input'
+                    and len(pin_field.aliases) == 1):
+                if width is None or link.bit_offset + link.width > width:
+                    _refuse('wiring-link-segment-out-of-range', '/wiring/environment_links',
+                            {'link_id': link.link_id, 'field_width': width})
+            if (_effective_direction(owner, pin_field) == 'input'
+                    and len(pin_field.aliases) == 1 and width is not None
+                    and (link.bit_offset is not None or link.width is None or link.width == width)):
+                key = (device.instance_id, owner.endpoint_id, pin_field.aliases[0])
+                start = link.bit_offset if link.bit_offset is not None else 0
+                end = start + (link.width if link.bit_offset is not None else width)
+                if any(fixed.component_instance == device.instance_id
+                       and fixed.port == pin_field.aliases[0]
+                       and start < fixed.bit_offset + fixed.width
+                       and fixed.bit_offset < end for fixed in wiring.fixed_inputs):
+                    _refuse('wiring-link-fixed-overlap', '/wiring/environment_links',
+                            {'link_id': link.link_id, 'port': pin_field.aliases[0]})
+                if any(start < old_end and old_start < end and (explicit or link.bit_offset is not None)
+                       for old_start, old_end, explicit in segments.get(key, ())):
+                    _refuse('wiring-link-segment-overlap', '/wiring/environment_links',
+                            {'link_id': link.link_id})
+                segments.setdefault(key, []).append((start, end, link.bit_offset is not None))
+                candidates.append((link, owner, pin_field,
+                                   link.width if link.bit_offset is not None else width))
+    if len(candidates) != 1 or unresolved_candidates:
+        assessment.need('interrupt-source-ambiguous'
+                        if len(candidates) + unresolved_candidates > 1 else 'interrupt-source-missing',
+                        '/wiring/environment_links',
+                        {'producer_instance': device.instance_id,
+                         'candidate_count': len(candidates),
+                         'requires': 'exactly one declared, usable external input source'})
+        return
+    if len(candidates) == 1:
+        link, owner, pin_field, width = candidates[0]
         if width is not None:
             assessment.sources.append({
                 'source_id': f'{device.instance_id}.{pin_field.role}.irq_event',
@@ -2163,14 +2367,14 @@ def _evaluate_f5(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring
                 'component': device.instance_id,
                 'endpoint_id': owner.endpoint_id,
                 'port': pin_field.aliases[0] if pin_field.aliases else None,
-                'bit_offset': 0,
+                'bit_offset': link.bit_offset if link.bit_offset is not None else 0,
                 'width': width,
                 'register': None,
                 'field': None,
                 'mask': (1 << width) - 1,
                 'alignment': 1,
                 'range': None,
-                'origin_ref': f'wiring:{delivery.delivery_id}',
+                'origin_ref': f'wiring:{link.link_id}',
                 'constraint_basis': 'the environment really drives this declared input; '
                                     'the IRQ itself stays bound',
             })
@@ -2189,6 +2393,7 @@ def _evaluate_f5(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring
         'kind': 'cpu_irq_input',
         'component': cpu.instance_id,
         'endpoint_id': entry.endpoint_id,
+        **({'consumer_bit_offset': delivery.consumer_bit_offset} if delivery.consumer_bit_offset is not None else {}),
         'basis': 'the CPU IRQ input is a bound real output: the source-action '
                  'contract refuses a mutable payload whose endpoint_class is in '
                  'CPU_IRQ_ENDPOINT_CLASSES (source_actions.py:68,448)',
@@ -2206,11 +2411,64 @@ def _evaluate_f5(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring
     }
 
 
+def _evaluate_declared_irq_f5(assessment, request, marker, *, base_dir, pointers):
+    """F5 initiated by a CPU MMIO program, with the IRQ still DUT-owned."""
+    from myfuzz.integration.shared_declared_irq import compile_declared_irq
+    plan = compile_declared_irq(request, marker, request.document['f6_execution']['program'], base_dir=base_dir)
+    cpu, wiring = request.cpu, request.wiring
+    target = request.device(plan['component'])
+    windows = [w for w in wiring.windows if w.target_instance == target.instance_id]
+    deliveries = [d for d in wiring.deliveries if d.producer_instance == target.instance_id
+                  and d.consumer_instance == cpu.instance_id]
+    entry = cpu.endpoint(cpu.profile.cpu.irq_entry_endpoint)
+    irq = target.endpoint(deliveries[0].producer_endpoint_id)
+    if entry is None or irq is None:
+        raise ValueError('shared-declared-IRQ-endpoint-required')
+    image = _instruction_source(assessment, cpu, wiring, pointers)
+    if image is None:
+        return
+    assessment.resource, source = image
+    assessment.sources.append(source)
+    assessment.windows.append(windows[0])
+    assessment.delivery = deliveries[0]
+    assessment.direction = DIRECTION_CPU_SOURCED
+    assessment.endpoint(target, irq, 'interrupt_producer')
+    assessment.endpoint(cpu, entry, 'interrupt_consumer')
+    assessment.declared_irq = plan
+    assessment.bound.extend([{'input_id': target.instance_id + '.irq', 'origin': ORIGIN_BOUND,
+        'kind': 'ip_irq', 'component': target.instance_id, 'endpoint_id': irq.endpoint_id,
+        'basis': 'the declared-output interrupt is observed from the actual target'},
+        {'input_id': cpu.instance_id + '.irq', 'origin': ORIGIN_BOUND, 'kind': 'cpu_irq_input',
+         'component': cpu.instance_id, 'endpoint_id': entry.endpoint_id,
+         **({'consumer_bit_offset': deliveries[0].consumer_bit_offset} if deliveries[0].consumer_bit_offset is not None else {}),
+         'basis': 'the CPU IRQ is delivered from the real shared group'}])
+    assessment.termination = {'kind': 'delivery', 'basis': 'actual declared target IRQ delivered to CPU'}
+
+
 def _profile_endpoint_sha256(component: PathComponent, endpoint_id: str) -> str:
     return hashlib.sha256(_canonical({
         'profile_fingerprint': component.profile.profile_fingerprint,
         'endpoint_id': endpoint_id,
     })).hexdigest()
+
+
+def _f6_complete_wiring_document(wiring):
+    from dataclasses import asdict
+    from myfuzz.scenario.dma_route_intent import dma_master_route_intents_document
+    def plain(value):
+        if isinstance(value,Mapping):return {key:plain(item) for key,item in value.items()}
+        if isinstance(value,(tuple,list)):return [plain(item) for item in value]
+        return value
+    def rows(values):
+        return [{key:plain(item) for key,item in asdict(value).items()
+                 if key!='source' and item is not None} for value in values]
+    return dict(schema_version=PATH_WIRING_SCHEMA_V2,
+        cpu=dict(instance_id=wiring.cpu_instance_id,data_endpoint=wiring.cpu_data_endpoint_id),
+        windows=rows(wiring.windows),resources=rows(wiring.resources),deliveries=rows(wiring.deliveries),
+        environment_links=rows(wiring.environment_links),fixed_inputs=rows(wiring.fixed_inputs),
+        dma_master_routes=dma_master_route_intents_document(wiring.dma_master_routes),
+        dma_master_routes_sha256=wiring.dma_master_routes_sha256,
+        dma_master_route_bindings=plain(wiring.dma_master_route_bindings))
 
 
 def _wiring_resource_document(resource: WiringResource) -> dict[str, object]:
@@ -2430,7 +2688,36 @@ def _validate_static_dma_routes(cpu: PathComponent, devices: tuple[PathComponent
 
 def _evaluate_f6(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring,
                  devices: tuple[PathComponent, ...],
-                 pointers: Mapping[str, str | None] | None = None) -> None:
+                 pointers: Mapping[str, str | None] | None = None,
+                 *, request: PathCompileRequest | None = None) -> None:
+    if request is not None and 'f6_execution' in request.document:
+        from .f6_execution_contract import compile_f6_execution_contract, SCHEMA_VERSION
+        contract = compile_f6_execution_contract(request, base_dir=request.base_dir)
+        assessment.execution_contract = contract
+        assessment.direction = DIRECTION_CPU_SOURCED
+        resource, image = _instruction_source(assessment, cpu, wiring, pointers)
+        assessment.resource = resource
+        assessment.bound.append(dict(image, origin=ORIGIN_BOUND))
+        for operand in contract['candidate_layout']['sources']:
+            assessment.sources.append(dict(operand, origin=ORIGIN_FUZZABLE,
+                kind='cpu_instruction_operand', component=cpu.instance_id,
+                endpoint_id=image['endpoint_id'], port=resource.resource_id,
+                field='imm11', alignment=1, range=[0, 2047],
+                origin_ref=image['source_id'], constraint_basis=SCHEMA_VERSION,
+                instruction_source_id=image['source_id']))
+        words = contract['candidate_layout']['seed']
+        raw = sum(word << (11*i) for i, word in enumerate(words))
+        assessment.seed = dict(kind='cpu_instruction_operands', words=list(words),
+            raw8_hex=raw.to_bytes(8, 'little').hex(),
+            source_ids=[source['source_id'] for source in assessment.sources])
+        assessment.prerequisites.extend([
+            dict(kind='instruction_slot_unmaterialized', subject=dict(component=cpu.instance_id),
+                 basis='online prefix requires unmaterialized instruction slots'),
+            dict(kind='dma_live_topology_binding', subject=dict(route_ids=[r.route_id for r in wiring.dma_master_routes]),
+                 basis='static support never substitutes for the live topology binder')])
+        assessment.termination = dict(kind=contract['termination'],
+            basis='native DMA IRQ, native CPU take, ISR readback and authenticated MRET')
+        return
     feature_providers = [row for row in devices
                          if row.capability is not None
                          and row.capability.feature_contract is not None
@@ -2675,6 +2962,7 @@ def _declared_claims(components: tuple[PathComponent, ...],
             if _claim_is_randomizable(row):
                 constraints.append({
                     'owner': endpoint.endpoint_id,
+                    '_component_instance': component.instance_id,
                     'role': profile_field.role,
                     'randomizable': True,
                     **{name: row[name] for name in ('mask', 'range', 'alignment')
@@ -2696,14 +2984,23 @@ def _layout_annotations(components: tuple[PathComponent, ...],
     as a gap and left out.
     """
     endpoints, gaps = [], []
-    # The layout is keyed by *instance*, not by profile: two instances of the
-    # same profile (two PULP GPIOs, which is exactly what the shipped dual-source
-    # families wire) legitimately declare the same endpoint and role, and a key
-    # without the instance would read that as a duplicate field.  A real
-    # collision - two components claiming one physical port name - is still
-    # refused below by ``duplicate-input-port``.
+    # Raw layout names are global, whereas physical ports are local to each
+    # independent artifact. Namespace only collisions across instances; keep
+    # existing single-instance layouts byte-identical.
     seen: set[tuple[str, str, str]] = set()
-    ports: dict[str, str] = {}
+    ports: dict[tuple[str, str], str] = {}
+    endpoint_instances: dict[str, set[str]] = {}
+    port_instances: dict[str, set[str]] = {}
+    for component in components:
+        for endpoint in component.profile.endpoints:
+            if endpoint.function == FUNCTION_INTERRUPT_ENTRY:
+                continue
+            for profile_field in endpoint.fields:
+                if (_effective_direction(endpoint, profile_field) in ('input', 'inout')
+                        and profile_field.aliases
+                        and _effective_field_width(component, endpoint, profile_field, wiring) is not None):
+                    endpoint_instances.setdefault(endpoint.endpoint_id, set()).add(component.instance_id)
+                    port_instances.setdefault(profile_field.aliases[0], set()).add(component.instance_id)
     for component in components:
         for endpoint in component.profile.endpoints:
             # A CPU interrupt entry is a *bound real output* of a peripheral, not
@@ -2754,20 +3051,19 @@ def _layout_annotations(components: tuple[PathComponent, ...],
                     continue
                 port = profile_field.aliases[0]
                 owner = f'{component.instance_id}::{endpoint.endpoint_id}'
-                if port in ports and ports[port] != owner:
-                    # The compiled layout is one flat raw namespace, so two
-                    # components claiming the same physical port name would give
-                    # two different fields one driver identity.
+                port_key = (component.instance_id, port)
+                if port_key in ports and ports[port_key] != owner:
                     _refuse('duplicate-input-port', pointer,
-                            {'port': port, 'declared_by': ports[port],
+                            {'port': port, 'declared_by': ports[port_key],
                              'also_declared_by': owner})
-                ports[port] = owner
+                ports[port_key] = owner
                 bit_range = profile_field.bit_range
                 record = {
                     'role': profile_field.role,
                     'direction': 'input',
                     'width': (bit_range[1] - bit_range[0] + 1) if bit_range else width,
-                    'port': port,
+                    'port': (f'{component.instance_id}::{port}'
+                             if len(port_instances[port]) > 1 else port),
                     'randomizable': (endpoint.function == FUNCTION_EXTERNAL_PINS
                                      and endpoint.function != FUNCTION_INTERRUPT_ENTRY),
                     'evidence': [f'profile:endpoints:{endpoint.endpoint_id}:'
@@ -2780,8 +3076,22 @@ def _layout_annotations(components: tuple[PathComponent, ...],
                     record['container_width'] = width
                 fields.append(record)
             if fields:
-                endpoints.append({'endpoint_id': endpoint.endpoint_id,
+                endpoints.append({'endpoint_id': (f'{component.instance_id}::{endpoint.endpoint_id}'
+                                  if len(endpoint_instances[endpoint.endpoint_id]) > 1
+                                  else endpoint.endpoint_id),
+                                  '_component_instance': component.instance_id,
+                                  '_original_endpoint_id': endpoint.endpoint_id,
                                   'fields': fields})
+    owners = [endpoint['endpoint_id'] for endpoint in endpoints]
+    # Different endpoint identities may not collide after namespacing either.
+    if len(owners) != len(set(owners)):
+        _refuse('duplicate-layout-owner', '/inputs')
+    layout_ports = [(endpoint['_component_instance'], row['port'])
+                    for endpoint in endpoints for row in endpoint['fields']]
+    for index, (instance, port) in enumerate(layout_ports):
+        if any(other_port == port and other_instance != instance
+               for other_instance, other_port in layout_ports[:index]):
+            _refuse('duplicate-input-port', '/inputs', {'port': port})
     return endpoints, gaps
 
 
@@ -2792,9 +3102,17 @@ def _compile_constraints(components: tuple[PathComponent, ...], wiring: PathWiri
     layout = None
     if annotations:
         try:
+            owner_map = {(row['_component_instance'], row['_original_endpoint_id']): row['endpoint_id']
+                         for row in annotations}
+            layout_constraints = []
+            for row in constraints:
+                record = dict(row)
+                instance = record.pop('_component_instance')
+                record['owner'] = owner_map.get((instance, record['owner']), record['owner'])
+                layout_constraints.append(record)
             layout = build_input_layout(
                 {'endpoints': annotations},
-                component_constraints=tuple(constraints),
+                component_constraints=tuple(layout_constraints),
                 isa=isa_contract(cpu.profile) if cpu is not None else None)
         except InputLayoutError as error:
             # Second net: an unknown/contradictory/illegal input field is refused
@@ -2845,6 +3163,37 @@ def _runtime_declaration(assessments: list[_Assessment], cpu: PathComponent,
 
     for assessment in assessments:
         flow = assessment.flow_id
+        if flow == 'F6' and hasattr(assessment, 'execution_contract'):
+            c = assessment.execution_contract
+            for source in assessment.sources:
+                source_id = source['source_id']
+                sources.append(FuzzableSource(source_id, cpu.instance_id, source['port'],
+                    source['bit_offset'], source['width'], (DIRECTION_CPU_SOURCED,)))
+                nodes[source_id] = RuntimeNode(source_id, cpu.instance_id, 'state')
+            stages = [('cpu_source_configuration', cpu.instance_id),
+                      ('dma_control_acceptance', c['dma']['instance_id']),
+                      ('native_dma_read_snapshot', c['dma']['instance_id']),
+                      ('native_dma_write_commit', c['dma']['instance_id']),
+                      ('native_dma_irq', c['dma']['instance_id']),
+                      ('native_cpu_irq_take', cpu.instance_id),
+                      ('isr_status_data_readback', cpu.instance_id),
+                      ('dma_transfer_complete', cpu.instance_id)]
+            previous = [s['source_id'] for s in assessment.sources]
+            for stage_index, (stage, component) in enumerate(stages):
+                node = 'F6.' + stage
+                nodes[node] = RuntimeNode(node, component, 'logical')
+                for prerequisite in previous:
+                    if stage_index == 1:
+                        add_rule(node, prerequisite, 'EVENT_ORDER', 'mmio_route',
+                            initiator_component=cpu.instance_id, device_id=c['control']['device_id'],
+                            base=c['control']['base'], size=c['control']['size'])
+                    elif stage_index in (0, 3):
+                        add_rule(node, prerequisite, 'PERSISTENT_STATE_RULE', 'persistent_state',
+                            resource_component=cpu.instance_id, resource_id=assessment.resource.resource_id)
+                    else:
+                        add_rule(node, prerequisite, 'EVENT_ORDER', 'causal_order')
+                previous = [node]
+            continue
         if flow == 'F6':
             if wiring.dma_master_routes:
                 omitted.append(_missing(
@@ -2862,6 +3211,67 @@ def _runtime_declaration(assessments: list[_Assessment], cpu: PathComponent,
             continue
         if assessment.status != STATUS_EXECUTABLE:
             continue
+        if flow == 'F5' and hasattr(assessment, 'declared_irq'):
+            plan = assessment.declared_irq
+            image = next(s for s in assessment.sources if s['kind'] == 'instruction_image')
+            image_node, trigger_node, source_node = 'F5.program_image', 'F5.mmio_trigger', 'F5.ip_irq'
+            sources.append(FuzzableSource(image_node, image['component'], image['port'], 0,
+                image['width'], (DIRECTION_CPU_SOURCED,), kind='memory_image'))
+            nodes[image_node] = RuntimeNode(image_node, image['component'], 'state')
+            nodes[trigger_node] = RuntimeNode(trigger_node, cpu.instance_id, 'logical')
+            nodes[source_node] = RuntimeNode(source_node, plan['component'], 'physical',
+                plan['source']['port'], plan['source']['bit_offset'], 1)
+            entry = cpu.endpoint(cpu.profile.cpu.irq_entry_endpoint)
+            field = next(f for f in entry.fields if f.role == cpu.profile.cpu.irq_entry_role)
+            bit = field.bit_range[0] if field.bit_range else 0
+            nodes[assessment.target] = RuntimeNode(assessment.target, cpu.instance_id, 'physical',
+                field.aliases[0], bit, 1)
+            add_rule(trigger_node, image_node, 'PERSISTENT_STATE_RULE', 'persistent_state',
+                resource_component=assessment.resource.component_instance,
+                resource_id=assessment.resource.resource_id)
+            window = assessment.windows[0]
+            add_rule(source_node, trigger_node, 'EVENT_ORDER', 'mmio_route',
+                initiator_component=cpu.instance_id, device_id=window.device_id,
+                base=window.base, size=window.size)
+            add_rule(assessment.target, source_node, 'EVENT_ORDER', 'direct_binding')
+            continue
+        if flow == 'F5' and assessment.delivery is not None:
+            delivery = assessment.delivery
+            producer = next((row for row in devices
+                             if row.instance_id == delivery.producer_instance), None)
+            if producer is None:
+                omitted.append(_missing('interrupt-producer-undeclared',
+                                        '/wiring/deliveries', {'flow_id': flow}))
+                continue
+            ends = _interrupt_physical_ends(assessment, cpu, producer)
+            if ends is None:
+                omitted.append(_missing(
+                    'interrupt-physical-ends-undeclared', '/wiring/deliveries',
+                    {'flow_id': flow,
+                     'requires': 'declared port aliases and bit ranges on both the '
+                                 'producer and the consumer interrupt fields, because '
+                                 'a direct_binding relation names physical endpoints'}))
+                continue
+            (producer_node, producer_port, producer_bit), \
+                (entry_node, entry_port, entry_bit) = ends
+            nodes[producer_node] = RuntimeNode(producer_node, producer.instance_id,
+                                               'physical', producer_port, producer_bit, 1)
+            nodes[entry_node] = RuntimeNode(entry_node, cpu.instance_id, 'physical',
+                                            entry_port, entry_bit, 1)
+            pin = next((row for row in assessment.sources
+                        if row['kind'] == 'external_pin'), None)
+            if pin is None:
+                omitted.append(_missing('interrupt-source-node-undeclared',
+                                        '/paths', {'flow_id': flow}))
+                continue
+            pin_node = f'{flow}.pin_event'
+            sources.append(FuzzableSource(pin_node, pin['component'], pin['port'], pin['bit_offset'],
+                                          pin['width'], (DIRECTION_IP_SOURCED,)))
+            nodes[pin_node] = RuntimeNode(pin_node, pin['component'], 'physical',
+                                          pin['port'], pin['bit_offset'], pin['width'])
+            add_rule(producer_node, pin_node, 'EVENT_ORDER', None)
+            add_rule(entry_node, producer_node, 'EVENT_ORDER', 'direct_binding')
+            continue
         target = assessment.target
         image = next((row for row in assessment.sources
                       if row['kind'] == 'instruction_image'), None)
@@ -2869,6 +3279,21 @@ def _runtime_declaration(assessments: list[_Assessment], cpu: PathComponent,
             omitted.append(_missing('instruction-image-node-undeclared', '/paths',
                                     {'flow_id': flow}))
             continue
+        # A declared non-IRQ F4 auxiliary drive is an independent source
+        # domain, not an AND prerequisite or cause of the CPU register write.
+        if flow=='F4':
+            pins=[s for s in assessment.sources if s['kind']=='external_pin']
+            for pin in pins:
+                links=[link for link in wiring.environment_links
+                    if link.component_instance==pin['component'] and link.endpoint_id==pin['endpoint_id']
+                    and (link.bit_offset,link.width)==(pin['bit_offset'],pin['width'])]
+                irq_route=any(d.producer_instance==pin['component'] and d.consumer_instance==cpu.instance_id
+                    for d in wiring.deliveries)
+                if len(links)==1 and not irq_route:
+                    name=pin['source_id']
+                    sources.append(FuzzableSource(name,pin['component'],pin['port'],pin['bit_offset'],pin['width'],
+                        (DIRECTION_CPU_SOURCED,)))
+                    nodes[name]=RuntimeNode(name,pin['component'],'physical',pin['port'],pin['bit_offset'],pin['width'])
         image_node = f'{flow}.program_image'
         if image_node not in nodes:
             sources.append(FuzzableSource(image_node, image['component'],
@@ -2937,43 +3362,6 @@ def _runtime_declaration(assessments: list[_Assessment], cpu: PathComponent,
                      resource_component=ram.component_instance,
                      resource_id=ram.resource_id)
             continue
-        if flow == 'F5' and assessment.delivery is not None:
-            delivery = assessment.delivery
-            producer = next((row for row in devices
-                             if row.instance_id == delivery.producer_instance), None)
-            if producer is None:
-                omitted.append(_missing('interrupt-producer-undeclared',
-                                        '/wiring/deliveries', {'flow_id': flow}))
-                continue
-            ends = _interrupt_physical_ends(assessment, cpu, producer)
-            if ends is None:
-                omitted.append(_missing(
-                    'interrupt-physical-ends-undeclared', '/wiring/deliveries',
-                    {'flow_id': flow,
-                     'requires': 'declared port aliases and bit ranges on both the '
-                                 'producer and the consumer interrupt fields, because '
-                                 'a direct_binding relation names physical endpoints'}))
-                continue
-            (producer_node, producer_port, producer_bit), \
-                (entry_node, entry_port, entry_bit) = ends
-            nodes[producer_node] = RuntimeNode(producer_node, producer.instance_id,
-                                               'physical', producer_port, producer_bit, 1)
-            nodes[entry_node] = RuntimeNode(entry_node, cpu.instance_id, 'physical',
-                                            entry_port, entry_bit, 1)
-            pin = next((row for row in assessment.sources
-                        if row['kind'] == 'external_pin'), None)
-            if pin is None:
-                omitted.append(_missing('interrupt-source-node-undeclared',
-                                        '/paths', {'flow_id': flow}))
-                continue
-            pin_node = f'{flow}.pin_event'
-            sources.append(FuzzableSource(pin_node, pin['component'], pin['port'], 0,
-                                          pin['width'], (DIRECTION_IP_SOURCED,)))
-            nodes[pin_node] = RuntimeNode(pin_node, pin['component'], 'physical',
-                                          pin['port'], 0, pin['width'])
-            add_rule(producer_node, pin_node, 'EVENT_ORDER', None)
-            add_rule(entry_node, producer_node, 'EVENT_ORDER', 'direct_binding')
-            continue
         omitted.append(_missing('runtime-hop-undeclared', '/paths',
                                 {'flow_id': flow,
                                  'requires': 'a declared hop shape for this flow'}))
@@ -3001,22 +3389,27 @@ def _interrupt_physical_ends(assessment: _Assessment, cpu: PathComponent,
     consumer_end = consumer_matches[0] if len(consumer_matches) == 1 else None
     if producer_end is None or consumer_end is None:
         return None
-    shape = next((row for row in producer.profile.interrupts
-                  if row.endpoint_id == producer_end.endpoint_id), None)
+    shape = _selected_interrupt_shape(producer, producer_end, delivery)
     consumer_field = next((row for row in consumer_end.fields
                            if row.role == contract.irq_entry_role), None)
     if shape is None or consumer_field is None or not consumer_field.aliases:
         return None
-    if shape.bit is None or not shape.source_id:
+    producer_physical = _interrupt_source_physical(producer_end, shape)
+    if producer_physical is None:
         return None
     span = consumer_field.bit_range
     entry_width = (span[1] - span[0] + 1) if span else consumer_field.width
-    if entry_width != 1:
-        # A direct_binding relation names physical endpoints of equal width; the
-        # consumer end must be a declared single-bit interrupt line.
-        return None
-    entry_bit = span[0] if span else 0
-    return ((f'{assessment.flow_id}.ip_irq', shape.source_id, shape.bit),
+    low = span[0] if span else 0
+    selected_bit = delivery.consumer_bit_offset
+    if selected_bit is None:
+        if entry_width != 1:
+            return None
+        entry_bit = low
+    else:
+        if type(selected_bit) is not int or entry_width is None or not low <= selected_bit < low + entry_width:
+            return None
+        entry_bit = selected_bit
+    return ((f'{assessment.flow_id}.ip_irq', *producer_physical),
             (f'{assessment.flow_id}.cpu_irq_entry', consumer_field.aliases[0],
              entry_bit))
 
@@ -3097,6 +3490,13 @@ def compile_paths(request: PathCompileRequest) -> dict:
     layout, policy = _compile_constraints(components, wiring, annotations,
                                           source_constraints)
     mmio, unresolved_windows = _mmio_candidates(wiring, devices)
+    marker = request.document.get('f6_execution', {})
+    slots = marker.get('shared_slots', {}) if isinstance(marker, Mapping) else {}
+    # An explicit read register selects an ordinary APB target separately from
+    # any GPIO companion used to produce F5; legacy GPIO selections retain
+    # their distinct PADIN read and GPIOEN write behavior.
+    selected = (slots.get('component'), slots.get('read_register')) if isinstance(slots, Mapping) and 'read_register' in slots else None
+    selected_write = (slots.get('component'), slots.get('register')) if selected is not None else None
     pointers = {function: request.role_pointer(function)
                 for function in (FUNCTION_DATA_MASTER, FUNCTION_INSTRUCTION_MASTER)}
 
@@ -3106,15 +3506,28 @@ def compile_paths(request: PathCompileRequest) -> dict:
         if flow_id == 'F1':
             _evaluate_f1(assessment, cpu, wiring, pointers)
         elif flow_id == 'F2':
-            _evaluate_f2(assessment, cpu, wiring, mmio, unresolved_windows, pointers)
+            _evaluate_f2(assessment, cpu, wiring, mmio, unresolved_windows, pointers, selected)
         elif flow_id == 'F3':
             _evaluate_f3(assessment, cpu, wiring, pointers)
         elif flow_id == 'F4':
-            _evaluate_f4(assessment, cpu, wiring, mmio, unresolved_windows, pointers)
+            _evaluate_f4(assessment, cpu, wiring, mmio, unresolved_windows, pointers, selected_write)
         elif flow_id == 'F5':
-            _evaluate_f5(assessment, cpu, wiring, devices, pointers)
+            marker=request.document.get('f6_execution',{})
+            declared=marker.get('declared_irq') if isinstance(marker,Mapping) else None
+            if declared is not None:
+                _evaluate_declared_irq_f5(assessment, request, declared, base_dir=request.base_dir, pointers=pointers)
+            else:
+                gpio=marker.get('gpio_irq',{}) if isinstance(marker,Mapping) else {}
+                selected=gpio.get('component') if isinstance(gpio,Mapping) else None
+                _evaluate_f5(assessment, cpu, wiring, devices, pointers,selected_producer=selected)
         else:
-            _evaluate_f6(assessment, cpu, wiring, devices, pointers)
+            from .f6_execution_contract import F6ContractRefused
+            try:
+                _evaluate_f6(assessment, cpu, wiring, devices, pointers,
+                             request=request)
+            except F6ContractRefused as error:
+                raise PathCompilationError(error.code, error.pointer,
+                                           error.detail) from error
         assessments.append(assessment)
 
     runtime, omitted = _runtime_declaration(assessments, cpu, wiring, devices)
@@ -3173,7 +3586,12 @@ def compile_paths(request: PathCompileRequest) -> dict:
             'prerequisites': list(assessment.prerequisites),
             'termination_observation': dict(assessment.termination),
             'seed': assessment.seed,
-            'assertions': _assertion_set(assessment.flow_id),
+            'assertions': ([dict(expectation_id=e,
+                assertion_class=('protocol_checker' if e.startswith('protocol_checker.') else
+                    'cross_component_provenance_and_order' if e.startswith('cross_component.') else 'cpu_ip_behaviour'),
+                declared_by='compiled_F6_cpu_dma_contract.v1', asserts=e)
+                for e in assessment.execution_contract['expectation_ids']]
+                if hasattr(assessment, 'execution_contract') else _assertion_set(assessment.flow_id)),
             'runtime_path_identity': identities.get(assessment.flow_id),
             'not_claimed': ['rtl_operational', 'cross_component_accepted',
                             'coverage_guided_searched', 'bug_confirmed'],
@@ -3183,6 +3601,8 @@ def compile_paths(request: PathCompileRequest) -> dict:
     for row in paths:
         if row['flow_id'] == 'F2' and row['status'] == STATUS_EXECUTABLE:
             row['execution_contract'] = build_f2_read_contract(row)
+        if row['flow_id'] == 'F6' and 'f6_execution' in request.document:
+            row['execution_contract'] = next(a.execution_contract for a in assessments if a.flow_id == 'F6')
 
     return {
         'schema_version': COMPILED_PATHS_SCHEMA,

@@ -1,0 +1,103 @@
+{
+  "schema_version": "public_shared_entry_saved_audit.v1",
+  "native_rerun": false,
+  "authority": false,
+  "selection_equal": true,
+  "sources_equal": true,
+  "request_equal": true,
+  "prefix_identity_equal": true,
+  "metric_semantic_keys_equal": true,
+  "manifest_file_bindings_match": true,
+  "execution_nonce_distinct_per_component": true,
+  "note": "numeric PIDs can repeat across invocation namespaces; actual nonce/build/artifact receipts distinguish executions",
+  "prefix_identity": {
+    "compiled_document_sha256": "436670fcc74b8a90ecd740b9bce387fb33d5e3fecf2305cd19de65e33eed9281",
+    "normalized_prefix_sha256": "4698c4df3ca81a2cb4da3c22d9673645c8587aa79956cd5fcacf3723f15d37a2",
+    "plan_sha256": "028d98c98817b77ea69df393d2f460644c571d0bf096074390c7014606ed2586",
+    "trace_genome_sha256": "028d98c98817b77ea69df393d2f460644c571d0bf096074390c7014606ed2586",
+    "trace_manifest_sha256": "dc50b059fa7c7e23aafdb14bd2ea714b27adba9cf81b03a900f4fac939574301"
+  },
+  "verified_fresh_scope": "strict-cross-invocation",
+  "checked_artifact_sha256": {
+    "research/input-strategy-audit-20261027/runs/shared-search-20261029/state-v4/original/search-manifest.json": "224e974805db4b8ee9879c0ee534d3875ea0d0eacacb567417dd42a7f256ba14",
+    "research/input-strategy-audit-20261027/runs/shared-search-20261029/state-v4/fresh/search-manifest.json": "c7ed730630423b6a5aa61c01523a66df6df68c05d7e7c0218a85dd9a42622645",
+    "research/input-strategy-audit-20261027/runs/shared-search-20261029/state-v4/original/search-summary.json": "ca6ac1e53aa969f5a30926d1aa7c6576c87f87eba18ea62e2db047da7144c7f1",
+    "research/input-strategy-audit-20261027/runs/shared-search-20261029/state-v4/fresh/search-summary.json": "16b943f9eab7a4a75f3913dab56b4a53d851939ee6db7e96bb84d075ed05f05b",
+    "research/input-strategy-audit-20261027/runs/shared-search-20261029/state-v4/original/execution-identities.json": "003fad9633e6d52d01cdf964564fd91afb3808c43d335c817d45e88178962db3",
+    "research/input-strategy-audit-20261027/runs/shared-search-20261029/state-v4/fresh/execution-identities.json": "6df9c4504506d429556c8449f7000de43ff7dde4b7d83aa2c0d2bca74d4e2b6d",
+    "research/input-strategy-audit-20261027/runs/shared-search-20261029/state-v4/original/summary.json": "9cad249243c88c1862ea25fdc32d58621cf229fb94e8c3e2539332daee78aacc",
+    "research/input-strategy-audit-20261027/runs/shared-search-20261029/state-v4/original/shared-measurements.json": "e19c001a07467b34660d7f5b75a8a79c336736e9c81878ab8db50375218d8d58",
+    "research/input-strategy-audit-20261027/runs/shared-search-20261029/state-v4/fresh/summary.json": "b9a1dcedf1a64a98f97c03740307510110e470fffd578a8f1431340f3cb72488",
+    "research/input-strategy-audit-20261027/runs/shared-search-20261029/state-v4/fresh/shared-measurements.json": "99eff4b6f71991f3256cc06096dadc683f8a685fe5f294df2ac0e0da71e7afb2"
+  },
+  "tail_integration_regression": {
+    "scope": "tail-v1 own original vs own full fresh only",
+    "full_normalized_prefix_equal": true,
+    "normalized_prefix_sha256": "ab97f7d7467e6ead1ebd23716d7015b5fb696d30bc0c17a6e9d5eda1742cefe1",
+    "native_runtime_eval_counts": {
+      "original": {
+        "cpu": 3908,
+        "dma": 4040,
+        "peripheral": 4092
+      },
+      "fresh": {
+        "cpu": 3908,
+        "dma": 4040,
+        "peripheral": 4092
+      }
+    },
+    "GPIO_IRQ_ISR": [
+      {
+        "execution": "original",
+        "slot": 3,
+        "case_id": "ibex-gpio-dma-shared-mixed:F5:4",
+        "PADIN": 256,
+        "INTSTATUS": 256,
+        "take_event": 10549,
+        "mret_event": 13893
+      },
+      {
+        "execution": "original",
+        "slot": 6,
+        "case_id": "ibex-gpio-dma-shared-mixed:F5:7",
+        "PADIN": 0,
+        "INTSTATUS": 256,
+        "take_event": 25878,
+        "mret_event": 29246
+      },
+      {
+        "execution": "fresh",
+        "slot": 3,
+        "case_id": "ibex-gpio-dma-shared-mixed:F5:4",
+        "PADIN": 256,
+        "INTSTATUS": 256,
+        "take_event": 10549,
+        "mret_event": 13893
+      },
+      {
+        "execution": "fresh",
+        "slot": 6,
+        "case_id": "ibex-gpio-dma-shared-mixed:F5:7",
+        "PADIN": 0,
+        "INTSTATUS": 256,
+        "take_event": 25878,
+        "mret_event": 29246
+      }
+    ],
+    "wall_seconds": 481.95617720499285,
+    "campaign_seconds": 149.97644743799174,
+    "performance_improvement_claim": false,
+    "source_comparison_with_old_AB": false,
+    "checked_artifact_sha256": {
+      "research/input-strategy-audit-20261027/runs/shared-performance-20261029/tail-v1/performance.json": "bd7dd66f5fea76f10da8bbf392ffd7779507029cf56fa67efae88444876d2c26",
+      "research/input-strategy-audit-20261027/runs/shared-performance-20261029/tail-v1/workload/original/prefix.json": "1efc599e9212aa4efd236d563bd4d66eafb31efd0543a6f233742ceab0f9768f",
+      "research/input-strategy-audit-20261027/runs/shared-performance-20261029/tail-v1/workload/original/replay.json": "9825a6c2d78b6e756140f531839a9ff6587443c9e1f122fe0eb6ee5b22eba1d0",
+      "research/input-strategy-audit-20261027/runs/shared-performance-20261029/tail-v1/native-eval/dut-timing-421.json": "8dd713b7771660d8f59e83afc3d81c14770fc663cb7a1846aed4416a1fba57bb",
+      "research/input-strategy-audit-20261027/runs/shared-performance-20261029/tail-v1/native-eval/dut-timing-453.json": "4f28b25320c4335d57ade2391fe4be2ed8721e49836e6480620b0b5ac4f2cede",
+      "research/input-strategy-audit-20261027/runs/shared-performance-20261029/tail-v1/native-eval/dut-timing-485.json": "5ce7963aa9600a5ae4446a33a1f3d31a5732180538e73b98f7f5df91ee753d3a",
+      "research/input-strategy-audit-20261027/runs/shared-performance-20261029/tail-v1/native-eval/dut-timing-539.json": "d297dcffd86adee6c38b6467c86e2280c90368eb2103e4aaafe647f5bc0974de",
+      "research/input-strategy-audit-20261027/runs/shared-performance-20261029/tail-v1/native-eval/dut-timing-571.json": "0731f31df6abdfe005c71fc20acd1b8319fe3441099eb257c05439e45778cff1",
+      "research/input-strategy-audit-20261027/runs/shared-performance-20261029/tail-v1/native-eval/dut-timing-603.json": "618a15fdc2cece003c065b4076b4bf4f6e325cb1218f2c0a3efffce04da9c684"
+    }
+  }
+}

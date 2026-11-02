@@ -22,7 +22,7 @@ intentionally contains no claimed fuzz result.
 
 The planned first target is a small CPU-like component plus RAM/timer/GPIO and
 UART/SPI-style IP. The first real-design target should use the RVX component
-set documented in `docs/CANDIDATE_COMPONENT_PROJECTS_RVX_COREV_PULP_20260617.md`.
+set documented in `docs/history/experiments/CANDIDATE_COMPONENT_PROJECTS_RVX_COREV_PULP_20260617.md`.
 
 Local execution is limited to structural checks. Run RFuzz instrument/server/fuzz
 steps on `inner70:/root/fanzehui/myfuzz`.

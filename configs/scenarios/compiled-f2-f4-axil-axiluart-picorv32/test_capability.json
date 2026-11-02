@@ -1,0 +1,36 @@
+{
+  "schema_version": "ip_test_capability.v3",
+  "component_id": "zipcpu_axiluart",
+  "profile_fingerprint": "sha256:9178e28c3779e4b11b951588e51d41726bc7940e489e4d34154e25b544c511bf",
+  "endpoint_capabilities": [
+    {
+      "endpoint_id": "uart.bus",
+      "operations": [
+        "request",
+        "accept",
+        "response",
+        "read",
+        "write",
+        "wait",
+        "error"
+      ]
+    }
+  ],
+  "register_semantics": [
+    {
+      "register": "SETUP",
+      "field": "value",
+      "lsb": 0,
+      "width": 32,
+      "access": "rw",
+      "read_mask": 2147483647,
+      "write_mask": 2147483647,
+      "side_effect": "write_resets_uart_state",
+      "reset_value": 25,
+      "write_policy": "full_word_reserved_zero",
+      "evidence_ref": "rtl:third_party/soc-zipcpu-wbuart/rtl/axiluart.v@f43a6b83c3a70fb2ac0696a45c5545b233fb860b:337-349,662-672;sha256=0d8463cfcfdf63c429564cd53d07a51b7fe60605fc588627e6f8d8ea9c8d9b2a"
+    }
+  ],
+  "observation_mappings": [],
+  "register_aliases": []
+}

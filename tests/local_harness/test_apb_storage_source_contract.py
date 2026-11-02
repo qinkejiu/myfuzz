@@ -36,7 +36,7 @@ def choose(profile,base_dir=ROOT,**selection):
 
 def test_actual_pinned_source_has_closed_reviewed_scope(timer):
  m=api();d=choose(timer)
- assert m.registered_apb_storage_source_contracts()==(CONTRACT,SPI_CONTRACT)
+ assert m.registered_apb_storage_source_contracts()==(CONTRACT,SPI_CONTRACT,GPIO_CONTRACT)
  assert d['digest']=='75bf4ddf1bacc6879235cabf980ec7c252dbd9251243895f25f72ebddd1f131f'
  assert d['scope']=='source_reviewed_contract' and d['authority'] is False
  assert all(d[k] is False for k in ('native_verified','hierarchy_verified','reset_authority','version_authority','source_authority'))
@@ -356,3 +356,175 @@ def test_spi_source_directory_symlink_and_missing_files_refused(spi,tmp_path):
  target=tmp_path/'third_party';target.symlink_to(ROOT/'third_party',target_is_directory=True)
  with pytest.raises(ValueError,match='source-symlink'):choose_spi(spi,base_dir=tmp_path)
  with pytest.raises(ValueError,match='source-unavailable'):choose_spi(spi,base_dir=tmp_path/'missing')
+
+
+GPIO_CONTRACT='pulp-apb-gpio.paddir.source.v1'
+GPIO_SOURCES={'rtl/apb_gpio.sv':'1e271914da4d25c87acd12121dde60a6ed955033870fd7a6730b2c9bafcbcaef'}
+
+
+@pytest.fixture
+def gpio():return load_component_profile(ROOT/'configs/peripherals/pulp_gpio_storage/component_profile.json')
+
+
+def choose_gpio(profile,base_dir=ROOT,**selection):
+ return choose(profile,base_dir,contract_id=GPIO_CONTRACT,register='PADDIR',**selection)
+
+
+def copy_gpio_source(gpio,tmp_path):
+ for name in gpio.source.files:
+  p=tmp_path/gpio.source.source_root/name;p.parent.mkdir(parents=True,exist_ok=True)
+  p.write_bytes((ROOT/gpio.source.source_root/name).read_bytes())
+
+
+def test_gpio_paddir_exact_source_contract_is_documentary(gpio):
+ import hashlib
+ m=api();d=choose_gpio(gpio)
+ assert d['contract_id']==GPIO_CONTRACT and d['scope']=='source_reviewed_contract'
+ assert all(d[k] is False for k in ('authority','source_authority','native_verified','hierarchy_verified','reset_authority','version_authority'))
+ assert d['source']['root']=='third_party/soc-pulp-apb-gpio'
+ assert d['source']['revision']=='git:f82caeb7f7d89427f05e9af5ed31e0675efe0d83'
+ assert d['source']['top_module']=='apb_gpio' and d['source']['files']==GPIO_SOURCES
+ assert hashlib.sha256((ROOT/'third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv').read_bytes()).hexdigest()==GPIO_SOURCES['rtl/apb_gpio.sv']
+ assert d['parameters']=={'APB_ADDR_WIDTH':12,'PAD_NUM':32,'NBIT_PADCFG':4}
+ assert d['register']==dict(name='PADDIR',canonical_offset=0,width=32,reset_value=0,write_mask=0xffffffff,read_mask=0xffffffff)
+ assert d['clock']==dict(port='HCLK',edge='posedge')
+ assert d['reset']==dict(port='HRESETn',polarity='active_low',synchronous=False,event='negedge HRESETn or asserted at posedge HCLK')
+ assert d['storage_expression']['expression']=='u_component.u_dut.r_gpio_dir'
+ assert d['storage_expression']['status']=='prospective_not_codegen_or_native_verified'
+ assert d['writers']['complete_for_registered_source'] is True
+ assert d['writers']['autonomous_ctrl_writers']==[]
+ assert 'PADOUT' in d['not_claimed'] and 'gpio_pins' in d['not_claimed']
+ assert m.validate_apb_storage_source_contract(json.loads(json.dumps(d)),gpio,base_dir=ROOT)==d
+ assert choose_gpio(replace(gpio,component_id='another_instance_name'))==d
+ d['writers']['autonomous_ctrl_writers'].append('caller writer')
+ assert choose_gpio(gpio)['writers']['autonomous_ctrl_writers']==[]
+
+
+def test_gpio_raw_and_aligned_alias_geometry(gpio):
+ m=api();d=choose_gpio(gpio)
+ assert d['decode']['mask']==0x7c and d['decode']['value']==0
+ assert d['decode']['address_width']==12 and d['decode']['alias_period_bytes']==128
+ assert d['decode']['raw_address_alias_count']==128 and d['decode']['aligned_word_alias_count']==32
+ assert d['decode']['ignored_address_bits']==[0,1,7,8,9,10,11]
+ actual=[a for a in range(4096) if m.apb_storage_address_matches(d,a)]
+ assert actual==[a for a in range(4096) if (a>>2)&31==0]
+ assert len(actual)==128 and len([a for a in actual if a%4==0])==32
+ assert all(m.apb_storage_address_matches(d,a) for a in (0,1,2,3,0x80,0xf83))
+ assert not any(m.apb_storage_address_matches(d,a) for a in (4,8,12,0x7c,0xfff))
+ for bad in (True,-1,4096,'0'):
+  with pytest.raises(ValueError):m.apb_storage_address_matches(d,bad)
+
+
+def test_gpio_fatal_warning_profile_is_not_the_reviewed_profile():
+ old=load_component_profile(ROOT/'configs/peripherals/pulp_gpio/component_profile.json')
+ with pytest.raises(ValueError,match='source-identity-unsupported'):choose_gpio(old)
+
+
+@pytest.mark.parametrize('selection',[
+ {'contract_id':GPIO_CONTRACT,'register':'PADOUT'},
+ {'contract_id':GPIO_CONTRACT,'register':'PADOUTSET'},
+ {'contract_id':GPIO_CONTRACT,'register':'PADOUTCLR'},
+ {'contract_id':GPIO_CONTRACT,'register':'INTSTATUS'},
+ {'contract_id':GPIO_CONTRACT,'register':'PADDIR','evidence_ref':'caller authority'},
+ {'contract_id':CONTRACT,'register':'PADDIR'},
+ {'contract_id':SPI_CONTRACT,'register':'PADDIR'},
+])
+def test_gpio_wrong_or_side_effecting_register_selection_refused(gpio,selection):
+ with pytest.raises(ValueError):api().select_apb_storage_source_contract(gpio,base_dir=ROOT,selection=selection)
+
+
+def test_gpio_contracts_refuse_cross_pairing(gpio,timer,spi):
+ with pytest.raises(ValueError):choose(gpio)
+ with pytest.raises(ValueError):choose_spi(gpio)
+ with pytest.raises(ValueError):choose_gpio(timer)
+ with pytest.raises(ValueError):choose_gpio(spi)
+ with pytest.raises(ValueError):api().validate_apb_storage_source_contract(choose_gpio(gpio),timer,base_dir=ROOT)
+ with pytest.raises(ValueError):api().validate_apb_storage_source_contract(choose_gpio(gpio),spi,base_dir=ROOT)
+
+
+@pytest.mark.parametrize('change',[
+ {'source_root':'third_party/soc-pulp-apb-timer'},{'revision':'git:'+'0'*40},
+ {'top_module':'timer'},{'files':()},{'include_roots':('extra',)},
+ {'filelist':'extra.f'},{'filelist_variables':(('ROOT','extra'),)},
+])
+def test_gpio_source_identity_drift_refused(gpio,change):
+ choose_gpio(gpio)
+ with pytest.raises(ValueError):choose_gpio(replace(gpio,source=replace(gpio.source,**change)))
+
+
+@pytest.mark.parametrize('change',[
+ {'parameters':(('APB_ADDR_WIDTH','13'),('NBIT_PADCFG','4'),('PAD_NUM','32'))},
+ {'parameters':(('APB_ADDR_WIDTH','12'),('NBIT_PADCFG','4'),('PAD_NUM','64'))},
+ {'parameters':(('APB_ADDR_WIDTH','12'),('NBIT_PADCFG','4'),('PAD_NUM','32'),('EXTRA','0'))},
+ {'frontend':'other'},{'defines':(('EXTRA','1'),)},{'warning_policy':'fatal'},
+])
+def test_gpio_elaboration_drift_refused(gpio,change):
+ choose_gpio(gpio)
+ with pytest.raises(ValueError):
+  settings=replace(gpio.source.elaboration,**change)
+  choose_gpio(replace(gpio,source=replace(gpio.source,elaboration=settings)))
+
+
+@pytest.mark.parametrize('which,change',[
+ ('clock',{'port':'fake_clk'}),('reset',{'port':'fake_reset'}),
+ ('reset',{'polarity':'active_high'}),('reset',{'synchronous':True}),
+ ('reset',{'synchronous':0}),('reset',{'sequence_after':('other',)}),
+])
+def test_gpio_clock_reset_drift_refused(gpio,which,change):
+ choose_gpio(gpio)
+ if which=='clock':profile=replace(gpio,clocks=(replace(gpio.clocks[0],**change),))
+ else:profile=replace(gpio,resets=(replace(gpio.resets[0],**change),))
+ with pytest.raises(ValueError):choose_gpio(profile)
+
+
+@pytest.mark.parametrize('change',[
+ {'function':'mmio_master'},{'protocol':('apb','4')},{'fields':()},
+])
+def test_gpio_apb_endpoint_drift_refused(gpio,change):
+ choose_gpio(gpio)
+ endpoints=tuple(replace(e,**change) if e.protocol is not None else e for e in gpio.endpoints)
+ with pytest.raises(ValueError):choose_gpio(replace(gpio,endpoints=endpoints))
+
+
+@pytest.mark.parametrize('change',[{'window_size':8192},{'alignment':2048},{'window_size':True}])
+def test_gpio_address_window_drift_refused(gpio,change):
+ choose_gpio(gpio)
+ with pytest.raises(ValueError):choose_gpio(replace(gpio,address=replace(gpio.address,**change)))
+
+
+@pytest.mark.parametrize('change',[
+ {'offset':4},{'offset':False},{'width':16},{'access':'ro'},
+ {'side_effect':'write_one_sets'},{'reset_value':1},{'reset_value':False},
+ {'writable_bits':1},{'clears_register':'PADDIR'},
+])
+def test_gpio_paddir_fact_drift_refused(gpio,change):
+ choose_gpio(gpio)
+ rows=tuple(replace(r,**change) if r.name=='PADDIR' else r for r in gpio.address.registers)
+ with pytest.raises(ValueError):choose_gpio(replace(gpio,address=replace(gpio.address,registers=rows)))
+
+
+@pytest.mark.parametrize('mutate',[
+ lambda d:d.update(authority=True),lambda d:d['register'].update(reset_value=False),
+ lambda d:d['decode'].update(mask=0x3c),lambda d:d['decode'].update(value=8),
+ lambda d:d['storage_expression'].update(expression='u_component.u_dut.r_gpio_out'),
+ lambda d:d['source']['files'].update({'extra.sv':'0'*64}),lambda d:d.update(digest='0'*64),
+])
+def test_gpio_document_tampering_refused(gpio,mutate):
+ d=choose_gpio(gpio);mutate(d)
+ with pytest.raises(ValueError):api().validate_apb_storage_source_contract(d,gpio,base_dir=ROOT)
+ with pytest.raises(ValueError):api().apb_storage_address_matches(d,0)
+
+
+@pytest.mark.parametrize('relative',tuple(GPIO_SOURCES))
+def test_gpio_every_closure_byte_is_rechecked(gpio,tmp_path,relative):
+ copy_gpio_source(gpio,tmp_path);d=choose_gpio(gpio,base_dir=tmp_path)
+ path=tmp_path/gpio.source.source_root/relative;path.write_bytes(path.read_bytes()+b'\n// byte drift\n')
+ with pytest.raises(ValueError,match='reviewed-source-bytes-changed'):choose_gpio(gpio,base_dir=tmp_path)
+ with pytest.raises(ValueError,match='reviewed-source-bytes-changed'):api().validate_apb_storage_source_contract(d,gpio,base_dir=tmp_path)
+
+
+@pytest.mark.parametrize('relative',tuple(GPIO_SOURCES))
+def test_gpio_source_symlink_refused(gpio,tmp_path,relative):
+ copy_gpio_source(gpio,tmp_path);choose_gpio(gpio,base_dir=tmp_path)
+ path=tmp_path/gpio.source.source_root/relative;path.unlink();path.symlink_to(ROOT/gpio.source.source_root/relative)
+ with pytest.raises(ValueError,match='source-symlink'):choose_gpio(gpio,base_dir=tmp_path)

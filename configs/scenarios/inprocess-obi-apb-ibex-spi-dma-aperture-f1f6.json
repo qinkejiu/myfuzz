@@ -1,0 +1,164 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-apb-ibex-spi-dma-aperture-f1f6",
+  "description": "One Ibex RVFI OBI CPU with two address-routed APB3 targets (PULP timer carrying F5, PULP SPI at 0x20002000 carrying a four-word readable register aperture) and a ZipDMA whose master reads four consecutive SPI registers into an incrementing RAM block.",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "targets": [
+    {
+      "name": "timer",
+      "profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+      "active_id": "pulp_timer_active",
+      "window": {
+        "base": 1073745920,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": "configs/behaviors/pulp_timer_f5.json",
+      "pins": null,
+      "fixed_inputs": [],
+      "tuning": {}
+    },
+    {
+      "name": "pulp_spi_aperture",
+      "profile": "configs/peripherals/pulp_spi/component_profile.json",
+      "active_id": "pulp_spi_target",
+      "window": {
+        "base": 536879104,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": null,
+      "pins": null,
+      "fixed_inputs": [
+        {
+          "endpoint_id": "spi.pins",
+          "role": "sdi0",
+          "value": 1
+        },
+        {
+          "endpoint_id": "spi.pins",
+          "role": "sdi1",
+          "value": 1
+        },
+        {
+          "endpoint_id": "spi.pins",
+          "role": "sdi2",
+          "value": 1
+        },
+        {
+          "endpoint_id": "spi.pins",
+          "role": "sdi3",
+          "value": 1
+        }
+      ],
+      "tuning": {
+        "fixed_inputs": [
+          {
+            "endpoint_id": "spi.pins",
+            "role": "sdi0",
+            "value": 1
+          },
+          {
+            "endpoint_id": "spi.pins",
+            "role": "sdi1",
+            "value": 1
+          },
+          {
+            "endpoint_id": "spi.pins",
+            "role": "sdi2",
+            "value": 1
+          },
+          {
+            "endpoint_id": "spi.pins",
+            "role": "sdi3",
+            "value": 1
+          }
+        ]
+      }
+    }
+  ],
+  "dma_profile": "configs/peripherals/zipdma_smoke/component_profile.json",
+  "dma_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "dma_capability": "configs/scenarios/compiled-f1-f6-ibex-gpio-zipdma-shared/dma.test_capability.json",
+  "dma_behavior": "configs/behaviors/zipdma_f6.json",
+  "dma_block_words": 4,
+  "dma_increment_source": true,
+  "dma_increment_destination": true,
+  "dma_route": {
+    "kind": "target_window",
+    "direction": "read",
+    "target_name": "pulp_spi_aperture",
+    "target_index": 1,
+    "target_profile": "configs/peripherals/pulp_spi/component_profile.json",
+    "target_window": {
+      "base": 536879104,
+      "size": 4096
+    },
+    "register": "CLKDIV",
+    "offset": 4,
+    "address_mode": "aperture",
+    "evidence": {
+      "kind": "register_readback",
+      "register": "CLKDIV",
+      "offset": 4,
+      "field": "aperture",
+      "words": 4,
+      "sampling": "pre_post_transfer",
+      "source": "third_party/soc-pulp-apb-spi/spi_master_apb_if.sv:13-22,185-212 (REG_CLKDIV 0x04, REG_SPICMD 0x08, REG_SPIADR 0x0c, REG_SPILEN 0x10 are four consecutive readable register arms); third_party/soc-pulp-apb-spi/apb_spi_master.sv:114"
+    },
+    "notes": [
+      "the aperture is the four consecutive readable SPI registers CLKDIV (0x04), SPICMD (0x08), SPIADR (0x0c) and SPILEN (0x10). They are readable 32-bit registers of the target's own map and a read of each leaves it unchanged, so the CPU post-read of the same four words is an independent witness of what the DMA captured",
+      "the master must present four consecutive target addresses: ZipDMA control bit 18 is clear, so its SOURCE register increments by four bytes per read beat. The host refuses a routed beat at any address other than the declared aperture address of that beat and prints the per-beat offsets and the sequence flag",
+      "the F4 cases write 0x00000005, 0x0000000a, 0x0000000b and 0x0000002a into the four registers first; each value survives its register's own read-back formatting (CLKDIV keeps PWDATA[7:0], SPILEN packs cmd_len/addr_len/data_len)",
+      "the four captured words land in the incrementing RAM destination block and the CPU reads that block back; dma_ram_reads must stay 0"
+    ]
+  },
+  "dma_window": {
+    "base": 1073754112,
+    "size": 16
+  },
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "dma_host_support": {
+    "status": "implemented_aperture_read_route",
+    "reason": "the host presents each accepted DMA master read beat on the declared target APB3 request port at the offset the master itself addressed (route base + 4 bytes per beat), holds the beat until the target answers, and returns the captured PRDATA to the DMA. The F6 firmware reads the four aperture words after the transfer, so every captured word is compared with the register the CPU read back.",
+    "where": [
+      "scripts/run_inprocess_f1f6.py (dma_route_support aperture branch; DMA_ROUTE_APERTURE/DMA_ROUTE_APERTURE_ADDRESS macros; F6 aperture readback)",
+      "scripts/inprocess_obi_apb_f1f4_spike.cpp (per-beat route offset, address sequence check, aperture readback comparison)"
+    ],
+    "limits": [
+      "one outstanding master beat (the device's own limit)",
+      "every offset in the declared aperture must be a readable 32-bit register of the target's own profile; the planner and the entry both refuse otherwise",
+      "the aperture width must equal the routed beat count"
+    ]
+  },
+  "notes": [
+    "the PULP SPI is mapped at 0x20002000 so the pinned ZipDMA can encode the address: its SOURCE/DESTINATION CSR fields are 30-bit byte addresses (third_party/soc-zipcpu/rtl/zipdma/zipdma_ctrl.v:73-74,161-181,259-260)",
+    "both increments stay enabled, so the start word is the device default 0x00000000 and LENGTH is 16 bytes for four words",
+    "a read route does not reset the devices before its case: the register values the F4 cases wrote are the transfer's source data (dma_route_reset_before_case 0)"
+  ],
+  "fuzz_seed_records": [
+    "F4:20002004:00000005",
+    "F4:20002008:0000000a",
+    "F4:2000200c:0000000b",
+    "F4:20002010:0000002a"
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "schema_version": "p0_cpu_only.v1",
+  "description": "P0-2 CPU-only route: one pinned Ibex RVFI CPU model, host RAM, no target IP and no DMA. The normal batch executes a load/ALU/store polling program; the assertion negative case runs an instruction-only program and declares a spurious data-rvalid input that violates Ibex's own NoMemResponseWithoutPendingAccess / PendingAccessTrackingCorrect developer assertions.",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "artifact_cache": "runs/stage2-stepD2-cache",
+  "cpu_cache_digest": "007450f9afee9d36d42052b4da76d0f29715787c42ccbed9dcfcde988f2b8f0c",
+  "instance_id": "cpu",
+  "ram_base": 65536,
+  "ram_size": 65536,
+  "boot_address": 65536,
+  "program_address": 65664,
+  "mailbox_address": 69632,
+  "result_address": 69636,
+  "reset_assert_ticks": 8,
+  "reset_release_ticks": 8,
+  "max_ticks": 20000,
+  "records": [
+    "0x1",
+    "0x2",
+    "0x3",
+    "0x100",
+    "0xffffffff"
+  ],
+  "fuzz": {
+    "cases": 16,
+    "seed": 1
+  },
+  "fault": {
+    "kind": "spurious-data-rvalid",
+    "tick": 30,
+    "program_address": 65664,
+    "expected_assertions": [
+      "PendingAccessTrackingCorrect",
+      "NoMemResponseWithoutPendingAccess"
+    ]
+  },
+  "required_observations": [
+    "rvfi_valid",
+    "rvfi_pc_rdata",
+    "rvfi_insn"
+  ]
+}

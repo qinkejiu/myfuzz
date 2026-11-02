@@ -1,0 +1,30 @@
+{
+  "schema_version": "harness_compose.v1",
+  "cpu": {
+    "instance_id": "cpu",
+    "request": "../cvw-pulp-gpio/requests/cpu.json",
+    "data_endpoint": "cpu.external_bus"
+  },
+  "devices": [
+    {
+      "device_id": "peripheral",
+      "instance_id": "peripheral",
+      "request": "../compiled-f2-f4-obi-apb-i2c-ibex/requests/peripheral.json",
+      "bus_endpoint": "i2c.bus",
+      "base": 3221291008,
+      "size": 4096
+    }
+  ],
+  "memory": [
+    {
+      "resource_id": "ram",
+      "component_instance": "cpu",
+      "base": 3221225472,
+      "size": 65536,
+      "read": true,
+      "write": true,
+      "execute": true,
+      "initialization_policy": "preload"
+    }
+  ]
+}

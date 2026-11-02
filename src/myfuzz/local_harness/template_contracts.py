@@ -71,38 +71,20 @@ _AXI_RESPONSE = 'awready wready bid bresp bvalid arready rid rdata rresp rlast r
 _AXI_OPTIONAL = 'awlock awcache awprot awqos awregion awatop awuser wuser buser arlock arcache arprot arqos arregion aruser ruser'
 _USER_GROUP = _words('awuser wuser buser aruser ruser')
 _WB_FACTS = {'address_units': 'word', 'has_error': False}
-# TileLink 1.0 CPU-side endpoints.  These two variants are derived from the only
-# real TileLink 1.0 declaration in this repository: the BOOM semantic interface
-# description (configs/cpus/boom/interface_description.json, endpoints
-# ``cpu.instruction_memory`` and ``cpu.data_memory``, declared protocol
-# ``["tilelink","1"]``).  They mirror that declaration's role vocabulary
-# verbatim, nothing more:
-#   cpu.instruction_memory -> address read_data request response
-#   cpu.data_memory        -> address write_data read_data request response
-# The declaration names abstract roles only and deliberately leaves directions,
-# widths, signedness and hierarchy to the HDL crawler, so these contracts claim
-# a role shape and no channel semantics.  They are *not* a TileLink A/B/C/D/E
-# five-channel contract: no channel mapping, mask/byte-enable, burst,
-# source/sink or coherence claim is made, and the boolean-looking limits below
-# must not be read as claims about TileLink itself (see
-# ``undeclared_capability_policy``).
-#
-# ``target.tl-ul`` is a different inventory entry: the TileLink-UL *peripheral
-# target* contract, protocol ``('tl-ul','1')``, side='target'.  This pair is the
-# TileLink 1.0 *CPU endpoint* contract, protocol ``('tilelink','1')``,
-# side='cpu'; the two are never interchangeable, and the declared role
-# vocabulary here (address/request/read_data/response/write_data) is not the
-# TL-UL channel vocabulary (a_valid/a_ready/d_valid/d_ready/...).
-_TL_CPU_LIMITS = {'error_response':False,'byte_enable':False,'partial_write':False,
-    'completion':'declared_request_then_response_roles',
-    'role_declaration':'configs/cpus/boom/interface_description.json',
-    'channel_vocabulary':'declared_abstract_roles_only_no_a_b_c_d_e_mapping',
-    'undeclared_capability_policy':'not_declared_not_claimed',
-    # The declaration leaves widths to the crawler, so the contract accepts the
-    # two memory widths this repository's CPU adapters already use rather than
-    # inventing a TileLink width rule.
-    'supported_data_widths':(32,64)}
+
 _TEMPLATES = (
+    _contract('target.wishbone-pipelined','dma-selected',
+        ('wishbone','pipelined'),'target','cyc stb we adr dat_w sel','stall ack dat_r',
+        semantics='explicit-only', facts={'address_units':'word','has_error':False},
+        limits={'pipelining':True,'outstanding_scope':'host_environment',
+                'byte_enable':True,'partial_write':True,
+                'has_error':False,'completion':'accepted_strobe_then_registered_ack'}),
+    _contract('master.wishbone-pipelined','dma-selected',
+        ('wishbone','pipelined'),'master','cyc stb we adr dat_w sel','stall ack dat_r err',
+        semantics='explicit-only', facts={'address_units':'word','has_error':True},
+        limits={'pipelining':True,'outstanding_scope':'host_environment',
+                'byte_enable':True,'partial_write':True,
+                'has_error':True,'completion':'accept_not_stalled_then_ack_or_err'}),
     _contract('target.wishbone-pipelined','dma-full-word-no-select',
         ('wishbone','pipelined'),'target','cyc stb we adr dat_w','stall ack dat_r',
         semantics='explicit-only', facts={'address_units':'word','has_error':False},
@@ -206,13 +188,6 @@ _TEMPLATES = (
                 'pipelining':False,'completion':'registered_completion_next_request_allowed',
                 'request_exclusion':'read_write_mutually_exclusive',
                 'held_request_policy':'single_until_completion'}),
-    # TileLink 1.0 CPU-side endpoints taken from the real BOOM declaration; see
-    # ``_TL_CPU_LIMITS`` above for what these limits do and do not claim, and
-    # why this pair is not ``target.tl-ul``.
-    _contract('cpu.tilelink','declared-four-role',('tilelink','1'),'cpu',
-        'address request','read_data response', limits={'write':False,**_TL_CPU_LIMITS}),
-    _contract('cpu.tilelink','declared-five-role-write-capable',('tilelink','1'),'cpu',
-        'address request write_data','read_data response', limits={'write':True,**_TL_CPU_LIMITS}),
     # AHB-Lite CPU-side endpoint, derived from the only real AHB-Lite boundary in
     # this repository: CORE-V Wally's external bus
     # (configs/cpus/cvw/interface_description.json, endpoint ``cpu.external_bus``,
@@ -316,7 +291,7 @@ _GENERATED_EXECUTOR_KINDS = frozenset((
     'obi_cpu', 'native_memory_cpu', 'rvx_memory_cpu', 'wishbone_cpu',
     'axi4_lite_cpu', 'axi4_cpu', 'reduced_dual_axi_cpu', 'reduced_dual_axi_irq_cpu',
     'cva6_packed_axi4_cpu', 'axi4_lite_uart',
-    'ahb_lite_cpu', 'wishbone_dma',
+    'ahb_lite_cpu', 'wishbone_dma', 'tilelink_coherent_cpu',
     'wishbone_register_observe', 'wishbone_timer', 'wishbone_uart',
     'tlul_register_observe', 'tlul_gpio', 'tlul_timer', 'tlul_spi_host',
     'tlul_uart', 'tlul_i2c', 'tlul_spi_device', 'apb3_register_observe',
@@ -428,19 +403,141 @@ _CONTROL = frozenset('req gnt we rvalid error valid ready awvalid awready wvalid
 #     (the declaration maps HADDR/HWDATA/HWSTRB onto them), so they are already
 #     covered by ``_ADDRESS``/``_DATA``/``_LANES`` above.
 _CONTROL = _CONTROL | frozenset(('hready', 'hreadyin', 'hreadyout', 'hsel', 'hwrite', 'hresp'))
+# TileLink coherent A/B/C/D/E control lines.  Every one of them is a single bit
+# in the bundled ``tilelink-coherent@1`` plugin, and the classification below is
+# checked against that plugin at import (see ``_tilelink_coherent_contract``):
+# a role left unclassified would escape the per-field width check entirely.
+_CONTROL = _CONTROL | frozenset((
+    'a_valid', 'a_ready', 'b_valid', 'b_ready', 'c_valid', 'c_ready',
+    'd_valid', 'd_ready', 'e_valid', 'e_ready',
+    'b_bits_corrupt', 'd_bits_corrupt', 'd_bits_denied'))
 # AHB-native data/address/lane roles reuse the generic width classes below.
 _FIXED = {'awlen':8,'arlen':8,'awsize':3,'arsize':3,'awburst':2,'arburst':2,'awlock':1,'arlock':1,
           'bresp':2,'rresp':2,'awprot':3,'arprot':3,'awcache':4,'arcache':4,'awqos':4,'arqos':4,
           'awregion':4,'arregion':4,'awatop':6,'a_opcode':3,'d_opcode':3,'a_param':3,'d_param':3,
-          'htrans':2,'hsize':3,'hburst':3,'hprot':4,'hmastlock':1,'hsel':1}
-_DATA = frozenset('wdata rdata dat_w dat_r pwdata prdata a_data d_data read_data write_data hwdata hrdata'.split())
+          'htrans':2,'hsize':3,'hburst':3,'hprot':4,'hmastlock':1,'hsel':1,
+          # TileLink coherent fixed-width fields (plugin widths, checked below).
+          'a_bits_opcode':3,'a_bits_param':3,'a_bits_size':4,'a_bits_source':3,
+          'b_bits_opcode':3,'b_bits_param':2,'b_bits_size':4,'b_bits_source':3,
+          'c_bits_opcode':3,'c_bits_param':3,'c_bits_size':4,'c_bits_source':3,
+          'd_bits_opcode':3,'d_bits_param':2,'d_bits_size':4,'d_bits_source':3,
+          'd_bits_sink':3,'e_bits_sink':3}
+_DATA = frozenset('wdata rdata dat_w dat_r pwdata prdata a_data d_data read_data write_data hwdata hrdata a_bits_data c_bits_data d_bits_data'.split())
 # ``address`` is the address role name a real declaration already uses: the
 # BOOM TileLink 1.0 interface description
 # (configs/cpus/boom/interface_description.json).  Without it here the address
 # width of that declared endpoint would escape both the per-field width check
 # and the ``address_width`` capability comparison.
-_ADDRESS = frozenset('addr adr awaddr araddr paddr a_address address haddr'.split())
-_LANES = frozenset(('be','wstrb','sel','a_mask','write_strobe','hwstrb'))
+_ADDRESS = frozenset('addr adr awaddr araddr paddr a_address address haddr a_bits_address b_bits_address c_bits_address'.split())
+_LANES = frozenset(('be','wstrb','sel','a_mask','write_strobe','hwstrb','a_bits_mask','b_bits_mask'))
+
+# ---------------------------------------------------------------------------
+# TileLink coherent CPU endpoint: the real A/B/C/D/E five-channel client.
+# ---------------------------------------------------------------------------
+# The role vocabulary, every width and every direction are *derived* from the
+# bundled ``tilelink-coherent@1`` protocol plugin
+# (src/myfuzz/protocols/plugins/tilelink-coherent.json).  That plugin is the
+# same table ``myfuzz.integration.cpu_tlul`` publishes as its 39-role coherent
+# client map, and it is what the pinned derived ``BoomTile`` top really declares
+# (47 physical ports = 39 client roles + clock + reset + 6 constant
+# interrupt/hartid inputs, see
+# ``configs/cpus/boom/evidence/derived-20261017/physical_ports.json``).
+#
+# Nothing below is hand-typed.  Each derived role must already be classified by
+# the width classes above *with the plugin's own width*, and every role must be
+# classifiable: an unclassified role would escape the per-field width check that
+# ``_match`` performs, so it is an import-time refusal instead.  A plugin that
+# declares a different role set from the coherent map is likewise a refusal
+# (``tilelink-coherent-role-count``/``-role-unclassified``), never a silently
+# narrower contract.
+_TL_COHERENT_PROTOCOL = ('tilelink-coherent', '1')
+
+
+def _tilelink_coherent_fields():
+    """``(role, direction, width)`` rows of the bundled coherent plugin."""
+    from myfuzz.protocols.catalog import load_builtin_protocol
+    try:
+        plugin = load_builtin_protocol(*_TL_COHERENT_PROTOCOL)
+    except Exception as error:  # pragma: no cover - bundled file is pinned
+        raise ValueError('tilelink-coherent-plugin-unavailable') from error
+    rows = []
+    for spec in plugin.fields:
+        width = spec.width_expression
+        if not isinstance(width, str) or not width.isdigit() or int(width) < 1:
+            raise ValueError('tilelink-coherent-width-expression:' + spec.field_id)
+        rows.append((spec.field_id, spec.direction, int(width)))
+    return tuple(sorted(rows))
+
+
+def _tilelink_coherent_role_width(role, width):
+    if role in _CONTROL:
+        expected = 1
+    elif role in _FIXED:
+        expected = _FIXED[role]
+    elif role in _DATA or role in _ADDRESS or role in _LANES:
+        # Beat-relative: the absolute value is pinned by
+        # ``supported_data_widths`` below and by the profile's data/address
+        # width capabilities in ``_match``.
+        return
+    else:
+        raise ValueError('tilelink-coherent-role-unclassified:' + role)
+    if width != expected:
+        raise ValueError('tilelink-coherent-role-width:' + role)
+
+
+def _tilelink_coherent_roles():
+    fields = _tilelink_coherent_fields()
+    if len(fields) != 39:
+        raise ValueError('tilelink-coherent-role-count:' + str(len(fields)))
+    for role, direction, width in fields:
+        if direction not in ('host_to_device', 'device_to_host'):
+            raise ValueError('tilelink-coherent-role-direction:' + role)
+        _tilelink_coherent_role_width(role, width)
+    return (tuple(row[0] for row in fields),
+            tuple(row[0] for row in fields if row[1] == 'host_to_device'))
+
+
+_TL_COHERENT_ROLES, _TL_COHERENT_HOST_TO_DEVICE = _tilelink_coherent_roles()
+# ``host_to_device`` is the CPU side of this boundary: in a CPU-side endpoint the
+# harness drives those physical pins (``_match`` maps it to ``output``).  For the
+# coherent client that is the A/C request payloads, ``b_ready``, ``d_ready``,
+# ``e_valid``/``e_bits_sink`` - never a response field.
+_TL_COHERENT_LIMITS = {
+    'max_outstanding': 1, 'outstanding_scope': 'endpoint',
+    'clock_crossing': False, 'pipelining': False,
+    'supported_data_widths': (64,),
+    'address_width_min': 1, 'address_width_max': 64,
+    'max_wait_cycles_limit': 1024, 'max_field_width': 4096,
+    'byte_enable': True, 'partial_write': True,
+    'error_response': True,
+    'completion': 'independent_channels_response',
+    # The A channel is ready/valid: a slave may hold ``a_ready`` low for as long
+    # as it needs, and TileLink requires the master to hold the request stable.
+    # A profile may therefore declare a larger *issue* depth than this harness
+    # accepts at once without contradicting the single pending request below.
+    # ``_match`` only tolerates that difference when the contract says so here.
+    'master_backpressure_tolerated': True,
+    'role_declaration': 'src/myfuzz/protocols/plugins/tilelink-coherent.json',
+    'channel_vocabulary': 'tilelink_ab_cd_e_five_channel',
+    'coherence_scope': 'harness_never_probes_b_channel_stays_low',
+    'grant_policy': 'acquire_answered_with_own_sink_and_grantack_released',
+    'release_policy': 'c_channel_release_or_releasedata_without_probe_accepted',
+    'a_opcode_policy': 'get_putfull_putpartial_acquireblock_acquireperm_supported_others_refused',
+    'unsupported_transfer_policy': 'raise_harness_fault_no_synthesized_completion',
+}
+
+_TEMPLATES = _TEMPLATES + (
+    # The *real* coherent five-channel client, not the abstract declaration pair
+    # above.  ``request`` is the host-to-device half of the plugin table and
+    # ``response`` the device-to-host half; ``_contract`` merges them into the
+    # required role set, so the union is exactly the 39-role client and the
+    # direction test in ``_match`` reads the plugin's own directions.
+    _contract('cpu.tilelink-coherent','coherent-ab-cd-e-single-outstanding',
+        _TL_COHERENT_PROTOCOL,'cpu',
+        ' '.join(sorted(set(_TL_COHERENT_HOST_TO_DEVICE))),
+        ' '.join(sorted(set(_TL_COHERENT_ROLES) - set(_TL_COHERENT_HOST_TO_DEVICE))),
+        limits=dict(_TL_COHERENT_LIMITS, write=True)),
+)
 
 
 def _role_shape(role):
@@ -489,8 +586,20 @@ def _match(contract, endpoint, capabilities, explicit):
     if 'max_wait_cycles' in capabilities and (type(capabilities['max_wait_cycles']) is not int or not 1<=capabilities['max_wait_cycles']<=dict(contract.limits)['max_wait_cycles_limit']):
         raise ValueError('template-wait-limit-mismatch')
     for name in ('max_outstanding',):
-        if name in capabilities and (type(capabilities[name]) is not int or capabilities[name]!=1):
-            raise ValueError('template-capability-mismatch:'+name)
+        if name in capabilities:
+            # The contract's ``max_outstanding`` is the depth this harness
+            # accepts, not the depth the endpoint can issue.  A CPU-side
+            # ready/valid boundary may legitimately declare more requests in
+            # flight than the harness accepts at once *only* when the contract
+            # says the master tolerates backpressure (TileLink A-channel
+            # ``a_ready`` may stay low indefinitely and the master holds its
+            # request).  Every other contract keeps the previous exact-1 rule.
+            limit = dict(contract.limits).get('max_outstanding', 1)
+            tolerated = (contract.side == 'cpu'
+                         and dict(contract.limits).get('master_backpressure_tolerated') is True)
+            if (type(capabilities[name]) is not int or capabilities[name] < 1
+                    or (capabilities[name] != limit and not tolerated)):
+                raise ValueError('template-capability-mismatch:'+name)
     spans={}
     for field in endpoint.fields:
         if field.endpoint_id!=endpoint.endpoint_id:
@@ -519,7 +628,11 @@ def _match(contract, endpoint, capabilities, explicit):
     for field in endpoint.fields:
         if field.role in _LANES and field.width!=data_width//8:
             raise ValueError('template-byte-enable-width')
-    for group in (('awid','arid','bid','rid'),('a_source','d_source'),('a_size','d_size'),_USER_GROUP):
+    for group in (('awid','arid','bid','rid'),('a_source','d_source'),('a_size','d_size'),_USER_GROUP,
+                  # TileLink coherent: the source id and the beat size travel on
+                  # every channel, so every channel's copy must agree.
+                  ('a_bits_source','b_bits_source','c_bits_source','d_bits_source'),
+                  ('a_bits_size','b_bits_size','c_bits_size','d_bits_size')):
         values={by_role[role].width for role in group if role in by_role}
         if len(values)>1:
             raise ValueError('template-roundtrip-width-mismatch')

@@ -1,0 +1,36 @@
+{
+  "schema_version": "declared_irq_f5_config.v1",
+  "purpose": "One organic declared-output IRQ case consumed by the fixed ISR in a real native session.",
+  "case_note": "ZipTimer has one declared 4-byte COUNT window at offset 0 and no address bits.",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "source_request": "configs/peripherals/zipcpu_timer_irq/request.json",
+  "source_adapter": "declared-output.v1",
+  "source_port": "o_int",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 16,
+  "active_id": "wb_timer_active",
+  "idle_id": "wb_timer_idle",
+  "active_base": 1073745920,
+  "idle_base": 1073750016,
+  "trigger_writes": [
+    [
+      0,
+      8
+    ]
+  ],
+  "target_window": {
+    "base": 1073745920,
+    "size": 4
+  },
+  "status_offsets": [
+    0
+  ],
+  "status_registers": [
+    "COUNT"
+  ],
+  "clear_writes": [],
+  "status_cause_bits": null,
+  "image_start": 65536,
+  "image_end": 196608,
+  "result_address": 68672
+}

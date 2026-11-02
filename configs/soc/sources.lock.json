@@ -7448,6 +7448,210 @@
     "capability_findings": 2,
     "unsupported": 3
    }
+  },
+  {
+   "id": "picorv32_wb_irq_rvfi",
+   "source": {
+    "root": "third_party/picorv32_upstream_reference",
+    "revision": "git:ef203c2b0a3fb793280f5114941416c425c5b461",
+    "top_module": "picorv32_wb",
+    "top_port_selection": "all",
+    "files": [
+     "picorv32.v"
+    ],
+    "elaboration": {
+     "frontend": "verilator-json",
+     "parameters": [
+      {
+       "name": "ENABLE_PCPI",
+       "value": "0"
+      },
+      {
+       "name": "ENABLE_IRQ",
+       "value": "1"
+      }
+     ],
+     "warning_policy": "recorded-nonfatal",
+     "defines": [
+      {
+       "name": "RISCV_FORMAL",
+       "value": "1"
+      }
+     ]
+    }
+   },
+   "artifacts": [
+    {
+     "path": "picorv32.v",
+     "sha256": "0836050971b3c6cdd28ac3b1e5719a67fb645161912bef1e472e63995ceb0622",
+     "kind": "source"
+    },
+    {
+     "path": "COPYING",
+     "sha256": "041ebc727233e5bf096dd41260cbb81014d3d29ca007a15f3b1807d4e9ff288e",
+     "kind": "license"
+    }
+   ],
+   "selected_content_hash": "sha256:5a83803c2cb893f1363b21ad1ebbc8d84de13bc363f2d40727d6a444b2b882bd",
+   "closure_status": "selected",
+   "source_status": "source_verified",
+   "elaboration_status": "elaboration_verified",
+   "runtime_status": "runtime_unverified",
+   "defines": [
+    "RISCV_FORMAL=1"
+   ],
+   "typed_parameters": [
+    {
+     "name": "ENABLE_PCPI",
+     "value": "0"
+    },
+    {
+     "name": "ENABLE_IRQ",
+     "value": "1"
+    }
+   ],
+   "generator": {
+    "status": "not_invoked",
+    "tool_version": null,
+    "name": "none for selected checked-in files"
+   },
+   "dependencies": [],
+   "elaboration": {
+    "status": "elaboration_verified",
+    "top_module": "picorv32_wb",
+    "tool": {
+     "name": "verilator",
+     "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+     "frontend": "verilator-lint"
+    },
+    "evidence": "configs/soc/closures/picorv32_wb_irq_rvfi.json",
+    "evidence_sha256": "8e1122d67d9b39227a11121b043bf4a93cb30b235b5bb1bccfd114b5dc08e57f",
+    "closure_files": 1,
+    "lint": {
+     "errors": 0,
+     "warnings": 0,
+     "exit_code": 0
+    }
+   }
+  },
+  {
+   "artifacts": [
+    {
+     "kind": "source",
+     "path": "EICG_wrapper.v",
+     "sha256": "8532a50a212f146f10208717be24168a2de73a9754786da272d0dbfcd556c307"
+    },
+    {
+     "kind": "source",
+     "path": "chipyard.TestHarness.SmallBoomConfig.top.mems.v",
+     "sha256": "97ae4679a1ec21f4f424c56e23b1b1948e77d934c8c11461b56de47160a1a280"
+    },
+    {
+     "kind": "source",
+     "path": "chipyard.TestHarness.SmallBoomConfig.top.v",
+     "sha256": "78bc69803c7b993cd1ddfcdb585d477bd27a83710bb1ce426e217aedbbdfaced"
+    },
+    {
+     "kind": "source",
+     "path": "plusarg_reader.v",
+     "sha256": "482a63c1f24a7ac920909620bd0df108e6954eabf9520de6e72334a2b5450efb"
+    },
+    {
+     "kind": "license",
+     "path": "LICENSE",
+     "sha256": "0dff9c3cc0950c7ae66a0d88eec0cee96a978d0bb3525a9cddc309fcd860b004"
+    }
+   ],
+   "closure_status": "selected",
+   "defines": [],
+   "dependencies": [],
+   "elaboration": {
+    "closure_files": 4,
+    "evidence": "configs/soc/closures/boom.json",
+    "evidence_sha256": "a24ee372ae41deb3d1c87100fa0f16cce35dc57e412a5130b63082a1a492a4fd",
+    "lint": {
+     "errors": 0,
+     "exit_code": 0,
+     "warnings": 0
+    },
+    "status": "elaboration_verified",
+    "tool": {
+     "frontend": "verilator-lint",
+     "name": "verilator",
+     "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67"
+    },
+    "top_module": "BoomTile"
+   },
+   "elaboration_status": "elaboration_verified",
+   "id": "boom",
+   "runtime_status": "runtime_unverified",
+   "selected_content_hash": "sha256:4f960fdd6c96dccfe1bb7788fd628e368304b7280e5449cf3ae5463e982f2c30",
+   "source": {
+    "files": [
+     "EICG_wrapper.v",
+     "chipyard.TestHarness.SmallBoomConfig.top.mems.v",
+     "chipyard.TestHarness.SmallBoomConfig.top.v",
+     "plusarg_reader.v"
+    ],
+    "include_roots": [],
+    "repositories": [],
+    "revision": "sha256:4f960fdd6c96dccfe1bb7788fd628e368304b7280e5449cf3ae5463e982f2c30",
+    "root": "configs/cpus/boom/generated",
+    "top_module": "BoomTile"
+   },
+   "source_status": "source_verified",
+   "typed_parameters": []
   }
- ]
+ ],
+ "elaboration_closures": {
+  "picorv32_wb_irq_rvfi": {
+   "schema_version": "soc_elaboration_closure.v1",
+   "component": "picorv32_wb_irq_rvfi",
+   "root": "third_party/picorv32_upstream_reference",
+   "top_module": "picorv32_wb",
+   "tool": {
+    "name": "verilator",
+    "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+    "frontend": "verilator-lint"
+   },
+   "command": [
+    "verilator",
+    "--lint-only",
+    "-Wno-fatal",
+    "--top-module",
+    "picorv32_wb",
+    "-GENABLE_PCPI=0",
+    "-GENABLE_IRQ=1",
+    "-DRISCV_FORMAL=1",
+    "third_party/picorv32_upstream_reference/picorv32.v"
+   ],
+   "include_roots": [],
+   "defines": [
+    "RISCV_FORMAL=1"
+   ],
+   "parameters": [
+    {
+     "name": "ENABLE_PCPI",
+     "value": "0"
+    },
+    {
+     "name": "ENABLE_IRQ",
+     "value": "1"
+    }
+   ],
+   "closure_files": [
+    {
+     "root": "third_party/picorv32_upstream_reference",
+     "path": "picorv32.v",
+     "sha256": "0836050971b3c6cdd28ac3b1e5719a67fb645161912bef1e472e63995ceb0622"
+    }
+   ],
+   "status": "elaboration_verified",
+   "lint": {
+    "errors": 0,
+    "warnings": 0,
+    "exit_code": 0
+   }
+  }
+ }
 }

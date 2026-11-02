@@ -1,0 +1,25 @@
+{
+  "schema_version": "compiled_execution_file_supplement.v1",
+  "request_supplements": {
+    "environment_links": [
+      {"link_id": "uart_rx", "component_instance": "peripheral", "endpoint_id": "uart.pins", "width": 1, "event_kind": "level"}
+    ],
+    "deliveries": [
+      {"delivery_id": "uart_rx_watermark_irq", "producer_instance": "peripheral", "producer_endpoint_id": "uart.interrupts", "producer_signal": "intr_rx_watermark_o", "consumer_instance": "processor", "consumer_endpoint_id": "processor.interrupts", "trigger": "level"}
+    ]
+  },
+  "ownership": {
+    "fields": [
+      {"component_id": "peripheral", "port": "cio_rx_i", "width": 1},
+      {"component_id": "processor", "port": "irq_external_i", "width": 1}
+    ],
+    "owners": [
+      {"component_id": "peripheral", "port": "cio_rx_i", "bit_offset": 0, "width": 1, "kind": "source", "producer_ref": "external.uart_rx"},
+      {"component_id": "processor", "port": "irq_external_i", "bit_offset": 0, "width": 1, "kind": "bound", "producer_ref": "peripheral.intr_rx_watermark_o"}
+    ]
+  },
+  "physical_port_map": [
+    {"component_id": "peripheral", "port": "cio_rx_i", "physical_port": "cio_rx_i"},
+    {"component_id": "processor", "port": "irq_external_i", "physical_port": "irq_external_i"}
+  ]
+}

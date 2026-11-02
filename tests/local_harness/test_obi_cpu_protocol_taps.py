@@ -44,6 +44,18 @@ def test_passive_taps_are_bound_before_adapter_and_not_beat_exports():
         verify_cpu_obi_protocol_traces(replace(a,runtime_document=corrupted))
 
 
+def test_protocol_trace_verifier_rejects_boolean_width_even_when_rehashed():
+    from myfuzz.local_harness.renderer import _sha
+
+    a = artifact()
+    corrupted = copy.deepcopy(a.runtime_document)
+    corrupted['protocol_tap_ports'][0]['width'] = True
+    corrupted['artifact_digest'] = _sha({key:value for key,value in corrupted.items()
+        if key != 'artifact_digest'})
+    with pytest.raises(ValueError, match='cpu-obi-protocol-trace-contract-mismatch'):
+        verify_cpu_obi_protocol_traces(replace(a, runtime_document=corrupted))
+
+
 def project(a,samples,*,tamper=False):
     configurations={}
     for index,trace in enumerate(a.runtime_document['base_protocol_traces']['traces']):

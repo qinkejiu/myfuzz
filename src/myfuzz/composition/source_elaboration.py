@@ -9,6 +9,7 @@ import re
 import shutil
 import stat
 import sys
+import tempfile
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,12 +19,28 @@ class ElaborationError(ValueError):
     """Compiler evidence is missing, ambiguous, or outside the supported subset."""
 
 
+def _elaboration_temporary_parent(source_root: Path) -> Path:
+    """Choose a temporary parent outside the complete source tree."""
+    root = source_root.resolve()
+    candidate = Path(tempfile.gettempdir()).resolve()
+    if candidate.is_relative_to(root):
+        raise ElaborationError('temporary directory must be outside source root')
+    return candidate
+
+
 _MAX_AST_NODES = 1_500_000
 _MAX_TYPE_DEPTH = 128
 _MAX_PORTS = 65_536
 _MAX_MEMBERS = 65_536
 _MAX_WIDTH = 1 << 24
-_ELABORATION_TIMEOUT_SECONDS = 30
+#: Wall-clock budget for one supervised Verilator frontend run.  The frontend is
+#: only parsing and dumping JSON, so a warm cache finishes a core in a couple of
+#: seconds; a *cold* cache on a shared host was measured to need ~60 s for the
+#: Ibex tree, and a 30 s budget made every first run after a sync report
+#: ``crashed`` while the very same elaboration succeeded once the files were
+#: cached.  Large generated tops (BOOM's top.v is ~18 MB) need more still, so the
+#: budget is generous on purpose; it only bounds a runaway frontend.
+_ELABORATION_TIMEOUT_SECONDS = 300
 _DIAGNOSTIC_BYTES = 64 * 1024
 _VERSION_BYTES = 4096
 _MAX_JSON_BYTES = 64 * 1024 * 1024
@@ -587,13 +604,6 @@ def _closure(
                 # an HDL file attempts to include it.
                 if path == root / '.git':
                     continue
-                # Concurrent local-harness elaborations create sibling evidence
-                # directories below this source root. Their files are generated
-                # outputs, and each run validates Verilator's actual read set
-                # against the admitted closure separately.
-                if (path.parent == root and entry.name.startswith('.myfuzz-elaboration-')
-                        and entry.is_dir(follow_symlinks=False)):
-                    continue
                 if excluded is not None and (path == excluded or excluded in path.parents):
                     continue
                 if entry.is_symlink():
@@ -762,6 +772,7 @@ def run_verilator_elaboration(
     warning_policy: str = "fatal",
     selected_top_ports: Sequence[str] | None = None,
     output_dir: Path,
+    output_root: Path | None = None,
 ) -> Mapping[str, object]:
     """Run a bounded Verilator JSON frontend over one explicit source closure."""
     from myfuzz.integration.campaign import CampaignLimits, CampaignOptions, run_supervised_command
@@ -810,12 +821,16 @@ def run_verilator_elaboration(
 
     if ".." in output_dir.parts:
         raise ElaborationError("output path escape is forbidden")
+    destination_root = root if output_root is None else output_root
+    if not isinstance(destination_root, Path) or destination_root.is_symlink() or not destination_root.is_dir():
+        raise ElaborationError("output root is missing or a symlink")
+    destination_root = destination_root.resolve()
     if output_dir.is_absolute():
         candidate_output = output_dir
     else:
-        candidate_output = root / output_dir
+        candidate_output = destination_root / output_dir
     try:
-        candidate_output.relative_to(root)
+        candidate_output.relative_to(destination_root)
     except ValueError as error:
         raise ElaborationError("output path escape is forbidden") from error
     output_dir = candidate_output
@@ -823,8 +838,8 @@ def run_verilator_elaboration(
         raise ElaborationError("output path already exists or is a symlink")
     if not output_dir.parent.is_dir():
         raise ElaborationError("output parent is missing or contains a symlink")
-    current = root
-    for part in output_dir.relative_to(root).parts[:-1]:
+    current = destination_root
+    for part in output_dir.relative_to(destination_root).parts[:-1]:
         current = current / part
         if current.is_symlink():
             raise ElaborationError("output parent contains a symlink")

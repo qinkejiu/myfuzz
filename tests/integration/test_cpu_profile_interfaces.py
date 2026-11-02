@@ -106,9 +106,21 @@ class CpuProfileInterfaceTests(unittest.TestCase):
                 self.assertTrue(load_cpu_catalog(profiles, root=base).require("fixture").implemented)
 
     def test_templates_have_materialization_entry_and_consumed_endpoint_keys(self) -> None:
+        # 941d9be collapsed the BOOM declaration to the single generated coherent
+        # top: it pins an explicit ``files`` list instead of the old
+        # ``third_party/boom`` + ``sources.f`` filelist.  Both materialization
+        # shapes are accepted here; whichever one a document uses must be real.
         for path in CPU_INTERFACE_FILES.values():
             document = _load_json(path)
-            self.assertEqual("sources.f", document["source"].get("filelist"))
+            source = document["source"]
+            self.assertIsInstance(source, dict)
+            assert isinstance(source, dict)
+            self.assertTrue(("filelist" in source) ^ ("files" in source))
+            if "filelist" in source:
+                self.assertEqual("sources.f", source["filelist"])
+            else:
+                self.assertTrue(source["files"])
+                self.assertTrue(all(isinstance(name, str) and name for name in source["files"]))
             for endpoint in document["endpoints"]:
                 self.assertNotIn("source_anchor", endpoint)
 
@@ -129,20 +141,36 @@ class CpuProfileInterfaceTests(unittest.TestCase):
 
                 document = _load_json(interface_path)
                 semantic_description = load_interface_description(interface_path)
-                self.assertEqual(5 if cpu_id.startswith("cva6") else 6, len(semantic_description.endpoints))
+                # 941d9be collapsed BOOM to its one coherent memory endpoint;
+                # CVA6 still publishes five semantic endpoints.  The
+                # reference-only conclusions above are unaffected.
+                self.assertEqual(5 if cpu_id.startswith("cva6") else 1,
+                                 len(semantic_description.endpoints))
                 source = document["source"]
                 self.assertIsInstance(source, dict)
                 assert isinstance(source, dict)
-                self.assertEqual(profile.source_locator["root"], source["root"])
-                self.assertEqual(profile.source_locator["revision"], source["revision"])
-                self.assertEqual(profile.source_locator["top_module"], source["top_module"])
+                if cpu_id.startswith("cva6"):
+                    self.assertEqual(profile.source_locator["root"], source["root"])
+                    self.assertEqual(profile.source_locator["revision"], source["revision"])
+                    self.assertEqual(profile.source_locator["top_module"], source["top_module"])
+                else:
+                    # 941d9be repinned the BOOM declaration to the generated
+                    # coherent top (``configs/cpus/boom/generated``); the ISA
+                    # profile now cites that same pinned derived source, so its
+                    # locator and the CPU-side package record must agree.
+                    component = _load_json(ROOT / "configs" / "cpus" / "boom" / "component_profile.json")
+                    self.assertEqual(profile.source_locator["root"], component["source"]["root"])
+                    self.assertEqual(profile.source_locator["revision"], component["source"]["revision"])
+                    self.assertEqual(profile.source_locator["top_module"], component["source"]["top_module"])
+                    self.assertEqual(source, component["source"])
 
     def test_cpu_interface_documents_contain_semantics_not_physical_hdl_facts(self) -> None:
+        # Per-document on purpose: 941d9be reduced BOOM to the single
+        # ``cpu.coherent_memory`` endpoint, so its semantic endpoint set is now
+        # ``{memory_master}`` while CVA6 keeps its five endpoints.
         expected_functions = {
-            "interrupt_sink",
-            "debug_transport",
-            "clock",
-            "reset",
+            "cva6.rv64imafdc": {"interrupt_sink", "debug_transport", "clock", "reset"},
+            "boom.rv64imafdc": {"memory_master"},
         }
 
         def walk(value: object) -> list[str]:
@@ -156,14 +184,14 @@ class CpuProfileInterfaceTests(unittest.TestCase):
                     keys.extend(walk(child))
             return keys
 
-        for path in CPU_INTERFACE_FILES.values():
+        for cpu_id, path in CPU_INTERFACE_FILES.items():
             with self.subTest(path=path):
                 document = _load_json(path)
                 self.assertEqual("interface_description.v1", document["schema_version"])
                 endpoints = document["endpoints"]
                 self.assertIsInstance(endpoints, list)
                 assert isinstance(endpoints, list)
-                self.assertTrue(expected_functions <= {item["function"] for item in endpoints})
+                self.assertTrue(expected_functions[cpu_id] <= {item["function"] for item in endpoints})
                 self.assertTrue(any("memory_master" in item["function"] for item in endpoints))
                 self.assertNotIn("direction", walk(document))
                 self.assertNotIn("width", walk(document))
@@ -269,19 +297,22 @@ endmodule
         """Declaring the TileLink 1.0 role vocabulary is not implementing it.
 
         ``src/myfuzz/protocols/plugins/tilelink.json`` and the CPU-side
-        ``cpu.tilelink`` contracts are declarative: they name the roles the BOOM
-        interface description declares and nothing else. BOOM therefore still
-        cannot be materialized, because the profile revision is an all-zero
-        placeholder, no ``component_profile.json`` exists, and no TileLink
-        adapter exists at all (the plugin declares ``legal_adapters: []``).
+        ``cpu.tilelink-coherent`` contract are declarative: they name the 39
+        A/B/C/D/E roles the BOOM interface description declares at its single
+        ``cpu.coherent_memory`` endpoint and nothing else (941d9be removed the
+        split ``cpu.instruction_memory``/``cpu.data_memory`` pair and the two
+        abstract ``cpu.tilelink`` variants built on it). BOOM therefore still
+        cannot be materialized: the CPU profile stays ``reference`` with
+        ``implemented: false`` and the ``tilelink`` plugin declares
+        ``legal_adapters: []``, so no TileLink adapter consumes the contract.
 
         The placeholder boundary below is degenerate on purpose: it declares
-        every port as an input, which no real ``instruction_memory_master``
-        boundary can be -- a TileLink master drives ``address``/``request``
-        towards the device and receives ``read_data``/``response`` back. With a
-        declared plugin the crawler now binds the declared roles and rejects
-        this placeholder at protocol binding instead of at catalog lookup. The
-        conclusion the regression pins is unchanged: it must still be refused.
+        every port as an input, which no real coherent client boundary can be --
+        the client drives ``a_valid``/``a_bits_*`` towards the device and
+        receives ``d_valid``/``d_bits_*`` back. With a declared plugin the
+        crawler now binds the declared roles and rejects this placeholder at
+        protocol binding instead of at catalog lookup. The conclusion the
+        regression pins is unchanged: it must still be refused.
         """
         catalog = load_builtin_cpu_catalog(root=ROOT)
         self.assertEqual((), catalog.compatible_protocols("boom.rv64imafdc"))
@@ -292,23 +323,39 @@ endmodule
             tree.mkdir()
             document = _load_json(CPU_INTERFACE_FILES["boom.rv64imafdc"])
             ports = {alias for endpoint in document["endpoints"] for field in endpoint["fields"] for alias in field["aliases"]}
-            hdl = tree / "tile.sv"
-            hdl.write_text("module boom_tile(" + ",".join("input " + p for p in sorted(ports)) + "); endmodule")
-            filelist = tree / "sources.f"
-            filelist.write_text("tile.sv\n")
-            document["source"].update(root="source", revision=source_tree_hash(tree, (hdl, filelist)))
+            source = document["source"]
+            # The generated coherent top is pinned as an explicit file list, not
+            # a filelist, so every pinned file must exist before the crawl can
+            # reach protocol binding.  The degenerate boundary lives in the
+            # first one; the rest stay empty on purpose.
+            files = [tree / name for name in source["files"]]
+            for path in files:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("")
+            files[0].write_text(
+                "module " + str(source["top_module"]) + "("
+                + ",".join("input " + p for p in sorted(ports)) + "); endmodule")
+            document["source"].update(root="source", revision=source_tree_hash(tree, files))
             with self.assertRaises(SourceCrawlError) as refused:
                 annotate_interfaces(load_interface_description(document), base_dir=base, protocol_catalog=load_protocol_catalog(ROOT / "src/myfuzz/protocols/plugins"))
-            # The declared TileLink endpoint is refused; the placeholder must
-            # not become plannable just because a plugin now exists.
-            self.assertIn("cpu.instruction_memory", str(refused.exception))
+            # The declared coherent endpoint is refused at protocol binding; the
+            # placeholder must not become plannable just because a plugin exists.
+            self.assertTrue(str(refused.exception).startswith(
+                "protocol-conflict:cpu.coherent_memory:direction:"),
+                msg=str(refused.exception))
             (base / "interface.json").write_text(json.dumps(document))
             profiles = base / "profiles"
             profiles.mkdir()
             profile = _load_json(CPU_PROFILE_DIR / "boom.json")
+            # The ISA source locator is a narrower view than the declaration's
+            # ``source`` block: it has no room for ``top_port_selection`` or
+            # ``elaboration``, so pass only the fields that schema allows.
+            locator = {key: source[key] for key in ("root", "revision", "top_module")}
+            locator["files"] = list(source["files"])
+            locator["available"] = True
             profile.update(source_paths=["source"], interface_description="interface.json",
                            source_status="implemented", implemented=True,
-                           source_locator=dict(document["source"], available=True))
+                           source_locator=locator)
             (profiles / "cpu.json").write_text(json.dumps(profile))
             self.assertFalse(load_cpu_catalog(profiles, root=base).require(profile["cpu_id"]).implemented)
 

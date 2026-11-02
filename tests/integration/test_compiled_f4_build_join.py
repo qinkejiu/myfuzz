@@ -62,6 +62,18 @@ def test_diagnostics_can_differ_and_refusal_retains_partial(admitted):
     assert doc['status']=='refused' and doc['fresh']=={} and doc['error']=='preparation failed'
 
 
+def test_refusal_with_f4_binding_preserves_observed_receipts(admitted):
+    args=issue(admitted)
+    expected_receipts=args['execution_binding'].document()['built_executable_receipts']
+    args['fresh']={'unavailable': {'peripheral': {'startup': 'not reached'}}}
+    doc=build_compiled_f4_build_join(**args,error='fresh startup failed')
+    assert doc['status']=='refused'
+    assert doc['built_executable_receipts']==expected_receipts
+    assert doc['fresh']==args['fresh']
+    verify_compiled_f4_build_join(doc, **{k:args[k] for k in (
+        'artifacts','execution_binding','original','fresh')})
+
+
 def test_rehashed_saved_swap_refuses(admitted):
     args=issue(admitted);doc=build_compiled_f4_build_join(**args)
     receipts=doc['built_executable_receipts'];receipts['processor'],receipts['peripheral']=receipts['peripheral'],receipts['processor']

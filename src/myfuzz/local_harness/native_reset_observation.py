@@ -2,6 +2,7 @@
 
 Private issuer tokens authenticate live facts. Public JSON is comparison only.
 """
+from .execution_validation import static_validation
 from dataclasses import asdict, dataclass
 from types import MappingProxyType
 import hashlib
@@ -116,7 +117,16 @@ class NativeResetObservation:
                 raise ValueError('native reset current process binding drift')
             if self._owner._process.poll() is not None:
                 self._fail('process_not_running')
-        if any(hashlib.sha256(Path(path).read_bytes()).hexdigest()!=digest for path,digest in self._sources.items()):
+        def authenticate_sources():
+            _NATIVE_RESET_CHECK_PRODUCERS[0](self._owner)
+            self._owner._check_artifact_stable()
+            sources = {path: hashlib.sha256(Path(path).read_bytes()).hexdigest() for path in self._sources}
+            if sources != self._sources:
+                self._status='incomplete';self._reason='source_drift'
+                raise ValueError('native reset source drift')
+            return sources
+        current_sources = static_validation(('observer_sources', self), authenticate_sources)
+        if current_sources != self._sources:
             self._fail('source_drift');raise ValueError('native reset source drift')
         if self._binary_binding is not None and self._binary(self._owner._binary)!=self._binary_binding:
             self._fail('binary_drift');raise ValueError('native reset binary drift')

@@ -1,0 +1,35 @@
+{
+  "schema_version": "ip_test_capability.v3",
+  "component_id": "pulp_timer",
+  "profile_fingerprint": "sha256:3959c182d74ec59de31cc3a2cfcaf37d530dbfa706f4ab8a0395e0887f3bc2a7",
+  "endpoint_capabilities": [
+    {
+      "endpoint_id": "timer.bus",
+      "operations": [
+        "request",
+        "accept",
+        "response",
+        "read",
+        "write",
+        "wait",
+        "error"
+      ]
+    }
+  ],
+  "register_semantics": [
+    {
+      "register": "TIMER0_CTRL",
+      "field": "value",
+      "lsb": 0,
+      "width": 32,
+      "access": "rw",
+      "read_mask": 4294967295,
+      "write_mask": 4294967295,
+      "side_effect": "none",
+      "reset_value": 0,
+      "evidence_ref": "rtl:third_party/soc-pulp-apb-timer/src/timer.sv@03eba2e6965f5363df12621882bc70498c551a73:71,89-97,113-121,130-139;sha256=d352fc4476da83658d361e8f500b5a73f857f0a11e9436ab47d5bf0ba0bc7fce"
+    }
+  ],
+  "observation_mappings": [],
+  "register_aliases": []
+}

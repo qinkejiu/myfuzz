@@ -2,6 +2,7 @@
 from dataclasses import replace
 import copy
 import hashlib
+import os
 from pathlib import Path
 import subprocess
 from tempfile import TemporaryDirectory
@@ -156,7 +157,17 @@ int main() {
             with self.assertRaisesRegex(LocalHarnessBuildError,'cache'):
                 build_local_harness(a,base_dir=ROOT,cache_dir=cache)
             source.write_bytes(original)
+            # The fixture binary was executed just above, and the kernel keeps
+            # deny-write access on that inode for a short window afterwards, so
+            # an in-place overwrite intermittently raises ETXTBSY ("Text file
+            # busy"); a retry milliseconds later always succeeds.  Replace the
+            # directory entry instead: the published cache still holds corrupt,
+            # non-executable bytes at the same path, which is exactly the state
+            # this refusal is about.
+            mode=executable.stat().st_mode
+            executable.unlink()
             executable.write_bytes(b'broken')
+            os.chmod(executable,mode)
             with self.assertRaisesRegex(LocalHarnessBuildError,'cache'):
                 build_local_harness(a,base_dir=ROOT,cache_dir=cache)
 

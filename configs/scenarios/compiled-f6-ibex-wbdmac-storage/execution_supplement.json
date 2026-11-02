@@ -1,0 +1,49 @@
+{
+  "ownership": {
+    "fields": [],
+    "owners": []
+  },
+  "physical_port_map": [],
+  "request_supplements": {
+    "deliveries": [
+      {
+        "consumer_endpoint_id": "processor.interrupts",
+        "consumer_instance": "cpu",
+        "delivery_id": "base.completion",
+        "producer_endpoint_id": "dma.interrupt",
+        "producer_instance": "dma",
+        "producer_signal": "o_interrupt",
+        "trigger": "pulse"
+      }
+    ],
+    "f6_execution": {
+      "program": {
+        "boot_address": 65664,
+        "destination_address": 143360,
+        "isr_address": 66092,
+        "park_address": 66560,
+        "result_base": 147456,
+        "slot_base": 69632,
+        "slot_count": 1,
+        "source_address": 139264
+      },
+      "schema_version": "compiled_F6_cpu_dma_contract.v1",
+      "seed": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "storage_support": {
+        "after_result_address": 151556,
+        "after_value": 170,
+        "before_result_address": 151552,
+        "before_value": 85,
+        "component": "peripheral",
+        "contract_id": "pulp-apb-timer.ctrl0.source.v1",
+        "register": "TIMER0_CTRL"
+      }
+    }
+  },
+  "schema_version": "compiled_execution_file_supplement.v1"
+}

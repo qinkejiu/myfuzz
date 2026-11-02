@@ -1,0 +1,52 @@
+{
+  "component_id": "zipcpu_wbdmac",
+  "endpoint_capabilities": [
+    {
+      "endpoint_id": "dma.control",
+      "operations": [
+        "request",
+        "accept",
+        "response",
+        "read",
+        "write",
+        "wait"
+      ]
+    },
+    {
+      "endpoint_id": "dma.memory",
+      "operations": [
+        "request",
+        "accept",
+        "response",
+        "read",
+        "write"
+      ]
+    }
+  ],
+  "feature_contract": {
+    "operations": [
+      {
+        "endpoint_id": "dma.memory",
+        "evidence_ref": "source:wbdmac",
+        "operation": "transfer",
+        "required_observation_mappings": [
+          "native-master"
+        ]
+      }
+    ],
+    "provider_id": "wbdmac.transfer.v1",
+    "provider_version": "1"
+  },
+  "observation_mappings": [
+    {
+      "endpoint_id": "dma.memory",
+      "evidence_ref": "source:wbdmac",
+      "mapping_id": "native-master",
+      "observation_kind": "port_sample",
+      "role": "adr"
+    }
+  ],
+  "profile_fingerprint": "sha256:bf8f0b20c6193870c6301c97f17592980c425a59d8c4d18f678d1dc9439017e7",
+  "register_semantics": [],
+  "schema_version": "ip_test_capability.v2"
+}

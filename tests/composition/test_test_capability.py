@@ -327,3 +327,21 @@ class VersionedCapabilitySidecarTests(unittest.TestCase):
                 capability = self.loader()(document, profile=self.profile)
 
                 self.assertEqual(effect, capability.register_semantics[0].side_effect)
+
+
+def test_masked_side_effectful_field_with_declared_policy_loads():
+    """The real ZipCPU UART SETUP word: masked, side-effective, policy declared.
+
+    The write policy (which bits are stored, reserved bits must be zero) and the
+    real side effect are independent declarations: neither one implies or
+    forbids the other.  The mask stays the reviewed 0x7fffffff.
+    """
+    profile = load_component_profile(
+        ROOT/'configs'/'peripherals'/'zipcpu_uart'/'component_profile.json')
+    capability = load_ip_test_capability(
+        ROOT/'configs'/'peripherals'/'zipcpu_uart'/'test_capability.json',
+        profile=profile)
+    field = capability.register_semantics[0]
+    assert (field.register, field.side_effect) == ('SETUP', 'write_resets_uart_state')
+    assert (field.read_mask, field.write_mask) == (0x7fffffff, 0x7fffffff)
+    assert field.write_policy == 'full_word_reserved_zero'

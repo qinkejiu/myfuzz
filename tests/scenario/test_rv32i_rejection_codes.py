@@ -31,9 +31,8 @@ from myfuzz.scenario.rv32i_sources import (
 
 NOP_BYTES = b"\x13\x00\x00\x00"
 GOOD_WINDOW = MmioWindow(0x40000000, 0x1000)
-#: funct3 2 (SLTI) stays outside the legal OP-IMM subset. funct3 1 and 5 are
-#: now legal SLLI/SRLI/SRAI, so this refused fixture names the real SLTI form.
-SLTI_WORD = ((1 << 20) | (1 << 15) | (2 << 12) | (1 << 7) | 0x13).to_bytes(4, "little")
+#: MUL requires the M extension and remains outside this RV32I-only input path.
+UNSUPPORTED_MUL_WORD = (0x02000033).to_bytes(4, "little")
 MISALIGNED_LW = ((2 << 20) | (1 << 15) | (2 << 12) | (1 << 7) | 0x03).to_bytes(4, "little")
 #: SLLI whose imm[5] is reserved by RV32I: a real, bit-exact refusal.
 RESERVED_SHIFT_WORD = ((0x20 << 20) | (1 << 15) | (1 << 12) | (1 << 7) | 0x13).to_bytes(4, "little")
@@ -560,7 +559,7 @@ def test_decode_and_fragment_rejections_point_at_the_failing_field():
     assert _caught(lambda: validate_instruction_bytes(b"")).pointer == "fragment.data"
     assert _caught(lambda: validate_instruction_bytes(b"\x13")).pointer == "fragment.data"
     assert _caught(lambda: validate_instruction_bytes(
-        SLTI_WORD)).pointer == "fragment[0].funct3"
+        UNSUPPORTED_MUL_WORD)).pointer == "fragment[0]"
     assert _caught(lambda: validate_instruction_bytes(
         RESERVED_SHIFT_WORD)).pointer == "fragment[0].immediate"
     assert _caught(lambda: validate_instruction_bytes(
@@ -644,7 +643,7 @@ def test_same_illegal_input_gets_one_code_on_every_call_path():
     assert from_bytes.code is from_operands.code is rc.RejectionCode.FIELD_BAD_ALIGNMENT
 
     assert _caught(lambda: validate_instruction_bytes(
-        SLTI_WORD)).code is rc.RejectionCode.ISA_DISALLOWED_OPERATION
+        UNSUPPORTED_MUL_WORD)).code is rc.RejectionCode.ISA_DISALLOWED_OPERATION
     assert _caught(lambda: mmio_access_fragment(
         "ADDI", 0x40000000, windows=(GOOD_WINDOW,), base_register=1,
         data_register=2)).code is rc.RejectionCode.ISA_DISALLOWED_OPERATION
@@ -662,9 +661,9 @@ def test_same_illegal_input_gets_one_code_on_every_call_path():
 def test_memory_admission_carries_the_instruction_level_code():
     memory = _slot_memory()
     rejection = _caught(lambda: memory.accept_instructions(
-        0x1000, SLTI_WORD, source_event_id="case-1"))
+        0x1000, UNSUPPORTED_MUL_WORD, source_event_id="case-1"))
     assert (rejection.code, rejection.pointer) == (
-        rc.RejectionCode.ISA_DISALLOWED_OPERATION, "fragment[0].funct3")
+        rc.RejectionCode.ISA_DISALLOWED_OPERATION, "fragment[0]")
     assert memory.state_summary()["initialized_bytes"] == 0
     misaligned = _caught(lambda: memory.accept_instructions(
         0x1000, MISALIGNED_LW, source_event_id="case-1"))
@@ -783,8 +782,8 @@ def test_legal_detailed_validation_has_no_side_effects():
 
 
 def test_detailed_validation_matches_the_raised_code():
-    detail = validate_instruction_bytes_detailed(SLTI_WORD)
-    raised = _caught(lambda: validate_instruction_bytes(SLTI_WORD))
+    detail = validate_instruction_bytes_detailed(UNSUPPORTED_MUL_WORD)
+    raised = _caught(lambda: validate_instruction_bytes(UNSUPPORTED_MUL_WORD))
     assert detail == raised
     assert validate_instruction_bytes_detailed(MISALIGNED_LW).code is \
         rc.RejectionCode.FIELD_BAD_ALIGNMENT

@@ -1,0 +1,10 @@
+{
+  "schema_version": "dependency_search_scenario.v1",
+  "name": "memory-consumption-ibex",
+  "backend": "descriptor",
+  "descriptor": "configs/scenarios/compiled-f4-obi-apb-timer/generic_scenario.json",
+  "flow": "mixed",
+  "records": ["F3:55000000", "F1:03200000"],
+  "goal": {"id": "ram-write-read", "description": "Declared RAM store and restricted DUT RAM-read token; receipt and feedback scope must be inspected."},
+  "rounds": 32
+}

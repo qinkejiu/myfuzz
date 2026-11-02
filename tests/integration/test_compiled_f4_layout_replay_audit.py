@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 import pytest
 from tests.integration.test_compiled_candidate_layout import compiled_path
+from tests.integration.test_compiled_f4_build_join import admitted
 from myfuzz.integration.compiled_candidate_layout import compile_candidate_layout, CandidateLayoutError
 from myfuzz.integration.compiled_f4 import CompiledF4Runtime
 
@@ -24,15 +25,22 @@ class AfterPins(Exception):pass
 
 def submit_until_pins(path,raw):
     runtime=CompiledF4Runtime.__new__(CompiledF4Runtime)
+    runtime._mixed_flows=False;runtime._memory_flows=False
+    runtime._f5_preparation=None
     runtime.path=path;runtime.layout=compile_candidate_layout(path)
     runtime._stable=lambda:None;runtime.records=[];runtime.max_cases=4
     runtime.stream=next(s for s in path['sources'] if s['kind']=='cpu_mmio_stream')
+    runtime.register_name=runtime.stream['register_access']['register']
     runtime.inputs={'request':object(),'compiled':object()};runtime.result=0x3fffc;runtime.cursor=0x10080
     runtime.run_id='unit';runtime.target_id='peripheral'
     seen=[]
     runtime.session=SimpleNamespace(submit_case=lambda case:seen.append(case) or SimpleNamespace(violations=()))
     runtime.runner=SimpleNamespace(sessions={'peripheral':SimpleNamespace(reset_epoch=0)})
-    runtime.authority=SimpleNamespace(consume=lambda value:value,issue=lambda **kw:(_ for _ in ()).throw(AfterPins()))
+    def stop_before_live_version(**kwargs):
+        assert kwargs==dict(register=runtime.register_name,reset_epoch=0)
+        raise AfterPins
+    # Stop before any live authority is issued; these checks cover pin decoding.
+    runtime.authority=SimpleNamespace(consume=lambda value:value,issue=stop_before_live_version)
     with patch('myfuzz.integration.compiled_f4.declare_writer',return_value={'code_hex':'13000000'}):
         with pytest.raises(AfterPins):runtime.submit(raw)
     return [case.source.value for case in seen]
@@ -57,6 +65,7 @@ def test_invalid_record_rejected_before_any_source(compiled_path,kind):
     if kind=='mask':
         path['sources'][-1]['mask']=1;path['constraints']['source_constraints'][-1]['mask']=1
     runtime=CompiledF4Runtime.__new__(CompiledF4Runtime);runtime.path=path;runtime.layout=compile_candidate_layout(path)
+    runtime._mixed_flows=False;runtime._memory_flows=False
     runtime._stable=lambda:None;runtime.records=[];runtime.max_cases=4
     with patch('myfuzz.integration.compiled_f4.declare_writer',side_effect=AssertionError('must decode all sources first')):
         with pytest.raises(CandidateLayoutError,match='record-padding' if kind=='padding' else 'value-mask'):
@@ -96,35 +105,98 @@ def test_comparison_reports_actual_path_without_broad_normalization():
     assert comparison['first_difference']=='/online_plan/value'
 
 
-def test_native_exit_audit_uses_process_poll_returncode():
+class SoftwareBuiltSession:
+    """Receipt/launch documents only; never a builder, child process or issuer."""
+    def __init__(self,receipt,row,process):
+        self.receipt=deepcopy(receipt);self.row=deepcopy(row)
+        self._execution=row['execution_nonce'];self.process=process
+    def validate_built_executable_receipt(self):return deepcopy(self.receipt)
+    def built_executable_receipt_document(self):return deepcopy(self.receipt)
+    def build_preparation_observation_document(self):return {'outcome':'software_fixture_no_build'}
+    def built_executable_launch_observations(self):
+        code=self.process.poll()
+        return (dict(self.row,returncode=code,reaped=code is not None),)
+
+
+def attach_software_audit(runtime,admitted,*,pid,nonce,poll):
+    """Use source-backed artifacts and schema-valid fixture receipts/joins.
+
+    The existing pure build-join fixture supplies synthetic build receipts.
+    Production validation methods still perform every receipt/process join;
+    none of these software documents grants native execution authority.
+    """
+    artifacts,binding,_=admitted
+    document=binding.document()
+    runtime.artifacts=dict(artifacts);runtime.cpu_id=document['cpu']['instance_id']
+    runtime._built_receipts=deepcopy(document['built_executable_receipts'])
+    runtime._build_sessions={};runtime._native_processes={}
+    from myfuzz.integration.compiled_f4_build_join import built_receipt_sha256
+    for index,(component,receipt) in enumerate(sorted(runtime._built_receipts.items())):
+        component_pid=pid if component==runtime.cpu_id else pid+100+index
+        process=SimpleNamespace(pid=component_pid,poll=poll)
+        row=dict(pid=component_pid,execution_nonce=f'{nonce}:{component}',
+            artifact_digest=receipt['artifact_digest'],build_digest=receipt['build_digest'],
+            binary_sha256=receipt['binary_sha256'],
+            built_receipt_sha256=built_receipt_sha256(receipt),
+            observed_executable_sha256=receipt['binary_sha256'],
+            ready_artifact_digest=receipt['artifact_digest'])
+        runtime._native_processes[component]=process
+        runtime._build_sessions[component]=SoftwareBuiltSession(receipt,row,process)
+    runtime._process_identities=runtime._validated_build_process_identities()
+
+
+def test_native_exit_audit_uses_process_poll_returncode(admitted):
     runtime=CompiledF4Runtime.__new__(CompiledF4Runtime)
-    runtime._process_identities=identities();runtime._native_processes={'cpu':SimpleNamespace(poll=lambda:-9)}
     runtime.finished=True
-    audit=runtime.execution_audit()
-    assert audit['exits']['cpu']['returncode']==-9
-    assert audit['exits']['cpu']['reaped'] is True
+    with patch('subprocess.Popen',side_effect=AssertionError('software fixture cannot start native')):
+        attach_software_audit(runtime,admitted,pid=100,nonce='original',poll=lambda:-9)
+        audit=runtime.execution_audit()
+    assert audit['exits'][runtime.cpu_id]['returncode']==-9
+    assert audit['exits'][runtime.cpu_id]['reaped'] is True
+    assert audit['identities']==runtime._validated_build_process_identities()
 
 
-def test_replay_exports_actual_prefix_events_and_close_receipt():
+@pytest.mark.parametrize('kind',['receipt','launch'])
+def test_software_audit_fixture_preserves_identity_drift_refusal(admitted,kind):
+    runtime=CompiledF4Runtime.__new__(CompiledF4Runtime);runtime.finished=True
+    attach_software_audit(runtime,admitted,pid=100,nonce='original',poll=lambda:0)
+    local=runtime._build_sessions[runtime.cpu_id]
+    if kind=='receipt':local.receipt['binary_sha256']='f'*64
+    else:local.row['observed_executable_sha256']='f'*64
+    with pytest.raises(ValueError,match='built-receipt-identity-changed' if kind=='receipt'
+                       else 'built-process-identity-mismatch'):
+        runtime.execution_audit()
+
+
+def test_replay_exports_actual_prefix_events_and_close_receipt(admitted):
     plan=dict(records=[{'raw':'00','certificate':{'prerequisite':{},'postcondition':{}}}],semantic_hash='same',online_plan={'actual':True})
     class SoftwareRuntime(CompiledF4Runtime):
         def __init__(self,**kw):
-            self.finished=False;self._process_identities=identities(101,'2')
-            self._native_processes={'cpu':SimpleNamespace(poll=lambda:0 if self.finished else None)}
+            self.finished=False
+            self._mixed_flows=False;self._memory_flows=False
+            self._f5_preparation=None
+            attach_software_audit(self,admitted,pid=101 if kw else 100,
+                nonce='fresh' if kw else 'original',poll=lambda:0 if self.finished else None)
+            if kw:
+                assert kw['expected_built_receipts']==self._built_receipts
+                kw['build_audit_sink'](self.build_audit_snapshot())
             self.runner=SimpleNamespace(events_since=lambda index:[{'event_id':1,'actual':True}])
         def _stable(self,**kw):pass
-        def submit(self,raw):assert raw==b'\0'
+        def submit(self,raw,**kw):assert raw==b'\0'
         def finish(self):self.finished=True;return deepcopy(plan)
-    original=SoftwareRuntime();original._process_identities=identities()
-    original._replay_identities=[];original.artifacts={};original.inputs={}
+    original=SoftwareRuntime()
+    original._replay_identities=[];original.inputs={}
     original.base_dir='.';original.cache_dir='.';original.run_id='unit';original.rounds=1;original.max_cases=1
     saved=[]
-    result=original.replay(plan,audit_sink=saved.append)
+    with patch('subprocess.Popen',side_effect=AssertionError('software fixture cannot start native')):
+        result=original.replay(plan,audit_sink=saved.append)
     assert result['matches'] is True
     assert saved[0]['actual_prefix']==plan
     assert saved[0]['actual_events']==[{'event_id':1,'actual':True}]
-    assert saved[0]['execution_audit']['exits']['cpu']=={'returncode':0,'reaped':True}
-    assert saved[0]['execution_audit']['identities']['cpu']['pid']==101
+    assert saved[0]['execution_audit']['exits'][original.cpu_id]=={'returncode':0,'reaped':True}
+    assert saved[0]['execution_audit']['identities'][original.cpu_id]['pid']==101
+    assert saved[0]['fresh_build']['receipts']==original._built_receipts
+    assert saved[0]['fresh_build']['unavailable']=={}
     with pytest.raises(ValueError,match='fresh-process-identity-reused'):
         original.replay(plan,audit_sink=saved.append)
     assert saved[-1]['error_type']=='ValueError'

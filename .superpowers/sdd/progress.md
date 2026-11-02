@@ -8,6 +8,10 @@
 
 **最新进度入口：** [docs/CURRENT_PROGRESS.md](../../docs/CURRENT_PROGRESS.md)。本文件保留实施过程与历史证据；不是当前能力表，也不以历史 Task 完成记录替代阶段验收。目标和完整门槛见[总计划](../../docs/superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md)。
 
+**2026-10-25 F6 runtime graph cross-edge 软件切片：** live consumer 与 original/fresh saved verifier 现重建四条声明边、逐边 issue scope 和 cross 自有引用精确闭合；`instruction_source` Observer 行按 Runner 事件认证，source admission 留在嵌套投影中。独立复审闭合边归属、原始/fresh重投影、引用一致性及 live source 字节验证。consumer+assertion 198 passed 是最终引用修改前基线，不计当前最终验收；四个生产文件 `py_compile` 通过。Edge 3 因原始 instruction-acceptance receipt 缺失仍 missing；没有真实完整 F6 first/fresh success/error archive audit、Freeze16，Freeze15仍4/9 FAIL_PRESERVE。细节见 [cross-edge handoff](../../docs/reports/f6-cross-component-edges-20261025.md)。六 CPU×四 IP 矩阵、P6/P7-E/P8 与系统验收仍 OPEN。
+
+**2026-10-25 F6 软件切片：** WBDMAC 双 endpoint no-SEL Wishbone checker 已接入 Renderer、Runner 与 F6 case consumer；报告绑定 attempt Runner cursor，重算 PRE sample IDs 并将每项 finding 精确 join 到 Runner violation event。联合协议/DMA/F6 回归 207 passed；加强后的生产 fallback consumer 定向测试 1 passed；独立复审无 Critical/Important。实现和开放门见 [WBDMAC checker handoff](../../docs/reports/f6-wbdmac-dual-endpoint-checker-20261025.md)。当前仍无完整真实 F6 first/fresh success/expected-error archive raw audit 或 Freeze16；Freeze15 native-controls 为 4/9 FAIL_PRESERVE，六 CPU×四 IP 矩阵、P6/P7-E/P8 与系统验收保持 OPEN。
+
 **2026-10-07 当前状态：** P0 文件／文档入口整理完成；P1 在声明身份范围完成；P2、P3 部分完成；P4～P8 尚未通过阶段验收。整体目标仍未完成。固定协议／组件实例和已有搜索基础不授予自动接入、通用反馈闭环、性能或 DMA 的验收等级。最新的逐项证据与未完成门槛以 [当前工作进度](../../docs/CURRENT_PROGRESS.md) 为准。
 
 **当前施工方向：** 受控 UART 入口、RDATA 退休读取、低字节 Store→host RAM→后续退休 Load 与 GPIO pin8→CPU IRQ 接受已有受限真实门禁。本轮进一步验证 writer 容量、UART `SB` 与在线内部计时；下一步需连接通用 ISR、完整源→CPU→输出链及第 257 writer 之后的退休 Load，并做同条件十分钟搜索质量与效率对照。每项以自己的冻结源码、完整前缀 fresh replay 和独立报告判定；局部门禁不构成 P2～P5 的整阶段验收。
@@ -4134,3 +4138,499 @@ Root uploaded reviewed pure-control inputs and launched stage+plan at `/root/fan
 
 ### Native observation scope refinement after actual pass
 Saved-data47accept/30instr/17data audit shows native profile exports mem_instr but not native mem_ready. Existingdata_rsp_consumed measuresadapter/backend m_rsp_valid&m_rsp_ready, not directlysampled nativeCPUbuscompletion/retirement. ActualRAM/GPIOwrites andcontrolled62→63dependency remainobservedboundedresults. Summary/current/runtime clarified; rawrecords unchanged. Nexttypednativefetch observation mustjoin PREmarker+acceptedfullkey+uniqueMemoryService.readsnapshot+4laneINSTRUCTION_SOURCE writer+actualbackendconsume; NOPfixedsupport isnotIPpayload credit. Offlinearchive cannotmintliveauthoritytoken; keepauthority/retirementfalse.
+
+### 2026-10-22 Live AHB-Lite target protocol reporting source slice
+- Generated singular target protocol traces now attach evidence/coverage consumers after Runner normalizer/checker admission. Runner remains the only target projection producer; plural OBI observer behavior remains intact. Coverage clears pending joins on a newly consumed global `reset_barrier` while preserving counters.
+- Static `py_compile` and scoped `git diff --check` passed; independent source-only review found no actionable findings. No test, native Runner replay, build, or remote operation was run. The report, current progress, runtime boundary, and plan index explicitly leave native AHB fresh/reset acceptance plus P6/P7/P8 and generic onboarding open.
+- Reconciled the P7 automatic-onboarding plan's stale claim that the historical CV32E40P named-family run satisfied P7-E; the 2026-10-21 saved-artifact audit says formal P7-E remains open because same-call D2/D3-to-D4 execution was not demonstrated and the sibling negative has no archived CLI result.
+
+### 2026-10-20 APB3 F4 generic executor review closure
+- Approved APB3 F4 executor slice closed at scoped software level: 82 targeted tests passed (execution binding + storage producer); mismatch negatives instantiate the real CompiledF4Runtime and prove subprocess is not launched; same-process writer/build identity is checked. Independent review closed both medium findings with no new findings.
+- APB3 CV32E40P/PULP timer native archive remains historical evidence predating these software follow-up edits; no native rerun. Public report/runtime/current/index updated to preserve that boundary. APB3 slice is not a P7/system completion claim; P6/P7/P8 and whole-system goal remain OPEN.
+
+### 2026-10-20 P7-D4-A artifact endpoint-link task reviewed
+- Task 1 complete in shared worktree (no commit per plan/user preservation constraints): 26 focused software tests passed; independent reviewer Approved, no Critical/Important findings. Docs now record only artifact endpoint/role linkage. D4-B live topology/save-replay binding remains open; F6/P7/P8 remain open.
+
+### 2026-10-20 P7-D4-B Task 2 reviewed
+- Detached static intent-to-typed-edge declaration complete: 45 focused tests passed, strict JSON-container normalization gap fixed and independently re-reviewed Approved. No live Runner binding or replay. D4-B Tasks 3–5, F6, P7/P8 remain open.
+
+### 2026-10-20 P7-D4-B Task 3 reviewed
+- Live software topology binding and nonserialized mutation guard completed; every participating Runner session key matches the generated artifact's declared `plan.request.instance_id`, checked before bind and again by the guard. Independent review approved after the instance identity check was added. Focused regression: 104 passed, 30 subtests passed. D4-B save/replay Tasks 4–5, F6, P6/P7/P8 remain open; see `docs/reports/p7-dma-intent-topology-binding-20261020.md`.
+
+### 2026-10-20 P7-D4-B Tasks 4–5 software acceptance
+- Required versioned save/replay envelope and D2/D3-to-existing-typed-topology integration are implemented. A Task 5 review found the first no-new-graph spy was masked by a patched parser; after removing that patch, the test produced the expected graph-reconstruction RED. The in-memory declaration now retains the prepared topology object, checks its complete canonical document against authenticated embedded bytes, and passes that exact object to `bind`; a mismatch negative was added.
+- D2 generates the route and binding rows, D3 preserves them, and the integration joins them to the existing OTI UART read / CPU RAM write graph. It preserves static route/binding and prepared/runtime digests; P7-C F6 stays unsupported and has no DMA transfer edge. Independent review found no Critical or Important issue.
+- Final focused software gate: 166 passed, 30 subtests passed in 44.02s (`tests/local_harness/test_dma_artifact_endpoint_links.py`, `tests/scenario/test_dma_intent_topology_binding.py`, `tests/scenario/test_runtime_path_contract.py`, `tests/integration/test_dma_intent_binding_replay.py`, `tests/integration/test_dma_master_route_replay_readers.py`, `tests/integration/test_p7b_p7c_dma_route_intent.py`, `tests/integration/test_route_intent_reader_boundaries.py`). No native/remote operation; no native DMA or native fresh-replay claim. P6/P7/P8 and six-CPU/four-IP remain OPEN.
+
+### 2026-10-21 Caliptra protocol-neutral D4 route consumption
+- Plan saved at `docs/superpowers/plans/2026-10-21-caliptra-protocol-neutral-dma-route-consumption.md`; approved design is `docs/superpowers/specs/2026-10-21-caliptra-protocol-neutral-dma-route-consumption-design.md`.
+- Task 1: complete (no commit; focused geometry test 1 passed and existing Caliptra D4 topology test 1 passed; independent review approved). D2 defaults remain 0x1000/0x1000; native route geometry is 0x10000/0x20000, ROM starts at 0x30000. Task 2 (Caliptra policy + protocol-neutral admission characterization), native route consumption, and evidence/docs remain open.
+- Task 2: complete (no production API changes; focused Caliptra D4 software test 1 passed, 25 deselected; independent review approved). Uses the live D4 bound topology and Caliptra beat policy, verifies keyed read/write completion, wrong-response-key rejection, and exact `CTRL+4` route refusal without advancing policy state; provider identity drift cases remain intact.
+- Task 3: complete. Root verification: focused software suite **41 passed in 285.41s**, followed by native positive/fresh/refusal gate **1 passed in 92.11s**. Generated CPU owner and linked generated DMA share the same RAM; exact prepared graph binds once. Independent read-only review approved with no findings. Saved JSON inspection confirms normalized fresh equality, `(0,0)`/`(2,0)` keyed joins, the `abc` known-answer digest, and an in-window refusal with no rejected-key RAM write, no provider receipt, and unchanged AHB ticks.
+- Task 4: report, evidence index, current progress, plan index, and prior protocol-neutral admission plan updated. Root reruns pass: focused software **41 passed in 285.41s**, native **1 passed in 92.11s**; `py_compile`, final saved-evidence assertions, documentation links, scoped `git diff --check`, and trailing-whitespace checks pass. Independent native implementation review approved; no commit or staging.
+
+### 2026-10-21 P7-C compiled F6 handoff to Caliptra D4
+- The exact D3 `compiled_paths.v1` result and D4 static declaration are now joined by a closed immutable handoff. Validation round-trips the dependency graph and runtime-path contract schemas; it rejects DMA transfer rules/edges, `dma_master_route` relations or route lists, F6 summary/missing disagreement, digest drift, and wiring-section identity drift. The existing D4 binder is invoked once with the same prepared graph object.
+- Route selection in the Caliptra, PULP, and ZipCPU D4 integration gates now keys on declared `operation` and is tested with reversed tuple order; static-to-prepared route mapping remains a unique full-policy bijection.
+- Final software verification: **109 passed, 4 opt-in skips in 30.32s**; the completed handoff and route-order regression rerun including canonical dependency graph v2: **26 passed in 0.39s**. Fresh-cache native Caliptra positive/fresh/refusal gate: **1 passed in 78.60s**. Independent saved-evidence assertions passed for the request and byte-identical generated inputs, complete compiled and bound hashes, F6 static refusal/no DMA runtime route, keyed `(0,0)` RAM read and `(2,0)` CTRL write, normalized fresh equality, and `CTRL+4` rejection before provider with no rejected-key write and unchanged AHB ticks.
+- Report, evidence (`compile-request`, `descriptor`, `fresh`, `native-refusal`), current progress, plan/spec status, and indexes are updated. P7-C F6 remains `unsupported`; this does not close P6, P7-E, P8, or the six-CPU/four-IP objective. No commit/staging or remote operation.
+
+### 2026-10-21 P7 compiled F6 runtime-path Task 1
+- Task 1 complete in the preserved shared worktree (uncommitted): closed source/pair descriptors and `compiled_f6_runtime_path.v1` detached reader implemented; deterministic fixture now uses tracked test helpers. Focused suite: **43 passed in 0.37s**; scoped whitespace check clean. Independent review approved with no Critical/Important findings. Static F6 remains unsupported; Task 2 live compilation/topology ownership and Task 3 native positive/refusal/fresh replay remain open.
+- Review boundary resolved: detached endpoint/target identity hashes are self-consistent data, not authenticity. Existing `PreparedRuntimePathContract.bind()` recomputes DMA endpoint identity and RAM/window target identity against live owners, and `validate_topology()` rechecks them; Task 2 must retain and exercise these checks. Minor note recorded: descriptor field invariants are repeated in reader and constructor.
+### 2026-10-22 Native exact-source integration and native tap admission
+- Integrated native source-completion Tasks 1–4 into the shared worktree while preserving the existing DMA binding changes in `session_runtime.py`; focused gate **96 passed, 2 skipped, 46 subtests**, DMA-bound regressions **42 passed, 3 subtests**. Independent integration review found no blocker.
+- Opt-in native RESULT parsing now requires the authenticated artifact’s exact six PRE/POST tap names and strict widths. Focused wire/session/native-runtime gate **29 passed, 48 subtests**; HARNESS V2 identity tests **6 passed**. Legacy receipt paths retain prior behavior.
+- Fixed the DMA-bound envelope schema whitelist to accept native plan schema 22/23. Envelope round-trip plus post-unwrapping native-policy regressions **4 passed**.
+- Task 5 CLI/checker software gate **16 passed, 3 skipped, 21 subtests**. The standalone auditor is still pinned to obsolete Attempt6 identities and is being repinned. No native RTL/build, real Task 5 gate, or remote operation ran; source-completion remains OPEN.
+
+### 2026-10-22 R11 Stage 1 freeze and independent review
+- Stage 1 controller/runner/schema/contract/bootstrap/auditor/gate package frozen at static manifest SHA-256 `3d22a101eee49e27036796bc159fa36e5dcedaef805050eb223214c7d3171feb`. Two independent reviews accepted the exact digest with no Critical, Important, or Minor findings; typed eight-row readbacks are recorded under `docs/reports/evidence/native-completion-r11/reviews/`. Controller now checks oversize reads before hashing and uses `O_NONBLOCK`/`fstat` for regular-file inputs. Static JSON/AST/manifest/readback checks and `git diff --check` passed. No tests, remote operation, Stage 2 package, or gate ran; Task 5/source completion, P6/P7/P8, and the six-CPU/four-IP goal remain OPEN.
+
+### 2026-10-22 R11 executable software verification and typed identity repair
+- Prior static-only freeze was superseded after executable software tests exposed empty-dot paths and numeric false claims; independent review then found the nested plan.intent/post.gate_end variants. The prior accepted package and rejected candidate are preserved under docs/reports/evidence/native-completion-r11/stage1-history/. Controller preclaim validator, runner, and auditors now preserve nested JSON types. Final manifest SHA-256 `a944ef09f414642541854d36955a81b906f213b4705b2e09cc96372de7f84059` accepted by two independent reviewers with no findings; required review receipts updated with eight member readbacks each.
+- Final nine-file real software command: 266 passed, 3 native opt-in skips, 32 subtests passed in 3.64s, actual rc 0; raw log, process receipt, all executed code/test bytes and unchanged SHA pins retained under software-20261022-attempt2/. Real dummy child lifecycle and isolated same-PGID descendant liveness/reaping are exercised. Pure admission helper and source-order tests do not prove full Stage2 execute. Task4 partial, Stage2/native Task5 and full six-CPU/four-IP/DMA/onboarding/events goal remain OPEN. No remote operation, stage, or commit.
+
+### 2026-10-22 CVW CPU-programmed DMA RAM
+- Firmware and unstarted standard Runner composition implemented without generic protocol/Runner changes. Shared 64 KiB RAM; exact 16-byte DMA window; no host source/config writes and no CVW IRQ binding. Firmware and fixture independent static reviews approved. Firmware task reported prior software-model checks; these do not establish native behavior. No new runtime verification, build, RTL or remote operation in this continuation.
+- Native standalone evidence entry under construction/review; positive/wrong-key plus each full schedule fresh, keyed writer/version/control joins and process terminals remain OPEN. Do not infer native acceptance from implementation/static review. See docs/reports/cvw-dma-ram-20261022.md.
+- Native entry implementation/static review complete: scripts/verify_cvw_dma_ram.py SHA256 345823cc98a51ffc1b8034ce9df5c476be6cfba205c5c874daeedd2e83a5ed9d. Independent review APPROVED with no remaining Critical/Important findings; fixed actual read-control retained wdata, full CPU source_epoch/key joins, DMA master responses, exception-safe teardown and failure receipts. Root AST-only checks complete. No test/native/build/remote execution; all runtime acceptance items remain OPEN.
+
+### 2026-10-22 CVW CPU-programmed DMA RAM native acceptance
+- Previous turn classified progress (production implementation and static review). This continuation executed actual requested acceptance: native-attempt1 worker PID49537 rc0, 139.83s, pinned verifier345823cc...; positive/fresh each618 steps/2652 events/CPU309-DMA333 ticks, wrong-key/fresh each588steps/2608events/CPU294-DMA314ticks. Four master reads/four writes in positive, zero master effects in wrong-key, firmware markers1/FFFFFFFF; all8DUT exits0, pending0, fullnormalizedprefix pairs equal. Independent saved evidence audit PASS; source1113file hashes and exact-byte archive independently checked (archive63afe912...). Fixtures/cleanup check passed without native commands.
+- Plan slice complete, documents and durable independent-review updated. Full objective remains ACTIVE: Vexii/CVA6/BOOM CPU DMA cells, generic same-protocol/P6/P7/P8/events still need their own acceptance; this result grants only fixed CVW four-word RAM DMA, not IRQ/ISR, peripheral target, physical/shared-clock, F6/D4 or total system completion. No commit/staging/remote operation.
+
+### 2026-10-22 Vexii CPU-programmed DMA RAM implementation
+- Prior goal turn classified progress: actual CVW native gate accepted plus independent evidence audit, not a wait or status-only turn. Next missing CPU DMA cell is Vexii reduced cacheless32. Source/profile inspected, exact new design/plan written.
+- Shared bounded RV32I image builder extracted; independent archived CVW4-key byte comparison exact; Vexii layout wrapper implemented. Readonly reducedAXI router alias and standard shared-memory fixture implemented and independent static reviews clean. Pure unstarted/cleanup/queue visibility and cancellation checks passed with no native commands; software-fixture.json retains results. Native gate implemented awaiting independent review then actual execution; no native Vexii acceptance claimed yet.
+- Vexii native-attempt1 terminal rc1:4000 CPU/DMA ticks,no MMIO,source4 stores only. Actual generatedPMA supports only40000000/4KiB; initial40002000 layout outsidePMA. Independent correction review approved only vexii_dma_example.py change to40000000, noDUT/profile/budget/gate relaxation. Failed896-input archive and review retained.
+- Native-attempt2 terminal rc1 after actual positive/fresh success (354steps+quiesce,1927events,CPU177/DMA201ticks,marker1,4DUTexits0,fullprefixequal). Gate failed live tuple/list writer comparison; wrong-key not executed. Two-line logicalsequence fix1ef936b0... reproduces RED using actual restored-live tuples and GREEN on both saved/live first/fresh. Await independent correction review then full new native gate. Both attempts remain failures, not system acceptance.
+
+### 2026-10-22 Vexii CPU-programmed DMA RAM acceptance
+- Native-attempt3 actual worker58540 terminal0 in52.51s, verifier1ef936b0..., unchanged hardware/firmware/bounds vsattempt2. Positive/fresh354steps+quiesce/1927events/CPU177-DMA201 ticks, wrong-key/fresh260steps+quiesce/1343events/CPU130-DMA150ticks. Positive4masterreads4writes andCPUmarker1; wrong-keyzeroDMAeffects,CPUfailureFFFFFFFF. All8DUTexit0,pending/router0,fullnormalizedprefixequal. Independent saved-evidence audit PASS;896executedsourcearchive members individually matchfreeze (archiveb00ca193...).
+- Bounded Vexii slice complete; Task1-3 plan and report/currentprogress/runtime/component/codeorganization/indexes updated. Bothfailedattempts retained with durableindependentreviews. No commit/staging/remoteoperations. Fullobjective ACTIVE: CVA6 needsactual64bitlane/order/FENCE proof, BOOMcoherentshared-memory/DMA contract; same-protocolgenericonboarding/events/P6/P7/P8 stillOPEN.
+
+### 2026-10-22 CVA6 CPU-programmed DMA RAM acceptance (bounded slice)
+Native attempt1 completed with worker PID72661 exit0/164.851s. Positive and wrong-key first/fresh complete prefixes matched; eight DUTs exit0 and pending/router state empty. Independent `.superpowers/sdd/cva6-dma-native-audit-20261022.md` found no Critical/Important/Minor issues. All1130 archive files hash-match freeze/current workspace; archive SHA745d9a... and measured member sum24,306,493. Scope-specific docs updated; aggregate objective remains open.
+
+### 2026-10-22 BOOM uncached shared-memory DMA
+Independent source/adapter review led to explicit full external page selection and no-partial-A quiesce precondition. Reviewed design and executable plan are `docs/superpowers/specs/2026-10-22-boom-shared-memory-dma-design.md` and `docs/superpowers/plans/2026-10-22-boom-shared-memory-dma.md`. Tasks1 firmware image and Task2 opt-in shared memory adapter are dispatched in parallel with disjoint owned files. Router's generic DeviceWindow enforces 4KiB alignment; root Task3 will use a narrowly validated private subclass for exact DMA window 0x4400/16, with no generic Router change. Native/build and gate tasks remain OPEN.
+
+Task1 (BOOM bounded subpage firmware): complete after inline RV64 instruction/branch/lane success/stale/error verification and independent review clean. New code-only image SHA valid `f98c86c4...`, stale `8903602b...`; existing CVW/Vexii/CVA6 images byte-identical. No native execution in Task1.
+
+Task2 (BOOM shared external-memory service): complete at static/lifecycle scope after repairing the independently found terminal-update gap. Final adapter hash `d92c56fc9bc18640f6174a462ef506f857a1d41efcedea2b9ceeb624a2a81915` and service hash `65e50934ed97ed4727a087908ccf560134dedf0fa2940e160adf848d3f2e6a44` were independently re-reviewed with no remaining finding (`.superpowers/sdd/task-2-final-review.md`). Inline lifecycle and syntax checks passed; no suite/build/native. Task3's unstarted factory is also independently approved (`f80c27ec...`, `.superpowers/sdd/task-3-review.md`), without native build/start. Task4 is statically approved at verifier SHA-256 `f4064cb130ea876eb4fe6228323e7bf6a42285b0cf62389a9715012f6d922379` by two independent reviews (`task-4-final-independent-review.md`, `task-4-fix4-review-a.md`). One nonblocking Minor diagnostic gap is retained: a chained transient cleanup cause can be omitted from repr-only primary failure detail, while handles/PIDs/terminal codes are preserved. The local CPU build and native attempts are now underway; see the Task5 attempt records below.
+
+### 2026-10-22 BOOM Task5 first native attempts
+- Built current BOOM persistent CPU at `runs/boom-dma-ram-cpu-output-20261022-attempt1/` under `.superpowers/sdd/stage2-heavy-worker.lock`; Verilator command exited 0 and all seven `session_files` hashes matched `session-artifact.json`. Independent artifact audit found 22 source/profile/manifest/revision/RTL/archive/physical-port/tool checks with zero mismatches (`.superpowers/sdd/task-5-boom-cpu-artifact-audit.md`). No standalone CPU binary execution occurred before the gate.
+- Attempt `attempt-21a2c266d7794302a9628a6260a08e9b` used the cache digest directory instead of its root. Admission appended the digest a second time and refused `manifest.json`; the failed attempt and 39,239,591-byte executed-input archive remain. Positive run recorded no child process handles, so no CPU/DMA process started.
+- Attempt `attempt-b6fc66305cca48f48c0c41ffae44d0ec` used the correct cache root and ran the positive first instance. Both CPU launches and the DMA process exited 0; the verifier then failed at the in-memory quiesce-marker equality assertion. The saved positive evidence passes every `assert_chain` check after JSON readback. Root cause: the raw event retains a tuple version while `plain()` converts the captured event version to a list; JSON readback canonicalizes both, but the live assertion compared tuple and list. Evidence archive SHA-256 `6b1d7ccc4b810427559d298377d0051e25697747c5ca7331f2bd37d5affaf5ee`, saved positive JSON gzip SHA-256 `1d6a5dd63293c69446e29576e2cd0360c9abe08e72fadd151e10e3bd1e3aae33`. No positive fresh, stale-key, or stale fresh run occurred. Fix5 applies `plain()` at marker capture without changing the assertion; new verifier SHA-256 is `bdb8bd3a7fa71ba8f8a70c05c2f256545da080f3e073914c980d6c9e0d3a9c36`, report `.superpowers/sdd/task-4-fix5-report.md`. Two independent static reviews approved the exact new hash (`task-4-fix5-review-a.md`, `task-4-fix5-review-b.md`), retaining only the prior nonblocking Minor about chained startup-cleanup cause details. Root verified AST/compile and current prebuilt/cache presence and authorized a new local canonical-lock gate attempt. The old failures remain unchanged.
+- Fix5 attempt `attempt-be77b5eef02548dbb28676a6ff4ce510` completed with verifier exit0, `verification.status=passed`, and `matches=true`. Positive and stale-key branches each ran first/fresh: 1,031 identical actions per positive pair and 753 per stale pair; fixture identities match within pairs and fresh child PIDs are disjoint. All 12 run records have three child launches with exit0 and zero CPU/DMA/Router pending. Positive branches record eight DMA accepts/responses and marker1; stale branches have zero DMA accepts/responses and marker `0xffffffff`. The separate source-hole refusal is pre-effect, has unchanged before/after state, and starts no native child. The 1,777-member executed-input archive SHA-256 is `e38cec088333b62d6da817048cbe5aac223b85025d2fb2adfd1cd76e05dbc143`, matching freeze/worker/verdict. Independent full saved-evidence and archive audits passed; bounded BOOM uncached shared-memory DMA cell is accepted. See `docs/reports/boom-dma-ram-20261022.md`; external tool bytes remain unpinned and broader system scope remains open.
+
+### 2026-10-22 BOOM bounded DMA cell documentation reconciled
+
+Published the scoped report and reconciled CURRENT_PROGRESS, LOCAL_HARNESS_RUNTIME, report index, plan checklist and this ledger. The independent native audit reconstructed 23 positive / 14 stale CPU requests, 8 positive DMA beats each direction, 12 exit-0 child processes, complete first/fresh pairs and pre-effect hole refusal. Archive audit confirms 1,777 members / 273,585,807 uncompressed bytes against the execution freeze; external tool executable bytes are not pinned. The documented cell does not cover coherent C/E DMA, B/probes, physical bridge, IRQ/ISR, generic F6/D4, or overall P6/P7/P8.
+
+### 2026-10-22 Reduced AXI observer reference lifecycle
+- Fixed raw reference allocation to use a monotonically increasing observer-lifetime record counter because Runner drains the aliased event list in place while correlations may remain pending.
+- Independent source review found no issues. Runner copies local references unchanged while assigning separate journal IDs; the report now requires an explicit scope-bound crosswalk before consumer use. `py_compile` and scoped `git diff --check` exit 0. No test, build, native session, remote action, or fresh Runner replay was run. Runtime cross-drain correlation and fresh projection remain open.
+
+### 2026-10-22 Six-CPU/four-IP DMA status reconciliation
+- Read-only audits reconciled each bounded CPU DMA cell and the four target families against scoped reports and saved evidence. Added `docs/reports/dma-six-cpu-four-ip-status-20261022.md`; clarified that frozen per-slice native results do not represent a joint current-HEAD run or a 6×4 matrix. Updated the historical BOOM paragraph in `LOCAL_HARNESS_RUNTIME.md` to include the 2026-10-22 uncached DMA cell while retaining coherent C/E/B-probe and generic F6 limits.
+
+### 2026-10-22 Reduced AXI actual EventJournal importer software acceptance
+- Added 10 meaningful regression cases to existing observer suite: actual two-record-chunk EventJournal clears the aliased producer list on every sample, interleaved global IDs, both AW/W orders and same-edge, AR/R and B across drains, reset cancellation/orphan, and six fixed saved receipt streams. Final aggregate equality is against the same observer without drains; no independent protocol oracle implied.
+- Isolated old-allocation negative control: 10 failed/28 deselected (expected); current suite: 38 passed. Independent source review no actionable findings. Evidence `docs/reports/evidence/reduced-axi-reference-lifecycle-20261022/software-attempt1/`, receipt SHA256 `181623b7f0c8b2cfa6156e5d5eaa59a867e652e55da98cf83e691bf1a09ad24a`; source pins captured after execution, not a pre-run closure freeze. Production crosswalk and new native/fresh remain OPEN. No remote, build, native execution, staging or commit.
+
+### 2026-10-22 AHB archived Runner gate and OBI fixture drift investigation
+- New `tests/scenario/test_runner_ahb_trace_set.py` uses portable exact-byte historical Caliptra gzip inputs, actual file-backed EventJournal, 91 request/accept/response certificates, full-prefix equality with only known top-level execution_id normalized, value and POST-raw-ref tamper rejection, and synthetic coverage reset pending-clear. Implementer4 passed; independent source review no blocker; root strengthened certificate uniqueness.
+- Root combined5-module gate saved at `docs/reports/evidence/live-ahb-target-protocol-evidence-20261022/software-attempt1/`: exit1,70 passed/4 fixture errors/67 subtests; selected-file hashes unchanged. All4 errors are old OBI fixture current-vs-historical source identity mismatch; no protocol assertion ran in those4 tests. Failed attempt preserved.
+- Source-only audit found exactly6 differing leaves: global lock SHA,3 provenance source SHAs, derived executor identity and artifact digest; all remaining physical/trace/generated SV/CPP fields equal. Root copied exact4 historical provenance blobs from git under `docs/reports/evidence/ibex-raw-obi-20261017/historical-provenance-bytes/`. Scoped agent `obi_archived_fixture_provenance_fix` is implementing only test fixture validation of historical/current bytes, exact6-leaf allowance, derived digest checks and negative controls. Do not exclude the failed module or claim joint gate passed. No new native/build/remote operation.
+
+### 2026-10-22 AHB/Reduced AXI/OBI final focused software integration
+- OBI fixture repair completed: original archive SHA, four historical/current source-byte comparisons, both canonical identity checks, only six permitted provenance/derived leaves, exact remaining doc and generated SV/CPP equality, physical tap verifier;7 tests including rehashed fake provenance and altered-mapping negatives. Historical identities retained; independent review no concerns, all4 archived bytes independently Git-verified.
+- Final full5-module gate in `docs/reports/evidence/live-ahb-target-protocol-evidence-20261022/software-attempt2/`:77 passed/67 subtests,exit0,11.44s pytest; selected inputs unchanged before/after (not complete source closure). Includes38 Reduced AXI,4 AHB singular,7 OBI plural,28 existing AHB evidence/coverage tests. Initial failure preserved as attempt1.
+- Current progress/runtime/report index/AHB report+plan updated. This turn is progress (new regression tests, verified negative control, actual software gate evidence and repaired archived provenance); no new native/build/remote run or overall stage promotion. Next work remains production Reduced AXI crosswalk/consumers, new native reporting/reset and real wait/error target, formal P7-E same-protocol onboarding, aggregate P6/P7/P8.
+
+### 2026-10-22 Live AHB native gate preparation
+- Previous turn is progress, not a wait:77-test verified source/software integration and preserved raw failure/success evidence. Active objective retains all6CPU/4IP, DMA, generic onboarding and event gates.
+- Added opt-in actual native Runner gate `tests/integration/test_runner_ahb_protocol_reporting_real.py` and supervising evidence runner `.superpowers/sdd/ahb-live-native-20261022/run_gate.py`. Independent source review found no actionable issue; root added explicit cumulative tick/epoch checks. Source-only construction confirms exact fixed ownership and no child launch.
+- Current Caliptra artifact5f26b381... uses build keyd5413d45.../361 inputs; no matching existing cache. Native plan: under canonical resource lock and240s supervision, compile exact current snapshot, run first/fresh step/step/warm restart/step with8boundary transactions each and4reaped processes, archive build/verifier bytes and raw journals. Does not establish positive wait/error or in-flight reset cancellation; wrapper ties hold/error low. Native gate not yet executed at this entry.
+
+### 2026-10-22 Live AHB native attempt1 and verifier correction
+- Previous goal turn was a status-only response (no progress); revalidated actual attempt1 terminal receipt before continuing. Actual native command exited1 after15.24s; first instance completed both native epochs with process exits0, but mixed-schema journal scan raised KeyError(kind) before fresh. Preserve native-attempt1 as failed.
+- Reproduced exact failing predicate on saved real first journal: three valid records have no kind. Minimal correction uses row.get(kind) to select the unique warm_all barrier; all barrier/pending/chain/identity assertions remain. Independent review requested; new supervised native-attempt2 started under its own evidence directory. No overall completion claim.
+
+### 2026-10-22 Live AHB native normal/restart/fresh accepted
+- Native-attempt2 actual terminal exit0; pytest1 passed/13.47s, supervisor13.69s, peakRSS126816256. First/fresh each242journal events,35PRE/35POST,8uniquecertificates (6read2write), pending0; full actions/journals/reports/identities equal without normalization. Epoch0ticks1-18/epoch1ticks19-35; sole warm_all barrier127; all4 distinct native PID/execution handles rc0.
+- Independent raw-evidence audit recomputed certificates/pins/epochs/fullprefix and recorded terminals. Independent archive audit checked exact361build+3verifier members, current inputs, artifact/cache/binary, zero mismatches; archive17474cbc...,binary9ff78e38.... Reports under native-attempt2/. Complete source/toolchain closure remains false. Attempt1 preserved as failed; correction changes only mixed-schema barrier predicate, all assertions remain.
+- Updated CURRENT_PROGRESS, LOCAL_HARNESS_RUNTIME, report/index/plan. This closes only ordinary target boundary reporting, completed-transfer process restart and fresh; positivewait/error/inflightreset remain OPEN. No CPU/DMA/digest/retirement or total-system claim. Full6CPU/4IP, generic same-protocol P7-E, ReducedAXI production crosswalk/consumer, P6/P8 remain ACTIVE; no remote/stage/commit.
+- Final scoped verifier SHA/readback and AHB document links checked. Broad historical report-index link scan found preexisting missing ignored runs/current-dataflow-p2-uart-fifo-20261006-directed; unrelated historical link preserved, scoped AHB links all resolve. Scoped git diff --check passed.
+
+### 2026-10-22 Reduced AXI production crosswalk approved
+- User approved recommended receipt/lifecycle-bound source issuance, original-record-preserving sidecars, full-journal crosswalk and reprojecting observation consumer. Exact approved scope and clarifications saved in docs/superpowers/specs/2026-10-22-reduced-axi-journal-crosswalk-design.md; implementation plan with five reviewed tasks saved beside existing plans.
+- Parallel read-only architecture/acceptance review identified required receipt oracle (not journal self-replay), shared operation sequence including empty scopes, role-preserving sameedge refs, terminal expected-queue check and identity-dependent digest normalization. Incorporated in spec. Existing feature branch/current dirty state retained because it contains required integrated sources; no stale HEAD worktree or staging/commit.
+- Task1 bounded source issuance assigned to a dedicated implementer with owned new module/test paths; all source/session/Runner/consumer/native system gates remain OPEN until actual review and evidence.
+- Pre-integration actual five-module baseline rerun:77 passed/67 subtests/11.70s,exit0; selected test hashes before/after retained in .superpowers/sdd/reduced-axi-crosswalk-20261022/baseline/. Task1 initialRED demonstrates missing new module; implementation in progress.
+
+### 2026-10-22 Reduced AXI Task1 source issuance software acceptance
+- New observation_stream.py and71focused tests implemented with initialRED and state-refinementRED retained. Independent task1 review both spec/quality PASS with noP0/P1/P2; probes include cyclic/deepJSON,hostile tokens,exactdigestbytebounds,queueinvariants. SourceSHA c08f0243...,testSHA fc9338dd....
+- Root sixmodule actual combined command:148passed/67subtests/12.02s,exit0; selected12source/test freeze/archive before+after unchanged retained in docs/reports/evidence/reduced-axi-journal-crosswalk-20261022/software-task1-attempt1/,notcompleteclosure. No native/build/remote run.
+- Task1 marked complete only at module/software scope; Task2 assigned focusedsource/session/observer ownership with explicit disabled-default, receipt/lifecycle, native/cumulative tick and no duplicate resetbegin constraints. Task3/4/5 and all aggregate goals remain ACTIVE. New scoped report/index/currentprogress/runtime/plan updated.
+
+### 2026-10-22 Reduced AXI Task2 independent review findings (not accepted)
+- Implementer source/session/lifecycle work passes22focused tests and204related software tests/96subtests (2native deselected), logs/report saved. Root caught actual W-only service tuple at end/reset; RED reproduced and fixed via explicit pending-bool DTO, keeping full observer reset references and Task1strictJSON. Disabled legacy normalend/reset behavior restored after rootreview.
+- Independent review reproduced P1 identity drift (listener removed/source replaced/sessionobserver replaced still transport+sourceactive) and P1 capture ordinal error masked by observer._failed (raw-only span accepted then sealedcomplete). Do not promote Task2 based on green existing tests. Await fullreview incl asyncMMIO then one fixbatch+RED/GREEN+re-review. Task3/4/5 and native remain OPEN.
+
+### 2026-10-22 Reduced AXI Task2 source integration accepted at software scope
+- Both original P1 fixed and independently reprobed; P2 bool/float limit-type drift fixed using canonical limits fingerprint. Final review task-2-final-review.md is specPASS/qualityPASS with4SHA pins. Independent161focused tests plus ownership/capture/teardown/seal/countchain/type probes. Rejected reviews and source snapshot retained.
+- Root pre-frozen actual10module gate terminal0:234passed/96subtests/20.28s,2native explicitly deselected. Selected20input bytes unchanged before/after, archive +RED logs +allreviews saved docs/reports/evidence/reduced-axi-journal-crosswalk-20261022/software-task2-attempt1/. Notcomplete source/toolchain closure, no native/build/remote. Task2scope only; Task3consumer/Task4Runner/Task5native and entireobjective OPEN.
+- Task3 detailed brief ready task-3-brief.md, exact journal/source operation/original+sidecar schema, expectedreceipt-drivenreprojection, completevsprotocolpending, strictrefs/scopes/reset/seal/bounds. Source stable finalSHA d3651705...,test e9c3b609....
+- Final Task2 current20selected input/hash archive audit and scoped report links pass. Updated component/code organization as well as report/index/currentprogress/runtime. Task3 implementation agent /root/reduced_axi_journal_consumer_impl is assigned owned new module/tests only; check live agent state before any resume/re-dispatch. No stage/commit/native/build/remote.
+
+### 2026-10-22 continuation state readback
+Previous goal turn is progress:Task2 code/fixes/finalreview and234-test pre-frozen software acceptance,docs updated. Revalidated current files and live /root/reduced_axi_journal_consumer_impl; do not restart it. Task2 report stale tail corrected by explicit root final acceptance appendix, copied to durable software-task2 evidence. Task4 Runner read-only integration notes delegated separately; no dependent implementation before Task3 review. Full objective ACTIVE.
+
+2026-10-22 Reduced AXI crosswalk Task3 complete (software only; independent Spec PASS / Quality PASS). Root frozen 24 selected inputs: 430 passed, 2 native deselected, 96 subtests; exit0, selected_inputs_unchanged=true; archive c226b9e8d31dc734cf9530cb8a9507e302eaf27a94f9037efe3b5df449b6ced9. Task4 next, no native/system promotion.
+
+2026-10-22 Reduced AXI Task4 initial root gate492/96 passed,28selected unchanged, archive62992e47...; independentreview SpecFAIL/QualityCHANGESREQUIRED ImportantR4-1 operationbytefit pre-effect missing. Author fixing consolidated sole finding; Task4 NOT accepted, Task5 NOT started. Root24050 process terminalexit0.
+
+Task4 fixwave also includes root-confirmed R4-2 freshprocess ScenarioRunner importcycle; REDreceipt task-4-root-import-order-red.json. Task5 verifier codeprep parallel only; no native/build execution, rootreview/freeze prerequisite.
+
+Task4 corrected software accepted: independent Spec/Quality PASS; root frozen519 passed/96 subtests,2native excluded,28selected unchanged; archive archive digest in software-task4-rereview-attempt1/verification.json. R4-1/R4-2 fixed. Task5 verifier review pending R5 normalization/freeze findings; no native.
+
+Task4 corrected integration complete, independent Spec/Quality PASS; root frozen519 passed/96 subtests,2native excluded,28 selected unchanged; archive ca1c85ddb594a2b0eff4aa0b1d96dab68c60ff6d9e8fd0cacdccc866d848bc4d. R4-1/R4-2 closed. Task5 executable review found R5-1 memory journal identity, R5-2 missing declared non-Python build input archive, R5-3 unvalidated final_state report overwrite; implementation repair underway. No native.
+
+
+### 2026-10-22 Compiled F4 second APB3 source Task 1 accepted
+- Registered documentary PULP SPI `SPICMD@0x08` source contract with exact seven-file closure, APB profile/window/decode/register pins and probe digest coverage. Task1 RED/GREEN: 64 failed + 74 passed + 5 skipped before implementation; 138 passed + 5 skipped after. Timer descriptor canonical digest unchanged; independent Spec/Quality review PASS. SPI hierarchy/native proof remains open as Task2; no F4/D4 or aggregate P7-E acceptance claimed.
+
+
+### 2026-10-22 Compiled F4 second APB3 source Task 3 accepted
+- Contract-driven register authority, generic APB producer, and consumer implemented with exact PRE/POST/backend/probe/commit address joins. Root focused gate 204 passed/13 skipped; source/probe regression 138 passed/5 skipped; native authority 2 passed. Independent Spec/Quality review PASS. Timer projection and 4096-address decode match baseline. Task4 CPU/Router first-fresh composition remains open.
+
+### 2026-10-22 Compiled F4 second APB3 source Task 2 accepted
+- PULP SPI probe proof and native storage samples now pass independent re-review after the artifact digest and semantic-negative fixture fixes. Reviewer checked the published 26-file evidence bundle and proof binding; no findings remain. SPI proof digest `5f7ff0702c8e2452d77891d2c9451f95a3a732b97e35aafa6986ab8ee3361268`; software/native gates 33 passed/2 skipped and 35 passed. Timer proof and bench remain byte-identical. Task4 compiled-F4 CPU/Router first/fresh remains open.
+
+### 2026-10-22 Compiled F4 second APB3 source Task 4 software accepted
+- CV32E40P + PULP SPI config compiles one generic APB storage F4 candidate for `SPICMD@0x40001008`, with `ip_register_version` prerequisite and no external-pin sources. Four SDI inputs are fixed to zero in both request and generated artifact; a missing-lane regression rejects. Focused gate 6 passed; compiled-F4 producer/consumer regression 116 passed. Wrong CV32E20 CLI override refuses at `/cpu/request` before D2; Timer source pairing and non-full-word template refuse. Independent Spec/Quality re-review PASS with no findings. Native first/fresh and physical CPU readback/RAM joins remain open.
+
+
+### 2026-10-22 selected F4 runtime-path admission
+- User selected A and continued after written specification; plan/spec saved. Task1 opt-in bound instruction/session/schema24/25 and Task2 same-call D3 admission implemented. Independent Task1/2 scoped Spec/Quality PASS after scheduled-source replay Q1 RED/GREEN (107passed+43subtests).
+- Task3 real prebegin session configuration, explicit runtime path/source mapping, decoder/executor/source-plan audit and compiler F4 target-owner correction implemented. Shared D3 digest canonical form fixed. Two saved-audit review findings reproduced via coherently rehashed controls and fixed; Task3 independent Spec/Quality clear, focused wiring16passed.
+- Final frozen software gate running under docs/reports/evidence/compiled-f4-runtime-path-20261022/software-attempt1/. Native first/fresh not started; aggregate P6/P7-E/P8 and system objective remain open. No stage/commit/remote.
+
+Final selected-F4 frozen software gate:399passed/48subtests,exit0,269.58s supervisorwall,2051 archivedPython/config inputs unchanged; archive8104d59e67fa3c9cc7771a2ed17bd5fdb88af15a2014f85abf2e390f7a9e8420. Task3software accepted with independent clear review. Native CLI first/fresh started under native-attempt1; no native acceptance yet.
+
+Selected-F4 terminal acceptance: Timer native-attempt1 exit0/121.81s,2certified/538events; CV32E40P+PULP SPI native-sibling-attempt1 exit0/141.65s,2certified/2806events. Both full first/fresh prefixes byte-identical; actual sessions contract_preflight,plans24;8native process receipts reaped/0. Both independent raw-evidence audits PASS. Root rechecked2051 before/after/current/archive hashes in software and both native gates, exact prefixes and exit audits. Report/current/runtime/P7plan/index/spec updated; this slice complete, D2 output-binary/process join next, general P7-E/P6/P8/system remain OPEN. No stage/commit/remote.
+
+2026-10-22 next D2 build/output/process slice: inspected build/cache/session/runner/compiled finalization ordering. Written spec docs/superpowers/specs/2026-10-22-compiled-f4-built-identity-design.md proposes opt-in stable validated receipts, immutable repeated prepare, independent timing/cache outcomes, /proc/PID/exe pre-READY check, strict first/fresh binary identity, truthful structural D2 plus run-level join. Design-only; no production changes/tests/commit. Written-spec review required by brainstorming before implementation.
+
+D2 built-identity implementation authorized by user continuation after written-spec review. Plan written; Task1 builder, Task2 opted session and Task3 pure join delegated in parallel; root runtime/CLI. Builder stable-window6passed and legacy12passed+3subtests; session P1registry deletion/P2postREADY failurestage RED reproduced, fixes88passed/30skipped/2subtests and rereviewpending. Root corrected invalid method-patching RED fixture (sealed producer mechanics) to real source-backed cache fixture; meaningful oldruntime no builtmap/expectedfresh/sink RED then wiring3passed. Orchestration missingconstructorauditsink RED then1passed. Broader regression and source review ongoing; no native acceptance yet.
+
+D2 builtidentity final source rereview PASS after soleP2 diagnosticexport fix. MeaningfulRED8,focused82/core12/diagnostics7GREEN; structuralSimpleNamespace regressiondoublefixed with Noneprebuild only. Frozen softwareattempt1 retained:exit1,537passed53subtests1failed,2059inputsunchanged,584.39s. New softwareattempt2 (30modules incl resetcompatibility) and Timer nativeattempt1 now running concurrently on unchangedproduction; no native result yet. Keep allsource/test/wrapper inputs frozen.
+
+### 2026-10-22 compiled F4 built identity bounded acceptance
+
+Final softwareattempt3:611passed/30skipped/53subtests,637.374979s supervisor,
+PID907465exit0/reaped/notimeout,2059unchanged,archive63cbb16ae98229dacfb0f1964ee0b52de144e9d144551c561efd1b809785554e.
+Independent terminal audit PASS. Timer/SPI each2/2certified,538/2806complete
+fresh events; both native audits PASS. Final software has one test-only fixture
+difference from native production freeze, plus SPI ownwrapper; all production
+and native buildinputs unchanged. Both historical failed software attempts
+retained. Spec/plan/report/progress/runtime/index/P7 reconciled. P6/P7-E/P8 and
+fullsystem remainopen. Read-only next-gate analysis recommends D3-driven F2
+CPU-load/IP-read-response plus actual assertion outcomes/fresh join.
+
+### 2026-10-23 F2 design preparation
+
+Two parallel read-only investigations found F2 invalid RAM prerequisite, CPU-only
+MMIO graph, write-only route provenance and address/response-mask conflation.
+Proposed docs/superpowers/specs/2026-10-23-compiled-f2-read-response-design.md
+corrects the contract and specifies real readonly CPU→APB response→dependent RAM
+proof with native current-version authority and typed assertions. Existing startup
+plus idleSTEP supports pre-read current witness with no hidden setupwrites.
+Independent spec review PASS after explicit missing/failed assertion rows fix.
+Await user written-spec review under brainstorming; no production/test/native
+changes or tests/builds in this design turn. Shared dirty workspace preserved.
+
+### 2026-10-23 current authoritative F2/F4 reconciliation
+
+Re-read HEAD4186ff5/current reports after user goal reactivation: F2 source and
+cleanHEAD native gates already landed; corrected stale design-pending paragraph
+in CURRENT_PROGRESS rather than reimplementing from older conversation state.
+Sharedauditmodule missing despite committed test: reproducedRED, extracted focused
+BuiltProcessAudit used by F2/F4,31focusedpass/independentSpecQualityPASS.
+Initial frozen2093-input software/F4Timerattempts preserved, same archive
+593723df94dc09c5242b441ee823afa6252fecf5847c95abf72e273b0be71f2b.
+Timerexit0/reaped169.513606s; softwareINTERRUPTED on reviewfindings,exit2/reaped
+123.772689s, bothinputunchanged. Review found failed-caseassertion omission,
+lateXORfetchproof gap and suppressedreplayexportfailure. Fixauthor active; separate
+capabilityreporttypedassertion/per-flow unsupportedreason integration active.
+No finalcurrent-source acceptanceclaimed; allsystemP6/P7-E/P8gatesopen.
+
+
+## 2026-10-23 current F2/F4 whole-slice review / final freeze
+
+Whole-slice review found saved fresh live-object pinning and residual initial
+byte-pin defects. RED10semantic substitutions and RED5format-only changes
+retained; final24controls pass, including two clean replay saved hash indexes.
+Final independent Spec/Quality PASS; source hashes in compiled-f2/whole-slice-review-20261023.md.
+Software-attempt2 intentionally SIGINT: terminal2/reaped96.03s,2098unchanged;
+66pass30skip is partial, not acceptance. Supervisor now embeds53module scope,
+no oldwrapper runtime dependency; preflightPASS. Current live software-attempt3
+unified exec session38252 / pytest PID778509, supervisor archive2098inputs.
+Last observation >4min: actual process alive and stdout grows past13%; no terminal.
+Do not restart due observation expiry. Poll same session / inspect PID and
+terminal JSON. Source/tests/configs/wrapper frozen until terminal. If PASS,
+independently audit source-after/archive/process/counts/skips then native serial:
+f4-timer attempt2, f4-spi attempt2, f2-timer, f2-cve2-timer, f2-spi,
+f2-renamed-timer, f2-wrong-address (new dirs; supervisor --attempt2 safe for each).
+No final native/current-source acceptance yet. Keep full system goal active.
+
+
+## 2026-10-23 software attempt3 failure and fixture root cause
+
+software-attempt3 finished/reaped exit1/no-timeout1188.099s. Actual974pass31skip4fail53subtests;
+2098source-before/after equal, archiveSHA8c1d7c7d84c9ec3efc9cdaa8c568f8a34b0557ef256f999f35a57b2f1e7d7aa7.
+Independent terminal/member audit accepted these facts, not a passing gate.
+Fourfailures all test_compiled_f4_layout_replay_audit.py stale handbuilt runtime
+objects: missingregister_name and_build_sessions. Isolated HEAD originalproduction
+also4failed8passed17.42s; currentbaseline4failed8passed18.09s.
+Only that test file modified: source-derived register and schema-valid synthetic
+receipt/process fixtures keep real audit joins, with2driftnegativecontrols.
+Focused14pass34.03s; relatedaudit9pass0.35s; testfile stopped edits pendingindependent
+review byf2_whole_slice_review. Source/tests freeze currently released only for
+that completedtestchange; production/config/wrapper unchanged sinceattempt3.
+No live fullgate/native handles now. Oncefixture reviewPASS, re-freeze candidate
+and run native modes + finalsoftwareattempt4, retaining same executable inputs.
+F2 unified RFuzz adapter still absent (Task5not fullydelivered), nextsystem roadmap
+in .superpowers/sdd/next-system-gap-20261023.md. Remotejump timeout thisturn, no target
+entry/fileoperations. Fullsystem goal remainsactive.
+
+
+## 2026-10-23 live final candidate after fixture correction
+
+Fixture independent Spec/QualityPASS; testSHA9178a8740975d5cfe0adea97539ee92f09ef5b57d91085752f00129d5528290f.
+Only that testfile changed afterattempt3; production/config/wrapper unchanged.
+Finalcandidate frozen again. LIVE handles (do not restart due observation timeout):
+- f4-timer-attempt2: unifiedexec34791, pytest/CLI PID958406; >2minlive, generated D2/D3/projection/session outputs, no terminal.
+- software-attempt4: unifiedexec71669, pytestPID961285; >2minlive7%+, no terminal.
+Both beforemaps2098 identical. Availablememory4507MiB/swap0 at2min check.
+No further source/tests/config/wrapper edits until allfinalgates finish.
+Next: pollhandles; on f4timerterminal inspectstatus/fullfresh/buildjoin/exits/inputmap,
+request independentrawaudit, then startf4-spi --attempt2 serially. Software4 runs
+independently inparallel; inspectcomplete53modulecount/31skips/actualstats onlyatend.
+Then f2-timer/f2-cve2-timer/f2-spi/f2-renamed-timer/f2-wrong-address --attempt2.
+Originalfailedattempt3 preserved, not accepted; source-reviewPASSdoesnotoverrideit.
+Fixture movedHEAD recheck green-head-runtime.log stays10pass4setup-errors; separate
+head-runtime-package-path-repeat.log14pass33.57s, diagnosticruntimeonly.
+Overallgoalactive; Task5unifiedF2RFuzz andgeneralF6/P6/P7E/P8stillopen.
+
+
+## 2026-10-23 current F4 Timer terminal / next live jobs
+
+f4-timer-attempt2 terminal0/reaped/no-timeout170.510239s/2098unchanged.
+summarycomplete2/2certified,freshfull538events2records,buildjoincomplete.
+Rawindependent audit f2_whole_slice_review active, reporttarget
+.sdd/compiled-f2/f4-timer-current-native-audit-20261023.md.
+Next f4-spi-attempt2 live unifiedexec65391 (not34791; Timer34791 terminal).
+Software-attempt4 still live unifiedexec71669/PID961285. Frozen source/tests/config/wrapper.
+Continue polling bothhandles withoutrestarting; afterSPIterminal nextf2-timer --attempt2,
+f2-cve2-timer2,f2-spi2,renamed2,wrong-address2. Current fullgoal active.
+
+
+## 2026-10-23 F4 raw gap fixed and new live freeze
+
+Timer2independent audit found missingfreshactual_events; complete rawgate NOTACCEPTED.
+Software4SIGINTterminal2/reaped308.219625s,2098unchanged; SPI2SIGINTterminal-2/reaped139.704511s,
+2098unchanged; noacceptance. SPIoriginalbothchild0/freshCPU0,targetreaped-9controlledcleanup.
+New4file fix savesfreshrawfirst,7samecall+initialbytepins,4summarySHArefs; scoped24pass,
+related33pass,driver2/3selectedpass; jointindependentSpec/QualityPASS.
+Canonicalevidence .superpowers/sdd/compiled-f2/f4-fresh-raw-20261023/,
+runtime/bytecopyoforiginal.sddartifact,driver/rootcontrols,independent-review.md.
+Source/test/config/wrapper FROZEN again. LIVE software-attempt5 session85214,
+F4Timer-attempt3 session92150. Both2098beforemapsidentical. Pollsamehandles, neverrestartfor
+observationtimeout. AfterTimer3terminalauditnewfreshrawthenSPI3serial; F2Timer2,CVE2Timer2,
+SPI2,renamed2,wrong-address2 pending. Software5complete53gate must actuallypass.
+Task5F2unifiedRFuzz/generalF6/P6/P7E/P8/fullsystemgoalstillopen, remotejumpconnectiontimeout.
+
+
+## 2026-10-23 Timer3 real raw-complete terminal / nextlive jobs
+
+Timer3session92150 TERMINAL0/reaped/no-timeout153.544096s/2098unchanged.
+runcomplete2/2certified,freshfull538events,savedfreshraw538events,
+18summarydescriptorhashesmatch,buildjoincomplete,orig/fresh4childexit0reaped.
+Independentrawaudit f2_whole_slice_review active ->
+.sdd/compiled-f2/f4-timer-current-native-attempt3-audit-20261023.md (actualcanonical.superpowers/sdd).
+F4SPIattempt3 nowlive session2903 (pollsamehandle), software5live85214/PID1020689.
+NextafterSPI3terminal rootinspect+independentaudit then F2Timer --attempt2,
+CVE2Timer2,SPI2,renamed2,wrong-address2 serially, software5continuesparallel.
+No source/tests/config/wrapper edits untilfinalfrozengatesfinish. No retroacceptTimer2.
+Wholeobjective/P6/P7E/P8/Task5F2RFuzz/generalF6stillopen.
+
+## 2026-10-23 SPI3 terminal / F2Timer2 live
+
+Timer3fullraw independent auditPASS; onlyboundedF4Timer/CVE2two cases accepted.
+SPI3session2903terminal0/reaped/no-timeout176.064340s/2098unchanged;
+rootruncomplete2certified,raw/full2806events,buildjoincomplete,4child0reaped,
+summaryhashmatch. Independent audit f2_whole_slice_review active:
+.superpowers/sdd/compiled-f2/f4-spi-current-native-attempt3-audit-20261023.md.
+F2Timer/Ibexattempt2 LIVE unifiedexec80822; fullsoftware5 LIVE85214/PID1020689.
+NEXTpollsamehandles; afterF2Timerterminalinspecttypedassertions/capability/raw/buildjoin,
+requestindependentrawaudit, then F2CVE2Timer2/SPI2/renamed2/wrong-address2.
+Source/test/config/wrapper FROZEN2098samecandidatemap. Neverrestartjustforobservationexpiry.
+No full F2/F4 slice/P6/P7E/P8/systemcompletion yet; Task5 F2 unified RFuzz still missing.
+
+
+## 2026-10-23 SPI3 independent full raw PASS / live handoff
+
+SPI3 independent rawauditPASS,noP1/P2,report f4-spi-current-native-attempt3-audit-20261023.md.
+BothF4Timer3andSPI3bounded2caseitems nowaccepted withreal freshraw, no retroacceptoldTimer2.
+SPI has noerrorpin/native_error_observationFalse, never labelNone observedzero.
+LIVE: F2Timer/Ibexattempt2 session80822/PID1072590; softwareattempt5session85214/PID1020689.
+Nextpollsamehandles; afterF2Timerterminalinspectraw/typedassertionresults+independentinventory/
+capabilityreport/fullfresh/buildjoin+savedbytehashes and requestindependentaudit.
+Nextserial F2CVE2Timer --attempt2, F2SPI2, renamedTimer2, wrongaddress2.
+Source/test/config/wrapper remainsFROZEN same2098candidate map. No restartonobservationtimeout.
+Systemgoalstillactive: Task5unifiedF2RFuzzadapter/generalF6/CPUevents/P6/P7E/P8notcomplete.
+
+
+## 2026-10-23 F2Timer/Ibex2 terminal / nextlive
+
+F2Timer/Ibex2 session80822 TERMINAL0/reaped/no-timeout233.659203s/2098unchanged.
+reportcompleted1case1certified,replayfullmatch,buildjoincomplete4childexit0reaped,
+2typedassertionspassed+independentcaseinventory1,capability2rowsnohighergrant,
+31savedhashesallmatch. Independentaudit f2_whole_slice_review active ->
+.superpowers/sdd/compiled-f2/f2-timer-current-native-attempt2-audit-20261023.md.
+LIVE F2CVE2Timerattempt2 session71768 (pollsamehandle), fullsoftware5session85214/PID1020689.
+Next afterCVE2terminal inspecttypedoutputs/fullfresh/raw/buildprocess, audit then
+F2SPI --attempt2, renamedTimer2, wrongaddress2 serially. Source/test/config/wrapperFROZEN.
+F4Timer3andSPI3 independentfullrawPASS bounded2cases each; no wholeF2/F4slice/systemgrant.
+Task5 F2 unified RFuzz adapter/generalF6/P6/P7E/P8 still open; goal active.
+
+## 2026-10-23 最终八门收口
+
+最终八门全部终态、独立审计 PASS，同一2098项冻结输入。软件1001 passed、31 skipped、53 subtests passed。仅接受有界 F2 文件入口及 F4 兼容切片；原 Task5 统一 F2 RFuzz 仍开放。当前无运行中的验收门；后续修改是新候选，不能沿用旧门宣称通过。详见 docs/reports/f2-f4-current-acceptance-20261023.md。
+
+## 2026-10-23 F2 RFuzz 新候选实施开始
+
+最终旧候选八门已全部终态，解除其编辑冻结，原证据保持不可变。新 Task1 wire/decoder、Task2 executor、Task3 pure feedback 并行实施；根处理 Task4 保存字节完整性。Task4 初步26项通过，仅软件完整性控制，未完成wrapper/强制transport pins或原生验收。新改动不沿用旧门授予通过。
+
+## 2026-10-23 F2 RFuzz 冻结前验收工具复审
+
+Task5主体43项通过，projectionguard修复3项、真实保存验证principal四变体通过；最后公开capability初始SHA遗漏已RED/GREEN修复。真实F2材料finalizer source-boundary20项通过，auditor42项通过。五个原生控制只collection/skip5，未启动native。Task6review发现manifest属性调用／tar符号链接P1及导出primary、feedback/raw/source归属等P2，均按作者归属修复，未创建freeze。完整目标仍active。
+
+## 2026-10-24 F2 RFuzz freeze2 十门终态与限定修复
+
+freeze2 source-map21867 SHA b5aad3763feb7f25d2f60423dc9b4084c81741d825cab16aea06196cfe0125db。
+软件3终态473passed/5精确native skips/22subtests、独立PASS；native-suite1五项真实控制PASS并独立rawPASS；F2 Ibex/CV32E20/SPI/renamed各attempt2均终态0、脚本66pins及独立rawPASS；两项负例2 actual=expected1、完整监督及独立PASS；F4Timer1终态0/417.008849s/2certified/full1306events/独立PASS；F4SPI1终态0/495.697298s/2certified/full8950events，修改前current21867字节/origins/13aliases/7executables独立核对完成，剩余savedraw审核中。全部进程reaped，无livegate。
+最终独立整片源码复审唯一Important/P2：首个submit/certificate/feedback错误对象被丢弃，finish或后续writer替换primary，export notes丢失。根软件夹具+实际_finish已复现。整片Spec/Quality changesrequired，旧门保留自身as-run字节结论。
+限定编辑窗口已开：author f2_report_outputs_review负责compiled_f2_rfuzz.py、scenario_rfuzz_live.py及对应executor/newprimary-errors测试；新证据只写task7-primary-error-fix，不改旧task/attempt材料。execution-primary字段只保存execute_batch fatal，finish local primary，shared最终顺序execution→earliertransport→firstfinish/export；必须真实连接executor/livefinalizer/wrapper RED/GREEN，复审通过后再建新冻结。原RFuzz Task6与系统目标仍OPEN；禁止stage/commit/reset/clean。
+
+## 2026-10-24 F2 RFuzz第三冻结十门接受与F6规格批准
+
+最终主异常/嵌套notes修复Spec/Quality PASS；freeze3共21916项输入，source-map SHA329f3e2f1cd4bddd5ad22bbaa0e5749c22f1a595eeb84f7b88a3def8393f4f7c。software4完整498passed/5精确native skip/22subtests；native-suite2五项passed；F2 Ibex/CV32E20 Timer3与SPI3、改名Timer3、两个refusal3及同版本F4 Timer/SPI2均终态/reaped，预期exit0或精确refusal1，无超时/采集错误，各自独立raw/归档/来源/进程审计PASS。F2完整fresh631/631/4355/631events；F4两组各2certified/full1306和8950events，向量八零。最终整片冻结Spec/source/Quality/软件原生PASS，证据docs/reports/evidence/compiled-f2-rfuzz-entry-20261023/audits/final-frozen-slice-acceptance.md。
+
+全部gate终态且独立接受后释放执行冻结，仅同步两份计划勾选/Task5引用、进度/运行边界/组件代码职责/索引/P7有界状态；归档plan/attempt/原始输出不改写，核心源码不再变化。RFuzz补充计划在工作树的文档字节预期不同于冻结归档，独立文档闭环正在复核。全库doc链接复查仍exit1/129条旧失效，不声称全库通过；被更新入口只涉及reportREADME五条HEAD已有旧目录链接。
+
+用户已通过async明确批准F6四字RAM→RAM＋真实IRQ/ISR规格，独立设计复审PASS；wire代理使用writing-plans编写新实施计划，尚未改F6生产/测试源码。F2文档复核后按该批准设计实施，不再询问同一批准。P6/P7-E/P8、通用同协议接入/CPU事件扩充和系统总目标继续开放，禁止stage/commit/reset/clean。
+
+F2 Task1–6及原计划Task4–6现完整收口：最终独立文档审计PASS，累计53行动项（43新+10既有）、651范围内链接核实；当前21915原始输入字节不变，仅已释放RFuzz计划文档SHA511fa91acdaad152fd67d46ce8873dfb7fe357ec1b0e5dbbb833e26646d0788a不同于归档。原归档成员与source/工具/实际输出证据均保留。F6生产工作已无F2冻结依赖；待新计划自审完成后直接执行，不重跑或重派已完成F2任务。
+
+## 2026-10-24 F6实施计划完成，首批任务并行中
+
+F6八任务实施计划 `docs/superpowers/plans/2026-10-24-compiled-f6-cpu-programmed-ram.md` 已由作者、root及独立审阅完成；初审提出的execution binding、稀疏preload/未物化前缀与native wait/resume验收均已补齐，独立复审PASS，typed evidence RED也已纳入。Task1 closed D3 marker及 nested candidate/program schema现也已明确写入，Task4接收完整已验证F6合同并重建canonical ISR，明确认证success/error两个MRET站点。计划SHA-256 `5f44f853e0fc38971758a7e60bb4b8b5d544c41e04043212fdd661c8dbcb02f9`。
+
+Task2稀疏固件/候选与Task3 sealed pre-effect DMA ERR现均完成独立Spec/Quality PASS：Task2两模块73 passed；Task3软件组75 passed/2个明确native门skip，独立模块复测43 passed。Task2曾发现tuple会规范化为JSON list的闭合类型漏洞，已增加10个RED/GREEN负例修复；F6Candidate.words tuple API保持。Task3修复同一live scope递增逻辑case导致跨case注入的问题。Task1合同/编译器继续补测，报告165 passed/3 subtests后发现旧Caliptra runtime-path一项失败、正在定位；Task4 MRET issuer软件测试进行中。详细ownership、brief和原始日志在 `.superpowers/sdd/compiled-f6-20261024/`。未启动heavy native/build/RFuzz，也未使用远程服务器。marker seed是同次D3新声明；source path及静态地址须重编并按资源/路由验证。Task5–8仍需真实持续CPU/DMA、fresh、统一入口和冻结验收；六CPU/四IP、P6/P7-E/P8、通用接入及系统总目标均OPEN。禁止stage/commit/reset/clean。
+
+## 2026-10-24 F6 Task1完成、MRET观察按源码修正
+
+Task1合同/编译器在当前候选通过170 tests及3 subtests；报告含基线/当前hash、scoped diff、拒绝用例和原始回归trace，独立复核待结论。旧 `tests/scenario/test_compiled_f6_runtime_path.py::test_static_validator_allows_only_compiler_f5_uncontracted_event` 在任务前 `compiled_paths.py` 字节上、同一完整Caliptra+F5 fixture也拒绝 `compiled-f6-handoff-compiler-schema-invalid`；baseline与current编译输出逐字段一致。根因为前驱F2 executable row的 `execution_contract` 字段尚未被旧 `compiled_f6_dma_handoff` closed reader接纳；Task1没有改旧reader或改变该fixture D3。
+
+独立Ibex source review纠正F6 Task4证据语义：`rvfi_intr`只标记首条handler退休；`irq_retirement_serial`在其他退休（包括MRET）为0。因此串联关系是native take的decision serial→首条ISR `rvfi_intr`非零retirement serial→固定MRET（自身serial记录0）→order恰为MRET+1的首条有效退休PC。该后继PC和原始source receipt推导实际恢复PC，MRET `pc_wdata`保留raw但不声称MEPC目标；还要求错误为0的source instruction response相符，完整runtime另核对prefix/preload bytes。native fetch-to-next-unfilled-prefix wait/resume仍单独验收。spec当前SHA `0384bf0e9895fb72d56f6c10b12221e4c9e24a7eff42471a70a9bbe385dd661e`，原审批SHA `d8b0d1666d548f7c70eff7416e559d5124412a252661b310a703d45cbcd172db`保留；实现计划SHA `d09f5386278a0584fcf85d2cd277b8718af6519fc83a0d3d9d8bd22fddfb3c67`。Task4正在补完source-entry/successor的软件门；没有Task4 final GREEN，也未开始F6 native/build/RFuzz/remote门。六CPU/四IP、P6/P7-E/P8和全系统目标仍OPEN；禁止stage/commit/reset/clean。
+
+
+## 2026-10-24 F6 Task4 source_component ownership fix accepted
+
+Task4 post-take component drift RED/GREEN is frozen. Exact four-module suite: 154 passed, 31 subtests passed, exit 0; 365 host-source hashes before/after stable. Independent Spec Compliance PASS and Quality PASS. Evidence/report: `.superpowers/sdd/compiled-f6-20261024/tasks/task-4.md`; source/software boundary only, no native acceptance. Task1 runtime_sv physical PC connection projection fix is separately frozen after RED 1 failed / focused GREEN 2 passed; its full three-module suite and independent review are in progress. No F6 native/build/RFuzz gate started.
+
+
+## 2026-10-24 F6 Task1 runtime projection admission accepted
+
+Task1 closes the independently reproduced self-rehashed `rvfi_pc_rdata`/`rvfi_pc_wdata` physical connection swap by rebuilding the admitted CPU runtime projection with the existing pure renderer and exact-comparing `runtime_sv` plus `physical_exports`. The canonical artifact remains supported; the coherently rehashed swapped artifact refuses. Exact three-module suite: 186 passed, 3 subtests passed, exit 0; five source/test pins stable; independent Spec Compliance PASS and Quality PASS. The pre-existing Caliptra/F2 schema mismatch remains a documented concern. Report: `.superpowers/sdd/compiled-f6-20261024/tasks/task-1.md`. No native acceptance implied.
+
+
+## 2026-10-24 F6 Task5 implementation start
+
+Tasks 1–4 are accepted at their scoped software levels; Task1 independently PASS (186/3) with self-rehashed CPU RVFI PC connection swap refusal, and Task4 independently PASS (154/31) with stable 365-file source map. Task5 brief extracted to `.superpowers/sdd/compiled-f6-20261024/briefs/task-5.md`; implementer `/root/f6_task5_consumer_impl` started after Task3 owner’s read-only handoff. Task3 actual-issued boundary: exact `GeneratedWishboneDmaSession`, fault installed after route admission and before start, selector only inside actual accepted-key scope, expected ERR skips memory callback; Task5 may add only the real accepted-read snapshot bridge around the original RAM-read callback. No native/build/RFuzz/remote gate started.
+
+
+### F6 Task5 behavioral RED checkpoint
+
+Task5 policy and F6-only actual-read bridge landed. Valid source-backed synthetic two-module RED: 67 failed/26 passed in 108.45s; absent-module setup RED is retained separately and not counted as behavior coverage. Coverage includes four-word source/read/write/commit joins, owner/key/version/duplicate contradictions, IRQ/ISR/result, expected ERR partial effects, and eight opaque-bridge identity/copy/direct-arm tests. The no-credit scaffold makes the original missing-word/all-zero assertion vacuous; implementation owner is strengthening that control to preserve unrelated valid evidence while keeping the incomplete case vector zero. No GREEN/native gate yet.
+
+
+### F6 Task5 first frozen eight-module run superseded by source-shape RED
+
+The first exact Task5 eight-module suite completed 402 passed/exit 0 and all 540 pinned paths were stable. It is not acceptance: a post-run source audit found synthetic ACKs had PRE CYC=0 and the fixture declared a 16-tick IRQ delivery interval while subsequent CPU samples were forced low/not retained. Five new REDs reproduce dropped-CYC response closure and early IRQ drop, wrong source context, high line after expiry, and missing expiry sample. The current candidate is superseded; the owner is correcting source-shaped samples and consumer checks, then will freeze a new map and rerun the exact Task5 eight-module suite plus Task3's four-module compatibility suite. No native gate started.
+
+
+### F6 Task5 final software gates complete; independent review pending
+
+Final candidate SHA `e4e6a8d0ef20f0c4ac1924a350f44b9fd1a2f42fa068ca66f543960ec1b6fb78`. Exact Task5 eight-module suite: 412 passed/exit0 (281.22s); exact Task3 Wishbone/response-fault compatibility suite: 75 passed/2 explicit native skips (4.30s). The final 540-file host-source/test map is identical before, between and after; all eight owned files pass AST and scoped no-index whitespace checks. Earlier 402/409 suites are superseded and not counted. Final report `.superpowers/sdd/compiled-f6-20261024/tasks/task-5.md`; independent Spec/Quality review `/root/f6_task5_final_review` in progress. Evidence remains software/synthetic; no native, persistence, fresh, file/RFuzz or full system acceptance.
+
+### F6 Task5 independent review blocker and correction in progress
+
+Independent review of candidate `e4e6a8d0ef20f0c4ac1924a350f44b9fd1a2f42fa068ca66f543960ec1b6fb78` concluded **Spec non-compliant / changes required; Quality changes required**. Its read-only synthetic probe removed word 0's destination commit while changing the still-present word 0 native write response to `error=1`. The consumer returned `missing`, omitted that contradictory response from inventory, and produced zero feedback instead of preserving the present contradiction as `failed` ahead of `missing`. This violates Task5's contradiction precedence; the prior 412-test and 75+2 compatibility results are pre-fix evidence only, not accepted gates. The independent-edge collector candidate `f649e4d5…c20d07a` passed 418 tests in the exact eight-module suite and 75 tests / 2 explicit native skips in the sequential Task3 compatibility suite, both exit 0; all 540 source/test paths remained stable. Fresh review then found expectation-level short circuits: missing operand event 2 hid a contradictory write-response event 94 in cross (`word=failed`, `cross=missing`, empty cross evidence); separate leaf probes showed missing operand plus a contradictory later configuration write makes configuration/cross missing, and missing IRQ output plus illegal terminal IRQ value makes IRQ/cross missing. The author is extending collect-before-join and failed-over-missing across configuration, cross, word and IRQ expectations, with pairwise controls, then will freeze a new candidate, rerun both suites and request another independent review. No native/build/RFuzz/remote gate has started; Task5 and F6 remain open.
+
+### F6 Task5 candidate f649 software gates complete; independent review found cross-row blocker
+
+Candidate `f649e4d5883775e7eebee1b7b0392a1f47a54469a5cb1b5b21e494608c20d07a` collects the eight per-word raw edges before dependent joins, validates present edges independently, retains raw supporting evidence (including failed/duplicate rows), and reduces outcomes with `failed` precedence over `missing`. The exact eight-module suite passed **418 tests** (263.25s, exit 0); the exact Task3 four-module compatibility suite passed **75 tests / 2 explicit native skips** (3.70s, exit 0), sequentially. All **540** source/test paths are stable before, between and after both gates. Focused missing/contradiction controls passed 7 tests; the broader two-module behavior set passed 122 tests. Candidate `e4e6a8d0…` remains rejected and its 412/75 results are pre-fix evidence only. Independent review rejects f649 for expectation-level failed-over-missing short-circuits in cross/configuration/IRQ: present contradictory word, configuration and terminal IRQ rows can be hidden by earlier missing observations, leaving affected inventories incomplete. A complete collect-before-join correction, regression, both suites, and independent review are required. No native/build/RFuzz/remote gate has started.
+
+### F6 Task5 candidate d9f3 software gates complete; review found IRQ sample blocker
+
+Candidate `d9f3c2203074d27177b7192e92964c767bc3d03e9ce6069187eb347055b25bca` extends collect-before-join to word/configuration/cross/IRQ expectations, retaining actual raw rows while evaluating present producer contradictions before the dependent joins. Focused component/leaf/branch matrix: **16 passed / 98 deselected**; two-module consumer/evidence regression: **134 passed**. Exact eight-module Task5 suite: **430 passed in 313.75s, exit 0**; sequential exact Task3 compatibility suite: **75 passed, 2 explicit native skips in 3.72s, exit 0**. The 540-file source/test map is stable before, between and after both required suites. Fresh review rejected d9f3: when original/journal CPU IRQ sample event119 tick27 drops to 0 inside the required asserted interval, the sample leaf says passed; removing `irq_output` makes IRQ/cross missing and hides the present contradiction. The author is moving interval value/context/expiry checks into independent sample validation, then will freeze a new candidate, rerun both suites, and request another independent review. Prior e4, f649 and d9f3 candidates remain rejected. No native/build/RFuzz/remote gate has started.
+
+### F6 Task5 candidate 3f0117 software gates complete; independent review rejected
+
+Candidate `3f01177181fdad468547c313fc8fa454af407290594f0e704960a20ae1387539` expands IRQ sample prevalidation to all source-authentic rows related by binding before owner/epoch/tick filtering, then validates interval membership, reset epoch, owner/nonce/source context, pre/post input values, expiry deassertion, duplicate ticks and bounded window. Ordinary unrelated or unbound out-of-window CPU samples remain ignored. The final focused sample matrix passed **27**; exact two-module behavior passed **153**; exact eight-module suite passed **449 in 336.75s, exit 0**; sequential Task3 compatibility passed **75 / 2 explicit native skips in 3.64s, exit 0**. All **540** source/test paths are stable before, between and after required suites. Prior e4/f649/d9f3 candidates remain rejected. Fresh review rejected 3f0117 on two findings: a source_output_key-only matching but out-of-window sample with bad binding IDs is filtered out and lets all five expectations pass; malformed window bound type raises untyped TypeError. The author is fixing source-relation selection and closed type validation before a new freeze and rerun. No native/build/RFuzz/remote gate has started.
+
+### F6 Task5 final candidate e4db independently accepted at software/synthetic scope
+
+Candidate `e4db499b07e580e730eb6aaa0027282d1a94cfef9ff809ff790af96136cc1512` adds source-key-only sample relevance and validates window bound types before comparisons. Focused source-key/type matrix: **31 passed**; exact two-module behavior: **161 passed**; exact eight-module suite: **457 passed in 359.88s, exit 0**; sequential Task3 compatibility: **75 passed / 2 explicit native skips in 3.65s, exit 0**. The full **540** source/test map is stable before, between and after required suites.
+
+Independent Spec Compliance and Quality both **PASS**. The reviewer verified all eight candidate/source copies, all 198 manifest entries, stable maps, scoped diff and exact receipts. Report SHA256 `bf23eaef58f9661c629c98990f1bb2f0340555428e9cadd80575d21ee38d2e0e`; artifact manifest SHA256 `fdc7bc2e968ef9ccf608c080df581815a13013a9a896544bd3d872d6f897146a`. Task5 is accepted only at software/synthetic scope. Native execution, persistent lifecycle, fresh replay and RFuzz remain open; Task6 is the next implementation task. No native/build/RFuzz/remote gate started in Task5.
+
+## 2026-10-24 F6 Task5 accepted; Task6 runtime implementation started
+
+Task5 candidate `e4db499b07e580e730eb6aaa0027282d1a94cfef9ff809ff790af96136cc1512` passed fresh independent **Spec Compliance and Quality** review. The reviewer independently matched all eight candidate files and final copies, all 198 artifact manifest entries, full 540-path before/after-behavior/between/after maps, scoped diff and exact run receipts. Task5 acceptance is software/synthetic only: behavior **161 passed**, exact 8-module suite **457 passed**, and sequential Task3 compatibility **75 passed / 2 explicit native skips**, all exit 0. Report SHA256 `bf23eaef58f9661c629c98990f1bb2f0340555428e9cadd80575d21ee38d2e0e`; artifact manifest SHA256 `fdc7bc2e968ef9ccf608c080df581815a13013a9a896544bd3d872d6f897146a`. Native execution, persistent multi-case lifecycle, full fresh and RFuzz remain unaccepted.
+
+Task6 same-call persistent runtime / execution binding / complete fresh-error replay begins with implementer `/root/f6_task6_impl` under `.superpowers/sdd/compiled-f6-20261024/briefs/task-6.md`. It depends on the accepted Task1–5 software handoffs, uses software doubles and the plan's exact 12-module GREEN, and does not launch native/build/RFuzz/remote work. Task7–8 and system-wide CPU/IP/P6/P7-E/P8 acceptance remain open.
+
+## 2026-10-24 F6 Task7 software delivery complete (uncommitted)
+
+Task7 is **complete at software scope; review clean / independently accepted**, with no commit or commit-range claim. Current work remains `uncommitted`; the authoritative 20-file owned source-map SHA256 is `56611472d2c6135214023cc8c942e5c42993a22773009b0afa05506bfc3195c5`. The exact 21-module `green-final` gate passed **1033 tests plus 5 subtests**, **exit 0**, **1080.72s**; all **954 before/after/current source pins match**. Report: [Task7](compiled-f6-20261024/tasks/task-7.md); exact argv/stdout/exit/maps: [green-final](compiled-f6-20261024/tasks/task-7-evidence/green-final.json). Task6's runtime software gate is passed but its overall/native acceptance remains open. Task8/native/system gates remain open; Task7 ran no native build/session, real RFuzz search or remote work, and claims no search diversity/cost/rates or useful-search benefit.
+
+
+## 2026-10-25 F6 four-word saved projector wiring follow-up (in progress)
+
+The saved-auditor integration now calls the four-word projector on the original and fresh prefixes separately, passing each prefix's independently constructed raw Runner index and the reconstructed/validated execution binding. It requires exactly one `dma.word_transfer_join` row per case, validates outcome shape and exact equality with the reprojected result, then checks the observation status. Read-only independent integration review found no code blocker; it confirmed the route source is the reconstructed binding, not saved route hashes. Its test-scope note was addressed by adding explicit integration-helper controls for a projected pass, missing/duplicate inventory rows, and observation-status mismatch. Exact `tests/integration/test_verify_compiled_f6.py` rerun: **68 passed**, exit 0; scoped `py_compile` and `git diff --check` passed. These remain wiring tests: raw-index/case-join helpers are mocked, and there is no complete saved F6 archive for end-to-end raw audit.
+
+The four-word projector candidate passed its original focus (**20 passed, 71 deselected**) and saved-semantics module (**91 passed**). Independent review found an Important: malformed ERR receipt short-circuited prior-effect projection; RED/GREEN regression now passes (**2 passed**). Follow-up review found another Important class: missing attempt selectors hid contradictions in still-present Runner facts. Five pairwise regressions now cover source store, instruction fetch response, DMA accepted PRE, read snapshot, and destination commit with a missing selector; those focused cases pass (**26 passed, 71 deselected**). The implementation now discovers and validates these raw facts independently of attempt references. Root reran the complete module (**97 passed**), verifier wiring suite (**68 passed**), and `py_compile`; scoped diff-check passed. Current source/test SHA-256 pins are `5f0f90fcdb3982cabfb9bf3601029793f1b0a0f7a6bcaa7c764fb699ecfa64ca` and `853c159ace2f688a55b1d486e4813ca955fb80b4f8e5f94b7750c4bcb41ce7a0`. Independent reviewer is rechecking raw discovery and expected-error paths; no acceptance claim until its verdict. No native/build/RFuzz/remote gate was run. Freeze15 is unchanged: software/D3 accepted at its bounded gates; native-controls attempt14 remains **4 passed / 5 failed, FAIL_PRESERVE**. Task8, full saved raw audit, Freeze16, six-CPU/four-IP aggregate, generic same-protocol onboarding, P6/P7-E/P8, and system completion remain OPEN.
+
+
+## 2026-10-25 F6 four-word expected-ERR raw projection follow-up
+
+The expected-ERR saved-projection path now accumulates diagnostic findings instead of returning through the public fallback and discarding already observed partial effects. It discovers the accepted prefix from raw Runner rows by `source_sequence < selected_sequence`, validates prior response/snapshot/commit provenance even when Observer selectors are absent, and inventories all duplicate candidates while treating uniqueness as a join condition. Foreign-case acceptance/effects are excluded from this case's partial inventory. Selector cardinality and ordering errors are captured; invalid sequence/index inputs cannot index outside the four-word candidate or allocate an unbounded prefix. Accepted Observer rows with non-dict `accepted` payloads are type-guarded; case membership uses the same canonical comparison as `case_scope`.
+
+Fresh verification on the current source: expected-ERR/effect contradiction group **7 passed**; complete `tests/integration/test_compiled_f6_saved_semantics.py` **141 passed**; `tests/integration/test_verify_compiled_f6.py` **68 passed**; `py_compile` and scoped whitespace check passed. New regressions retain independently observed raw effects when ERR/acceptance/selectors or the effect transaction key are absent/malformed, reject contradictory no-effect receipts, duplicate same-key effects, and effect-after-response order, and exclude foreign-case effects while preserving current-case facts. A consistent missing-acceptance case remains `missing`. Current projector/test SHA-256: `d9639f51a2f19ea966470a127713b7e072e6999d609cc6c00f31f9068f3e5e1d` / `2e6e364f3b8b42509be6b86422bc9e0a63da4dbcf89aa75fe9cc80ebfba90e14`. The latest read-only review found no remaining Important or other required changes. Therefore this projector remains a software candidate, not an overall saved-F6 acceptance. No native/build/RFuzz/remote gate ran. Freeze15 is unchanged: native-controls attempt14 remains **4 passed / 5 failed, FAIL_PRESERVE**. Full saved archive/raw audit, IRQ/ISR and cross-component semantic projections, Freeze16, six-CPU/four-IP joint matrix, generic same-protocol onboarding, P6/P7-E/P8, and system completion remain OPEN.
+
+
+## 2026-10-25 F6 saved IRQ/ISR projection, production shapes, and verifier closure
+
+Added the offline `dma.irq_isr_completion` projector and connected it to the saved auditor for both original and fresh prefixes. It rebuilds source IRQ, the fixed 16-tick pulse and expiry, native take, ISR/MRET/successor, actual status/result stores, four destination readbacks/commits, and next-fetch handshake. Four production Observer-only summaries (`source_start`, `binding_delivery`, `native_f6_isr_return.v1`, `native_fetch_boundary`) are treated only as selectors; the synthetic fixture removes them from Runner events and validates their fields against underlying Runner rows. The artifact-derived IRQ runtime export name is passed explicitly, so wrapper aliases do not become logical component/port branches. Full execution bindings are projected to the six typed-scope fields, and the verifier accepts the production integer `attempt.next_fetch` Observer ID while checking it against the same row; legacy dictionary form remains accepted.
+
+Independent review of final projector and verifier hashes found no remaining blocker. Root reran `tests/integration/test_compiled_f6_saved_semantics.py`: **228 passed**; `tests/integration/test_verify_compiled_f6.py`: **82 passed**; scoped `py_compile` and `git diff --check` exited 0. Hashes: projector `8ca0fd007910a35c2879777bef0f56931b5c3d8082d1a8bc65f6446b35058086`, projector tests `993a53b8bb2513569022fc3c904da9821a0688d867052af235131da16c11d60e`, verifier `2abb421180e4c862f9be0c51e4ba76180b5ca4b300ec2d215dfd01fb082b6a8c`, verifier tests `e2a607c7e99b7a0203eb8efd3890fb68b2dd175c0819a0402d56319b81831997`. Detailed handoff: `.superpowers/sdd/f6-saved-irq-isr-projector-report.md`.
+
+This closes one additional offline saved-semantic expectation only. No complete real saved F6 success/error archive or Freeze16 exists; Freeze15 native-controls remains **4/9, FAIL_PRESERVE**. Protocol-checker scope and cross-component graph-edge projection remain open, followed by real archive capture/raw audit and frozen native gates. Six CPUs/four IPs still have bounded separate evidence, not a 6×4 matrix or arbitrary same-protocol onboarding; P6/P7-E/P8 and system completion remain OPEN. No commit, build, native execution, RFuzz, or remote action was performed in this slice.

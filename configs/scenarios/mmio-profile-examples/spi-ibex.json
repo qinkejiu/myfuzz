@@ -1,0 +1,13 @@
+{
+  "name": "spi-ibex-mmio",
+  "cpu_request": "configs/scenarios/compiled-f2-f4-obi-apb-i2c-ibex/requests/processor.json",
+  "ip_request": "configs/scenarios/compiled-f2-f4-obi-apb-spi-mmio-ibex/requests/peripheral.json",
+  "ip_capability": "configs/scenarios/compiled-f2-f4-obi-apb-spi-mmio-ibex/test_capability.json",
+  "cpu_endpoint": "processor.data",
+  "ip_endpoint": "spi.bus",
+  "mmio_base": 1073745920,
+  "register": "SPICMD",
+  "register_offset": 8,
+  "ram": {"base": 65536, "size": 196608},
+  "write_values": [85, 170]
+}

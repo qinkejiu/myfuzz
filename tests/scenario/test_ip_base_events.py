@@ -220,7 +220,10 @@ class IpBaseEventNormalizerTests(unittest.TestCase):
                 document['base_protocol_trace'] = protocol_trace
             if bound_inputs:
                 document['bound_physical_inputs'] = list(bound_inputs)
-            return SimpleNamespace(runtime_document=document,
+            from tests.scenario.test_ip_plugin_free_fixtures import _signed
+            # A runtime document is always signed; protocol evidence identifies
+            # its frozen declaration by this digest.
+            return SimpleNamespace(runtime_document=_signed(document),
                                    plan=SimpleNamespace(request=request, profile=profile))
 
         source_export = {

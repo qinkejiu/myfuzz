@@ -1,0 +1,73 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-apb-wb-mixed-timer-uart-f1f4",
+  "description": "One Ibex RVFI OBI CPU reaches an APB3 register target and a classic Wishbone register target in one process: the PULP timer at 0x40001000 (the one F5 target) and the ZipCPU UART at 0x40002000. Every target states its own protocol from its own artifact, the host samples each target's own trace (psel/penable/pready for APB3, cyc/stb/ack/we/adr/dat_w/sel for Wishbone), and each case states the protocol of the target it was routed to.",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "targets": [
+    {
+      "name": "timer",
+      "profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+      "active_id": "pulp_timer_active",
+      "window": {
+        "base": 1073745920,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": "configs/behaviors/pulp_timer_f5.json",
+      "pins": null,
+      "fixed_inputs": [],
+      "tuning": {}
+    },
+    {
+      "name": "wbuart",
+      "profile": "configs/peripherals/zipcpu_uart/component_profile.json",
+      "active_id": "wbuart_target",
+      "window": {
+        "base": 1073750016,
+        "size": 16
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 2,
+        "max_wait_cycles": 16
+      },
+      "behavior": null,
+      "pins": null,
+      "fixed_inputs": [
+        {
+          "endpoint_id": "uart.pins",
+          "role": "rx",
+          "value": 1
+        },
+        {
+          "endpoint_id": "uart.pins",
+          "role": "cts_n",
+          "value": 0
+        }
+      ],
+      "tuning": {}
+    }
+  ],
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "handler_wait_iterations": 128,
+  "notes": [
+    "One OBI CPU (Ibex RVFI) reaches two independently addressed MMIO targets of different protocols in one process: target 0 is the PULP timer at 0x40001000 behind the real apb3_mmio_bridge (profile protocol apb/3), target 1 is the ZipCPU UART at 0x40002000 behind the real beat_to_wishbone adapter (profile protocol wishbone/classic, word-addressed registered-ack variant).",
+    "The timer window is the profile's own 4 KiB APB3 window; the UART's window is the 16 bytes it decodes (SETUP(0, rw), FIFO_STATUS(4, ro), RXREG(8, rw, read pops the RX FIFO), TXREG(12, rw, write pushes the TX FIFO)). 0x40001000..0x40002000 and 0x40002000..0x40002010 do not overlap, neither overlaps the RAM image 0x10000..0x30000, and both clear the 4 GiB bound.",
+    "Only target 0 declares F5 facts, through configs/behaviors/pulp_timer_f5.json, so F5 remains one APB3 target's own window. The Wishbone target declares no behavior file, so it declares no F5 facts, is reached by F2/F4 only, and the summary states target1_f5 no. A Wishbone target that declared the four F5 facts would still be refused by name (unsupported-f5:target-protocol-not-run:wishbone:...): no real Wishbone F5 run exists in this increment.",
+    "The Wishbone target's own trace is sampled on its classic handshake: every F2/F4 case routed to it states wb_cyc/wb_stb/wb_ack/wb_we/wb_adr/wb_dat_w/wb_dat_r/wb_sel from the slave's own pins. wb_adr is the slave's word address, so the host prints the byte offset it means beside it; completion is one stb request phase (cyc and stb in one sample) followed by a held cyc+ack cycle.",
+    "rx=1 and cts_n=0 are the same pin constants the homogeneous Wishbone UART scenario declares; they are the two non-bus inputs the wishbone register template requires an owner for.",
+    "No DMA is declared: the route criterion is the APB3 one, and this scenario claims no DMA-to-target route. F6 is therefore refused as unsupported-f6:no-dma-model:APB3+Wishbone.",
+    "Both profiles declare 50 MHz, so one host tick drives all three models; assume_single_clock states that rather than leaving it implicit."
+  ]
+}

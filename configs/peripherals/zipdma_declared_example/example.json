@@ -1,0 +1,6 @@
+{
+  "name": "cv32e20-declared-zipdma-gpio",
+  "cpu_request": "configs/scenarios/compiled-f1-f6-cv32e20-gpio-dma-shared/requests/cpu.json",
+  "dma_request": "configs/peripherals/zipdma_declared_example/request.json",
+  "dma_capability": "configs/peripherals/zipdma_declared_example/capability.json"
+}

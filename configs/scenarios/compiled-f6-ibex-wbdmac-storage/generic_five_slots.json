@@ -1,0 +1,45 @@
+{
+  "schema_version": "generic_scenario_descriptor.v1",
+  "scenario_id": "ibex-storage-dma-five-slots",
+  "root": ".",
+  "compose": "configs/scenarios/compiled-f6-ibex-wbdmac-storage/compose.json",
+  "supplement": "configs/scenarios/compiled-f6-ibex-wbdmac-storage/shared_five_slots_supplement.json",
+  "capability": [
+    "configs/scenarios/compiled-f6-ibex-wbdmac-storage/dma.test_capability.json",
+    "configs/scenarios/compiled-f4-obi-apb-timer/test_capability.json"
+  ],
+  "flow_ids": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F6"
+  ],
+  "executors": {
+    "F1": "compiled_f6_cpu_dma",
+    "F2": "compiled_f6_cpu_dma",
+    "F3": "compiled_f6_cpu_dma",
+    "F4": "compiled_f6_cpu_dma",
+    "F6": "compiled_f6_cpu_dma"
+  },
+  "f4_records": [
+    "55000000",
+    "aa000000"
+  ],
+  "f2_records": [
+    "04100040"
+  ],
+  "f6_records": [
+    "0110c00008000000"
+  ],
+  "rounds": 1024,
+  "shared_slots": true,
+  "f1_records": [
+    "03200000",
+    "13000000"
+  ],
+  "f3_records": [
+    "55000000",
+    "aa000000"
+  ]
+}

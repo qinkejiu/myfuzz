@@ -90,7 +90,12 @@ def _trace_semantic_sha256(status: str, events, ticks: dict[str, int]) -> str:
                                   "local_ticks": ticks})
     digest = hashlib.sha256()
     digest.update(b'{"events":[')
-    for index, event in enumerate(events):
+    # The snapshot's public iteration detaches every row; hashing only reads the
+    # values, so the documented borrowed iterator hashes the same bytes without
+    # copying the whole trace.
+    borrowed = getattr(events, '_iter_borrowed', None)
+    rows = borrowed() if callable(borrowed) else events
+    for index, event in enumerate(rows):
         if index:
             digest.update(b",")
         digest.update(_canonical(event))
@@ -330,6 +335,9 @@ def _online_manifest(runner: ScenarioRunner, checker: Callable | None = None, *,
                 'src/myfuzz/scenario/ip_protocol_checker.py',
                 'src/myfuzz/local_harness/cpu_session.py',
                 'src/myfuzz/local_harness/native_physical_observation.py')]
+    if register_program_configuration is not None and register_program_configuration.get('external_sources'):
+        name = 'src/myfuzz/scenario/mixed_external_runtime.py'
+        document['register_program_source_files'].append(dict(path=name,sha256=hashlib.sha256((_ROOT/name).read_bytes()).hexdigest()))
     if register_capability_preflight is not None:
         document['register_capability_preflight'] = json.loads(_canonical(register_capability_preflight))
         document['register_program_source_files'].extend(_register_capability_source_files())
@@ -632,6 +640,11 @@ class ScenarioSession:
         self.template = template
         self.runner = runner
         self._cases: list[OnlineCase] = []
+        # A case may deliberately stop after a complete advance boundary.
+        # Keep the executed prefix separate from the declared OnlineCase so
+        # retries still compare against the original input while exported
+        # plans replay only the effects that actually occurred.
+        self._case_advance_prefixes: dict[str, int] = {}
         self._prerequisite_admissions: list[dict] = []
         self._case_source_roles: dict[str, str] = {}
         self._receipts: dict[str, tuple[OnlineCase, OnlineCaseReceipt]] = {}
@@ -676,6 +689,9 @@ class ScenarioSession:
         self._native_source_binding_installed = False
         self._runtime_prepared = None
         self._runtime_compiled = None
+        self._declared_bus_pins = {}
+        self._declared_bus_pin_fields = {}
+        self._bound_dma_topology = None
         self._runtime_path_document_bytes = None
         self._instruction_image_bindings = ()
         self._instruction_image_binding_document_bytes = _canonical([])
@@ -730,6 +746,7 @@ class ScenarioSession:
                                 provenance: bool = True,
                                 dma_intent_binding=None,
                                 dma_artifact_links=None,
+                                boundary_static_validation=False,
                                 instruction_image_bindings=()) -> None:
         """Bind declared routes on the actual runner before any startup command."""
         if self._begun or self._finished or self._runtime_prepared is not None:
@@ -789,7 +806,8 @@ class ScenarioSession:
             # The topology binder performs the one runtime bind and installs
             # its mutation guard on the compiled validator.
             bound_dma = bind_dma_intent_topology(
-                declaration, self.runner, artifact_links=dma_artifact_links)
+                declaration, self.runner, artifact_links=dma_artifact_links,
+                boundary_static_validation=boundary_static_validation)
             compiled = bound_dma.runtime_compilation
         document = {**compiled.document(), "declaration": prepared.document()}
         if provenance:
@@ -800,12 +818,60 @@ class ScenarioSession:
         self._runtime_prepared = prepared
         self._runtime_compiled = compiled
         self._runtime_path_document_bytes = _canonical(document)
+        self._install_declared_bus_pins()
         if bound_dma is not None:
+            self._bound_dma_topology = bound_dma
             self._dma_binding_declaration_bytes = _canonical(declaration_document)
             self._dma_binding_artifact_links_bytes = _canonical({
                 key: value for key, value in dma_artifact_links.items()
             })
             self._dma_binding_compilation_bytes = _canonical(bound_dma.document())
+
+    def _install_declared_bus_pins(self) -> None:
+        """Register every target bus input the real artifacts themselves declare.
+
+        A TL-UL target artifact consumes its own A/D channel through the
+        generated ``beat_to_tlul`` adapter: those physical inputs are internal
+        wires, not host pins.  The session accepts a declared value for them
+        only as an observation (``declared_target_bus_pin``), never as a Runner
+        input.  The registry comes from each artifact's own adapted endpoint and
+        port rows, so a pin the artifact does not declare can never be accepted.
+        """
+        from .target_bus_pins import bus_pin_registry
+        self._declared_bus_pins = {}
+        self._declared_bus_pin_fields = {}
+        artifacts = [(name, getattr(session, "artifact", None))
+                     for name, session in self.runner.sessions.items()]
+        artifacts = [(name, artifact) for name, artifact in artifacts
+                     if artifact is not None]
+        if artifacts:
+            self._declared_bus_pins, self._declared_bus_pin_fields = (
+                bus_pin_registry(artifacts))
+
+    def _declared_target_bus_pin(self, case):
+        """Return the declared target bus-input pin this case observes, or None."""
+        if not self._declared_bus_pins or not isinstance(case.source, BatchSourceEvent):
+            return None
+        declaration = self._declared_bus_pins.get(case.path_id)
+        if declaration is None:
+            return None
+        source = case.source
+        width = source.width if source.width is not None else declaration["width"]
+        if (case.direction != declaration["direction"]
+                or (source.component, source.port, source.bit_offset, width)
+                   != (declaration["component"], declaration["port"],
+                       declaration["bit_offset"], declaration["width"])
+                or case.support_instructions
+                or type(source.value) is not int
+                or not 0 <= source.value < 1 << width):
+            raise ValueError(
+                "declared target bus pin case differs from the artifact declaration")
+        return declaration
+
+    @property
+    def bound_dma_topology(self):
+        """Return the original in-process D4 topology object, when bound."""
+        return self._bound_dma_topology
 
     @property
     def runtime_contract(self):
@@ -928,6 +994,8 @@ class ScenarioSession:
 
     def configure_register_program_verifier(self, *, max_records=256):
         """Install only an actual live verifier, before any session execution."""
+        if self._register_program_runtime is not None and self._register_program_runtime.external_sources:
+            raise ValueError('mixed-runtime-register-verifier-unsupported')
         from .register_program_verifier import RegisterProgramVerifier
         if (type(max_records) is not int or not 1<=max_records<=65536
                 or self._begun or self._finished or self.runner._status!='created'
@@ -964,6 +1032,8 @@ class ScenarioSession:
         is registered; a rejected call leaves no half consumer and no half
         provider behind.  Saved documents never install this channel.
         """
+        if self._register_program_runtime is not None and self._register_program_runtime.external_sources:
+            raise ValueError('mixed-runtime-register-reset-default-unsupported')
         from . import register_reset_default_verifier as verifier_module
         from .register_program_runtime import RegisterProgramRuntime
         from .native_reset_evidence import NativeResetEvidence
@@ -1378,6 +1448,27 @@ class ScenarioSession:
                 or _canonical(active[1]) != _canonical(adapter._records[-1]['manifest'])):
             raise ValueError('register-program-direct-byte-submission-forbidden')
         manifest = active[1]
+        if adapter.external_sources:
+            # This configuration comes from the installed runtime, never the
+            # manifest. Repreparation and the original gate still grant input.
+            configuration = adapter.configuration()
+            _validate_register_manifest(manifest, configuration,
+                expected_sha256=adapter.configuration_sha256)
+        if manifest.get('schema_version') in ('external_pin_runtime_manifest.v1','external_pin_runtime_manifest.v2'):
+            from .mixed_external_runtime import validate_external_manifest, external_case
+            if adapter.external_sources:
+                request = manifest['request']
+            else:
+                configuration = manifest['configuration']
+                request, _ = validate_external_manifest(manifest, configuration)
+            declaration = next(d for d in adapter.external_sources if d['source']['source_id']==request['source_id'])
+            expected = external_case(request, declaration, manifest['context'], configuration)
+            action = self.prerequisite_gate._resolve(case.source.action_id)
+            supports = [self.prerequisite_gate._resolve(f.action_id).document() for f in case.support_instructions]
+            if (case != expected or _canonical(action.document()) != _canonical(manifest['admitted_action'])
+                    or _canonical(supports) != _canonical(manifest['support_actions'])):
+                raise ValueError('mixed-runtime-live-admission-disagreement')
+            return
         source = manifest['program']['source']
         request = manifest['request']
         expected = OnlineCase(request['case_id'], 'CPU_TO_IP_TO_CPU' if request['operation']=='register_read'
@@ -1390,6 +1481,24 @@ class ScenarioSession:
     @property
     def cases(self) -> tuple[OnlineCase, ...]:
         return tuple(self._cases)
+
+    def case_receipt(self, case_id: str) -> OnlineCaseReceipt | None:
+        """Read a completed receipt and its actual journal slice; never execute.
+
+        Event bounds are zero-based indices, with ``event_end`` exclusive.
+        Attempted cases without a completed receipt return ``None``.
+        """
+        if (type(case_id) is not str or not 1 <= len(case_id) <= 256
+                or case_id.strip() != case_id):
+            raise ValueError('online case_receipt requires a bounded case_id')
+        completed = self._receipts.get(case_id)
+        if completed is None:
+            return None
+        case, metadata = completed
+        if case.case_id != case_id or metadata.case_id != case_id:
+            raise ValueError('online completed receipt identity disagreement')
+        events = self.runner.events_since(metadata.event_start, stop=metadata.event_end)
+        return replace(deepcopy(metadata), events=events)
 
     @property
     def manifest_sha256(self) -> str:
@@ -1580,13 +1689,21 @@ class ScenarioSession:
         self.runner.begin_test(self.template.testcase_id)
         self._begun = True
 
-    def reset(self, policy: str):
+    def reset(self, policy: str, *, image: MemoryImage | None = None):
         """Reset all components between committed cases and retain replay order."""
         if (not self._begun or self._finished or self._halted or not self._cases
                 or self.runner._status != 'running'):
             raise RuntimeError('online reset requires an active committed case prefix')
         if policy not in ('warm_all', 'cold_all'):
             raise ValueError('unsupported online reset policy')
+        if image is not None:
+            originals = [row for row in self.template.initial_images
+                         if isinstance(image, MemoryImage) and row.image_id == image.image_id]
+            if (self._register_program_runtime is not None or len(originals) != 1
+                    or originals[0].component != image.component
+                    or originals[0].address != image.address
+                    or len(originals[0].data) != len(image.data)):
+                raise ValueError('reset image must match a declared image location')
         if len(self._reset_operations) >= 65536:
             raise ValueError('online reset operation capacity exceeded')
         if self.runner.command_epoch != len(self._reset_operations):
@@ -1594,13 +1711,17 @@ class ScenarioSession:
         _RESET_DEFAULT_GUARD(self, new_operation=False)
         self._guard_ordinary_apb_configuration()
         try:
-            result = self.runner.reset_all(policy)
+            result = (self.runner.reset_all(policy) if image is None
+                      else self.runner.reset_all(policy, image=image))
         except BaseException:
             self._uncertain_reset = True
             self._halted = True
             self._halt_reason = 'uncertain_effect'
             raise
-        self._reset_operations.append(dict(after_cases=len(self._cases), policy=policy))
+        operation = dict(after_cases=len(self._cases), policy=policy)
+        if image is not None:
+            operation['image'] = asdict(image)
+        self._reset_operations.append(operation)
         return result
 
     def _encoded_reset_operations(self):
@@ -1645,6 +1766,8 @@ class ScenarioSession:
     def advance_after_reset(self, schedule: tuple[str, ...]) -> OnlineCaseReceipt:
         """Record actual bootstrap/resident-program execution after the latest reset."""
         adapter = self._register_program_runtime
+        if adapter is None:
+            return self._advance_plain_after_reset(schedule)
         if (not self._begun or self._finished or self._halted
                 or self.runner._status != 'running' or self._uncertain_reset
                 or self._uncertain_reset_advance or adapter is None
@@ -1697,6 +1820,51 @@ class ScenarioSession:
                 self._halt_reason = 'uncertain_effect'
             raise
 
+    def _advance_plain_after_reset(self, schedule: tuple[str, ...]) -> OnlineCaseReceipt:
+        if (not self._begun or self._finished or self._halted or self._uncertain_reset
+                or self._uncertain_reset_advance or self.runner._status != 'running'
+                or not self._reset_operations or not self._cases
+                or self._reset_operations[-1]['after_cases'] != len(self._cases)
+                or self.runner.command_epoch != len(self._reset_operations)):
+            raise RuntimeError('reset resume requires an active certain reset boundary')
+        if (type(schedule) is not tuple or not schedule
+                or any(type(name) is not str or name not in self.template.schedule_order for name in schedule)):
+            raise ValueError('invalid reset resume schedule')
+        index = len(self._reset_operations) - 1
+        previous = self._reset_resume_advances.get(index, ())
+        ordinal = len(previous) + 1
+        if len(schedule) + sum(len(item.schedule) for item in previous) > self.template.max_steps:
+            raise ValueError('reset resume step capacity exceeded')
+        _RESET_DEFAULT_GUARD(self, new_operation=False)
+        self._guard_ordinary_apb_configuration()
+        advance = BatchAdvance(schedule)
+        start, before = self.runner.event_count, dict(self.runner.local_ticks)
+        self._reset_resume_advances.setdefault(index, []).append(advance)
+        try:
+            self.runner.step_batch(schedule)
+            receipt = OnlineCaseReceipt(
+                f'{self.template.testcase_id}:reset:{index}:advance:{ordinal}',
+                start, self.runner.event_count, self.runner.events_since(start),
+                before, dict(self.runner.local_ticks), self.runner.failure_status or 'running')
+            if self.checker is not None:
+                findings = self.checker(receipt)
+                if not isinstance(findings, tuple) or any(not isinstance(item, str) for item in findings):
+                    raise ValueError('online checker must return a tuple of finding IDs')
+                if findings:
+                    raise RuntimeError('reset resume checker finding')
+            if self.runner.failure_status:
+                raise RuntimeError('reset resume execution failure')
+            if self.prerequisite_gate is not None:
+                self.prerequisite_gate.observe(receipt)
+            self.runner.retire_step_receipts_through(
+                self.runner.command_epoch, self.runner._next_command_sequence - 1)
+            return receipt
+        except BaseException:
+            self._uncertain_reset_advance = True
+            self._halted = True
+            self._halt_reason = 'uncertain_effect'
+            raise
+
     def advance_initial(self, schedule: tuple[str, ...]) -> OnlineCaseReceipt:
         """Advance fixed bootstrap once and preserve its steps for replay."""
         if (not self._begun or self._finished or self._halted or self._cases
@@ -1741,11 +1909,22 @@ class ScenarioSession:
             self.prerequisite_gate.observe(receipt)
         return receipt
 
-    def submit_case(self, case: OnlineCase, *, source_role: str = "fuzz_source") -> OnlineCaseReceipt:
+    def submit_case(self, case: OnlineCase, *, source_role: str = "fuzz_source",
+                    step_observer=None, stop_after_advance=None,
+                    stop_on_runner_failure: bool = False) -> OnlineCaseReceipt:
         if not isinstance(case, OnlineCase):
             raise ValueError("OnlineCase is required")
         if type(source_role) is not str or source_role not in ("fuzz_source", "bootstrap"):
             raise ValueError("online source_role must be fuzz_source or bootstrap")
+        if step_observer is not None and not callable(step_observer):
+            raise ValueError("online step_observer must be callable")
+        if stop_after_advance is not None and not callable(stop_after_advance):
+            raise ValueError("online stop_after_advance must be callable")
+        if type(stop_on_runner_failure) is not bool:
+            raise ValueError("online stop_on_runner_failure must be bool")
+        if stop_on_runner_failure and any(
+                len(advance.schedule) != 1 for advance in case.advances):
+            raise ValueError("online stop_on_runner_failure requires singleton advances")
         _RESET_DEFAULT_GUARD(self, new_operation=False)
         self._guard_register_submission(case)
         existing = self._receipts.get(case.case_id)
@@ -1755,8 +1934,8 @@ class ScenarioSession:
             # Only the receipt metadata is retained.  Its event suffix is
             # recovered from the runner's authoritative event log on retry.
             metadata = existing[1]
-            return replace(metadata, events=self.runner.events_since(metadata.event_start)
-                           [:metadata.event_end - metadata.event_start])
+            return replace(deepcopy(metadata), events=self.runner.events_since(
+                metadata.event_start, stop=metadata.event_end))
         if (not self._begun or self._finished or self._halted
                 or self.runner._status != "running"):
             raise RuntimeError("online case requires an active session")
@@ -1764,7 +1943,20 @@ class ScenarioSession:
             # Query cross-case prerequisites before any RTL command, so a
             # refusal leaves the runner, memory and case history untouched.
             self.prerequisite_gate.require_case(case)
-        source_id = self._validate_runtime_case(case)
+        declared_bus_pin = self._declared_target_bus_pin(case)
+        if declared_bus_pin is None:
+            source_id = self._validate_runtime_case(case)
+        else:
+            # A target bus input is driven by the target's own adapter; the
+            # declaration is an observation, so the configured graph path (which
+            # only carries host-side sources) does not describe it.
+            try:
+                self._runtime_compiled.validate_topology()
+            except ValueError:
+                self._halted = True
+                self._halt_reason = "environment_error"
+                raise
+            source_id = declared_bus_pin["identity"]
         action_ids = (case.source.action_id,
                       *(item.action_id for item in case.support_instructions))
         if any(action_id in self._source_ids for action_id in action_ids):
@@ -1774,7 +1966,9 @@ class ScenarioSession:
             raise ValueError("case schedule references unknown harness")
         if sum(len(advance.schedule) for advance in case.advances) > self.template.max_steps:
             raise ValueError("case exceeds local step limit")
-        if isinstance(case.source, BatchSourceEvent):
+        if declared_bus_pin is not None:
+            pass
+        elif isinstance(case.source, BatchSourceEvent):
             source = case.source
             field_width = self.runner.ownership.field_width(source.component, source.port)
             width = source.width if source.width is not None else field_width
@@ -1793,7 +1987,7 @@ class ScenarioSession:
                 raise ValueError("support CPU harness cannot accept fixed instructions")
         provenance = self.runner.provenance_enabled
         admissions = (_case_admissions(case, len(self._cases), source_id, source_role)
-                      if provenance else ())
+                      if provenance and declared_bus_pin is None else ())
         start = self.runner.event_count
         ticks_before = dict(self.runner.local_ticks)
         # Record the attempted input before touching RTL so the exact prefix
@@ -1807,7 +2001,18 @@ class ScenarioSession:
         if provenance:
             self.runner.set_observation_case(case.case_id, len(self._cases) - 1)
         try:
-            receipt = self._execute_case(case, start, ticks_before, admissions)
+            execution_options = {}
+            if step_observer is not None:
+                execution_options['step_observer'] = step_observer
+            if stop_after_advance is not None:
+                execution_options['stop_after_advance'] = stop_after_advance
+            if stop_on_runner_failure:
+                execution_options['stop_on_runner_failure'] = True
+            if declared_bus_pin is not None:
+                # Legacy execute overrides keep receiving no empty keywords.
+                execution_options['declared_bus_pin'] = declared_bus_pin
+            receipt = self._execute_case(case, start, ticks_before, admissions,
+                **execution_options)
         finally:
             if provenance:
                 self.runner.clear_observation_case()
@@ -1817,9 +2022,14 @@ class ScenarioSession:
 
     def _execute_case(self, case: OnlineCase, start: int,
                       ticks_before: dict[str, int],
-                      admissions: tuple[SourceAdmission, ...]) -> OnlineCaseReceipt:
+                      admissions: tuple[SourceAdmission, ...], *,
+                      step_observer=None,
+                      stop_after_advance=None,
+                      stop_on_runner_failure=False,
+                      declared_bus_pin=None) -> OnlineCaseReceipt:
         phase = "provenance_admission"
         command_index = None
+        runner_failure_status = None
         try:
             native_configuration = self._native_source_binding_configuration()
             for command_index, admission in enumerate(admissions):
@@ -1827,24 +2037,47 @@ class ScenarioSession:
             phase = "support_admission"
             command_index = None
             for command_index, support in enumerate(case.support_instructions):
-                self.runner.sessions[support.component].accept_instructions(
+                actual_fixed_support_acceptance = self.runner.sessions[support.component].accept_instructions(
                     support.address, support.data,
                     source_event_id=support.action_id)
+                support_owner = self.runner.sessions[support.component]
+                if getattr(support_owner, '_f6_instruction_fetch', None) is not None:
+                    from .f6_instruction_fetch_receipt import _bind_shared_fixed_support
+                    support_admission = next(item for item in admissions if item.action_id == support.action_id)
+                    _bind_shared_fixed_support(support_owner,self,case,len(self._cases)-1,
+                        support,support_admission,actual_fixed_support_acceptance)
             phase = "source_admission"
             command_index = None
             if isinstance(case.source, BatchSourceEvent):
-                scheduled_tick = self.runner.inject_source(
-                    case.source.component, case.source.port, case.source.value,
-                    direction=case.direction, bit_offset=case.source.bit_offset,
-                    width=case.source.width, action_id=case.source.action_id)
-                if scheduled_tick is not None:
-                    self._source_schedule_ticks[case.source.action_id] = scheduled_tick
+                if declared_bus_pin is not None:
+                    # The target's own adapter drives this pin.  Record the
+                    # declared candidate value as an observation; never write it
+                    # into Runner inputs or RTL.
+                    self.runner.declare_target_bus_pin(
+                        component=case.source.component, port=case.source.port,
+                        value=case.source.value, bit_offset=case.source.bit_offset,
+                        width=declared_bus_pin["width"], direction=case.direction,
+                        declaration=declared_bus_pin)
+                else:
+                    scheduled_tick = self.runner.inject_source(
+                        case.source.component, case.source.port, case.source.value,
+                        direction=case.direction, bit_offset=case.source.bit_offset,
+                        width=case.source.width, action_id=case.source.action_id)
+                    if scheduled_tick is not None:
+                        self._source_schedule_ticks[case.source.action_id] = scheduled_tick
             else:
                 native_service_event_start = (len(self.runner.sessions[case.source.component].service.events)
                     if native_configuration is not None else None)
                 actual_instruction_acceptance = self.runner.sessions[case.source.component].accept_instructions(
                     case.source.address, case.source.data,
                     source_event_id=case.source.action_id)
+                cpu_source_owner = self.runner.sessions[case.source.component]
+                if getattr(cpu_source_owner, '_f6_instruction_fetch', None) is not None:
+                    from .f6_instruction_fetch_receipt import _bind_f6_instruction_source
+                    f6_admission = next(item for item in admissions
+                        if item.action_id == case.source.action_id)
+                    _bind_f6_instruction_source(cpu_source_owner, self, case,
+                        len(self._cases)-1, f6_admission, actual_instruction_acceptance)
                 if (native_configuration is not None
                         and self._case_source_roles[case.case_id] == 'fuzz_source'):
                     from .native_instruction_source_binding import (
@@ -1859,22 +2092,72 @@ class ScenarioSession:
                     publish_bound_source(self, binding)
             phase = "step"
             for command_index, advance in enumerate(case.advances):
-                self.runner.step_batch(advance.schedule)
+                if step_observer is None:
+                    self.runner.step_batch(advance.schedule)
+                else:
+                    self.runner.step_batch(advance.schedule, on_step=step_observer)
+                if (stop_on_runner_failure
+                        and getattr(self.runner, "_status", None) == "failed"):
+                    # The completed component boundary is the exact executed
+                    # prefix. Preserve the Runner's first failure and do not
+                    # invoke policy or schedule a later component/advance.
+                    self._case_advance_prefixes[case.case_id] = command_index + 1
+                    runner_failure_status = getattr(self.runner,
+                        "failure_status", None)
+                    if type(runner_failure_status) is not str or not runner_failure_status:
+                        runner_failure_status = "runner_failed"
+                    self._halted = True
+                    if self._halt_reason is None:
+                        self._halt_reason = runner_failure_status
+                    if self._terminal_failure is None:
+                        self._terminal_failure = {
+                            "phase": "step", "case_index": len(self._cases) - 1,
+                            "case_id": case.case_id, "command_index": command_index,
+                            "error_type": "RunnerFailed",
+                            "error_message": runner_failure_status}
+                    break
+                if stop_after_advance is not None:
+                    # Persist each complete batch before invoking host policy.
+                    # If the predicate raises or returns an invalid type, the
+                    # terminal plan still describes effects that actually ran.
+                    self._case_advance_prefixes[case.case_id] = command_index + 1
+                    stop = stop_after_advance(command_index)
+                    if type(stop) is not bool:
+                        raise ValueError("stop_after_advance must return bool")
+                    if stop:
+                        break
         except BaseException as exc:
             # A partially executed case has already changed real RTL state;
             # another input must not be admitted into that uncertain prefix.
             self._halted = True
             self._halt_reason = "uncertain_effect"
+            runner_failed = (stop_on_runner_failure and phase == "step"
+                and getattr(self.runner, "_status", None) == "failed")
+            if (stop_on_runner_failure and phase == "step"
+                    and type(command_index) is int):
+                # The failing singleton step is part of the replay input: it
+                # identifies the command that raised. Omit every later step.
+                self._case_advance_prefixes[case.case_id] = command_index + 1
+            if runner_failed:
+                runner_failure_status = getattr(self.runner,
+                    "failure_status", None)
+                if type(runner_failure_status) is not str or not runner_failure_status:
+                    runner_failure_status = "runner_failed"
+                self._halt_reason = runner_failure_status
             self._terminal_failure = {
                 "phase": phase, "case_index": len(self._cases) - 1,
                 "case_id": case.case_id, "command_index": command_index,
-                "error_type": type(exc).__name__, "error_message": str(exc)}
+                "error_type": ("RunnerFailed" if runner_failed
+                    else type(exc).__name__),
+                "error_message": (runner_failure_status if runner_failed
+                    else str(exc))}
             raise
         receipt = OnlineCaseReceipt(
             case.case_id, start, self.runner.event_count,
             self.runner.events_since(start), ticks_before,
-            dict(self.runner.local_ticks), self.runner.failure_status or "running")
-        if self.checker is not None:
+            dict(self.runner.local_ticks), self.runner.failure_status
+                or runner_failure_status or "running")
+        if self.checker is not None and runner_failure_status is None:
             try:
                 violations = self.checker(receipt)
                 if not isinstance(violations, tuple) or any(
@@ -1947,7 +2230,7 @@ class ScenarioSession:
         check_methods()
         check_runtime()
         _RESET_DEFAULT_GUARD(self, allow_incomplete=True)
-        if any(self._reset_resume_advances.values()):
+        if self._register_program_runtime is not None and any(self._reset_resume_advances.values()):
             _RESET_RESUME_GUARD(self, allow_incomplete=True)
         try:
             self.runner.finalize()
@@ -1958,7 +2241,7 @@ class ScenarioSession:
         check_methods()
         check_runtime()
         _RESET_DEFAULT_GUARD(self, allow_incomplete=True)
-        if any(self._reset_resume_advances.values()):
+        if self._register_program_runtime is not None and any(self._reset_resume_advances.values()):
             _RESET_RESUME_GUARD(self, allow_incomplete=True)
         plan = _FINAL_EXPORT_METHOD_PINS['encode_plan'](self)
         trace = _FINAL_EXPORT_METHOD_PINS['trace'](self,
@@ -1970,7 +2253,7 @@ class ScenarioSession:
         """Canonical full input prefix for fresh replay and corpus storage."""
         if self._uncertain_reset or self._uncertain_reset_advance or self.runner.command_epoch != len(self._reset_operations):
             raise ValueError('online plan cannot encode an uncertain or unrecorded reset')
-        if any(self._reset_resume_advances.values()):
+        if self._register_program_runtime is not None and any(self._reset_resume_advances.values()):
             _RESET_RESUME_GUARD(self, allow_incomplete=True)
         cases = []
         for case in self._cases:
@@ -1981,11 +2264,17 @@ class ScenarioSession:
             if case.source.action_id in self._source_schedule_ticks:
                 source["scheduled_local_tick"] = self._source_schedule_ticks[
                     case.source.action_id]
+            advance_count = self._case_advance_prefixes.get(
+                case.case_id, len(case.advances))
+            if (type(advance_count) is not int or advance_count <= 0
+                    or advance_count > len(case.advances)):
+                raise ValueError('online case advance prefix is invalid')
             cases.append({"case_id": case.case_id, "direction": case.direction,
                           "path_id": case.path_id, "source": source,
                           "support_instructions": [asdict(item)
                                                    for item in case.support_instructions],
-                          "advances": [list(item.schedule) for item in case.advances]})
+                          "advances": [list(item.schedule)
+                                       for item in case.advances[:advance_count]]})
             if self.runner.provenance_enabled:
                 cases[-1]["source_role"] = self._case_source_roles[case.case_id]
         document = {"schema_version": 6 if self._source_schedule_ticks else 4,
@@ -2012,7 +2301,7 @@ class ScenarioSession:
             document['prerequisite_admissions'] = self._prerequisite_admissions
         if self._reset_operations:
             document['schema_version'] = 15 if self._terminal_failure is not None else 14
-            document['reset_operations'] = self._reset_operations
+            document['reset_operations'] = self._encoded_reset_operations()
         if self._register_program_runtime is not None:
             state = self._register_program_runtime.snapshot()
             if _canonical(state['configuration']) != self._register_program_configuration_json:
@@ -2063,9 +2352,10 @@ class ScenarioSession:
             raise ValueError('native source completion requires native source binding')
         self._validate_instruction_image_bindings()
         if self._instruction_image_bindings:
-            if document["schema_version"] not in (10, 11):
+            if document["schema_version"] not in (10, 11, 14, 15):
                 raise ValueError("unsupported instruction image binding plan configuration")
-            document["schema_version"] = 25 if self._terminal_failure is not None else 24
+            document["schema_version"] = ((27 if self._terminal_failure is not None else 26)
+                if self._reset_operations else (25 if self._terminal_failure is not None else 24))
             document["instruction_image_bindings"] = list(self.instruction_image_binding_documents)
         return _canonical(document)
 
@@ -2143,13 +2433,17 @@ def _register_plain_json(value):
     return True
 
 
-def _validate_register_manifest(manifest, configuration):
+def _validate_register_manifest(manifest, configuration, *, expected_sha256=None):
     from .register_program_runtime import validate_register_request
     from .source_actions import SourceAction
+    if type(manifest) is dict and manifest.get('schema_version') in ('external_pin_runtime_manifest.v1','external_pin_runtime_manifest.v2'):
+        from .mixed_external_runtime import validate_external_manifest
+        return validate_external_manifest(manifest, configuration,expected_sha256=expected_sha256)
+    from .mixed_external_runtime import normalize_manifest_configuration
+    manifest=normalize_manifest_configuration(manifest,configuration,expected_sha256=expected_sha256)
     if (type(manifest) is not dict or set(manifest) != {'schema_version','request','configuration',
             'context','program','source_action','admitted_action'}
             or manifest['schema_version'] != 'register_program_runtime_manifest.v1'
-            or _canonical(manifest['configuration']) != _canonical(configuration)
             or type(manifest['context']) is not dict or type(manifest['program']) is not dict):
         raise ValueError('invalid register program manifest')
     request = validate_register_request(manifest['request'])
@@ -2466,9 +2760,19 @@ def validate_register_program_plan(document):
     configuration_keys = {'schema_version','cpu_component','advance_rounds','max_program_bytes','max_records',
         'sources','scope','grants_functional','sidecars','artifacts','memory','provider','tracker_bounds',
         'slots','policy','template','routes','gate_max_actions'}
+    if 'external_sources' in configuration:
+        from .mixed_external_runtime import validate_external_sources
+        if not validate_external_sources(configuration['external_sources']):
+            raise ValueError('empty mixed runtime external declarations')
+        from .mixed_external_runtime import validate_external_ownership
+        validate_external_ownership(configuration)
+        if 'register_program_verifier' in registers or 'register_reset_default' in registers:
+            raise ValueError('mixed runtime register-only verifier channel unsupported')
+        configuration_keys |= {'external_sources','external_ownership'}
     if (set(configuration) != configuration_keys
             or configuration.get('schema_version') != 'register_program_runtime_configuration.v1'
-            or configuration.get('scope') != 'directed_declarative_register_program_only'
+            or configuration.get('scope') != ('directed_declarative_register_and_external_pin_only'
+                if 'external_sources' in configuration else 'directed_declarative_register_program_only')
             or configuration.get('grants_functional') is not False
             or type(configuration.get('cpu_component')) is not str or not configuration['cpu_component']
             or type(configuration.get('max_program_bytes')) is not int
@@ -2541,15 +2845,30 @@ def validate_register_program_plan(document):
     template = GenomeCodec.decode(_canonical(document['template']))
     if configuration['advance_rounds']*len(template.schedule_order)>template.max_steps:
         raise ValueError('register program schedule capacity exceeded')
+    from .mixed_external_runtime import manifest_configuration_sha256
+    configuration_digest=(manifest_configuration_sha256(configuration) if configuration.get('external_sources') else None)
     case_ids,action_ids = set(),set()
     for index,(case,manifest,declaration) in enumerate(zip(document['cases'],registers['case_manifests'],document['prerequisite_admissions'])):
-        request,source = _validate_register_manifest(manifest,configuration)
-        expected = dict(case_id=request['case_id'],direction='CPU_TO_IP_TO_CPU' if request['operation']=='register_read'
+        request,source = _validate_register_manifest(manifest,configuration,expected_sha256=configuration_digest)
+        advances = case.get('advances') if type(case) is dict else None
+        if (type(advances) is not list
+                or not 1 <= len(advances) <= configuration['advance_rounds']
+                or any(order != list(template.schedule_order) for order in advances)):
+            raise ValueError('register program advances must be an exact bounded schedule prefix')
+        expected = dict(case_id=request['case_id'],direction='CPU_TO_IP_TO_CPU' if request.get('operation')=='register_read'
             else 'CPU_TO_IP',path_id='register_program',source={**asdict(source),'kind':'instruction'},
-            support_instructions=[],advances=[list(template.schedule_order)]*configuration['advance_rounds'])
+            support_instructions=[],advances=[list(template.schedule_order)]*len(advances))
+        if manifest['schema_version'] in ('external_pin_runtime_manifest.v1','external_pin_runtime_manifest.v2'):
+            from .mixed_external_runtime import external_case
+            external_declaration = next(d for d in configuration['external_sources'] if d['source']['source_id']==request['source_id'])
+            external = external_case(request, external_declaration, manifest['context'], configuration)
+            expected = dict(case_id=external.case_id, direction=external.direction, path_id=external.path_id,
+                source={**asdict(external.source),'kind':'source_event'},
+                support_instructions=[asdict(f) for f in external.support_instructions],
+                advances=[list(template.schedule_order)]*len(advances))
         expected_admission = dict(schema_version='persistent_memory_case_admission.v1',
             source_action=manifest['source_action'],admitted_action=manifest['admitted_action'],
-            support_actions=[],dynamic_binding=None)
+            support_actions=manifest.get('support_actions',[]),dynamic_binding=None)
         if (_canonical(case) != _canonical(expected) or _canonical(declaration) != _canonical(expected_admission)
                 or request['case_id'] in case_ids or request['action_id'] in action_ids):
             raise ValueError('register program case or admission disagreement')
@@ -2563,7 +2882,7 @@ def validate_register_program_plan(document):
         if terminal is not None:
             raise ValueError('register program normal plan contains terminal attempt')
     else:
-        _validate_register_attempt(terminal,configuration,uncertain=True)
+        _validate_register_attempt(terminal,configuration,uncertain=True,expected_sha256=configuration_digest)
         index = terminal['case_index']
         if index is None:
             if terminal['manifest']['request']['case_id'] in case_ids or terminal['manifest']['request']['action_id'] in action_ids:
@@ -2577,7 +2896,7 @@ def validate_register_program_plan(document):
     return json.loads(_canonical(registers))
 
 
-def _validate_register_attempt(record,configuration,*,uncertain):
+def _validate_register_attempt(record,configuration,*,uncertain,expected_sha256=None):
     keys = {'manifest','status','phase','case_index'} | ({'error_type'} if uncertain else set())
     if (type(record) is not dict or set(record) != keys
             or record['status'] != ('uncertain' if uncertain else 'submitted')
@@ -2586,7 +2905,7 @@ def _validate_register_attempt(record,configuration,*,uncertain):
                 or type(record['error_type']) is not str or not record['error_type'])
             or not uncertain and (record['phase']!='submitted' or record['case_index'] is None)):
         raise ValueError('invalid register program attempt')
-    _validate_register_manifest(record['manifest'],configuration)
+    _validate_register_manifest(record['manifest'],configuration,expected_sha256=expected_sha256)
 
 
 def _validate_register_program_state(state, registers):
@@ -2600,10 +2919,12 @@ def _validate_register_program_state(state, registers):
         raise ValueError('invalid register program runtime state')
     if len(state['records']) > registers['configuration']['max_records']:
         raise ValueError('register program attempt capacity exceeded')
+    from .mixed_external_runtime import manifest_configuration_sha256
+    configuration_digest=(manifest_configuration_sha256(state['configuration']) if state['configuration'].get('external_sources') else None)
     manifests = []
     for index,record in enumerate(state['records']):
         uncertain = state['uncertain'] and index==len(state['records'])-1
-        _validate_register_attempt(record,state['configuration'],uncertain=uncertain)
+        _validate_register_attempt(record,state['configuration'],uncertain=uncertain,expected_sha256=configuration_digest)
         if record['case_index'] is not None:
             if record['case_index'] != len(manifests):
                 raise ValueError('register program state case order disagreement')
@@ -2668,10 +2989,17 @@ def _replay_register_program_session(document,template,cases,factory,reference,c
             entries.append((None,terminal['manifest']))
         for index,(case,manifest) in enumerate(entries):
             prepared = adapter.prepare(manifest['request'],expected_manifest=manifest)
-            if case is not None and prepared.case != case:
+            prefix = len(case.advances) if case is not None else len(prepared.case.advances)
+            if (case is not None and (not 1 <= prefix <= len(prepared.case.advances)
+                    or replace(prepared.case, advances=prepared.case.advances[:prefix]) != case)):
                 raise ValueError('register program replay case reconstruction mismatch')
             try:
-                adapter.submit(manifest['request'],expected_manifest=manifest)
+                # Rebuild/admit the full original program; saved data controls
+                # only how many complete declared batches are really executed.
+                options = (dict(stop_after_advance=lambda advance_index, count=prefix:
+                                advance_index + 1 == count)
+                           if prefix < len(prepared.case.advances) else {})
+                adapter.submit(manifest['request'],expected_manifest=manifest, **options)
             except BaseException:
                 if terminal is None or index != len(entries)-1 or not adapter.snapshot()['uncertain']:
                     raise
@@ -3028,6 +3356,81 @@ def _validate_native_source_completion_terminal_cleanup(reference, *, document,
         raise ValueError('native source completion terminal cleanup retained a live read handle')
 
 
+def _normalize_dma_replay_event(event, execution, commit_ids=None, *, component=None):
+    """Normalize only an owned DMA execution nonce in typed event fields."""
+    from .replay_normalize import normalize_execution_identities
+    ids = dict(cpu=None, dma=execution, uart=None, runner=None)
+    if commit_ids is None:
+        commit_ids = {}
+    if component is None and isinstance(event, dict):
+        component = event.get('component')
+    pending = [event]
+    while pending:
+        item = pending.pop()
+        if isinstance(item, dict):
+            if item.get('schema_version') == 'memory_write_commit_receipt.v1':
+                key = item.get('fullkey')
+                if (isinstance(key, dict) and key.get('execution_id') == execution
+                        and key.get('source_component') == component):
+                    raw_id = item.get('commit_id')
+                    body = {name: value for name, value in item.items() if name != 'commit_id'}
+                    encoded = json.dumps(body, sort_keys=True, separators=(',', ':'),
+                                         allow_nan=False).encode()
+                    if raw_id != hashlib.sha256(encoded).hexdigest():
+                        raise ValueError('DMA replay commit-digest-invalid')
+                    normalized_body = normalize_execution_identities([body], ids)[0]
+                    normalized_encoded = json.dumps(normalized_body, sort_keys=True,
+                        separators=(',', ':'), allow_nan=False).encode()
+                    normalized_id = hashlib.sha256(normalized_encoded).hexdigest()
+                    if raw_id in commit_ids and commit_ids[raw_id] != normalized_id:
+                        raise ValueError('DMA replay commit-digest-ambiguous')
+                    commit_ids[raw_id] = normalized_id
+            pending.extend(item.values())
+        elif isinstance(item, (list, tuple)):
+            pending.extend(item)
+    normalized = normalize_execution_identities([event], ids)[0]
+    def rewrite(value):
+        if isinstance(value, dict):
+            return {key: (commit_ids.get(child, child)
+                    if key in ('commit_id', 'destination_commit_id') and isinstance(child, str)
+                    else rewrite(child)) for key, child in value.items()}
+        if isinstance(value, list):
+            return [rewrite(child) for child in value]
+        return value
+    return rewrite(normalized)
+
+
+def _collect_replay_event_differences(expected_events, actual_events, *, max_differences, dma_ids=None):
+    """Keep a bounded set of original event pairs without storing either trace."""
+    if type(max_differences) is not int or not 1 <= max_differences <= 16:
+        raise ValueError('replay difference limit must be within 1..16')
+    expected_commit_ids, actual_commit_ids = {}, {}
+    differences = []
+    missing = object()
+    for index, (left, right) in enumerate(zip_longest(expected_events, actual_events, fillvalue=missing)):
+        expected_event = None if left is missing else left
+        actual_event = None if right is missing else right
+        compared_expected, compared_actual = expected_event, actual_event
+        if dma_ids is not None:
+            try:
+                compared_expected = _normalize_dma_replay_event(expected_event, dma_ids[0], expected_commit_ids,
+                                                                 component=dma_ids[2])
+                compared_actual = _normalize_dma_replay_event(actual_event, dma_ids[1], actual_commit_ids,
+                                                               component=dma_ids[2])
+            except ValueError as error:
+                if not differences:
+                    raise
+                detail = _difference_context(expected_event, actual_event, index)
+                detail['diagnostic_error'] = str(error)
+                differences.append(detail)
+                break
+        if _canonical(compared_expected) != _canonical(compared_actual):
+            differences.append(_difference_context(expected_event, actual_event, index))
+            if len(differences) == max_differences:
+                break
+    return differences
+
+
 def replay_online_session(plan: bytes,
                           factory: Callable[[], ScenarioRunner],
                           reference: ScenarioTrace, *,
@@ -3038,7 +3441,9 @@ def replay_online_session(plan: bytes,
                           native_source_binding: bool | None = None,
                           expected_dma_binding_identity_sha256: str | None = None,
                           native_source_completion: bool | None = None,
-                          native_reference_session=None
+                          native_reference_session=None,
+                          dma_reference_execution=None,
+                          max_differences=1
                           ) -> ReplayComparison:
     """Rebuild from initial state and compare the complete committed prefix."""
     if not isinstance(plan, bytes) or not isinstance(reference, ScenarioTrace):
@@ -3157,15 +3562,15 @@ def replay_online_session(plan: bytes,
             raise ValueError('register program replay requires a trusted runtime factory')
     elif register_runtime_factory is not None:
         raise ValueError('register runtime factory cannot replay legacy byte plans')
-    reset_plan = schema in (14, 15,16,17,18,19)
+    reset_plan = schema in (14, 15,16,17,18,19,26,27)
     trusted_plan = schema in (12, 13,16,17,18,19) or reset_plan and 'prerequisite_admissions' in document
     flexible_plan = trusted_plan or reset_plan
-    has_provenance = native_plan or schema in (10, 11, 24, 25) or flexible_plan and 'provenance_configuration' in document
-    has_runtime = native_plan or schema in (8, 9, 10, 11, 24, 25) or flexible_plan and 'runtime_paths' in document
+    has_provenance = native_plan or schema in (10, 11, 24, 25, 26, 27) or flexible_plan and 'provenance_configuration' in document
+    has_runtime = native_plan or schema in (8, 9, 10, 11, 24, 25, 26, 27) or flexible_plan and 'runtime_paths' in document
     if has_provenance and not has_runtime:
         raise ValueError('online provenance requires runtime paths')
-    required = base_keys | ({"terminal_failure"} if schema in (5, 7, 9, 11, 13, 15,17,19,21,23,25) else set()) | ({"runtime_paths"} if has_runtime else set())
-    if schema in (24, 25):
+    required = base_keys | ({"terminal_failure"} if schema in (5, 7, 9, 11, 13, 15,17,19,21,23,25,27) else set()) | ({"runtime_paths"} if has_runtime else set())
+    if schema in (24, 25, 26, 27):
         required.add("instruction_image_bindings")
     if native_plan:
         required.add('native_packet_configuration')
@@ -3179,7 +3584,7 @@ def replay_online_session(plan: bytes,
         required |= {"provenance_configuration", "source_admissions"}
     if trusted_plan:
         required.add('prerequisite_admissions')
-    if (type(schema) is not int or schema not in (4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,16,17,18,19,20,21,22,23,24,25)
+    if (type(schema) is not int or schema not in (4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,16,17,18,19,20,21,22,23,24,25,26,27)
             or set(document) != required
             or not isinstance(document["instruction_slots"], list)
             or not isinstance(document["warmup_advances"], list)
@@ -3188,11 +3593,16 @@ def replay_online_session(plan: bytes,
     reset_operations = document.get('reset_operations', [])
     if reset_plan and not register_plan:
         if (type(reset_operations) is not list or not (0 if register_plan else 1) <= len(reset_operations) <= 65536
-                or any(type(op) is not dict or set(op) != {'after_cases', 'policy'}
+                or any(type(op) is not dict or not {'after_cases', 'policy'} <= set(op)
+                       or not set(op) <= {'after_cases', 'policy', 'image', 'advances'}
                        or type(op['after_cases']) is not int
-                       or not 1 <= op['after_cases'] <= len(document['cases']) - (schema == 15)
+                       or not 1 <= op['after_cases'] <= len(document['cases']) - (schema in (15, 27))
                        or type(op['policy']) is not str
                        or op['policy'] not in ('warm_all', 'cold_all')
+                       or ('advances' in op and (type(op['advances']) is not list
+                           or any(type(order) is not list or not order
+                               or any(type(name) is not str for name in order)
+                               for order in op['advances'])))
                        for op in reset_operations)
                 or any(a['after_cases'] > b['after_cases']
                        for a, b in zip(reset_operations, reset_operations[1:]))):
@@ -3223,7 +3633,7 @@ def replay_online_session(plan: bytes,
         except ValueError as exc:
             raise ValueError("saved runtime path compilation identity mismatch") from exc
     image_bindings = ()
-    if schema in (24, 25):
+    if schema in (24, 25, 26, 27):
         rows = document["instruction_image_bindings"]
         if type(rows) is not list or not rows:
             raise ValueError("bound instruction plan requires image bindings")
@@ -3247,7 +3657,7 @@ def replay_online_session(plan: bytes,
                     != expected_runtime.get("topology_sha256")):
             raise ValueError("online DMA binding credential and saved runtime compilation differ")
     expected_failure = document.get("terminal_failure")
-    if (document["schema_version"] in (5, 7, 9, 11, 13, 15, 21, 23, 25) or schema in (17,19) and expected_failure is not None) and (
+    if (document["schema_version"] in (5, 7, 9, 11, 13, 15, 21, 23, 25, 27) or schema in (17,19) and expected_failure is not None) and (
             not isinstance(expected_failure, dict)
             or set(expected_failure) != {"phase", "case_index", "case_id",
                                          "command_index", "error_type", "error_message"}
@@ -3268,7 +3678,15 @@ def replay_online_session(plan: bytes,
                 and (expected_failure["command_index"] is None
                      or expected_failure["command_index"] < 0))
             or (expected_failure["phase"] in ("source_admission", "checker")
-                and expected_failure["command_index"] is not None)):
+                and expected_failure["command_index"] is not None)
+            or (expected_failure['error_type'] == 'RunnerFailed'
+                and (expected_failure['phase'] != 'step'
+                    or type(expected_failure['command_index']) is not int
+                    or type(document['cases'][-1].get('advances')) is not list
+                    or any(type(advance) is not list or len(advance) != 1
+                        for advance in document['cases'][-1]['advances'])
+                    or len(document['cases'][-1]['advances'])
+                        != expected_failure['command_index'] + 1))):
         raise ValueError("invalid online terminal failure")
     if hashlib.sha256(plan).hexdigest() != reference.genome_sha256:
         raise ValueError("online replay plan identity mismatch")
@@ -3298,7 +3716,7 @@ def replay_online_session(plan: bytes,
                 raise ValueError("invalid online source schedule tick")
             source_keys.add("scheduled_local_tick")
         if (kind not in ("instruction", "source_event", "bound_instruction")
-                or kind == "bound_instruction" and schema not in (24, 25)
+                or kind == "bound_instruction" and schema not in (24, 25, 26, 27)
                 or set(item["source"]) != source_keys):
             raise ValueError("invalid online source fields")
         if (type(item["support_instructions"]) is not list
@@ -3317,7 +3735,7 @@ def replay_online_session(plan: bytes,
         elif kind == "source_event":
             scheduled_tick = source.pop("scheduled_local_tick", None)
             if scheduled_tick is not None:
-                if (document["schema_version"] not in (6, 7, 8, 9, 10, 11, 12, 13, 14, 15,20,21,22,23,24,25)
+                if (document["schema_version"] not in (6, 7, 8, 9, 10, 11, 12, 13, 14, 15,20,21,22,23,24,25,26,27)
                         or type(scheduled_tick) is not int or scheduled_tick < 0):
                     raise ValueError("invalid online source schedule tick")
                 if source["action_id"] in expected_schedule_ticks:
@@ -3451,43 +3869,62 @@ def replay_online_session(plan: bytes,
             NativePacketSession.abort_packet_submission(session, primary)
             raise
     else:
-        session.begin()
-        for order in document["warmup_advances"]:
-            session.advance_initial(tuple(order))
-        reset_index = 0
-        for case_index, (case, source_role) in enumerate(zip(decoded_cases, decoded_roles)):
-            if trusted_plan:
-                try:
+        try:
+            session.begin()
+            for order in document["warmup_advances"]:
+                session.advance_initial(tuple(order))
+            reset_index = 0
+            for case_index, (case, source_role) in enumerate(zip(decoded_cases, decoded_roles)):
+                if trusted_plan:
                     trusted_gate.register_replay_case(case, document['prerequisite_admissions'][case_index])
-                except BaseException as admission_error:
-                    try:
-                        session.finish()
-                    except BaseException as cleanup_error:
-                        admission_error.add_note(
-                            f'online replay cleanup failed: {type(cleanup_error).__name__}: {cleanup_error}')
-                    raise
-            if expected_failure is None:
-                session.submit_case(case, source_role=source_role)
-            else:
-                try:
+                if expected_failure is None:
                     session.submit_case(case, source_role=source_role)
-                except BaseException:
-                    break
-            while (reset_index < len(reset_operations)
-                   and reset_operations[reset_index]['after_cases'] == case_index + 1):
-                try:
-                    session.reset(reset_operations[reset_index]['policy'])
-                except BaseException as reset_error:
+                else:
                     try:
-                        session.finish()
-                    except BaseException as cleanup_error:
-                        reset_error.add_note(
-                            f'online replay cleanup failed: {type(cleanup_error).__name__}: {cleanup_error}')
-                    raise
-                reset_index += 1
-        actual = session.finish()
+                        session.submit_case(case, source_role=source_role,
+                            stop_on_runner_failure=(
+                                expected_failure.get('error_type') == 'RunnerFailed'))
+                    except BaseException:
+                        break
+                while (reset_index < len(reset_operations)
+                       and reset_operations[reset_index]['after_cases'] == case_index + 1):
+                    operation = reset_operations[reset_index]
+                    image = MemoryImage(**operation['image']) if 'image' in operation else None
+                    session.reset(operation['policy'], image=image)
+                    for order in operation.get('advances', ()):
+                        session.advance_after_reset(tuple(order))
+                    reset_index += 1
+            actual = session.finish()
+        except BaseException as primary:
+            try:
+                if session._begun and not session._finished:
+                    session.finish()
+                elif session.runner._status in ('running', 'quiescing', 'failed'):
+                    session.runner.finalize()
+            except BaseException as cleanup_error:
+                primary.add_note(
+                    f'online replay cleanup failed: {type(cleanup_error).__name__}: {cleanup_error}')
+            raise
     expected_events, actual_events = reference.events, actual.events
     semantic_matches = reference.semantic_sha256 == actual.semantic_sha256
+    dma_ids = None
+    if dma_reference_execution is not None:
+        if native_reference_execution is not None:
+            raise ValueError('DMA and native CPU replay identity modes cannot be combined')
+        component, original_execution = dma_reference_execution
+        dma = session.runner.sessions.get(component)
+        fresh_execution = getattr(dma, '_execution', None)
+        if (getattr(dma, 'source_component', None) != component
+                or not original_execution or not fresh_execution
+                or original_execution == fresh_execution):
+            raise ValueError('DMA replay requires independent owned executions')
+        # Authenticate raw trace identities first; compare all events below with
+        # only these two process-local identities normalized.
+        for trace in (reference, actual):
+            if trace.semantic_sha256 != _trace_semantic_sha256(trace.status, trace.events, trace.local_ticks):
+                raise ValueError('DMA replay raw semantic identity mismatch')
+        dma_ids = (original_execution, fresh_execution, component)
+        semantic_matches = True
     if native_reference_execution is not None:
         from .native_cpu_events import NativeBusObserver
         from .native_replay_identity import native_observation_comparison_events
@@ -3520,15 +3957,12 @@ def replay_online_session(plan: bytes,
         semantic_matches = (_trace_semantic_sha256(reference.status,
             expected_events, reference.local_ticks) == _trace_semantic_sha256(
                 actual.status, actual_events, actual.local_ticks))
-    missing = object()
-    for index, (expected_item, actual_item) in enumerate(zip_longest(
-            expected_events, actual_events, fillvalue=missing)):
-        expected_event = None if expected_item is missing else expected_item
-        actual_event = None if actual_item is missing else actual_item
-        if _canonical(expected_event) != _canonical(actual_event):
-            return ReplayComparison(False, index, expected_event, actual_event,
-                                    actual, _difference_context(expected_event,
-                                                                actual_event, index))
+    differences = _collect_replay_event_differences(expected_events, actual_events,
+        max_differences=max_differences, dma_ids=dma_ids)
+    if differences:
+        first = differences[0]
+        return ReplayComparison(False, first['event_index'], first['expected'], first['actual'],
+                                actual, first, differences=tuple(differences))
     schedule_matches = expected_schedule_ticks == session._source_schedule_ticks
     admissions_match = (not has_provenance or
         _canonical(document["source_admissions"]) == _canonical(session.runner.source_admissions))
@@ -3577,3 +4011,6 @@ def _native_instruction_execution_anchor():
 
 
 _NATIVE_INSTRUCTION_EXECUTION_PRODUCERS = _native_instruction_execution_anchor()
+
+from .f6_instruction_fetch_receipt import _seal_f6_fetch_provider
+_seal_f6_fetch_provider(ScenarioSession, ('_execute_case',))

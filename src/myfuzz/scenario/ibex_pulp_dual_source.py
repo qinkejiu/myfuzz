@@ -263,7 +263,7 @@ def _artifact(profile_path: str, instance_id: str, *, physical_observations: boo
     return render_local_driver(runtime, base_dir=ROOT)
 
 
-def dual_source_ownership_declaration() -> tuple[tuple[InputField, ...],
+def dual_source_ownership_declaration(*, f5_only: bool = False) -> tuple[tuple[InputField, ...],
                                                  tuple[InputOwner, ...]]:
     """The one declared ownership authority for this wiring (no compiled map).
 
@@ -271,23 +271,27 @@ def dual_source_ownership_declaration() -> tuple[tuple[InputField, ...],
     or transform the ownership declaration without compiling a map, and lets
     the compiled map below stay the only runtime form.
     """
+    if type(f5_only) is not bool:
+        raise ValueError('f5_only must be boolean')
     return ((InputField("cpu", "irq", 1),
              InputField("gpio_a", "gpio_in", 32),
              InputField("gpio_b", "gpio_in", 32)),
             (InputOwner("cpu", "irq", 0, 1, "bound", "gpio_b.irq"),
              InputOwner("gpio_a", "gpio_in", 0, 32, "fixed", "constant_zero"),
-             InputOwner("gpio_b", "gpio_in", 0, 8, "bound", "gpio_a.gpio_out"),
+             InputOwner("gpio_b", "gpio_in", 0, 8,
+                        "fixed" if f5_only else "bound",
+                        "constant_zero" if f5_only else "gpio_a.gpio_out"),
              InputOwner("gpio_b", "gpio_in", 8, 1, "source", "external_b.pin8"),
              InputOwner("gpio_b", "gpio_in", 9, 23, "fixed", "constant_zero")))
 
 
-def dual_source_ownership() -> OwnershipMap:
+def dual_source_ownership(*, f5_only: bool = False) -> OwnershipMap:
     """Keep GPIO B low byte and CPU IRQ bound while exposing B pin 8.
 
     GPIO B pin 8 is an independent external pin. The CPU program must enable
     the intended GPIO interrupt sources; ownership alone does not do so.
     """
-    return compile_ownership(*dual_source_ownership_declaration())
+    return compile_ownership(*dual_source_ownership_declaration(f5_only=f5_only))
 
 
 #: Aperture of one PULP GPIO window as declared by the pinned profile
@@ -455,7 +459,8 @@ def _canonical_document(value: object) -> str:
 
 
 def dual_source_wiring(*, cpu_profile: str = CPU_PROFILE,
-                       gpio_consumption: bool = False) -> PulpDualSourceWiring:
+                       gpio_consumption: bool = False,
+                       f5_only: bool = False) -> PulpDualSourceWiring:
     """Declare the trusted topology this module's factory must build.
 
     ``gpio_consumption`` selects the causal GPIO profile that exports a real
@@ -464,7 +469,7 @@ def dual_source_wiring(*, cpu_profile: str = CPU_PROFILE,
     """
     if type(gpio_consumption) is not bool:
         raise ValueError('gpio_consumption must be boolean')
-    fields, owners = dual_source_ownership_declaration()
+    fields, owners = dual_source_ownership_declaration(f5_only=f5_only)
     irq = Binding("gpio_b", "irq", "cpu", "irq", 1)
     return PulpDualSourceWiring(
         cpu_profile=cpu_profile,
@@ -473,7 +478,8 @@ def dual_source_wiring(*, cpu_profile: str = CPU_PROFILE,
         sessions=("cpu", "gpio_a", "gpio_b"),
         windows=(("gpio_a", 0x40001000, PULP_GPIO_PROFILE_APERTURE, "gpio_a"),
                  ("gpio_b", 0x40000000, PULP_GPIO_PROFILE_APERTURE, "gpio_b")),
-        bindings=(Binding("gpio_a", "gpio_out", "gpio_b", "gpio_in", 8), irq),
+        bindings=((irq,) if f5_only else
+                  (Binding("gpio_a", "gpio_out", "gpio_b", "gpio_in", 8), irq)),
         ownership_fields=fields,
         ownership_owners=owners,
         irq_pulse_widths=((irq, 4),),
@@ -906,7 +912,7 @@ HOST_RAM_COMMIT_JOURNAL_SCHEMA_VERSION = "host_ram_commit_journal.v1"
 
 
 class HostRamCommitJournal:
-    """Authenticate and journal this wiring's own host-RAM commits (opt-in).
+    """Authenticate explicitly installed host-RAM commit sources (opt-in).
 
     A runner journals an issued ``memory_write_commit`` only through a commit
     join (``ScenarioRunner._append_external_events``), and its fallback hook
@@ -914,8 +920,8 @@ class HostRamCommitJournal:
     configured -- which is this CPU/PULP wiring's case.  This object is that
     hook for a plain host-RAM commit stream:
 
-    * ``stage_commit`` re-authenticates the drained commit against the installed
-      service's own callback issuance through :class:`MemoryCommitAuthority`
+    * ``stage_commit`` re-authenticates the drained commit against the exact
+      component/service/channel allowlist through :class:`MemoryCommitAuthority`
       (the same authority the UART joins use) and resolves the token at once, so
       the authority stays bounded and the runner's acknowledgement releases the
       service FIFO before its declared capacity can be reached;
@@ -927,9 +933,10 @@ class HostRamCommitJournal:
     behaviour and the previous session identity byte for byte.
     """
 
-    def __init__(self, services: Mapping, *, max_pending: int = 256) -> None:
+    def __init__(self, services: Mapping, *, channel_ids: Mapping | None = None,
+                 max_pending: int = 256) -> None:
         self._authority = MemoryCommitAuthority(services=services,
-                                                max_pending=max_pending)
+            channel_ids=channel_ids, max_pending=max_pending)
 
     @property
     def schema_version(self) -> str:
@@ -960,21 +967,32 @@ class HostRamCommitJournal:
         return ()
 
 
-def install_host_ram_commit_journal(runner: ScenarioRunner, *, component: str,
-                                    service
+def install_host_ram_commit_journal(runner: ScenarioRunner, *,
+                                    component: str | None = None,
+                                    service=None, services: Mapping | None = None,
+                                    channel_ids: Mapping | None = None
                                     ) -> HostRamCommitJournal:
-    """Install the opt-in commit journal on one runner of this wiring.
+    """Install an opt-in journal over an explicit component/service allowlist.
 
     The hook is the runner's declared fallback join slot, consulted only when no
-    UART join is configured; it is never installed on the default path, so no
-    previous runner behaviour moves unless a caller enables
-    ``memory_commit_receipts``.
+    UART join is configured. Existing callers may keep the single
+    ``component``/``service`` form, which allows only that component's ``data``
+    channel. Multi-service callers must provide exact ``services`` and
+    ``channel_ids`` maps; components and channels are never inferred from an
+    event or discovered from the Runner.
     """
-    if not isinstance(component, str) or not component.strip():
-        raise ValueError("commit journal requires a component name")
+    if services is None:
+        if (not isinstance(component, str) or not component.strip()
+                or service is None):
+            raise ValueError("commit journal requires a component and service")
+        services = {component: service}
+    elif component is not None or service is not None:
+        raise ValueError("commit journal requires either one service or a service map")
+    elif not isinstance(services, Mapping) or not services:
+        raise ValueError("commit journal requires a nonempty service map")
     if getattr(runner, "_uart_ram_commit_join", None) is not None:
         raise ValueError("runner already carries a commit journal")
-    journal = HostRamCommitJournal({component: service})
+    journal = HostRamCommitJournal(services, channel_ids=channel_ids)
     runner._uart_ram_commit_join = journal
     return journal
 
@@ -988,7 +1006,8 @@ def make_pulp_dual_source_factory(
         persistent_memory_runtime_contract_sha256: str | None = None,
         instruction_start: int = ONLINE_INSTRUCTION_START,
         instruction_end: int = ONLINE_INSTRUCTION_END,
-        generated_artifacts: Mapping | None = None) -> Callable[[], ScenarioRunner]:
+        generated_artifacts: Mapping | None = None,
+        f5_only: bool = False) -> Callable[[], ScenarioRunner]:
     """Render pinned local harnesses once, then make fresh runner sessions.
 
     Supplied generated_artifacts are consumed directly by session constructors;
@@ -1031,6 +1050,8 @@ def make_pulp_dual_source_factory(
     """
     if type(gpio_consumption) is not bool:
         raise ValueError('gpio_consumption must be boolean')
+    if type(f5_only) is not bool:
+        raise ValueError('f5_only must be boolean')
     if type(native_irq_receipts) is not bool:
         raise ValueError('native_irq_receipts must be boolean')
     if type(source_actions) is not bool:
@@ -1047,7 +1068,8 @@ def make_pulp_dual_source_factory(
             raise ValueError('trusted memory policy requires contract identity, source actions and commit receipts')
     cache_dir = Path(cache_dir)
     wiring = dual_source_wiring(cpu_profile=cpu_profile,
-                                gpio_consumption=gpio_consumption)
+                                gpio_consumption=gpio_consumption,
+                                **({'f5_only': True} if f5_only else {}))
     if observation_modes is not None and (not isinstance(observation_modes, Mapping)
             or set(observation_modes) != {'cpu', 'gpio_a', 'gpio_b'}
             or any(type(mode) is not bool for mode in observation_modes.values())):
@@ -1142,7 +1164,8 @@ def make_ibex_pulp_dual_source_factory(
         memory_commit_receipts: bool = False,
         physical_observations: bool = False,
         persistent_memory_runtime_contract_sha256: str | None = None,
-        generated_artifacts: Mapping | None = None) -> Callable[[], ScenarioRunner]:
+        generated_artifacts: Mapping | None = None,
+        f5_only: bool = False) -> Callable[[], ScenarioRunner]:
     """Select the pinned Ibex variant, then share the CPU-agnostic wiring.
 
     ``cpu_retirement`` selects the authenticated RVFI profile. Native parsed
@@ -1162,6 +1185,8 @@ def make_ibex_pulp_dual_source_factory(
         raise ValueError('cpu_retirement must be boolean')
     if type(gpio_consumption) is not bool:
         raise ValueError('gpio_consumption must be boolean')
+    if type(f5_only) is not bool:
+        raise ValueError('f5_only must be boolean')
     if type(native_irq_receipts) is not bool or (native_irq_receipts and not cpu_retirement):
         raise ValueError('native IRQ receipts require explicit RVFI retirement')
     if type(source_actions) is not bool:
@@ -1172,6 +1197,7 @@ def make_ibex_pulp_dual_source_factory(
         cache_dir, cpu_profile=RVFI_CPU_PROFILE if cpu_retirement else CPU_PROFILE,
         **({'generated_artifacts': generated_artifacts} if generated_artifacts is not None else {}),
         gpio_consumption=gpio_consumption, native_irq_receipts=native_irq_receipts,
+        **({'f5_only': True} if f5_only else {}),
         source_actions=source_actions, memory_commit_receipts=memory_commit_receipts,
         persistent_memory_runtime_contract_sha256=persistent_memory_runtime_contract_sha256,
         **({'physical_observations': True} if physical_observations else {}))
@@ -2069,7 +2095,8 @@ def make_ibex_pulp_dual_source_online_decoder(
         *, bootstrap: DualSourceStreamBootstrap | None = None,
         result_slot_readback: bool = False,
         result_slot_byte_store: bool = False,
-        ip_cross_case: bool = False):
+        ip_cross_case: bool = False,
+        f5_only: bool = False):
     """Assemble checked online source declarations for this fixed RTL wiring.
 
     Paths are candidate causal chains, not coverage claims. Instruction
@@ -2122,6 +2149,8 @@ def make_ibex_pulp_dual_source_online_decoder(
             "result slot byte store requires the declared result slot window")
     if type(ip_cross_case) is not bool:
         raise ValueError("IP cross-case declaration must be boolean")
+    if type(f5_only) is not bool:
+        raise ValueError("f5_only must be boolean")
     if bootstrap is None:
         bootstrap = make_ibex_pulp_dual_source_stream_bootstrap()
     if not isinstance(bootstrap, DualSourceStreamBootstrap):
@@ -2173,6 +2202,12 @@ def make_ibex_pulp_dual_source_online_decoder(
         advance_rounds=32,
         allowed_mmio_operations=allowed_mmio_operations,
         support_words=4)
+    if f5_only:
+        declared['sources'] = tuple(source for source in declared['sources']
+                                    if source.source_id == pin_id)
+        declared['flow_by_target'] = {pin_path: 'F5'}
+        declared['ownership'] = dual_source_ownership(f5_only=True)
+        declared['support_component'] = 'cpu'
     if not ip_cross_case:
         return OnlineCaseDecoder(**declared)
     return IpCrossCaseOnlineDecoder(cross_case_source_id=pin_id, **declared)

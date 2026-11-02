@@ -1,0 +1,59 @@
+{
+  "schema_version": "inprocess_source_behavior.v1",
+  "description": "Declaration-only behavior that states two serial peers on one target. The host drives one peer per target, so the second is refused by name.",
+  "notes": [
+    "two peers would need two independent framed lines, which the host's one-peer driver does not own",
+    "the refusal is unsupported-behavior-execution:serial_peer:count:2"
+  ],
+  "source_port": "intr_tx_done_o",
+  "source_bit_offset": 0,
+  "trigger_writes": [
+    [
+      4,
+      4
+    ],
+    [
+      16,
+      2147483651
+    ],
+    [
+      28,
+      90
+    ]
+  ],
+  "status_offsets": [
+    0
+  ],
+  "status_cause_bits": [
+    2
+  ],
+  "clear_sequence": [
+    {
+      "kind": "write",
+      "offset": 0,
+      "value": 4
+    }
+  ],
+  "pin_groups": [
+    {
+      "name": "serial0",
+      "kind": "serial_peer",
+      "rx_role": "rx",
+      "tx_role": "tx",
+      "tx_en_role": "tx_en",
+      "idle_level": 1,
+      "bit_ticks": 32,
+      "frame": "8n1"
+    },
+    {
+      "name": "serial1",
+      "kind": "serial_peer",
+      "rx_role": "rx",
+      "tx_role": "tx",
+      "tx_en_role": "tx_en",
+      "idle_level": 1,
+      "bit_ticks": 32,
+      "frame": "8n1"
+    }
+  ]
+}

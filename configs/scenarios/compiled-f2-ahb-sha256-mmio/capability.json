@@ -1,0 +1,33 @@
+{
+  "schema_version": "ip_test_capability.v3",
+  "component_id": "caliptra_sha256",
+  "profile_fingerprint": "sha256:41ca23444147f3e181f6750202748cdc807559a07b4a55999d67fe12484e4447",
+  "endpoint_capabilities": [
+    {
+      "endpoint_id": "sha256.bus",
+      "operations": [
+        "request",
+        "accept",
+        "response",
+        "read",
+        "write",
+        "wait"
+      ]
+    }
+  ],
+  "register_semantics": [
+    {
+      "register": "NAME0",
+      "field": "value",
+      "lsb": 0,
+      "width": 32,
+      "access": "ro",
+      "read_mask": 4294967295,
+      "write_mask": 0,
+      "side_effect": "none",
+      "evidence_ref": "rtl:third_party/caliptra_upstream_reference/src/sha256/rtl/sha256.sv:377;src/sha256/rtl/sha256_params_pkg.sv:19;sha256_reg.sv:1524"
+    }
+  ],
+  "observation_mappings": [],
+  "register_aliases": []
+}

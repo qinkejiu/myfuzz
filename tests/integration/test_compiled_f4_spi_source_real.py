@@ -588,13 +588,18 @@ def test_compiled_f4_routes_each_version_issuance_through_selected_register():
     helper_calls = [node for node in calls
                     if node.func.attr == '_issue_register_version']
 
-    assert len(issue_calls) == 1
-    issue = issue_calls[0]
-    assert isinstance(issue.func.value, ast.Attribute)
-    assert issue.func.value.attr == 'authority'
-    register = next(keyword.value for keyword in issue.keywords
-                    if keyword.arg == 'register')
-    assert isinstance(register, ast.Attribute)
-    assert register.value.id == 'self'
-    assert register.attr == 'register_name'
+    # Every issuance site must go through the selected authority and pass the
+    # selected register as a ``self`` attribute -- never a literal register
+    # name.  The mixed F2+F4 runtime has two sites (the F2 pre-read and the F4
+    # helper); the single-flow runtime had one.  Both must satisfy the same
+    # property, so the check is per site rather than a call count.
+    assert issue_calls
+    for issue in issue_calls:
+        assert isinstance(issue.func.value, ast.Attribute)
+        assert issue.func.value.attr == 'authority'
+        register = next(keyword.value for keyword in issue.keywords
+                        if keyword.arg == 'register')
+        assert isinstance(register, ast.Attribute)
+        assert register.value.id == 'self'
+        assert register.attr == 'register_name'
     assert len(helper_calls) == 4

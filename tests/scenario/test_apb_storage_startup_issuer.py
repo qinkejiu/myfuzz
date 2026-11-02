@@ -172,8 +172,10 @@ def test_page_accumulation_and_handoff_are_documentary_only():
     is a plain dictionary owned by the test.
     """
     from myfuzz.scenario.apb_storage_register_version import (
-        ApbStorageRegisterVersionAuthority as Authority, _STARTUP_OPERATION)
+        ApbStorageRegisterVersionAuthority as Authority, _STARTUP_OPERATION,
+        _canonical, _source_facts)
     from myfuzz.local_harness.apb_storage_startup import PORT_WIDTHS
+    from myfuzz.local_harness.apb_storage_source_contract import _registered_document
     contract, ports = _contract_and_ports(assert_ticks=2, release_ticks=2)
     page = _page(contract)
     target = SimpleNamespace(_execution='a'*32, reset_epoch=0, process=None,
@@ -182,9 +184,18 @@ def test_page_accumulation_and_handoff_are_documentary_only():
         next_page=0, pages=[], records=0, bytes=0, complete=False,
         handoff='not_started', handoff_facts=None, last_post=None, last_raw=None,
         reset_observed=False)
+    # The production live state also carries the source-bound facts the ordinary
+    # command reducer needs (`source_contract` as canonical JSON text, its
+    # derived facts and the base the contract was resolved against).  This
+    # control takes them from the closed code-owned registry, exactly what
+    # `_source_facts()` uses when it is called without a document.
+    registered = _registered_document()
     live = dict(startup=startup, state=None, scope=(None, 'a'*32, 0, 0),
                 pending=None, limits=(65536, 4096, 16), writes=[], samples=0,
-                bad=False, last_wire_sequence=0)
+                bad=False, last_wire_sequence=0,
+                source_contract=_canonical(registered),
+                source_facts=_source_facts(registered),
+                source_base='.')
     receipt = _wire_receipt(page)
     Authority._complete_startup_page(None, target, receipt,
         (_STARTUP_OPERATION, (0,), 1, 0, None, 'startup_page'), live)

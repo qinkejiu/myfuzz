@@ -1,0 +1,120 @@
+{
+  "ownership": {
+    "fields": [
+      {
+        "component_id": "peripheral",
+        "port": "gpio_in",
+        "width": 32
+      }
+    ],
+    "owners": [
+      {
+        "component_id": "peripheral",
+        "port": "gpio_in",
+        "bit_offset": 0,
+        "width": 8,
+        "kind": "fixed",
+        "producer_ref": "constant_zero"
+      },
+      {
+        "component_id": "peripheral",
+        "port": "gpio_in",
+        "bit_offset": 8,
+        "width": 1,
+        "kind": "source",
+        "producer_ref": "peripheral.in.irq_event"
+      },
+      {
+        "component_id": "peripheral",
+        "port": "gpio_in",
+        "bit_offset": 9,
+        "width": 23,
+        "kind": "fixed",
+        "producer_ref": "constant_zero"
+      }
+    ]
+  },
+  "physical_port_map": [
+    {
+      "component_id": "peripheral",
+      "port": "gpio_in",
+      "physical_port": "gpio_in"
+    }
+  ],
+  "request_supplements": {
+    "deliveries": [
+      {
+        "consumer_endpoint_id": "processor.interrupts",
+        "consumer_instance": "cpu",
+        "delivery_id": "base.completion",
+        "producer_endpoint_id": "dma.interrupt",
+        "producer_instance": "dma",
+        "producer_signal": "o_interrupt",
+        "trigger": "pulse"
+      },
+      {
+        "delivery_id": "peripheral_irq",
+        "producer_instance": "peripheral",
+        "producer_endpoint_id": "gpio.interrupts",
+        "producer_signal": "interrupt",
+        "consumer_instance": "cpu",
+        "consumer_endpoint_id": "processor.interrupts",
+        "trigger": "pulse"
+      }
+    ],
+    "f6_execution": {
+      "program": {
+        "boot_address": 65536,
+        "destination_address": 143360,
+        "isr_address": 66092,
+        "park_address": 66560,
+        "result_base": 147456,
+        "slot_base": 69632,
+        "slot_count": 8,
+        "source_address": 139264
+      },
+      "schema_version": "compiled_F6_cpu_dma_contract.v1",
+      "seed": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "shared_slots": {
+        "component": "peripheral",
+        "contract_id": "pulp-gpio-causal-register-bank.v1",
+        "register": "GPIOEN",
+        "results_base": 151552,
+        "flows": [
+          "F1",
+          "F2",
+          "F3",
+          "F4",
+          "F5",
+          "F6"
+        ],
+        "scratch_address": 151548
+      },
+      "gpio_irq": {
+        "component": "peripheral",
+        "pin": 8,
+        "group_id": "shared-external",
+        "dma_handler_address": 66208,
+        "gpio_handler_address": 66336,
+        "scratch_address": 155648,
+        "result_address": 155712
+      }
+    },
+    "environment_links": [
+      {
+        "link_id": "external_b_pin8",
+        "component_instance": "peripheral",
+        "endpoint_id": "gpio.pins",
+        "bit_offset": 8,
+        "width": 1,
+        "event_kind": "level"
+      }
+    ]
+  },
+  "schema_version": "compiled_execution_file_supplement.v1"
+}

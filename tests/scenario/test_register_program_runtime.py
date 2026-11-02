@@ -36,7 +36,7 @@ def factory(tmp_path_factory):
         persistent_memory_runtime_contract_sha256='a'*64)
 
 
-def installed(factory, *, max_program_bytes=16, images=()):
+def installed(factory, *, max_program_bytes=16, images=(), advance_rounds=1):
     from myfuzz.scenario.genome import ScenarioGenome
     from myfuzz.scenario.session_runtime import ScenarioSession
     from tests.composition.test_pulp_gpio_test_capability import SIDECAR
@@ -48,7 +48,7 @@ def installed(factory, *, max_program_bytes=16, images=()):
     cpu._case_id = 'stream'
     assert cpu._serve('instr',0,0x11000,0,15) is None
     adapter = RegisterProgramRuntime(session,cpu_component='cpu',sidecars={'gpio_a':SIDECAR},
-        advance_rounds=1,max_program_bytes=max_program_bytes)
+        advance_rounds=advance_rounds,max_program_bytes=max_program_bytes)
     session._begun = True
     runner._status = 'running'
     return adapter,session,runner
@@ -381,3 +381,58 @@ def test_narrow_rmw_and_read_admissions_have_valid_closed_saved_projection(facto
     assert document['schema_version']==16
     registers=validate_register_program_plan(document)
     assert validate_register_program_state(adapter.snapshot(),registers)==adapter.snapshot()
+
+
+def test_optional_stop_callback_reuses_session_exact_advance_prefix(factory, monkeypatch):
+    adapter, session, runner = installed(factory, advance_rounds=3)
+    batches, calls = [], []
+    monkeypatch.setattr(runner, 'step_batch', lambda order: batches.append(order))
+    def stop(index):
+        calls.append(index)
+        return index == 1
+    result = adapter.submit(request(target_instance='gpio_a'), stop_after_advance=stop)
+    assert calls == [0, 1] and batches == [('cpu', 'gpio_a', 'gpio_b')] * 2
+    assert session._case_advance_prefixes['case'] == 2
+    assert adapter.submit(request(target_instance='gpio_a'), stop_after_advance=stop) == result
+    assert calls == [0, 1]  # An idempotent retry never executes policy or RTL again.
+
+
+def test_invalid_stop_callback_refused_before_prepare_and_registration(factory):
+    adapter, session, runner = installed(factory)
+    before = session.prerequisite_gate.document()
+    with pytest.raises(ValueError, match='stop_after_advance'):
+        adapter.submit(request(target_instance='gpio_a'), stop_after_advance=True)
+    assert session.prerequisite_gate.document() == before
+    assert adapter.snapshot()['records'] == [] and session.cases == ()
+
+
+def test_stop_callback_exception_preserves_uncertain_actual_prefix(factory, monkeypatch):
+    adapter, session, runner = installed(factory)
+    monkeypatch.setattr(runner, 'step_batch', lambda order: None)
+    def stop(index):
+        raise RuntimeError('read result not yet certified')
+    with pytest.raises(RuntimeError, match='not yet certified'):
+        adapter.submit(request(target_instance='gpio_a'), stop_after_advance=stop)
+    assert session._case_advance_prefixes['case'] == 1
+    assert session._halted and adapter.snapshot()['uncertain']
+    assert adapter.snapshot()['records'][0]['status'] == 'uncertain'
+
+
+def test_case_receipt_is_detached_completed_actual_event_slice(factory, monkeypatch):
+    adapter, session, runner = installed(factory)
+    assert session.case_receipt('case') is None
+    for invalid in (None, 0, '', ' leading', 'x' * 257):
+        with pytest.raises(ValueError):
+            session.case_receipt(invalid)
+    calls = []
+    def step(order):
+        calls.append(order)
+        runner._events.append(dict(event_id=runner.event_count + 1, kind='test_fact', payload={'value': 1}))
+    monkeypatch.setattr(runner, 'step_batch', step)
+    adapter.submit(request(target_instance='gpio_a'))
+    receipt = session.case_receipt('case')
+    assert receipt.case_id == 'case'
+    assert receipt.events[-1]['kind'] == 'test_fact'
+    receipt.events[-1]['payload']['value'] = 9
+    assert session.case_receipt('case').events[-1]['payload']['value'] == 1
+    assert len(calls) == 1 and session.case_receipt('missing') is None

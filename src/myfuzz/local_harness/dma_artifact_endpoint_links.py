@@ -14,7 +14,8 @@ import re
 from .renderer import _sha
 from .runtime_artifact import LocalRuntimeArtifact
 from .template_contracts import select_template_contract, generated_executor_selection, list_template_contracts
-from .wishbone_dma_fields import DMA_MASTER_SHAPE, dma_edge_contract
+from .wishbone_dma_fields import (DMA_MASTER_SHAPE, DMA_SELECTED_MASTER_SHAPE,
+    dma_edge_contract, selected_dma_edge_contract, dma_select_modes, dma_profile_edge_contract)
 from .wishbone_dma_template import dma_edge_policy
 
 PROVIDER_ID = 'wishbone-dma-single-master.v1'
@@ -26,6 +27,21 @@ _PROVIDER_CONTRACT = {
     'roles': {role: list(shape) for role, shape in sorted(DMA_MASTER_SHAPE.items())},
     'dma_edge_contract': dma_edge_contract(),
 }
+_SELECTED_PROVIDER_CONTRACT = {**_PROVIDER_CONTRACT, 'variant_id':'dma-selected',
+    'roles':{role:list(shape) for role,shape in sorted(DMA_SELECTED_MASTER_SHAPE.items())},
+    'dma_edge_contract':selected_dma_edge_contract()}
+
+
+def dma_link_provider_contract(*, control_address_width, selected=None, control_selected=None, master_selected=None):
+    """Describe the existing master issuer with the actual control ABI."""
+    if selected is not None:
+        control_selected = master_selected = selected
+    variant = {(False,False):'wishbone_dma_edge_v1', (True,True):'wishbone_dma_selected_edge_v1',
+        (True,False):'wishbone_dma_control_selected_edge_v1',
+        (False,True):'wishbone_dma_master_selected_edge_v1'}[(control_selected,master_selected)]
+    edge=dma_profile_edge_contract({'address_width':control_address_width,'local_runtime_variant':variant})
+    base=_SELECTED_PROVIDER_CONTRACT if master_selected else _PROVIDER_CONTRACT
+    return base if control_address_width==2 and control_selected==master_selected else {**base,'dma_edge_contract':edge}
 _ROLE_KEYS = {'role', 'direction', 'width', 'physical_port', 'member_path',
               'raw_lo', 'raw_hi', 'port_width', 'backend_port'}
 _BINDING_KEYS = {'profile_endpoint_sha256', 'template_id', 'template_version',
@@ -80,19 +96,24 @@ class DmaArtifactEndpointLinks:
 
 def _master_selection(plan, master):
     capabilities = dict(plan.profile.capabilities)
+    _, selected = dma_select_modes(capabilities)
     capabilities.update(address_width=capabilities['master_address_width'],
                         has_error=capabilities['master_has_error'],
-                        address_units=capabilities['master_address_units'])
+                        address_units=capabilities['master_address_units'],
+                        byte_enable=selected,partial_write=selected)
     return select_template_contract(master, capabilities,
         template_id='master.wishbone-pipelined', template_version='1',
-        variant_id='dma-full-word-no-select')
+        variant_id=('dma-selected' if selected else 'dma-full-word-no-select'))
 
 
 def parse_dma_artifact_endpoint_links(document, *, pointer='/endpoint_links'):
     """Strict detached parsing; hashes are declarations until artifact admission."""
     _closed(document, _DOCUMENT_KEYS, pointer)
+    provider = next((item for width in range(2,31) for control in (False,True) for master in (False,True)
+                     for item in (dma_link_provider_contract(control_address_width=width,control_selected=control,master_selected=master),)
+                     if document.get('provider_contract_sha256') == _sha(item)), None)
     if (document['provider_id'] != PROVIDER_ID or document['provider_version'] != '1'
-            or document['provider_contract_sha256'] != _sha(_PROVIDER_CONTRACT)):
+            or provider is None):
         _refuse(pointer + '/provider_id', 'unregistered issuer contract',
                 'dma-binding-provider-unsupported')
     if document['schema_version'] != 'dma_artifact_endpoint_links.v1':
@@ -116,7 +137,7 @@ def parse_dma_artifact_endpoint_links(document, *, pointer='/endpoint_links'):
         for key in _BINDING_KEYS:
             if key.endswith('sha256'):
                 _digest(binding[key], at + '/template_binding/' + key)
-            elif binding[key] != _PROVIDER_CONTRACT[key]:
+            elif binding[key] != provider[key]:
                 _refuse(at + '/template_binding/' + key, 'registered template required',
                         'dma-binding-template-mismatch')
         # Resolve the registered contract itself, rather than trusting a label/hash.
@@ -126,12 +147,13 @@ def parse_dma_artifact_endpoint_links(document, *, pointer='/endpoint_links'):
             _refuse(at + '/template_binding/contract_sha256', 'contract digest mismatch',
                     'dma-binding-template-mismatch')
         roles = link['roles']
-        if type(roles) is not list or len(roles) != len(DMA_MASTER_SHAPE):
+        shape = DMA_SELECTED_MASTER_SHAPE if provider['variant_id']=='dma-selected' else DMA_MASTER_SHAPE
+        if type(roles) is not list or len(roles) != len(shape):
             _refuse(at + '/roles', 'complete role map required')
-        for position, (row, role) in enumerate(zip(roles, sorted(DMA_MASTER_SHAPE))):
+        for position, (row, role) in enumerate(zip(roles, sorted(shape))):
             rp = at + '/roles/' + str(position)
             _closed(row, _ROLE_KEYS, rp)
-            direction, width = DMA_MASTER_SHAPE[role]
+            direction, width = shape[role]
             if (row['role'] != role or row['direction'] != direction
                     or type(row['width']) is not int or row['width'] != width
                     or row['backend_port'] != 'mwb_' + role):
@@ -156,6 +178,10 @@ def _artifact_link(artifact, *, pointer='/endpoint_links'):
     """Recompute all admitted facts from the artifact's real plan and ABI."""
     from .runtime_renderer import _shape
     document = artifact.runtime_document
+    _, master_selected = dma_select_modes(artifact.plan.profile.capabilities)
+    shape = DMA_SELECTED_MASTER_SHAPE if master_selected else DMA_MASTER_SHAPE
+    width=artifact.plan.profile.capabilities['address_width']
+    edge_contract = dma_profile_edge_contract(artifact.plan.profile.capabilities)
     at = pointer
     if (document.get('kind') != 'wishbone_dma' or document.get('status') != 'driver_generated'
             or document.get('driver_status') != 'generated' or not artifact.cpp_text):
@@ -164,7 +190,7 @@ def _artifact_link(artifact, *, pointer='/endpoint_links'):
             or document.get('structural_build') != artifact.structural.build_document
             or document.get('plan') != artifact.plan.document()
             or document.get('source_verification') != artifact.source_verification
-            or document.get('dma_edge_contract') != dma_edge_contract()
+            or document.get('dma_edge_contract') != edge_contract
             or document.get('artifact_digest') != _sha({k:v for k,v in document.items() if k != 'artifact_digest'})):
         _refuse(at, 'artifact metadata mismatch', 'dma-binding-artifact-mismatch')
     for key, text in (('runtime_sv_sha256', artifact.runtime_sv), ('cpp_sha256', artifact.cpp_text)):
@@ -174,7 +200,7 @@ def _artifact_link(artifact, *, pointer='/endpoint_links'):
     abi = artifact.structural.abi_document['ports']
     try:
         _, master, _, contracts = dma_edge_policy(plan, abi)
-        wires = _shape(master, DMA_MASTER_SHAPE, abi)
+        wires = _shape(master, shape, abi)
         selection = _master_selection(plan, master)
     except ValueError as error:
         _refuse(at, str(error), 'dma-binding-template-mismatch')
@@ -187,7 +213,7 @@ def _artifact_link(artifact, *, pointer='/endpoint_links'):
         _refuse(at, 'generated executor selection mismatch', 'dma-binding-template-mismatch')
     roles = []
     backend = document.get('backend_ports', [])
-    if len([p for p in backend if p.get('channel') == 'mwb']) != len(DMA_MASTER_SHAPE):
+    if len([p for p in backend if p.get('channel') == 'mwb']) != len(shape):
         _refuse(at, 'unexpected backend master map')
     for field in sorted(master.fields, key=lambda field: field.role):
         name = 'mwb_' + field.role
@@ -222,7 +248,11 @@ def validate_dma_artifact_endpoint_links(document, artifact, *, pointer='/endpoi
         _refuse(pointer, 'unsupported artifact shape: ' + str(error),
                 'dma-binding-artifact-mismatch')
     actual = parsed.document()
-    if (actual['runtime_artifact_sha256'] != _sha(artifact.runtime_document)
+    control_selected,master_selected=dma_select_modes(artifact.plan.profile.capabilities)
+    provider=dma_link_provider_contract(control_address_width=artifact.plan.profile.capabilities['address_width'],
+        control_selected=control_selected,master_selected=master_selected)
+    if (actual['provider_contract_sha256'] != _sha(provider)
+            or actual['runtime_artifact_sha256'] != _sha(artifact.runtime_document)
             or any(actual[key] != artifact.runtime_document[key]
                    for key in ('runtime_sv_sha256', 'cpp_sha256'))
             or actual['links'] != [expected_link]):
@@ -263,8 +293,11 @@ def render_dma_linked_runtime(plan, structural, source_verification, *, base_dir
                      backend_channel=link['backend_channel'], **row) for row in link['roles']]
     if sorted(facts, key=lambda row: row['role']) != expected:
         _refuse('/endpoint_links/links', 'generation assignment facts required')
+    control_selected,master_selected=dma_select_modes(plan.profile.capabilities)
+    provider = dma_link_provider_contract(control_address_width=plan.profile.capabilities['address_width'],
+        control_selected=control_selected,master_selected=master_selected)
     document = dict(schema_version='dma_artifact_endpoint_links.v1',
-        provider_id=PROVIDER_ID, provider_version='1', provider_contract_sha256=_sha(_PROVIDER_CONTRACT),
+        provider_id=PROVIDER_ID, provider_version='1', provider_contract_sha256=_sha(provider),
         runtime_artifact_sha256=_sha(artifact.runtime_document),
         runtime_sv_sha256=hashlib.sha256(artifact.runtime_sv.encode()).hexdigest(),
         cpp_sha256=hashlib.sha256(artifact.cpp_text.encode()).hexdigest(), links=[link])

@@ -1,0 +1,18 @@
+{
+  "schema_version": "dependency_search_scenario.v1",
+  "name": "memory-mixed-ibex",
+  "backend": "descriptor",
+  "descriptor": "configs/scenarios/compiled-f4-obi-apb-timer/generic_scenario.json",
+  "flow": "mixed",
+  "records": [
+    "F1:13000000",
+    "F3:55000000",
+    "F4:55000000",
+    "F2:04100040"
+  ],
+  "goal": {
+    "id": "verified-completion",
+    "description": "Configured objective; live reward requires an admitted state provider."
+  },
+  "rounds": 32
+}

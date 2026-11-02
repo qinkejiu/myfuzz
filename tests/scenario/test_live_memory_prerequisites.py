@@ -259,8 +259,14 @@ def test_ambiguous_memory_id_cannot_grant_cross_service_prerequisites():
     from myfuzz.scenario.memory_dependency_evidence import MemoryDependencyEvidenceConsumer
     from myfuzz.scenario.live_memory_prerequisites import PersistentMemoryPrerequisiteGate
     services = {'cpu1': evidence_fixture()[0], 'cpu2': evidence_fixture()[0]}
+    # A multi-service commit authority must now name the native channel each
+    # installed service stamps on its own transactions; the fixture rows use the
+    # default `data` channel. Declaring them lets construction succeed so the
+    # gate itself is what refuses the ambiguous memory id.
+    channels = {component: 'data' for component in services}
     consumer = MemoryDependencyEvidenceConsumer(
-        memory_commit_authority=MemoryCommitAuthority(services=services),
+        memory_commit_authority=MemoryCommitAuthority(services=services,
+                                                     channel_ids=channels),
         memory_read_authority=MemoryReadAuthority(services=services),
         runtime_contract_sha256='a' * 64)
     with pytest.raises(ValueError, match='ambiguous'):

@@ -1,0 +1,36 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-apb-gpio-groups-f1f5",
+  "description": "One Ibex RVFI OBI CPU and the pinned PULP apb_gpio target, with the pads declared as two named dir-resolved groups instead of the single pins block: the host drives the groups in declaration order, each for its own declared window, and every case line states what each group presented and changed.",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {"reset_assert_ticks": 8, "reset_release_ticks": 8, "max_wait_cycles": 16},
+  "source_profile": "configs/peripherals/pulp_gpio_causal_local/component_profile.json",
+  "source_timing": {"reset_assert_ticks": 2, "reset_release_ticks": 3, "max_wait_cycles": 16},
+  "active_id": "gpio_target",
+  "source_behavior": "configs/behaviors/pulp_gpio_two_groups_f5_pins.json",
+  "target_window": {"base": 1073741824, "size": 4096},
+  "image_start": 65536,
+  "image_end": 196608,
+  "registers": {
+    "PADDIR": 0,
+    "GPIOEN": 4,
+    "PADIN": 8,
+    "PADOUT": 12,
+    "PADOUTSET": 16,
+    "PADOUTCLR": 20,
+    "INTEN": 24,
+    "INTTYPE_LOW": 28,
+    "INTTYPE_HIGH": 32,
+    "INTSTATUS": 36,
+    "PADCFG_0": 40
+  },
+  "assume_single_clock": true,
+  "notes": [
+    "the two pad groups are declared in configs/behaviors/pulp_gpio_two_groups_f5_pins.json: phase_low presents 0x00001111 for 2 host ticks, then phase_high presents 0x00002222 and keeps the wire for the rest of each case. Neither group declares the scenario's stimulus as its own value, so a case's own F2 stimulus word overrides only group 0",
+    "both groups address PADIN at offset 8, the one pad word the bound gpio.pins endpoint exposes. A group naming a second pad word would need a second pad port on the model, and that declaration is refused by name (unsupported-pins:pin_groups:second-pad-word), never merged into the first word",
+    "PADDIR(0) is zero in the first two data cases, so both groups resolve through the device's own dir port (the inout rule); the PADDIR(0)=0xffffffff case then makes the device drive every bit, and the following PADIN read shows the device's own PADOUT word on the wire. Those two facts are how the case line's per-group ext/ticks/changes fields are checked against real RTL",
+    "the F5 facts are the reviewed PULP GPIO sequence in the same behavior file: GPIOEN(4), INTEN(24), INTTYPE_LOW(28) and PADOUT(12)=0x2b, with INTSTATUS(36) read-clearing; the interrupt is the device's own output",
+    "the target window is the profile's 4 KiB APB window at 0x40000000 and the RAM image is the same fixed image the APB3 GPIO build uses",
+    "this file declares the scenario; it is not evidence. The run under runs/p2-pins-serial-20261103/ is the evidence"
+  ]
+}

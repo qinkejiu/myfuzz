@@ -1,0 +1,2196 @@
+{
+  "aggregate": null,
+  "aggregate_reason": "per-component denominators differ and no two runs are compared on coverage, so no total is formed",
+  "coverage_auc_available": false,
+  "coverage_kind": "verilator-line-block",
+  "fixed_time_coverage": false,
+  "generated_by": "scripts/report_declared_f5_coverage.py",
+  "inputs": {
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/coverage-target/build.log": "794d5c0d25e055d27dd5bab6808fc7c43669f32fcc86a9a9a6f4df188d821d42",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/coverage-target/commands.txt": "50fa4970a9201f6abcc0d383ed9c737ad12b5b713333710a51e6522e1b491495",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/coverage-target/coverage-points.json": "87f0c9c4eeab1928e574ff16d50f159108dcb93a20ee2a91ee443c6930853c72",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/coverage-target/coverage.dat": "461c4cafe2e1b30a230019c427064d44e0a5302402622fdf46d8c68fda40a97f",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/coverage-target/coverage.json": "c11472e7c6aa74840d7f2f5bb4d7a64d52492e769633ede82d7eda16eaebea01",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/coverage-target/inputs/generated/artifact.json": "029e9f728dfec24b530f5ab4854611aafd75f7a647649e83c8925061cbcd0af1",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/coverage-target/inputs/generated/driver.cpp": "98a9a59744db59534d3d24392885938d638186aed3fefa67cdf4d558e98f13b8",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/coverage-target/obj/harness": "a2e8599981baf362eae367e609d8a63dd9d2380ded2b9f6a1ba551bc720c3697",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/coverage-target/replies.txt": "5b1cd6c5f170deb868f39ddf32fd85367b8d8cc6f57f919f094bc014eb9ea104",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/fresh/config.json": "2600bbfbbc1f82231cc9b960a08fd4026e61d0876247404a9ccae728e6174df1",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/fresh/fresh/local_commands.json": "fe6896205f954e4a0fed70da7e05b9ebdf43e3d7f198dc28a576403c71fdc8f9",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/fresh/prefix.json": "a2d3fdee9f14ea94694254398e3e000f03bba7e3f2f4b658d11d9e4d0480a2e5",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/fresh/summary.json": "4ab279f63420ecef550096eef5147a11e449e7ba191ab0ee9c59482cc2943b1e",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/original/config.json": "2600bbfbbc1f82231cc9b960a08fd4026e61d0876247404a9ccae728e6174df1",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/original/original/local-command-trace.json": "4763afa8b9d541212bcd5023381f8f200002356f361a2bc2f4608d1296d1cbdd",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/original/prefix.json": "452e9f602a417566d098f66887e2c6a0c077edbb197457010955b9b329ecf14b",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/original/summary.json": "c7a200da900acc7f09f8cfed492e6e032c2a728cca84647df62012d6874c895f",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/coverage-target/build.log": "8a4cdb09dee50e9e0606438b20d855d175647a70735760778e63bdcb5e7e57db",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/coverage-target/commands.txt": "bdecdbbff0648c9b35b061a1d34a5a8297f7008f7d57d3b0ad832fec2abbf06b",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/coverage-target/coverage-points.json": "009ab3fba69473efb641a4690c93fa8461bdec3a55f09391bed22c968693e518",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/coverage-target/coverage.dat": "8b92abc2a93c1124572c03b4c3cc99f9762cbd09e5f5a46e48fe0ef5a3cd3764",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/coverage-target/coverage.json": "09affe80c65d9adc4d5e331cf7c311dcd6a99d6179410986702041771b6a6da0",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/coverage-target/inputs/generated/artifact.json": "4762a87e32e531522f4aa9f0319684da8bf4843d903a305963e3e662b9326ba2",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/coverage-target/inputs/generated/driver.cpp": "5150b751187618c6af585323906400cf6e888e8c7c357410df23b24ec392fc31",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/coverage-target/obj/harness": "96ec0e0817d7f468270647b514a3ce4a4f3c32f0a6fa4ec62a3c82a789d43caa",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/coverage-target/replies.txt": "0186e8b8180ac082dbf23fc42b7d9fa94dbcb96609958af3f7f1135897a17ce0",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/fresh/config.json": "27f740cad45ce8d61efa3a1873b68885dc2c7eb026a4530fd1d6434a64835187",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/fresh/fresh/local_commands.json": "7a4c61555d15ec38b32544717df088303466b99c74cb850681cce45346ed4aaa",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/fresh/prefix.json": "1221c63ab6f000b4eaaa763d9f7842f00ed4fd926ee23ad5e25484c00f2a48b3",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/fresh/summary.json": "0369eadf2f6727605822a3733748bbfa619abfa09cea6096c34f1cff0aaf759b",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/original/config.json": "27f740cad45ce8d61efa3a1873b68885dc2c7eb026a4530fd1d6434a64835187",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/original/original/local-command-trace.json": "ff44c491184e96239e9dc102c9afe6c8e8ce420a342696f95125e3fde749c615",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/original/prefix.json": "cd2eed2767669d897fa202b87aaf100ce5c8b2d120f6f4cdcec81307000d9d9e",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/original/summary.json": "01e78ccb765c704da23757c0c50f914ad242c4af0a24f9475cdd2d9c09d3688b",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-cpu/build.log": "c925c0be4419ca179b915699f6ca95798aa47e960a2c11f14498fe83df4df1c6",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-cpu/coverage.dat": "1cbc3ba6c7a982b7fff7f98f7cd134ab5d1a5dda7983d4c367b975e28de908f1",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-cpu/inputs/generated/artifact.json": "0d6fa65899b0ccc8a4b43a584eab9d9e04a8718b1eca2428669b48b6be9114a8",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-cpu/inputs/generated/driver.cpp": "add9f6c9b18d5c203ba2156dd0d2e12aa3d4296eec50528983a6d70fccac01f8",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-cpu/obj/harness": "f1f349ceae00c8f4cacdf02ad4bf200ad8a33374a143408517b7ac7d60ed1132",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-target/build.log": "8a43930c412bd121d3cfb9e14f632e686dd35f8224fcffe636bb25144012305c",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-target/commands.txt": "aa332bf06e490fbff0ec4afbb4643f661d00eb86e7aa6407d3e28b29639f3942",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-target/coverage-points.json": "e221d9ac6b2d5992193307c160220663353f2120ee164eb1259a20197a16b429",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-target/coverage.dat": "1491e39428e20d3bfc1bc5a6662dc3a5ba5500e81b1c5d95108bab27d019de3e",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-target/coverage.json": "f70784caca3d32211484ed47d9177d861838326c14bcaa249118cfd7130add26",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-target/inputs/generated/artifact.json": "08856cb75af40c7cdf45039981c907e92a12c0b5f99d3bca1928f42b009286dc",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-target/inputs/generated/driver.cpp": "b52d74f64773291bb033f4d303eddc725ef9a219cf1996823e92341ad2dc6eb1",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-target/obj/harness": "017ee55bdfd0791185719bb9c1f8d2b569e28f67db17a8c294f5867f6914ceba",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-target/replies.txt": "bf1c3f7adece7a8f6eac949b0f5c4661b617e0a60006d2345e7e36d230a7f684",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/fresh/config.json": "6088ef9e3b673b81525f5b91f788e28f78d0a5515e723bb157c15b49a0835013",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/fresh/fresh/local_commands.json": "48983f4f5f48f6ecc26ee18574c1ae5e86026541bee3569953742ae5a874f210",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/fresh/prefix.json": "6cb4080c82167fc387efb8407c83e4912b0a564a31b2ad224b2d32c0cd01a69f",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/fresh/summary.json": "39a15c2b2e92374fa0cd9fcc1a6a0b847689b44a9f0138e7d1b015d53dc8d16e",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original/config.json": "6088ef9e3b673b81525f5b91f788e28f78d0a5515e723bb157c15b49a0835013",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original/original/local-command-trace.json": "011d259171d13f35c18e883f6ff715862d452156873348bf14d8400bdaffa378",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original/prefix.json": "aa8dc8c9e432ad79cebdfbde21abbd23e201a58bb436c18d51aa8ec42c1a7e23",
+    "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original/summary.json": "75c97aa57192a29d04f67d03287b00da479c1859809ec33c781f03c3cd44f68b"
+  },
+  "limitations": [
+    "Offline saved-prefix Verilator line/block coverage is not online, fixed-time-point or AUC coverage.",
+    "Only the original prefix of each run was instrumented; the fresh prefix reproduces the commands but contributes no coverage number.",
+    "Line/block coverage of one generated component is not a source-branch, SoC or native-authority metric.",
+    "Per-component denominators differ and are not summed into one figure.",
+    "Input SHA256s make the report reproducible, not the original processes authenticated."
+  ],
+  "measured": [
+    {
+      "comparability": "comparable_prefix",
+      "component": "sha_active",
+      "covered": 359,
+      "local_ticks": 146,
+      "measurement": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/coverage-target",
+      "run": "ahb-sha",
+      "total": 614
+    },
+    {
+      "comparability": "comparable_prefix",
+      "component": "spi_active",
+      "covered": 85,
+      "local_ticks": 112,
+      "measurement": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/coverage-target",
+      "run": "apb-spi",
+      "total": 271
+    },
+    {
+      "comparability": "comparable_prefix",
+      "component": "wb_timer_active",
+      "covered": 37,
+      "local_ticks": 116,
+      "measurement": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-target",
+      "run": "wb-timer",
+      "total": 39
+    }
+  ],
+  "native_authority": false,
+  "online": false,
+  "reproduction": {
+    "per_run": [
+      "PYTHONPATH=src:. python3 scripts/measure_new_path_coverage.py --run research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/original --measurement research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/coverage-target --cache runs/config-driven-20261028/cache/7c80b436b4d4f0a9b1ad8c4b0ed8f226ff2263884f8c4b4fee8ec995a0ba44fa --component sha_active --original-prefix research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/original --fresh-prefix research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/fresh",
+      "PYTHONPATH=src:. python3 scripts/measure_new_path_coverage.py --run research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/original --measurement research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/coverage-target --cache runs/config-driven-20261028/cache/1e26eb155dfb6e8ca7d150a7d3bef59e032836b7a8fe2cf0490bd2ab77981d46 --component spi_active --original-prefix research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/original --fresh-prefix research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/fresh",
+      "PYTHONPATH=src:. python3 scripts/measure_new_path_coverage.py --run research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original --measurement research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-cpu --cache runs/config-driven-20261028/cache/a06ff3b42591ca1097f9b8c3a471080d4346199501245baeb66edd0fe718c8fc --component cpu --original-prefix research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original --fresh-prefix research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/fresh",
+      "PYTHONPATH=src:. python3 scripts/measure_new_path_coverage.py --run research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original --measurement research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-target --cache runs/config-driven-20261028/cache/f526592ac533fdfd499289646df2156ad58139099f7565b14b0ade7c5c1dcc6a --component wb_timer_active --original-prefix research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original --fresh-prefix research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/fresh"
+    ],
+    "report": "PYTHONPATH=src:. python3 scripts/report_declared_f5_coverage.py --runs-root research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030 --output docs/reports/new-path-coverage-20261030.json",
+    "tests": "PYTHONPATH=src:. python3 -m pytest tests/integration/test_new_path_coverage_measurement.py -q"
+  },
+  "root": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030",
+  "runs": [
+    {
+      "comparability": {
+        "comparison": null,
+        "conditions": {
+          "both_exit_zero": true,
+          "execution_budget": "unknown",
+          "fairness": "unknown",
+          "matches_measured_prefix": true,
+          "process_independence": "separate-invocations",
+          "same_admission": true,
+          "same_artifacts": true,
+          "same_binary": true,
+          "same_build_digest": true,
+          "same_case": true,
+          "same_command_count": true,
+          "same_commands": true,
+          "same_config": true,
+          "same_group": true,
+          "same_local_ticks": true,
+          "same_replies": true,
+          "seed": "unknown",
+          "time_budget": "unknown"
+        },
+        "coverage_comparison_available": false,
+        "coverage_comparison_reason": "fresh-prefix-not-instrumented",
+        "limitations": [
+          "Equal commands, replies and local ticks across two invocations do not turn the fresh prefix into a coverage measurement.",
+          "The fresh prefix was not instrumented, so no second covered/total exists to compare.",
+          "Seed, time budget, execution budget and fairness remain unknown.",
+          "Saved-file agreement does not authenticate either original process.",
+          "A reproducible prefix is not evidence of tool superiority."
+        ],
+        "mode": "own-original-fresh-prefix",
+        "prefixes": {
+          "admission_sha256": "ccb9d2c62bfc4870d04fb08e63dddfdaac4c858dee8d38c0c46694c241a8d52d",
+          "binary_sha256": "0d1282a87e2afa0e16fe8944f88b31510eef7cec8a9cead58bebe71274214a87",
+          "build_digest": "7c80b436b4d4f0a9b1ad8c4b0ed8f226ff2263884f8c4b4fee8ec995a0ba44fa",
+          "commands": 134,
+          "component": "sha_active",
+          "config_sha256": "db29bb77ff35d6375aaca272cdb117455bf3611a7b963abf7ae04118cd8d9923",
+          "fresh": {
+            "commands": 134,
+            "execution_nonce": "1759805cf26d4c4e906dc441e7a737e6",
+            "local_ticks": 146,
+            "process_exit_codes": {
+              "cpu": 0,
+              "sha_active": 0,
+              "sha_idle": 0
+            },
+            "process_pids": {
+              "cpu": 2052001,
+              "sha_active": 2052033,
+              "sha_idle": 2052066
+            },
+            "root": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/fresh",
+            "summary_mode": "fresh",
+            "summary_status": "verified",
+            "trace": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/fresh/fresh/local_commands.json",
+            "trace_sha256": "fe6896205f954e4a0fed70da7e05b9ebdf43e3d7f198dc28a576403c71fdc8f9"
+          },
+          "local_ticks": 146,
+          "original": {
+            "commands": 134,
+            "execution_nonce": "42fdfe79d68d4cd58a7f0c52994d482b",
+            "local_ticks": 146,
+            "process_exit_codes": {
+              "cpu": 0,
+              "sha_active": 0,
+              "sha_idle": 0
+            },
+            "process_pids": {
+              "cpu": 2046929,
+              "sha_active": 2046961,
+              "sha_idle": 2046993
+            },
+            "root": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/original",
+            "summary_mode": "original",
+            "summary_status": "verified",
+            "trace": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/original/original/local-command-trace.json",
+            "trace_sha256": "4763afa8b9d541212bcd5023381f8f200002356f361a2bc2f4608d1296d1cbdd"
+          }
+        },
+        "reasons": [],
+        "schema_version": "local_harness_coverage_comparison.v1",
+        "scope": "recorded command/reply/tick identity of this run's own original and fresh prefixes; only the original prefix carries coverage",
+        "status": "comparable_prefix"
+      },
+      "coverage": {
+        "attestation": "recorded-prefix-replay.v1",
+        "by_kind": {
+          "branch": {
+            "covered": 181,
+            "total": 328
+          },
+          "line": {
+            "covered": 178,
+            "total": 286
+          }
+        },
+        "commands": {
+          "count": 134,
+          "lengths_bytes": [
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            64,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            64,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            64,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            63,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52
+          ],
+          "local_ticks": 146
+        },
+        "component": "sha_active",
+        "coverage_auc_available": false,
+        "coverage_data_sha256": "461c4cafe2e1b30a230019c427064d44e0a5302402622fdf46d8c68fda40a97f",
+        "coverage_kind": "verilator-line-block",
+        "covered": 359,
+        "denominator_sha256": "6849c90f1bf5aaa1dd39587b574d3f0595ed168916292f86ea4075e07f2919db",
+        "files": {
+          "third_party/caliptra_upstream_reference/src/libs/rtl/ahb_slv_sif.sv": {
+            "covered": 12,
+            "total": 19
+          },
+          "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256.sv": {
+            "covered": 36,
+            "total": 64
+          },
+          "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_core.v": {
+            "covered": 23,
+            "total": 48
+          },
+          "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_k_constants.v": {
+            "covered": 2,
+            "total": 65
+          },
+          "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_reg.sv": {
+            "covered": 272,
+            "total": 395
+          },
+          "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_w_mem.v": {
+            "covered": 14,
+            "total": 23
+          }
+        },
+        "fixed_time_coverage": false,
+        "includes_budget_overrun": true,
+        "includes_startup_reset": true,
+        "limitations": [
+          "Offline saved-prefix coverage is not online or fixed-time-point coverage.",
+          "Saved-file consistency does not authenticate the original execution.",
+          "Verilator point kinds are reported as saved; the line/block metric is not source-branch coverage.",
+          "Line/block coverage of one generated component is not an SoC metric."
+        ],
+        "local_ticks": 146,
+        "measurement": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/coverage-target",
+        "metric": "verilator-line-block:sha_active:dut",
+        "online": false,
+        "original_binary_sha256": "0d1282a87e2afa0e16fe8944f88b31510eef7cec8a9cead58bebe71274214a87",
+        "original_build_digest": "7c80b436b4d4f0a9b1ad8c4b0ed8f226ff2263884f8c4b4fee8ec995a0ba44fa",
+        "original_cache": "runs/config-driven-20261028/cache/7c80b436b4d4f0a9b1ad8c4b0ed8f226ff2263884f8c4b4fee8ec995a0ba44fa",
+        "point_set_sha256": "87f0c9c4eeab1928e574ff16d50f159108dcb93a20ee2a91ee443c6930853c72",
+        "reply_lines": 143,
+        "reply_results": 134,
+        "scope": "offline full executed component prefix including startup/reset and any budget overrun",
+        "source_selection": {
+          "all_points": 636,
+          "basis": "structural build source files; hierarchy retained",
+          "dut_lit_points": 359,
+          "dut_points": 614
+        },
+        "status": "available",
+        "total": 614,
+        "trace": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/original/original/local-command-trace.json",
+        "trace_sha256": "4763afa8b9d541212bcd5023381f8f200002356f361a2bc2f4608d1296d1cbdd"
+      },
+      "fresh_prefix": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/fresh",
+      "inputs": {
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/coverage-target/build.log": "794d5c0d25e055d27dd5bab6808fc7c43669f32fcc86a9a9a6f4df188d821d42",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/coverage-target/commands.txt": "50fa4970a9201f6abcc0d383ed9c737ad12b5b713333710a51e6522e1b491495",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/coverage-target/coverage-points.json": "87f0c9c4eeab1928e574ff16d50f159108dcb93a20ee2a91ee443c6930853c72",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/coverage-target/coverage.dat": "461c4cafe2e1b30a230019c427064d44e0a5302402622fdf46d8c68fda40a97f",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/coverage-target/coverage.json": "c11472e7c6aa74840d7f2f5bb4d7a64d52492e769633ede82d7eda16eaebea01",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/coverage-target/inputs/generated/artifact.json": "029e9f728dfec24b530f5ab4854611aafd75f7a647649e83c8925061cbcd0af1",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/coverage-target/inputs/generated/driver.cpp": "98a9a59744db59534d3d24392885938d638186aed3fefa67cdf4d558e98f13b8",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/coverage-target/obj/harness": "a2e8599981baf362eae367e609d8a63dd9d2380ded2b9f6a1ba551bc720c3697",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/coverage-target/replies.txt": "5b1cd6c5f170deb868f39ddf32fd85367b8d8cc6f57f919f094bc014eb9ea104",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/fresh/config.json": "2600bbfbbc1f82231cc9b960a08fd4026e61d0876247404a9ccae728e6174df1",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/fresh/fresh/local_commands.json": "fe6896205f954e4a0fed70da7e05b9ebdf43e3d7f198dc28a576403c71fdc8f9",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/fresh/prefix.json": "a2d3fdee9f14ea94694254398e3e000f03bba7e3f2f4b658d11d9e4d0480a2e5",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/fresh/summary.json": "4ab279f63420ecef550096eef5147a11e449e7ba191ab0ee9c59482cc2943b1e",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/original/config.json": "2600bbfbbc1f82231cc9b960a08fd4026e61d0876247404a9ccae728e6174df1",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/original/original/local-command-trace.json": "4763afa8b9d541212bcd5023381f8f200002356f361a2bc2f4608d1296d1cbdd",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/original/prefix.json": "452e9f602a417566d098f66887e2c6a0c077edbb197457010955b9b329ecf14b",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/original/summary.json": "c7a200da900acc7f09f8cfed492e6e032c2a728cca84647df62012d6874c895f"
+      },
+      "original_prefix": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/original",
+      "reproduction": [
+        "PYTHONPATH=src:. python3 scripts/measure_new_path_coverage.py --run research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/original --measurement research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/coverage-target --cache runs/config-driven-20261028/cache/7c80b436b4d4f0a9b1ad8c4b0ed8f226ff2263884f8c4b4fee8ec995a0ba44fa --component sha_active --original-prefix research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/original --fresh-prefix research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/fresh"
+      ],
+      "run": "ahb-sha",
+      "scopes": [
+        {
+          "component": "sha_active",
+          "document": {
+            "comparability": {
+              "comparison": null,
+              "conditions": {
+                "both_exit_zero": true,
+                "execution_budget": "unknown",
+                "fairness": "unknown",
+                "matches_measured_prefix": true,
+                "process_independence": "separate-invocations",
+                "same_admission": true,
+                "same_artifacts": true,
+                "same_binary": true,
+                "same_build_digest": true,
+                "same_case": true,
+                "same_command_count": true,
+                "same_commands": true,
+                "same_config": true,
+                "same_group": true,
+                "same_local_ticks": true,
+                "same_replies": true,
+                "seed": "unknown",
+                "time_budget": "unknown"
+              },
+              "coverage_comparison_available": false,
+              "coverage_comparison_reason": "fresh-prefix-not-instrumented",
+              "limitations": [
+                "Equal commands, replies and local ticks across two invocations do not turn the fresh prefix into a coverage measurement.",
+                "The fresh prefix was not instrumented, so no second covered/total exists to compare.",
+                "Seed, time budget, execution budget and fairness remain unknown.",
+                "Saved-file agreement does not authenticate either original process.",
+                "A reproducible prefix is not evidence of tool superiority."
+              ],
+              "mode": "own-original-fresh-prefix",
+              "prefixes": {
+                "admission_sha256": "ccb9d2c62bfc4870d04fb08e63dddfdaac4c858dee8d38c0c46694c241a8d52d",
+                "binary_sha256": "0d1282a87e2afa0e16fe8944f88b31510eef7cec8a9cead58bebe71274214a87",
+                "build_digest": "7c80b436b4d4f0a9b1ad8c4b0ed8f226ff2263884f8c4b4fee8ec995a0ba44fa",
+                "commands": 134,
+                "component": "sha_active",
+                "config_sha256": "db29bb77ff35d6375aaca272cdb117455bf3611a7b963abf7ae04118cd8d9923",
+                "fresh": {
+                  "commands": 134,
+                  "execution_nonce": "1759805cf26d4c4e906dc441e7a737e6",
+                  "local_ticks": 146,
+                  "process_exit_codes": {
+                    "cpu": 0,
+                    "sha_active": 0,
+                    "sha_idle": 0
+                  },
+                  "process_pids": {
+                    "cpu": 2052001,
+                    "sha_active": 2052033,
+                    "sha_idle": 2052066
+                  },
+                  "root": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/fresh",
+                  "summary_mode": "fresh",
+                  "summary_status": "verified",
+                  "trace": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/fresh/fresh/local_commands.json",
+                  "trace_sha256": "fe6896205f954e4a0fed70da7e05b9ebdf43e3d7f198dc28a576403c71fdc8f9"
+                },
+                "local_ticks": 146,
+                "original": {
+                  "commands": 134,
+                  "execution_nonce": "42fdfe79d68d4cd58a7f0c52994d482b",
+                  "local_ticks": 146,
+                  "process_exit_codes": {
+                    "cpu": 0,
+                    "sha_active": 0,
+                    "sha_idle": 0
+                  },
+                  "process_pids": {
+                    "cpu": 2046929,
+                    "sha_active": 2046961,
+                    "sha_idle": 2046993
+                  },
+                  "root": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/original",
+                  "summary_mode": "original",
+                  "summary_status": "verified",
+                  "trace": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/original/original/local-command-trace.json",
+                  "trace_sha256": "4763afa8b9d541212bcd5023381f8f200002356f361a2bc2f4608d1296d1cbdd"
+                }
+              },
+              "reasons": [],
+              "schema_version": "local_harness_coverage_comparison.v1",
+              "scope": "recorded command/reply/tick identity of this run's own original and fresh prefixes; only the original prefix carries coverage",
+              "status": "comparable_prefix"
+            },
+            "coverage": {
+              "attestation": "recorded-prefix-replay.v1",
+              "by_kind": {
+                "branch": {
+                  "covered": 181,
+                  "total": 328
+                },
+                "line": {
+                  "covered": 178,
+                  "total": 286
+                }
+              },
+              "commands": {
+                "count": 134,
+                "lengths_bytes": [
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  64,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  64,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  64,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  63,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52
+                ],
+                "local_ticks": 146
+              },
+              "component": "sha_active",
+              "coverage_auc_available": false,
+              "coverage_data_sha256": "461c4cafe2e1b30a230019c427064d44e0a5302402622fdf46d8c68fda40a97f",
+              "coverage_kind": "verilator-line-block",
+              "covered": 359,
+              "denominator_sha256": "6849c90f1bf5aaa1dd39587b574d3f0595ed168916292f86ea4075e07f2919db",
+              "files": {
+                "third_party/caliptra_upstream_reference/src/libs/rtl/ahb_slv_sif.sv": {
+                  "covered": 12,
+                  "total": 19
+                },
+                "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256.sv": {
+                  "covered": 36,
+                  "total": 64
+                },
+                "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_core.v": {
+                  "covered": 23,
+                  "total": 48
+                },
+                "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_k_constants.v": {
+                  "covered": 2,
+                  "total": 65
+                },
+                "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_reg.sv": {
+                  "covered": 272,
+                  "total": 395
+                },
+                "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_w_mem.v": {
+                  "covered": 14,
+                  "total": 23
+                }
+              },
+              "fixed_time_coverage": false,
+              "includes_budget_overrun": true,
+              "includes_startup_reset": true,
+              "limitations": [
+                "Offline saved-prefix coverage is not online or fixed-time-point coverage.",
+                "Saved-file consistency does not authenticate the original execution.",
+                "Verilator point kinds are reported as saved; the line/block metric is not source-branch coverage.",
+                "Line/block coverage of one generated component is not an SoC metric."
+              ],
+              "local_ticks": 146,
+              "measurement": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/coverage-target",
+              "metric": "verilator-line-block:sha_active:dut",
+              "online": false,
+              "original_binary_sha256": "0d1282a87e2afa0e16fe8944f88b31510eef7cec8a9cead58bebe71274214a87",
+              "original_build_digest": "7c80b436b4d4f0a9b1ad8c4b0ed8f226ff2263884f8c4b4fee8ec995a0ba44fa",
+              "original_cache": "runs/config-driven-20261028/cache/7c80b436b4d4f0a9b1ad8c4b0ed8f226ff2263884f8c4b4fee8ec995a0ba44fa",
+              "point_set_sha256": "87f0c9c4eeab1928e574ff16d50f159108dcb93a20ee2a91ee443c6930853c72",
+              "reply_lines": 143,
+              "reply_results": 134,
+              "scope": "offline full executed component prefix including startup/reset and any budget overrun",
+              "source_selection": {
+                "all_points": 636,
+                "basis": "structural build source files; hierarchy retained",
+                "dut_lit_points": 359,
+                "dut_points": 614
+              },
+              "status": "available",
+              "total": 614,
+              "trace": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/original/original/local-command-trace.json",
+              "trace_sha256": "4763afa8b9d541212bcd5023381f8f200002356f361a2bc2f4608d1296d1cbdd"
+            },
+            "fixed_time_coverage": false,
+            "focus": null,
+            "inputs": {
+              "baseline_measurement": null,
+              "baseline_run": null,
+              "cache": "runs/config-driven-20261028/cache/7c80b436b4d4f0a9b1ad8c4b0ed8f226ff2263884f8c4b4fee8ec995a0ba44fa",
+              "component": "sha_active",
+              "fresh_prefix": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/fresh",
+              "measurement": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/coverage-target",
+              "original_prefix": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/original",
+              "run": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/original"
+            },
+            "limitations": [
+              "This document describes a saved replay, not a new native run.",
+              "Comparability keeps seed, budget, process independence and fairness unknown.",
+              "A fresh prefix without its own instrumented measurement is not coverage."
+            ],
+            "native_authority": false,
+            "online": false,
+            "schema_version": "directed_new_path_coverage.v1",
+            "scope": "saved offline component prefix replay",
+            "status": "available"
+          },
+          "files": {
+            "build.log": {
+              "present": true,
+              "sha256": "794d5c0d25e055d27dd5bab6808fc7c43669f32fcc86a9a9a6f4df188d821d42"
+            },
+            "commands.txt": {
+              "present": true,
+              "sha256": "50fa4970a9201f6abcc0d383ed9c737ad12b5b713333710a51e6522e1b491495"
+            },
+            "coverage-points.json": {
+              "present": true,
+              "sha256": "87f0c9c4eeab1928e574ff16d50f159108dcb93a20ee2a91ee443c6930853c72"
+            },
+            "coverage.dat": {
+              "present": true,
+              "sha256": "461c4cafe2e1b30a230019c427064d44e0a5302402622fdf46d8c68fda40a97f"
+            },
+            "coverage.json": {
+              "present": true,
+              "sha256": "c11472e7c6aa74840d7f2f5bb4d7a64d52492e769633ede82d7eda16eaebea01"
+            },
+            "inputs/generated/artifact.json": {
+              "present": true,
+              "sha256": "029e9f728dfec24b530f5ab4854611aafd75f7a647649e83c8925061cbcd0af1"
+            },
+            "inputs/generated/driver.cpp": {
+              "present": true,
+              "sha256": "98a9a59744db59534d3d24392885938d638186aed3fefa67cdf4d558e98f13b8"
+            },
+            "obj/harness": {
+              "present": true,
+              "sha256": "a2e8599981baf362eae367e609d8a63dd9d2380ded2b9f6a1ba551bc720c3697"
+            },
+            "replies.txt": {
+              "present": true,
+              "sha256": "5b1cd6c5f170deb868f39ddf32fd85367b8d8cc6f57f919f094bc014eb9ea104"
+            }
+          },
+          "measurement": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/ahb-sha/coverage-target",
+          "missing_inputs": null,
+          "original_cache": "runs/config-driven-20261028/cache/7c80b436b4d4f0a9b1ad8c4b0ed8f226ff2263884f8c4b4fee8ec995a0ba44fa",
+          "reason": null,
+          "scope": "coverage-target",
+          "status": "available"
+        }
+      ],
+      "status": "available",
+      "target_component": "sha_active"
+    },
+    {
+      "comparability": {
+        "comparison": null,
+        "conditions": {
+          "both_exit_zero": true,
+          "execution_budget": "unknown",
+          "fairness": "unknown",
+          "matches_measured_prefix": true,
+          "process_independence": "separate-invocations",
+          "same_admission": true,
+          "same_artifacts": true,
+          "same_binary": true,
+          "same_build_digest": true,
+          "same_case": true,
+          "same_command_count": true,
+          "same_commands": true,
+          "same_config": true,
+          "same_group": true,
+          "same_local_ticks": true,
+          "same_replies": true,
+          "seed": "unknown",
+          "time_budget": "unknown"
+        },
+        "coverage_comparison_available": false,
+        "coverage_comparison_reason": "fresh-prefix-not-instrumented",
+        "limitations": [
+          "Equal commands, replies and local ticks across two invocations do not turn the fresh prefix into a coverage measurement.",
+          "The fresh prefix was not instrumented, so no second covered/total exists to compare.",
+          "Seed, time budget, execution budget and fairness remain unknown.",
+          "Saved-file agreement does not authenticate either original process.",
+          "A reproducible prefix is not evidence of tool superiority."
+        ],
+        "mode": "own-original-fresh-prefix",
+        "prefixes": {
+          "admission_sha256": "7248d41c230874922912be5be72394e774025ab68146ee5b04db5556c320aeb2",
+          "binary_sha256": "eb9c0824b55455b2bd5a72979256a9990aec5afb7426a03a7f4fb71dcfd5c584",
+          "build_digest": "1e26eb155dfb6e8ca7d150a7d3bef59e032836b7a8fe2cf0490bd2ab77981d46",
+          "commands": 106,
+          "component": "spi_active",
+          "config_sha256": "2e3395431242fbd146513c7dc5a99416ce302b648c0800c37d9d9ce9031ef763",
+          "fresh": {
+            "commands": 106,
+            "execution_nonce": "7d5fcb146acc462794fd45d9baf09846",
+            "local_ticks": 112,
+            "process_exit_codes": {
+              "cpu": 0,
+              "spi_active": 0,
+              "spi_idle": 0
+            },
+            "process_pids": {
+              "cpu": 2042511,
+              "spi_active": 2042543,
+              "spi_idle": 2042575
+            },
+            "root": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/fresh",
+            "summary_mode": "fresh",
+            "summary_status": "verified",
+            "trace": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/fresh/fresh/local_commands.json",
+            "trace_sha256": "7a4c61555d15ec38b32544717df088303466b99c74cb850681cce45346ed4aaa"
+          },
+          "local_ticks": 112,
+          "original": {
+            "commands": 106,
+            "execution_nonce": "a6f7ed383ff443278b9b6d78cd0b6961",
+            "local_ticks": 112,
+            "process_exit_codes": {
+              "cpu": 0,
+              "spi_active": 0,
+              "spi_idle": 0
+            },
+            "process_pids": {
+              "cpu": 2040596,
+              "spi_active": 2040628,
+              "spi_idle": 2040660
+            },
+            "root": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/original",
+            "summary_mode": "original",
+            "summary_status": "verified",
+            "trace": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/original/original/local-command-trace.json",
+            "trace_sha256": "ff44c491184e96239e9dc102c9afe6c8e8ce420a342696f95125e3fde749c615"
+          }
+        },
+        "reasons": [],
+        "schema_version": "local_harness_coverage_comparison.v1",
+        "scope": "recorded command/reply/tick identity of this run's own original and fresh prefixes; only the original prefix carries coverage",
+        "status": "comparable_prefix"
+      },
+      "coverage": {
+        "attestation": "recorded-prefix-replay.v1",
+        "by_kind": {
+          "branch": {
+            "covered": 47,
+            "total": 194
+          },
+          "line": {
+            "covered": 38,
+            "total": 77
+          }
+        },
+        "commands": {
+          "count": 106,
+          "lengths_bytes": [
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            52,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            71,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            64,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53
+          ],
+          "local_ticks": 112
+        },
+        "component": "spi_active",
+        "coverage_auc_available": false,
+        "coverage_data_sha256": "8b92abc2a93c1124572c03b4c3cc99f9762cbd09e5f5a46e48fe0ef5a3cd3764",
+        "coverage_kind": "verilator-line-block",
+        "covered": 85,
+        "denominator_sha256": "c8dc60812118edd53b3113f51bd6cc33a3c59ed7ed12c74133d5e2eb861a96b7",
+        "files": {
+          "third_party/soc-pulp-apb-spi/apb_spi_master.sv": {
+            "covered": 25,
+            "total": 41
+          },
+          "third_party/soc-pulp-apb-spi/spi_master_apb_if.sv": {
+            "covered": 9,
+            "total": 21
+          },
+          "third_party/soc-pulp-axi-spi/spi_master_clkgen.sv": {
+            "covered": 8,
+            "total": 12
+          },
+          "third_party/soc-pulp-axi-spi/spi_master_controller.sv": {
+            "covered": 10,
+            "total": 114
+          },
+          "third_party/soc-pulp-axi-spi/spi_master_fifo.sv": {
+            "covered": 16,
+            "total": 27
+          },
+          "third_party/soc-pulp-axi-spi/spi_master_rx.sv": {
+            "covered": 8,
+            "total": 30
+          },
+          "third_party/soc-pulp-axi-spi/spi_master_tx.sv": {
+            "covered": 9,
+            "total": 26
+          }
+        },
+        "fixed_time_coverage": false,
+        "includes_budget_overrun": true,
+        "includes_startup_reset": true,
+        "limitations": [
+          "Offline saved-prefix coverage is not online or fixed-time-point coverage.",
+          "Saved-file consistency does not authenticate the original execution.",
+          "Verilator point kinds are reported as saved; the line/block metric is not source-branch coverage.",
+          "Line/block coverage of one generated component is not an SoC metric."
+        ],
+        "local_ticks": 112,
+        "measurement": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/coverage-target",
+        "metric": "verilator-line-block:spi_active:dut",
+        "online": false,
+        "original_binary_sha256": "eb9c0824b55455b2bd5a72979256a9990aec5afb7426a03a7f4fb71dcfd5c584",
+        "original_build_digest": "1e26eb155dfb6e8ca7d150a7d3bef59e032836b7a8fe2cf0490bd2ab77981d46",
+        "original_cache": "runs/config-driven-20261028/cache/1e26eb155dfb6e8ca7d150a7d3bef59e032836b7a8fe2cf0490bd2ab77981d46",
+        "point_set_sha256": "009ab3fba69473efb641a4690c93fa8461bdec3a55f09391bed22c968693e518",
+        "reply_lines": 113,
+        "reply_results": 106,
+        "scope": "offline full executed component prefix including startup/reset and any budget overrun",
+        "source_selection": {
+          "all_points": 302,
+          "basis": "structural build source files; hierarchy retained",
+          "dut_lit_points": 85,
+          "dut_points": 271
+        },
+        "status": "available",
+        "total": 271,
+        "trace": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/original/original/local-command-trace.json",
+        "trace_sha256": "ff44c491184e96239e9dc102c9afe6c8e8ce420a342696f95125e3fde749c615"
+      },
+      "fresh_prefix": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/fresh",
+      "inputs": {
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/coverage-target/build.log": "8a4cdb09dee50e9e0606438b20d855d175647a70735760778e63bdcb5e7e57db",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/coverage-target/commands.txt": "bdecdbbff0648c9b35b061a1d34a5a8297f7008f7d57d3b0ad832fec2abbf06b",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/coverage-target/coverage-points.json": "009ab3fba69473efb641a4690c93fa8461bdec3a55f09391bed22c968693e518",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/coverage-target/coverage.dat": "8b92abc2a93c1124572c03b4c3cc99f9762cbd09e5f5a46e48fe0ef5a3cd3764",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/coverage-target/coverage.json": "09affe80c65d9adc4d5e331cf7c311dcd6a99d6179410986702041771b6a6da0",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/coverage-target/inputs/generated/artifact.json": "4762a87e32e531522f4aa9f0319684da8bf4843d903a305963e3e662b9326ba2",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/coverage-target/inputs/generated/driver.cpp": "5150b751187618c6af585323906400cf6e888e8c7c357410df23b24ec392fc31",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/coverage-target/obj/harness": "96ec0e0817d7f468270647b514a3ce4a4f3c32f0a6fa4ec62a3c82a789d43caa",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/coverage-target/replies.txt": "0186e8b8180ac082dbf23fc42b7d9fa94dbcb96609958af3f7f1135897a17ce0",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/fresh/config.json": "27f740cad45ce8d61efa3a1873b68885dc2c7eb026a4530fd1d6434a64835187",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/fresh/fresh/local_commands.json": "7a4c61555d15ec38b32544717df088303466b99c74cb850681cce45346ed4aaa",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/fresh/prefix.json": "1221c63ab6f000b4eaaa763d9f7842f00ed4fd926ee23ad5e25484c00f2a48b3",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/fresh/summary.json": "0369eadf2f6727605822a3733748bbfa619abfa09cea6096c34f1cff0aaf759b",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/original/config.json": "27f740cad45ce8d61efa3a1873b68885dc2c7eb026a4530fd1d6434a64835187",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/original/original/local-command-trace.json": "ff44c491184e96239e9dc102c9afe6c8e8ce420a342696f95125e3fde749c615",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/original/prefix.json": "cd2eed2767669d897fa202b87aaf100ce5c8b2d120f6f4cdcec81307000d9d9e",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/original/summary.json": "01e78ccb765c704da23757c0c50f914ad242c4af0a24f9475cdd2d9c09d3688b"
+      },
+      "original_prefix": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/original",
+      "reproduction": [
+        "PYTHONPATH=src:. python3 scripts/measure_new_path_coverage.py --run research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/original --measurement research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/coverage-target --cache runs/config-driven-20261028/cache/1e26eb155dfb6e8ca7d150a7d3bef59e032836b7a8fe2cf0490bd2ab77981d46 --component spi_active --original-prefix research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/original --fresh-prefix research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/fresh"
+      ],
+      "run": "apb-spi",
+      "scopes": [
+        {
+          "component": "spi_active",
+          "document": {
+            "comparability": {
+              "comparison": null,
+              "conditions": {
+                "both_exit_zero": true,
+                "execution_budget": "unknown",
+                "fairness": "unknown",
+                "matches_measured_prefix": true,
+                "process_independence": "separate-invocations",
+                "same_admission": true,
+                "same_artifacts": true,
+                "same_binary": true,
+                "same_build_digest": true,
+                "same_case": true,
+                "same_command_count": true,
+                "same_commands": true,
+                "same_config": true,
+                "same_group": true,
+                "same_local_ticks": true,
+                "same_replies": true,
+                "seed": "unknown",
+                "time_budget": "unknown"
+              },
+              "coverage_comparison_available": false,
+              "coverage_comparison_reason": "fresh-prefix-not-instrumented",
+              "limitations": [
+                "Equal commands, replies and local ticks across two invocations do not turn the fresh prefix into a coverage measurement.",
+                "The fresh prefix was not instrumented, so no second covered/total exists to compare.",
+                "Seed, time budget, execution budget and fairness remain unknown.",
+                "Saved-file agreement does not authenticate either original process.",
+                "A reproducible prefix is not evidence of tool superiority."
+              ],
+              "mode": "own-original-fresh-prefix",
+              "prefixes": {
+                "admission_sha256": "7248d41c230874922912be5be72394e774025ab68146ee5b04db5556c320aeb2",
+                "binary_sha256": "eb9c0824b55455b2bd5a72979256a9990aec5afb7426a03a7f4fb71dcfd5c584",
+                "build_digest": "1e26eb155dfb6e8ca7d150a7d3bef59e032836b7a8fe2cf0490bd2ab77981d46",
+                "commands": 106,
+                "component": "spi_active",
+                "config_sha256": "2e3395431242fbd146513c7dc5a99416ce302b648c0800c37d9d9ce9031ef763",
+                "fresh": {
+                  "commands": 106,
+                  "execution_nonce": "7d5fcb146acc462794fd45d9baf09846",
+                  "local_ticks": 112,
+                  "process_exit_codes": {
+                    "cpu": 0,
+                    "spi_active": 0,
+                    "spi_idle": 0
+                  },
+                  "process_pids": {
+                    "cpu": 2042511,
+                    "spi_active": 2042543,
+                    "spi_idle": 2042575
+                  },
+                  "root": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/fresh",
+                  "summary_mode": "fresh",
+                  "summary_status": "verified",
+                  "trace": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/fresh/fresh/local_commands.json",
+                  "trace_sha256": "7a4c61555d15ec38b32544717df088303466b99c74cb850681cce45346ed4aaa"
+                },
+                "local_ticks": 112,
+                "original": {
+                  "commands": 106,
+                  "execution_nonce": "a6f7ed383ff443278b9b6d78cd0b6961",
+                  "local_ticks": 112,
+                  "process_exit_codes": {
+                    "cpu": 0,
+                    "spi_active": 0,
+                    "spi_idle": 0
+                  },
+                  "process_pids": {
+                    "cpu": 2040596,
+                    "spi_active": 2040628,
+                    "spi_idle": 2040660
+                  },
+                  "root": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/original",
+                  "summary_mode": "original",
+                  "summary_status": "verified",
+                  "trace": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/original/original/local-command-trace.json",
+                  "trace_sha256": "ff44c491184e96239e9dc102c9afe6c8e8ce420a342696f95125e3fde749c615"
+                }
+              },
+              "reasons": [],
+              "schema_version": "local_harness_coverage_comparison.v1",
+              "scope": "recorded command/reply/tick identity of this run's own original and fresh prefixes; only the original prefix carries coverage",
+              "status": "comparable_prefix"
+            },
+            "coverage": {
+              "attestation": "recorded-prefix-replay.v1",
+              "by_kind": {
+                "branch": {
+                  "covered": 47,
+                  "total": 194
+                },
+                "line": {
+                  "covered": 38,
+                  "total": 77
+                }
+              },
+              "commands": {
+                "count": 106,
+                "lengths_bytes": [
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  52,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  71,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  64,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53,
+                  53
+                ],
+                "local_ticks": 112
+              },
+              "component": "spi_active",
+              "coverage_auc_available": false,
+              "coverage_data_sha256": "8b92abc2a93c1124572c03b4c3cc99f9762cbd09e5f5a46e48fe0ef5a3cd3764",
+              "coverage_kind": "verilator-line-block",
+              "covered": 85,
+              "denominator_sha256": "c8dc60812118edd53b3113f51bd6cc33a3c59ed7ed12c74133d5e2eb861a96b7",
+              "files": {
+                "third_party/soc-pulp-apb-spi/apb_spi_master.sv": {
+                  "covered": 25,
+                  "total": 41
+                },
+                "third_party/soc-pulp-apb-spi/spi_master_apb_if.sv": {
+                  "covered": 9,
+                  "total": 21
+                },
+                "third_party/soc-pulp-axi-spi/spi_master_clkgen.sv": {
+                  "covered": 8,
+                  "total": 12
+                },
+                "third_party/soc-pulp-axi-spi/spi_master_controller.sv": {
+                  "covered": 10,
+                  "total": 114
+                },
+                "third_party/soc-pulp-axi-spi/spi_master_fifo.sv": {
+                  "covered": 16,
+                  "total": 27
+                },
+                "third_party/soc-pulp-axi-spi/spi_master_rx.sv": {
+                  "covered": 8,
+                  "total": 30
+                },
+                "third_party/soc-pulp-axi-spi/spi_master_tx.sv": {
+                  "covered": 9,
+                  "total": 26
+                }
+              },
+              "fixed_time_coverage": false,
+              "includes_budget_overrun": true,
+              "includes_startup_reset": true,
+              "limitations": [
+                "Offline saved-prefix coverage is not online or fixed-time-point coverage.",
+                "Saved-file consistency does not authenticate the original execution.",
+                "Verilator point kinds are reported as saved; the line/block metric is not source-branch coverage.",
+                "Line/block coverage of one generated component is not an SoC metric."
+              ],
+              "local_ticks": 112,
+              "measurement": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/coverage-target",
+              "metric": "verilator-line-block:spi_active:dut",
+              "online": false,
+              "original_binary_sha256": "eb9c0824b55455b2bd5a72979256a9990aec5afb7426a03a7f4fb71dcfd5c584",
+              "original_build_digest": "1e26eb155dfb6e8ca7d150a7d3bef59e032836b7a8fe2cf0490bd2ab77981d46",
+              "original_cache": "runs/config-driven-20261028/cache/1e26eb155dfb6e8ca7d150a7d3bef59e032836b7a8fe2cf0490bd2ab77981d46",
+              "point_set_sha256": "009ab3fba69473efb641a4690c93fa8461bdec3a55f09391bed22c968693e518",
+              "reply_lines": 113,
+              "reply_results": 106,
+              "scope": "offline full executed component prefix including startup/reset and any budget overrun",
+              "source_selection": {
+                "all_points": 302,
+                "basis": "structural build source files; hierarchy retained",
+                "dut_lit_points": 85,
+                "dut_points": 271
+              },
+              "status": "available",
+              "total": 271,
+              "trace": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/original/original/local-command-trace.json",
+              "trace_sha256": "ff44c491184e96239e9dc102c9afe6c8e8ce420a342696f95125e3fde749c615"
+            },
+            "fixed_time_coverage": false,
+            "focus": null,
+            "inputs": {
+              "baseline_measurement": null,
+              "baseline_run": null,
+              "cache": "runs/config-driven-20261028/cache/1e26eb155dfb6e8ca7d150a7d3bef59e032836b7a8fe2cf0490bd2ab77981d46",
+              "component": "spi_active",
+              "fresh_prefix": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/fresh",
+              "measurement": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/coverage-target",
+              "original_prefix": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/original",
+              "run": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/original"
+            },
+            "limitations": [
+              "This document describes a saved replay, not a new native run.",
+              "Comparability keeps seed, budget, process independence and fairness unknown.",
+              "A fresh prefix without its own instrumented measurement is not coverage."
+            ],
+            "native_authority": false,
+            "online": false,
+            "schema_version": "directed_new_path_coverage.v1",
+            "scope": "saved offline component prefix replay",
+            "status": "available"
+          },
+          "files": {
+            "build.log": {
+              "present": true,
+              "sha256": "8a4cdb09dee50e9e0606438b20d855d175647a70735760778e63bdcb5e7e57db"
+            },
+            "commands.txt": {
+              "present": true,
+              "sha256": "bdecdbbff0648c9b35b061a1d34a5a8297f7008f7d57d3b0ad832fec2abbf06b"
+            },
+            "coverage-points.json": {
+              "present": true,
+              "sha256": "009ab3fba69473efb641a4690c93fa8461bdec3a55f09391bed22c968693e518"
+            },
+            "coverage.dat": {
+              "present": true,
+              "sha256": "8b92abc2a93c1124572c03b4c3cc99f9762cbd09e5f5a46e48fe0ef5a3cd3764"
+            },
+            "coverage.json": {
+              "present": true,
+              "sha256": "09affe80c65d9adc4d5e331cf7c311dcd6a99d6179410986702041771b6a6da0"
+            },
+            "inputs/generated/artifact.json": {
+              "present": true,
+              "sha256": "4762a87e32e531522f4aa9f0319684da8bf4843d903a305963e3e662b9326ba2"
+            },
+            "inputs/generated/driver.cpp": {
+              "present": true,
+              "sha256": "5150b751187618c6af585323906400cf6e888e8c7c357410df23b24ec392fc31"
+            },
+            "obj/harness": {
+              "present": true,
+              "sha256": "96ec0e0817d7f468270647b514a3ce4a4f3c32f0a6fa4ec62a3c82a789d43caa"
+            },
+            "replies.txt": {
+              "present": true,
+              "sha256": "0186e8b8180ac082dbf23fc42b7d9fa94dbcb96609958af3f7f1135897a17ce0"
+            }
+          },
+          "measurement": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/apb-spi/coverage-target",
+          "missing_inputs": null,
+          "original_cache": "runs/config-driven-20261028/cache/1e26eb155dfb6e8ca7d150a7d3bef59e032836b7a8fe2cf0490bd2ab77981d46",
+          "reason": null,
+          "scope": "coverage-target",
+          "status": "available"
+        }
+      ],
+      "status": "available",
+      "target_component": "spi_active"
+    },
+    {
+      "comparability": {
+        "comparison": null,
+        "conditions": {
+          "both_exit_zero": true,
+          "execution_budget": "unknown",
+          "fairness": "unknown",
+          "matches_measured_prefix": true,
+          "process_independence": "separate-invocations",
+          "same_admission": true,
+          "same_artifacts": true,
+          "same_binary": true,
+          "same_build_digest": true,
+          "same_case": true,
+          "same_command_count": true,
+          "same_commands": true,
+          "same_config": true,
+          "same_group": true,
+          "same_local_ticks": true,
+          "same_replies": true,
+          "seed": "unknown",
+          "time_budget": "unknown"
+        },
+        "coverage_comparison_available": false,
+        "coverage_comparison_reason": "fresh-prefix-not-instrumented",
+        "limitations": [
+          "Equal commands, replies and local ticks across two invocations do not turn the fresh prefix into a coverage measurement.",
+          "The fresh prefix was not instrumented, so no second covered/total exists to compare.",
+          "Seed, time budget, execution budget and fairness remain unknown.",
+          "Saved-file agreement does not authenticate either original process.",
+          "A reproducible prefix is not evidence of tool superiority."
+        ],
+        "mode": "own-original-fresh-prefix",
+        "prefixes": {
+          "admission_sha256": "368a53ae6d8286c7bc772cec51f2689b87b8f978c1e3b0356f70d0e0f2ecc0b1",
+          "binary_sha256": "9f10add5acd5493f515f68ca6a5651234213ed6738c1f414692b62a5e6eb4c93",
+          "build_digest": "f526592ac533fdfd499289646df2156ad58139099f7565b14b0ade7c5c1dcc6a",
+          "commands": 110,
+          "component": "wb_timer_active",
+          "config_sha256": "7490625543cca9f822ec4ddb4c04e20c9b314e857ebae1840e66f07c029bc068",
+          "fresh": {
+            "commands": 110,
+            "execution_nonce": "81d3cc28992e4277b1c094bc38b1935b",
+            "local_ticks": 116,
+            "process_exit_codes": {
+              "cpu": 0,
+              "wb_timer_active": 0,
+              "wb_timer_idle": 0
+            },
+            "process_pids": {
+              "cpu": 2039075,
+              "wb_timer_active": 2039107,
+              "wb_timer_idle": 2039139
+            },
+            "root": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/fresh",
+            "summary_mode": "fresh",
+            "summary_status": "verified",
+            "trace": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/fresh/fresh/local_commands.json",
+            "trace_sha256": "48983f4f5f48f6ecc26ee18574c1ae5e86026541bee3569953742ae5a874f210"
+          },
+          "local_ticks": 116,
+          "original": {
+            "commands": 110,
+            "execution_nonce": "096d9316e75840b7b1b2f204753b2c57",
+            "local_ticks": 116,
+            "process_exit_codes": {
+              "cpu": 0,
+              "wb_timer_active": 0,
+              "wb_timer_idle": 0
+            },
+            "process_pids": {
+              "cpu": 2037679,
+              "wb_timer_active": 2037711,
+              "wb_timer_idle": 2037743
+            },
+            "root": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original",
+            "summary_mode": "original",
+            "summary_status": "verified",
+            "trace": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original/original/local-command-trace.json",
+            "trace_sha256": "011d259171d13f35c18e883f6ff715862d452156873348bf14d8400bdaffa378"
+          }
+        },
+        "reasons": [],
+        "schema_version": "local_harness_coverage_comparison.v1",
+        "scope": "recorded command/reply/tick identity of this run's own original and fresh prefixes; only the original prefix carries coverage",
+        "status": "comparable_prefix"
+      },
+      "coverage": {
+        "attestation": "recorded-prefix-replay.v1",
+        "by_kind": {
+          "branch": {
+            "covered": 14,
+            "total": 16
+          },
+          "line": {
+            "covered": 23,
+            "total": 23
+          }
+        },
+        "commands": {
+          "count": 110,
+          "lengths_bytes": [
+            50,
+            50,
+            50,
+            50,
+            50,
+            50,
+            50,
+            50,
+            50,
+            50,
+            50,
+            50,
+            50,
+            50,
+            50,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            61,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            61,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51,
+            51
+          ],
+          "local_ticks": 116
+        },
+        "component": "wb_timer_active",
+        "coverage_auc_available": false,
+        "coverage_data_sha256": "1491e39428e20d3bfc1bc5a6662dc3a5ba5500e81b1c5d95108bab27d019de3e",
+        "coverage_kind": "verilator-line-block",
+        "covered": 37,
+        "denominator_sha256": "2df82e5397fa2c42c37083bcad1635d220169179dfd4f7bdfa5d89015b944160",
+        "files": {
+          "third_party/soc-zipcpu/rtl/peripherals/ziptimer.v": {
+            "covered": 37,
+            "total": 39
+          }
+        },
+        "fixed_time_coverage": false,
+        "includes_budget_overrun": true,
+        "includes_startup_reset": true,
+        "limitations": [
+          "Offline saved-prefix coverage is not online or fixed-time-point coverage.",
+          "Saved-file consistency does not authenticate the original execution.",
+          "Verilator point kinds are reported as saved; the line/block metric is not source-branch coverage.",
+          "Line/block coverage of one generated component is not an SoC metric."
+        ],
+        "local_ticks": 116,
+        "measurement": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-target",
+        "metric": "verilator-line-block:wb_timer_active:dut",
+        "online": false,
+        "original_binary_sha256": "9f10add5acd5493f515f68ca6a5651234213ed6738c1f414692b62a5e6eb4c93",
+        "original_build_digest": "f526592ac533fdfd499289646df2156ad58139099f7565b14b0ade7c5c1dcc6a",
+        "original_cache": "runs/config-driven-20261028/cache/f526592ac533fdfd499289646df2156ad58139099f7565b14b0ade7c5c1dcc6a",
+        "point_set_sha256": "e221d9ac6b2d5992193307c160220663353f2120ee164eb1259a20197a16b429",
+        "reply_lines": 117,
+        "reply_results": 110,
+        "scope": "offline full executed component prefix including startup/reset and any budget overrun",
+        "source_selection": {
+          "all_points": 82,
+          "basis": "structural build source files; hierarchy retained",
+          "dut_lit_points": 37,
+          "dut_points": 39
+        },
+        "status": "available",
+        "total": 39,
+        "trace": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original/original/local-command-trace.json",
+        "trace_sha256": "011d259171d13f35c18e883f6ff715862d452156873348bf14d8400bdaffa378"
+      },
+      "fresh_prefix": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/fresh",
+      "inputs": {
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-cpu/build.log": "c925c0be4419ca179b915699f6ca95798aa47e960a2c11f14498fe83df4df1c6",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-cpu/coverage.dat": "1cbc3ba6c7a982b7fff7f98f7cd134ab5d1a5dda7983d4c367b975e28de908f1",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-cpu/inputs/generated/artifact.json": "0d6fa65899b0ccc8a4b43a584eab9d9e04a8718b1eca2428669b48b6be9114a8",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-cpu/inputs/generated/driver.cpp": "add9f6c9b18d5c203ba2156dd0d2e12aa3d4296eec50528983a6d70fccac01f8",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-cpu/obj/harness": "f1f349ceae00c8f4cacdf02ad4bf200ad8a33374a143408517b7ac7d60ed1132",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-target/build.log": "8a43930c412bd121d3cfb9e14f632e686dd35f8224fcffe636bb25144012305c",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-target/commands.txt": "aa332bf06e490fbff0ec4afbb4643f661d00eb86e7aa6407d3e28b29639f3942",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-target/coverage-points.json": "e221d9ac6b2d5992193307c160220663353f2120ee164eb1259a20197a16b429",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-target/coverage.dat": "1491e39428e20d3bfc1bc5a6662dc3a5ba5500e81b1c5d95108bab27d019de3e",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-target/coverage.json": "f70784caca3d32211484ed47d9177d861838326c14bcaa249118cfd7130add26",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-target/inputs/generated/artifact.json": "08856cb75af40c7cdf45039981c907e92a12c0b5f99d3bca1928f42b009286dc",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-target/inputs/generated/driver.cpp": "b52d74f64773291bb033f4d303eddc725ef9a219cf1996823e92341ad2dc6eb1",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-target/obj/harness": "017ee55bdfd0791185719bb9c1f8d2b569e28f67db17a8c294f5867f6914ceba",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-target/replies.txt": "bf1c3f7adece7a8f6eac949b0f5c4661b617e0a60006d2345e7e36d230a7f684",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/fresh/config.json": "6088ef9e3b673b81525f5b91f788e28f78d0a5515e723bb157c15b49a0835013",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/fresh/fresh/local_commands.json": "48983f4f5f48f6ecc26ee18574c1ae5e86026541bee3569953742ae5a874f210",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/fresh/prefix.json": "6cb4080c82167fc387efb8407c83e4912b0a564a31b2ad224b2d32c0cd01a69f",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/fresh/summary.json": "39a15c2b2e92374fa0cd9fcc1a6a0b847689b44a9f0138e7d1b015d53dc8d16e",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original/config.json": "6088ef9e3b673b81525f5b91f788e28f78d0a5515e723bb157c15b49a0835013",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original/original/local-command-trace.json": "011d259171d13f35c18e883f6ff715862d452156873348bf14d8400bdaffa378",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original/prefix.json": "aa8dc8c9e432ad79cebdfbde21abbd23e201a58bb436c18d51aa8ec42c1a7e23",
+        "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original/summary.json": "75c97aa57192a29d04f67d03287b00da479c1859809ec33c781f03c3cd44f68b"
+      },
+      "original_prefix": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original",
+      "reproduction": [
+        "PYTHONPATH=src:. python3 scripts/measure_new_path_coverage.py --run research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original --measurement research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-cpu --cache runs/config-driven-20261028/cache/a06ff3b42591ca1097f9b8c3a471080d4346199501245baeb66edd0fe718c8fc --component cpu --original-prefix research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original --fresh-prefix research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/fresh",
+        "PYTHONPATH=src:. python3 scripts/measure_new_path_coverage.py --run research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original --measurement research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-target --cache runs/config-driven-20261028/cache/f526592ac533fdfd499289646df2156ad58139099f7565b14b0ade7c5c1dcc6a --component wb_timer_active --original-prefix research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original --fresh-prefix research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/fresh"
+      ],
+      "run": "wb-timer",
+      "scopes": [
+        {
+          "component": "cpu",
+          "document": {
+            "comparability": null,
+            "coverage": null,
+            "coverage_auc_available": false,
+            "fixed_time_coverage": false,
+            "inputs": {
+              "baseline_measurement": null,
+              "baseline_run": null,
+              "cache": "runs/config-driven-20261028/cache/a06ff3b42591ca1097f9b8c3a471080d4346199501245baeb66edd0fe718c8fc",
+              "component": "cpu",
+              "fresh_prefix": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/fresh",
+              "measurement": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-cpu",
+              "original_prefix": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original",
+              "run": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original"
+            },
+            "limitations": [
+              "Unavailable evidence never substitutes for a measured number.",
+              "No build, replay or DUT simulation was performed by this script."
+            ],
+            "missing_inputs": [
+              "coverage.json",
+              "commands.txt",
+              "replies.txt"
+            ],
+            "native_authority": false,
+            "online": false,
+            "reason": "incomplete-saved-measurement",
+            "schema_version": "directed_new_path_coverage.v1",
+            "searched_inputs": [],
+            "status": "unavailable"
+          },
+          "files": {
+            "build.log": {
+              "present": true,
+              "sha256": "c925c0be4419ca179b915699f6ca95798aa47e960a2c11f14498fe83df4df1c6"
+            },
+            "commands.txt": {
+              "present": false,
+              "sha256": null
+            },
+            "coverage-points.json": {
+              "present": false,
+              "sha256": null
+            },
+            "coverage.dat": {
+              "present": true,
+              "sha256": "1cbc3ba6c7a982b7fff7f98f7cd134ab5d1a5dda7983d4c367b975e28de908f1"
+            },
+            "coverage.json": {
+              "present": false,
+              "sha256": null
+            },
+            "inputs/generated/artifact.json": {
+              "present": true,
+              "sha256": "0d6fa65899b0ccc8a4b43a584eab9d9e04a8718b1eca2428669b48b6be9114a8"
+            },
+            "inputs/generated/driver.cpp": {
+              "present": true,
+              "sha256": "add9f6c9b18d5c203ba2156dd0d2e12aa3d4296eec50528983a6d70fccac01f8"
+            },
+            "obj/harness": {
+              "present": true,
+              "sha256": "f1f349ceae00c8f4cacdf02ad4bf200ad8a33374a143408517b7ac7d60ed1132"
+            },
+            "replies.txt": {
+              "present": false,
+              "sha256": null
+            }
+          },
+          "measurement": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-cpu",
+          "missing_inputs": [
+            "coverage.json",
+            "commands.txt",
+            "replies.txt"
+          ],
+          "original_cache": "runs/config-driven-20261028/cache/a06ff3b42591ca1097f9b8c3a471080d4346199501245baeb66edd0fe718c8fc",
+          "reason": "incomplete-saved-measurement",
+          "scope": "coverage-cpu",
+          "status": "unavailable"
+        },
+        {
+          "component": "wb_timer_active",
+          "document": {
+            "comparability": {
+              "comparison": null,
+              "conditions": {
+                "both_exit_zero": true,
+                "execution_budget": "unknown",
+                "fairness": "unknown",
+                "matches_measured_prefix": true,
+                "process_independence": "separate-invocations",
+                "same_admission": true,
+                "same_artifacts": true,
+                "same_binary": true,
+                "same_build_digest": true,
+                "same_case": true,
+                "same_command_count": true,
+                "same_commands": true,
+                "same_config": true,
+                "same_group": true,
+                "same_local_ticks": true,
+                "same_replies": true,
+                "seed": "unknown",
+                "time_budget": "unknown"
+              },
+              "coverage_comparison_available": false,
+              "coverage_comparison_reason": "fresh-prefix-not-instrumented",
+              "limitations": [
+                "Equal commands, replies and local ticks across two invocations do not turn the fresh prefix into a coverage measurement.",
+                "The fresh prefix was not instrumented, so no second covered/total exists to compare.",
+                "Seed, time budget, execution budget and fairness remain unknown.",
+                "Saved-file agreement does not authenticate either original process.",
+                "A reproducible prefix is not evidence of tool superiority."
+              ],
+              "mode": "own-original-fresh-prefix",
+              "prefixes": {
+                "admission_sha256": "368a53ae6d8286c7bc772cec51f2689b87b8f978c1e3b0356f70d0e0f2ecc0b1",
+                "binary_sha256": "9f10add5acd5493f515f68ca6a5651234213ed6738c1f414692b62a5e6eb4c93",
+                "build_digest": "f526592ac533fdfd499289646df2156ad58139099f7565b14b0ade7c5c1dcc6a",
+                "commands": 110,
+                "component": "wb_timer_active",
+                "config_sha256": "7490625543cca9f822ec4ddb4c04e20c9b314e857ebae1840e66f07c029bc068",
+                "fresh": {
+                  "commands": 110,
+                  "execution_nonce": "81d3cc28992e4277b1c094bc38b1935b",
+                  "local_ticks": 116,
+                  "process_exit_codes": {
+                    "cpu": 0,
+                    "wb_timer_active": 0,
+                    "wb_timer_idle": 0
+                  },
+                  "process_pids": {
+                    "cpu": 2039075,
+                    "wb_timer_active": 2039107,
+                    "wb_timer_idle": 2039139
+                  },
+                  "root": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/fresh",
+                  "summary_mode": "fresh",
+                  "summary_status": "verified",
+                  "trace": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/fresh/fresh/local_commands.json",
+                  "trace_sha256": "48983f4f5f48f6ecc26ee18574c1ae5e86026541bee3569953742ae5a874f210"
+                },
+                "local_ticks": 116,
+                "original": {
+                  "commands": 110,
+                  "execution_nonce": "096d9316e75840b7b1b2f204753b2c57",
+                  "local_ticks": 116,
+                  "process_exit_codes": {
+                    "cpu": 0,
+                    "wb_timer_active": 0,
+                    "wb_timer_idle": 0
+                  },
+                  "process_pids": {
+                    "cpu": 2037679,
+                    "wb_timer_active": 2037711,
+                    "wb_timer_idle": 2037743
+                  },
+                  "root": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original",
+                  "summary_mode": "original",
+                  "summary_status": "verified",
+                  "trace": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original/original/local-command-trace.json",
+                  "trace_sha256": "011d259171d13f35c18e883f6ff715862d452156873348bf14d8400bdaffa378"
+                }
+              },
+              "reasons": [],
+              "schema_version": "local_harness_coverage_comparison.v1",
+              "scope": "recorded command/reply/tick identity of this run's own original and fresh prefixes; only the original prefix carries coverage",
+              "status": "comparable_prefix"
+            },
+            "coverage": {
+              "attestation": "recorded-prefix-replay.v1",
+              "by_kind": {
+                "branch": {
+                  "covered": 14,
+                  "total": 16
+                },
+                "line": {
+                  "covered": 23,
+                  "total": 23
+                }
+              },
+              "commands": {
+                "count": 110,
+                "lengths_bytes": [
+                  50,
+                  50,
+                  50,
+                  50,
+                  50,
+                  50,
+                  50,
+                  50,
+                  50,
+                  50,
+                  50,
+                  50,
+                  50,
+                  50,
+                  50,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  61,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  61,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51,
+                  51
+                ],
+                "local_ticks": 116
+              },
+              "component": "wb_timer_active",
+              "coverage_auc_available": false,
+              "coverage_data_sha256": "1491e39428e20d3bfc1bc5a6662dc3a5ba5500e81b1c5d95108bab27d019de3e",
+              "coverage_kind": "verilator-line-block",
+              "covered": 37,
+              "denominator_sha256": "2df82e5397fa2c42c37083bcad1635d220169179dfd4f7bdfa5d89015b944160",
+              "files": {
+                "third_party/soc-zipcpu/rtl/peripherals/ziptimer.v": {
+                  "covered": 37,
+                  "total": 39
+                }
+              },
+              "fixed_time_coverage": false,
+              "includes_budget_overrun": true,
+              "includes_startup_reset": true,
+              "limitations": [
+                "Offline saved-prefix coverage is not online or fixed-time-point coverage.",
+                "Saved-file consistency does not authenticate the original execution.",
+                "Verilator point kinds are reported as saved; the line/block metric is not source-branch coverage.",
+                "Line/block coverage of one generated component is not an SoC metric."
+              ],
+              "local_ticks": 116,
+              "measurement": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-target",
+              "metric": "verilator-line-block:wb_timer_active:dut",
+              "online": false,
+              "original_binary_sha256": "9f10add5acd5493f515f68ca6a5651234213ed6738c1f414692b62a5e6eb4c93",
+              "original_build_digest": "f526592ac533fdfd499289646df2156ad58139099f7565b14b0ade7c5c1dcc6a",
+              "original_cache": "runs/config-driven-20261028/cache/f526592ac533fdfd499289646df2156ad58139099f7565b14b0ade7c5c1dcc6a",
+              "point_set_sha256": "e221d9ac6b2d5992193307c160220663353f2120ee164eb1259a20197a16b429",
+              "reply_lines": 117,
+              "reply_results": 110,
+              "scope": "offline full executed component prefix including startup/reset and any budget overrun",
+              "source_selection": {
+                "all_points": 82,
+                "basis": "structural build source files; hierarchy retained",
+                "dut_lit_points": 37,
+                "dut_points": 39
+              },
+              "status": "available",
+              "total": 39,
+              "trace": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original/original/local-command-trace.json",
+              "trace_sha256": "011d259171d13f35c18e883f6ff715862d452156873348bf14d8400bdaffa378"
+            },
+            "fixed_time_coverage": false,
+            "focus": null,
+            "inputs": {
+              "baseline_measurement": null,
+              "baseline_run": null,
+              "cache": "runs/config-driven-20261028/cache/f526592ac533fdfd499289646df2156ad58139099f7565b14b0ade7c5c1dcc6a",
+              "component": "wb_timer_active",
+              "fresh_prefix": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/fresh",
+              "measurement": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-target",
+              "original_prefix": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original",
+              "run": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/original"
+            },
+            "limitations": [
+              "This document describes a saved replay, not a new native run.",
+              "Comparability keeps seed, budget, process independence and fairness unknown.",
+              "A fresh prefix without its own instrumented measurement is not coverage."
+            ],
+            "native_authority": false,
+            "online": false,
+            "schema_version": "directed_new_path_coverage.v1",
+            "scope": "saved offline component prefix replay",
+            "status": "available"
+          },
+          "files": {
+            "build.log": {
+              "present": true,
+              "sha256": "8a43930c412bd121d3cfb9e14f632e686dd35f8224fcffe636bb25144012305c"
+            },
+            "commands.txt": {
+              "present": true,
+              "sha256": "aa332bf06e490fbff0ec4afbb4643f661d00eb86e7aa6407d3e28b29639f3942"
+            },
+            "coverage-points.json": {
+              "present": true,
+              "sha256": "e221d9ac6b2d5992193307c160220663353f2120ee164eb1259a20197a16b429"
+            },
+            "coverage.dat": {
+              "present": true,
+              "sha256": "1491e39428e20d3bfc1bc5a6662dc3a5ba5500e81b1c5d95108bab27d019de3e"
+            },
+            "coverage.json": {
+              "present": true,
+              "sha256": "f70784caca3d32211484ed47d9177d861838326c14bcaa249118cfd7130add26"
+            },
+            "inputs/generated/artifact.json": {
+              "present": true,
+              "sha256": "08856cb75af40c7cdf45039981c907e92a12c0b5f99d3bca1928f42b009286dc"
+            },
+            "inputs/generated/driver.cpp": {
+              "present": true,
+              "sha256": "b52d74f64773291bb033f4d303eddc725ef9a219cf1996823e92341ad2dc6eb1"
+            },
+            "obj/harness": {
+              "present": true,
+              "sha256": "017ee55bdfd0791185719bb9c1f8d2b569e28f67db17a8c294f5867f6914ceba"
+            },
+            "replies.txt": {
+              "present": true,
+              "sha256": "bf1c3f7adece7a8f6eac949b0f5c4661b617e0a60006d2345e7e36d230a7f684"
+            }
+          },
+          "measurement": "research/input-strategy-audit-20261027/runs/declared-irq-f5-20261030/wb-timer/coverage-target",
+          "missing_inputs": null,
+          "original_cache": "runs/config-driven-20261028/cache/f526592ac533fdfd499289646df2156ad58139099f7565b14b0ade7c5c1dcc6a",
+          "reason": null,
+          "scope": "coverage-target",
+          "status": "available"
+        }
+      ],
+      "status": "available",
+      "target_component": "wb_timer_active"
+    }
+  ],
+  "schema_version": "declared_f5_new_path_coverage_report.v1",
+  "scope": "offline Verilator line/block DUT coverage of already saved original component prefixes, plus own original/fresh prefix identity",
+  "unavailable": [
+    {
+      "component": "cpu",
+      "missing_inputs": [
+        "coverage.json",
+        "commands.txt",
+        "replies.txt"
+      ],
+      "reason": "incomplete-saved-measurement",
+      "run": "wb-timer",
+      "scope": "coverage-cpu"
+    }
+  ]
+}

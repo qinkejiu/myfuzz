@@ -1,0 +1,55 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "p1-cpu-picorv32-wb-irq-rvfi-f1f6",
+  "description": "CPU replacement sample: the pinned PicoRV32 Wishbone CPU with native RVFI outputs and the custom IRQ vector runs F1-F6 against the same PULP timer and pinned ZipDMA declaration the Ibex baseline runs. Only the CPU profile and the CPU-side keys differ from configs/scenarios/inprocess-obi-apb-ibex-timer-zipdma-f1f6.json.",
+  "cpu_profile": "configs/cpus/picorv32_wb_irq_rvfi/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 4,
+    "reset_release_ticks": 4,
+    "max_wait_cycles": 16
+  },
+  "cpu_irq_bit": 3,
+  "source_profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+  "source_timing": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "max_wait_cycles": 16
+  },
+  "active_id": "pulp_timer_active",
+  "source_port": "irq_o",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 1,
+  "trigger_writes": [[4, 0], [8, 0], [0, 4294967295]],
+  "status_offsets": [0],
+  "status_cause_bits": null,
+  "clear_writes": [],
+  "dma_profile": "configs/peripherals/zipdma_smoke/component_profile.json",
+  "dma_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "dma_capability": "configs/scenarios/compiled-f1-f6-ibex-gpio-zipdma-shared/dma.test_capability.json",
+  "dma_block_words": 4,
+  "target_window": {
+    "base": 1073745920,
+    "size": 4096
+  },
+  "dma_window": {
+    "base": 1073754112,
+    "size": 16
+  },
+  "image_start": 0,
+  "image_end": 131072,
+  "assume_single_clock": true,
+  "handler_wait_iterations": 64,
+  "case_tick_budget": 12000,
+  "notes": [
+    "the target, DMA, windows, image extent and every F5/F6 fact are the same declaration the Ibex baseline uses; the only differences are cpu_profile, cpu_irq_bit, cpu_timing, image_start, handler_wait_iterations, case_tick_budget and pulse_width_ticks, and each of them is a property of this CPU or of its tick cost, not of the IP",
+    "cpu_irq_bit 3 is this CPU's external custom-IRQ bit: configs/cpus/picorv32_wb_irq_rvfi/component_profile.json records custom_irq_abi {abi picorv32_custom0, input_port irq, width 32, handler_address 16, retirq_encoding 67108875}, and the RTL's own IRQ bits 0-2 have internal sources, so the external timer line is bound to bit 3",
+    "image_start 0 follows the CPU's boot contract (configured_boot_base 0 for this Wishbone top); the Ibex baseline boots at 0x10000 and image_start 65536",
+    "handler_wait_iterations 64 and case_tick_budget 12000: a Wishbone CPU spends far more ticks per wait iteration than the OBI CPU, so the same 256-iteration wait would exceed the entry's fixed guard; 64 iterations stay below it and 12000 covers a slow completed case without mistaking the wait for a hang",
+    "pulse_width_ticks 1 is the host's declared delivery width for the timer's one-HCLK pulse; the Ibex baseline stretches it to 16 ticks because it samples the line on a slower host loop. The width is a delivery choice, not a device fact, and the case line states both the device high ticks and the delivered high ticks",
+    "F1 is the CPU's retirement evidence (RVFI valid/order/insn/pc plus the writeback face this profile really exports), F5 is the timer's real IRQ delivered on the CPU's custom IRQ input and acknowledged with the real eoi, and F6 is the pinned ZipDMA four-word RAM block with its own IRQ. No flow is claimed that the case lines do not read from the device"
+  ]
+}

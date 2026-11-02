@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from copy import deepcopy
+import hashlib
+import json
 
 
 _SCHEMA_VERSION = 'ip_base_event.v1'
@@ -63,6 +66,18 @@ class IpProtocolChecker:
                 or not isinstance(widths, Mapping)):
             raise ValueError('protocol-checker-trace-contract-invalid')
         required = set(_REQUIRED_SIGNALS[protocol])
+        wishbone_byte_enable = protocol_trace.get('byte_enable')
+        wishbone_no_select = protocol == 'wishbone' and 'sel' not in signals
+        if (protocol == 'wishbone' and wishbone_no_select
+                and (not isinstance(wishbone_byte_enable, Mapping)
+                     or wishbone_byte_enable.get('signal') != 'absent')):
+            raise ValueError('protocol-checker-wishbone-byte-enable-contract-required')
+        if (protocol == 'wishbone' and not wishbone_no_select
+                and isinstance(wishbone_byte_enable, Mapping)
+                and wishbone_byte_enable.get('signal') == 'absent'):
+            raise ValueError('protocol-checker-wishbone-no-select-shape-invalid')
+        if wishbone_no_select:
+            required.discard('sel')
         if protocol == 'obi':
             if protocol_trace.get('max_outstanding') != 1 or type(protocol_trace.get('max_outstanding')) is not int:
                 raise ValueError('obi-single-outstanding-contract-required')
@@ -91,7 +106,28 @@ class IpProtocolChecker:
                      < (widths.get('a_data', 0) // 8).bit_length() - 1)
                 or protocol == 'wishbone'
                 and (widths.get('dat_w', 0) % 8 != 0
-                     or widths.get('sel', 0) != widths.get('dat_w', 0) // 8)
+                     or (wishbone_no_select and (
+                         'sel' in signals
+                         or set(signals) - {'cyc', 'stb', 'we', 'adr', 'dat_w',
+                                            'stall', 'ack', 'dat_r', 'err'}
+                         or type(protocol_trace.get('max_outstanding')) is not int
+                         or protocol_trace.get('max_outstanding') != 1
+                         or protocol_trace.get('same_edge_accept_completion') is not False
+                         or wishbone_byte_enable.get('partial_write') is not False
+                         or set(wishbone_byte_enable) not in (
+                             {'signal', 'partial_write'},
+                             {'signal', 'partial_write', 'fixed_value', 'basis'}
+                         )
+                         or 'fixed_value' in wishbone_byte_enable
+                         and (type(wishbone_byte_enable.get('fixed_value')) is not int
+                              or wishbone_byte_enable['fixed_value']
+                              != (1 << (widths.get('dat_w', 0) // 8)) - 1
+                              or wishbone_byte_enable.get('basis')
+                              != 'profile.capabilities.master_fixed_byte_enable')
+                         or 'fixed_value' not in wishbone_byte_enable
+                         and 'basis' in wishbone_byte_enable))
+                     or (not wishbone_no_select
+                         and widths.get('sel', 0) != widths.get('dat_w', 0) // 8))
                 or protocol == 'axi4-lite'
                 and (widths.get('wstrb', 0) < 1
                      or widths.get('wdata', 0) != widths.get('rdata', 0)
@@ -124,6 +160,13 @@ class IpProtocolChecker:
             raise ValueError('protocol-trace-sample-group-invalid')
         self._signals = dict(signals)
         self._widths = dict(widths)
+        self._wishbone_no_select = wishbone_no_select
+        self._wishbone_max_outstanding = (
+            protocol_trace.get('max_outstanding')
+            if protocol == 'wishbone' and wishbone_no_select else None)
+        self._wishbone_same_edge_completion = (
+            protocol_trace.get('same_edge_accept_completion')
+            if protocol == 'wishbone' and wishbone_no_select else None)
         self._reset_epoch: int | None = None
         self._tl_offer: dict[str, object] | None = None
         self._tl_outstanding: dict[int, dict[str, object]] = {}
@@ -777,9 +820,11 @@ class IpProtocolChecker:
         request = signals['cyc'] == 1 and signals['stb'] == 1
         terminal = signals['ack'] == 1 or signals.get('err', 0) == 1
         payload = {role: value for role, value in signals.items()
-                   if role in ('we', 'adr', 'dat_w', 'sel')}
+                   if role in ('we', 'adr', 'sel')
+                   or (role == 'dat_w' and signals['we'] == 1)}
         if request:
-            if signals['we'] and signals['sel'] == 0:
+            if (signals['we'] and 'sel' in signals
+                    and signals['sel'] == 0):
                 self._emit(raw, epoch, emitted, 'wishbone_zero_write_mask',
                            {'signal_role': 'sel', 'observed': 0})
             if signals['stall']:
@@ -811,14 +856,23 @@ class IpProtocolChecker:
                                'wishbone_request_changed_while_stalled',
                                {'expected': offer['payload'], 'observed': payload},
                                state=offer)
-                self._wb_outstanding.append({
-                    'request_event_ref': (offer['request_event_ref']
-                                          if offer is not None
-                                          else raw['event_id']),
-                    'payload': payload, 'wait_count': 0,
-                    'reported_codes': set(),
-                    'accepted_tick': raw['local_tick'],
-                })
+                if (self._wishbone_max_outstanding is not None
+                        and len(self._wb_outstanding)
+                        >= self._wishbone_max_outstanding):
+                    self._emit(raw, epoch, emitted,
+                               'wishbone_single_outstanding_overlap',
+                               {'pending_requests': len(self._wb_outstanding),
+                                'limit': self._wishbone_max_outstanding},
+                               state=self._wb_outstanding[0])
+                else:
+                    self._wb_outstanding.append({
+                        'request_event_ref': (offer['request_event_ref']
+                                              if offer is not None
+                                              else raw['event_id']),
+                        'payload': payload, 'wait_count': 0,
+                        'reported_codes': set(),
+                        'accepted_tick': raw['local_tick'],
+                    })
                 self._wb_offer = None
         elif self._wb_offer is not None:
             offer = self._wb_offer
@@ -836,6 +890,13 @@ class IpProtocolChecker:
                 self._emit(raw, epoch, emitted,
                            'wishbone_response_without_request',
                            {'ack': signals['ack'], 'err': signals.get('err', 0)})
+            elif (self._wishbone_same_edge_completion is False
+                    and self._wb_outstanding[-1].get('accepted_tick')
+                    == raw['local_tick']):
+                self._emit(raw, epoch, emitted,
+                           'wishbone_same_edge_accept_response',
+                           {'ack': signals['ack'], 'err': signals.get('err', 0)},
+                           state=self._wb_outstanding[-1])
             else:
                 self._wb_outstanding.pop(0)
         elif signals['cyc'] and self._wb_outstanding:
@@ -896,3 +957,168 @@ class IpProtocolChecker:
         if active['wait_count'] >= self.max_wait_cycles:
             self._emit(raw, epoch, emitted, 'obi_'+phase+'_wait_budget_exceeded',
                 {'wait_cycles':active['wait_count']}, state=active)
+
+    def pending_state(self):
+        """Return bounded pending Wishbone state for authenticated reports."""
+        if self.protocol != 'wishbone':
+            return {'offers': 0, 'outstanding': 0}
+        return {'offers': int(self._wb_offer is not None),
+                'outstanding': len(self._wb_outstanding)}
+
+
+class WishboneDmaProtocolChecker:
+    """Run independent no-SEL Wishbone checkers over one dual-endpoint DMA tap.
+
+    The checker accepts only an explicit two-endpoint pipelined DMA trace set.
+    No SEL value is invented; each endpoint's byte-enable statement is part of
+    the admitted trace contract and checked by ``IpProtocolChecker``.
+    """
+
+    _SCHEMA = 'wishbone_dma_protocol_checker.v1'
+    _REPORT_SCHEMA = 'wishbone_dma_protocol_checker_report.v1'
+
+    def __init__(self, *, component_id: str, instance_id: str,
+                 trace_set: Mapping[str, object],
+                 artifact_identity: Mapping[str, object] | None = None):
+        if (type(component_id) is not str or not component_id
+                or type(instance_id) is not str or not instance_id
+                or not isinstance(trace_set, Mapping)
+                or set(trace_set) != {'schema_version', 'sampling',
+                                      'sample_group', 'traces'}
+                or trace_set.get('schema_version') != self._SCHEMA
+                or trace_set.get('sampling') != 'pre_post'
+                or trace_set.get('sample_group') != 'backend'
+                or not isinstance(trace_set.get('traces'), (list, tuple))
+                or len(trace_set['traces']) != 2):
+            raise ValueError('wishbone-dma-trace-set-invalid')
+        traces = [deepcopy(dict(row)) if isinstance(row, Mapping) else None
+                  for row in trace_set['traces']]
+        if any(row is None for row in traces):
+            raise ValueError('wishbone-dma-trace-set-invalid')
+        if ({row.get('endpoint_role') for row in traces}
+                != {'control_target', 'memory_master'}
+                or len({row.get('endpoint_id') for row in traces}) != 2
+                or any(type(row.get('reset_domain')) is not str
+                       or not row['reset_domain']
+                       or row.get('sample_group') != 'backend'
+                       or row.get('max_outstanding') != 1
+                       or row.get('same_edge_accept_completion') is not False
+                       for row in traces)):
+            raise ValueError('wishbone-dma-dual-endpoint-identity-invalid')
+        ordered = sorted(traces, key=lambda row: row['endpoint_role'])
+        self.component_id = component_id
+        self.instance_id = instance_id
+        if artifact_identity is not None and (
+                not isinstance(artifact_identity, Mapping)
+                or set(artifact_identity) != {'component_id', 'instance_id',
+                    'artifact_digest', 'profile_fingerprint',
+                    'source_verification_sha256', 'runtime_artifact_sha256'}
+                or artifact_identity.get('component_id') != component_id
+                or artifact_identity.get('instance_id') != instance_id
+                or any(type(artifact_identity.get(key)) is not str
+                       or len(artifact_identity[key]) != 64
+                       or any(ch not in '0123456789abcdef'
+                              for ch in artifact_identity[key])
+                       for key in ('artifact_digest',
+                                   'source_verification_sha256',
+                                   'runtime_artifact_sha256'))
+                or type(artifact_identity.get('profile_fingerprint')) is not str
+                or not artifact_identity['profile_fingerprint'].startswith('sha256:')
+                or len(artifact_identity['profile_fingerprint']) != 71
+                or any(ch not in '0123456789abcdef'
+                       for ch in artifact_identity['profile_fingerprint'][7:])):
+            raise ValueError('wishbone-dma-artifact-identity-invalid')
+        self._artifact_identity = (deepcopy(dict(artifact_identity))
+                                   if artifact_identity is not None else None)
+        self._trace_set = deepcopy(dict(trace_set))
+        self._trace_set_sha256 = hashlib.sha256(json.dumps(
+            self._trace_set, sort_keys=True, separators=(',', ':'),
+            allow_nan=False).encode()).hexdigest()
+        self._checkers = {}
+        self._sample_counts = {}
+        self._last_raw_ids = {}
+        self._finding_rows = []
+        for trace in ordered:
+            endpoint_id = trace.get('endpoint_id')
+            checker = IpProtocolChecker(component_id=component_id,
+                instance_id=instance_id, protocol_trace=trace)
+            self._checkers[endpoint_id] = checker
+            self._sample_counts[endpoint_id] = 0
+            self._last_raw_ids[endpoint_id] = None
+
+    def consume_local_tick(self, raw_event: Mapping[str, object], *,
+                           reset_epoch: int):
+        findings = []
+        is_pre = (isinstance(raw_event, Mapping)
+                  and raw_event.get('kind') == 'local_tick_sample'
+                  and raw_event.get('phase') == 'pre')
+        for endpoint_id, checker in self._checkers.items():
+            endpoint_findings = checker.consume_local_tick(
+                raw_event, reset_epoch=reset_epoch)
+            if is_pre:
+                self._sample_counts[endpoint_id] += 1
+                self._last_raw_ids[endpoint_id] = raw_event['event_id']
+            for finding in endpoint_findings:
+                row = deepcopy(finding)
+                row['endpoint_id'] = endpoint_id
+                row['raw_event_id'] = raw_event['event_id']
+                self._finding_rows.append(row)
+                findings.append(finding)
+        return tuple(findings)
+
+    def snapshot(self):
+        return {'pre_sample_counts': dict(self._sample_counts),
+                'finding_count': len(self._finding_rows)}
+
+    def report(self, *, since=None):
+        if since is not None and (not isinstance(since, Mapping)
+                or set(since) != {'pre_sample_counts', 'finding_count'}
+                or not isinstance(since['pre_sample_counts'], Mapping)
+                or type(since['finding_count']) is not int
+                or since['finding_count'] < 0
+                or since['finding_count'] > len(self._finding_rows)
+                or set(since['pre_sample_counts']) != set(self._sample_counts)):
+            raise ValueError('wishbone-dma-report-snapshot-invalid')
+        lower_counts = (since['pre_sample_counts'] if since is not None else {})
+        start_findings = since['finding_count'] if since is not None else 0
+        counts, pending, endpoints = {}, {}, []
+        for endpoint_id, checker in self._checkers.items():
+            start = lower_counts.get(endpoint_id, 0)
+            if type(start) is not int or start < 0 or start > self._sample_counts[endpoint_id]:
+                raise ValueError('wishbone-dma-report-snapshot-invalid')
+            counts[endpoint_id] = self._sample_counts[endpoint_id] - start
+            pending[endpoint_id] = checker.pending_state()
+            endpoints.append({
+                'endpoint_id': endpoint_id,
+                'endpoint_role': next(row['endpoint_role']
+                    for row in self._trace_set['traces']
+                    if row['endpoint_id'] == endpoint_id),
+                'trace': deepcopy(next(row for row in self._trace_set['traces']
+                    if row['endpoint_id'] == endpoint_id)),
+                'pre_sample_count': counts[endpoint_id],
+                'last_raw_sample_event_id': self._last_raw_ids[endpoint_id],
+                'reset_epoch': checker._reset_epoch,
+                'pending': deepcopy(pending[endpoint_id]),
+            })
+        findings = deepcopy(self._finding_rows[start_findings:])
+        if findings:
+            status = 'violation'
+        elif any(count <= 0 for count in counts.values()
+                 ) or any(state['offers'] or state['outstanding']
+                          for state in pending.values()):
+            status = 'incomplete'
+        else:
+            status = 'clean'
+        return {
+            'schema_version': self._REPORT_SCHEMA,
+            'component_id': self.component_id,
+            'instance_id': self.instance_id,
+            'artifact_identity': deepcopy(self._artifact_identity),
+            'trace_set_sha256': self._trace_set_sha256,
+            'installed_endpoint_ids': sorted(self._checkers),
+            'pre_sample_counts': counts,
+            'findings': findings,
+            'pending': pending,
+            'endpoints': endpoints,
+            'status': status,
+        }

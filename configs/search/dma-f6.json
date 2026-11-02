@@ -1,0 +1,14 @@
+{
+  "schema_version": "dependency_search_scenario.v1",
+  "name": "dma-f6",
+  "backend": "descriptor",
+  "descriptor": "configs/scenarios/compiled-f6-ibex-wbdmac/generic_scenario.json",
+  "flow": "F6",
+  "records": [
+    "F6:0110c00008000000"
+  ],
+  "goal": {
+    "id": "verified-completion",
+    "description": "Configured objective; live reward requires an admitted state provider."
+  }
+}

@@ -466,3 +466,24 @@ def test_fresh_payload_compilation_ids_are_exact_prepared_path_ids():
                 ordinary_payload("fresh_run_identity"), payload_kind="fresh_run_identity",
                 declaration=declaration, binding_compilations=incomplete,
             )
+
+
+@pytest.mark.parametrize('schema', [24, 25])
+def test_f6_online_plan_versions_round_trip_in_bound_envelope(schema):
+    declaration = declaration_fixture()
+    credential = credential_fixture(declaration)
+    payload = canonical({'schema_version': schema, 'cases': []})
+    encoded = encode_dma_bound_payload(payload, payload_kind='online_session_plan',
+        declaration=declaration, binding_compilations={'session': credential})
+    parsed = parse_dma_bound_payload(encoded,
+        expected_identity_sha256=outer_document(encoded)['identity_sha256'])
+    assert parsed.payload_bytes == payload
+
+
+def test_unknown_online_plan_version_remains_rejected_by_bound_encoder():
+    declaration = declaration_fixture()
+    credential = credential_fixture(declaration)
+    with pytest.raises(DmaIntentBindingError, match='payload_kind'):
+        encode_dma_bound_payload(canonical({'schema_version': 26, 'cases': []}),
+            payload_kind='online_session_plan', declaration=declaration,
+            binding_compilations={'session': credential})

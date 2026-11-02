@@ -1,0 +1,39 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-apb-timer-rate-cv32e40p-f1f4",
+  "description": "One timed CV32E40P RVFI CPU model (Verilator --timing, the pinned passive monitor schedules real time) at its 50 MHz declaration reaches one untimed PULP APB3 timer declared at 25 MHz. This is the timed/untimed mix at a declared ratio: the timed CPU's half period is one grid step (10000 ps), the untimed target's half period is two steps, and the shared context advances one grid step per phase so the CPU monitor's own delayed events still run at their real time. The CPU exports no trap bit and no writeback pair, so the case lines state traps unknown and rvfi_writebacks 0; F5/F6 are refused by name (no IRQ behavior, no DMA).",
+  "cpu_profile": "configs/cpus/cv32e40p_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "targets": [
+    {
+      "name": "timer25",
+      "profile": "configs/peripherals/pulp_timer_25mhz/component_profile.json",
+      "active_id": "timer25",
+      "window": {
+        "base": 1073745920,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": "configs/behaviors/pulp_timer_f5.json",
+      "pins": null,
+      "fixed_inputs": [],
+      "tuning": {}
+    }
+  ],
+  "image_start": 65536,
+  "image_end": 196608,
+  "notes": [
+    "The CPU profile is the pinned configs/cpus/cv32e40p_rvfi_local (capabilities.verilator_timing_mode = timing); the target profile is the declared 25 MHz composition variant of the pinned PULP apb_timer.  assume_single_clock is absent: the plan is per_model_ratio with grid_ps 10000.",
+    "The timed CPU's own contract states a 10000 ps half period, which is exactly one grid step; the untimed target's declared 25 MHz is two steps.  The host advances the shared timed context by the grid step on each phase, so the monitor's delayed tasks run at their real time while the target toggles at its own declared rate.",
+    "The CPU model exports rvfi_valid/order/insn/pc_rdata only (no trap bit, no rd_addr/rd_wdata), so F1 compares retirement count/order/installed words and reports traps unknown; this is the representative run for a CPU without the trap/writeback face, beside the Ibex run that has it.",
+    "The CPU declares probe_irq_taken_pre but no target declares IRQ behavior, so F5 is refused by name; no DMA is declared, so F6 is refused by name."
+  ]
+}

@@ -3,11 +3,12 @@ import pytest
 
 from myfuzz.scenario.replay_normalize import (
     EXECUTION_ROLES, GPIO_DMA_EXECUTION_ROLES, FIELD_RULES,
-    FORBIDDEN_REWRITE_SCOPES, NORMALIZER_RULES,
+    FORBIDDEN_REWRITE_SCOPES, IDENTITY_FIELD_NAMES, NORMALIZER_RULES,
     RETAINED_FIELDS, PrefixDivergence, assert_prefix_equal,
-    first_difference, first_difference_normalized, first_replay_difference,
-    first_gpio_dma_replay_difference, normalize_execution_identities,
-    normalize_gpio_dma_execution_identities, normalized_digest)
+    declared_identity_mappings, first_difference, first_difference_normalized,
+    first_replay_difference, first_gpio_dma_replay_difference,
+    normalize_execution_identities, normalize_gpio_dma_execution_identities,
+    normalized_digest)
 
 IDS = {'cpu': 'a' * 32, 'dma': 'b' * 32, 'uart': 'c' * 32, 'runner': 'd' * 32}
 FRESH = {'cpu': '1' * 32, 'dma': '2' * 32, 'uart': '3' * 32, 'runner': '4' * 32}
@@ -237,3 +238,113 @@ def test_prefix_divergence_carries_the_first_difference_record():
     assert caught.value.difference['path'] == [0, 'tick']
     assert caught.value.difference['reference'] == 1
     assert caught.value.difference['actual'] == 2
+
+
+def _observed(nonce, *, data=0xA5, address=0x400, tick=3, kind='full_axi_accept'):
+    return {'kind': kind, 'local_tick': tick,
+            'scope': {'execution_id': nonce, 'testcase_id': 'case',
+                      'reset_epoch': 0, 'source_component': 'cva6'},
+            'payload': {'data': data, 'address': address}}
+
+
+def test_declared_identity_field_set_comes_from_the_rule_table():
+    assert IDENTITY_FIELD_NAMES == ('execution', 'execution_id')
+    assert set(IDENTITY_FIELD_NAMES) <= set(FIELD_RULES)
+
+
+def test_only_the_run_nonce_differs_so_the_mapping_matches():
+    # A fresh native process mints a new execution nonce; everything measured
+    # (scope metadata, payload data/address, tick, event order) is identical.
+    reference = [_observed(IDS['cpu']), _observed(IDS['cpu'], tick=4)]
+    actual = [_observed(FRESH['cpu']), _observed(FRESH['cpu'], tick=4)]
+    normalization = declared_identity_mappings(reference, actual)
+    assert normalization.applied
+    assert normalization.fields == ('execution_id',)
+    assert normalization.report() == {
+        'schema_version': 'typed_replay_normalizer.v1', 'applied': True,
+        'fields': ['execution_id'],
+        'mapping': 'per_side_own_values_in_first_appearance_order',
+        'rewrites': {'reference': 1, 'actual': 1}}
+    assert normalization.normalize_reference(reference) == \
+        normalization.normalize_actual(actual)
+    # Each side is rewritten with its own value, never with one shared mapping:
+    # the reference mapping knows nothing about the fresh run's nonce.
+    assert normalization.normalize_reference(actual) == actual
+    assert normalization.normalize_actual(reference) == reference
+    # Retained fields survive verbatim on both sides.
+    left = normalization.normalize_reference(reference)
+    assert left[0]['payload'] == reference[0]['payload']
+    assert left[0]['scope']['testcase_id'] == 'case'
+
+
+@pytest.mark.parametrize('drift', [
+    {'data': 0xA6},            # payload byte
+    {'address': 0x404},        # address
+    {'tick': 4},               # tick
+    {'kind': 'full_axi_accept_extra'},  # event kind
+])
+def test_undeclared_drift_still_differs_after_the_nonce_is_normalized(drift):
+    reference = [_observed(IDS['cpu'])]
+    actual = [_observed(FRESH['cpu'], **drift)]
+    normalization = declared_identity_mappings(reference, actual)
+    assert normalization.fields == ('execution_id',)
+    assert normalization.normalize_reference(reference) != \
+        normalization.normalize_actual(actual)
+    assert first_difference_normalized(
+        normalization.normalize_reference(reference),
+        normalization.normalize_actual(actual)) is not None
+
+
+def test_reordered_events_still_differ_after_the_nonce_is_normalized():
+    reference = [_observed(IDS['cpu'], tick=3), _observed(IDS['cpu'], tick=4)]
+    actual = [_observed(FRESH['cpu'], tick=4), _observed(FRESH['cpu'], tick=3)]
+    normalization = declared_identity_mappings(reference, actual)
+    difference = first_difference_normalized(
+        normalization.normalize_reference(reference),
+        normalization.normalize_actual(actual))
+    assert difference['path'] == [0, 'local_tick']
+
+
+def test_a_nonce_shape_disagreement_is_never_paired():
+    # Two distinct nonces on one side and one on the other: no positional
+    # pairing is invented, so the difference is reported instead of hidden.
+    reference = [_observed(IDS['cpu']), _observed(IDS['dma'], tick=4)]
+    actual = [_observed(FRESH['cpu']), _observed(FRESH['cpu'], tick=4)]
+    normalization = declared_identity_mappings(reference, actual)
+    assert not normalization.applied
+    assert normalization.fields == ()
+    assert normalization.report()['applied'] is False
+    assert normalization.normalize_reference(reference) == reference
+    assert normalization.normalize_actual(actual) == actual
+    assert normalization.normalize_reference(reference) != \
+        normalization.normalize_actual(actual)
+
+
+def test_evidence_without_a_declared_identity_field_is_unchanged():
+    # No declared field is present: the mapping is empty and the caller's
+    # comparison degenerates to the previous byte-for-byte one.
+    reference = [{'kind': 'memory_write', 'value': 0x11, 'local_tick': 2}]
+    actual = [{'kind': 'memory_write', 'value': 0x11, 'local_tick': 2}]
+    normalization = declared_identity_mappings(reference, actual)
+    assert not normalization.applied
+    assert normalization.normalize_reference(reference) == reference
+    assert normalization.normalize_actual(actual) == actual
+    drifted = [{'kind': 'memory_write', 'value': 0x12, 'local_tick': 2}]
+    drifted_normalization = declared_identity_mappings(reference, drifted)
+    assert not drifted_normalization.applied
+    assert (drifted_normalization.normalize_reference(reference)
+            != drifted_normalization.normalize_actual(drifted))
+
+
+def test_the_nonce_mapping_does_not_touch_a_payload_that_embeds_the_nonce():
+    # A whole-JSON replacement would rewrite this payload; the declared walker
+    # only rewrites the value stored under the declared field name.
+    reference = [{'kind': 'memory_write', 'scope': {'execution_id': IDS['cpu']},
+                  'value': 'payload-' + IDS['cpu']}]
+    actual = [{'kind': 'memory_write', 'scope': {'execution_id': FRESH['cpu']},
+               'value': 'payload-' + FRESH['cpu']}]
+    normalization = declared_identity_mappings(reference, actual)
+    assert normalization.normalize_reference(reference)[0]['value'] == (
+        'payload-' + IDS['cpu'])
+    assert normalization.normalize_reference(reference) != \
+        normalization.normalize_actual(actual)

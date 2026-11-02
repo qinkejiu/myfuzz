@@ -66,15 +66,24 @@ class RuntimeEdgeContract:
     size: int | None = None
     resource_component: str | None = None
     resource_id: str | None = None
+    irq_group_id: str | None = None
+    irq_group_sha256: str | None = None
 
     def __post_init__(self) -> None:
         if (type(self.rule_index) is not int or self.rule_index < 0
                 or type(self.prerequisite_index) is not int or self.prerequisite_index < 0
                 or self.relation not in ('direct_binding', 'mmio_route', 'causal_order',
-                                         'persistent_state', 'dma_master_route')):
+                                         'persistent_state', 'dma_master_route', 'irq_delivery_group')):
             raise ValueError('invalid runtime edge identity or relation')
         route = (self.initiator_component, self.device_id, self.base, self.size)
         resource = (self.resource_component, self.resource_id)
+        if self.relation == 'irq_delivery_group':
+            if (not _name(self.irq_group_id) or type(self.irq_group_sha256) is not str
+                    or len(self.irq_group_sha256)!=64 or any(c not in '0123456789abcdef' for c in self.irq_group_sha256)
+                    or any(v is not None for v in (*route,*resource))):
+                raise ValueError('IRQ group relation requires exact group identity')
+        elif self.irq_group_id is not None or self.irq_group_sha256 is not None:
+            raise ValueError('IRQ group identity on a non-group relation')
         if self.relation == 'mmio_route':
             if (not _name(self.initiator_component) or not _name(self.device_id)
                     or type(self.base) is not int or self.base < 0
@@ -329,7 +338,9 @@ class RuntimePathContract:
                                        else 'runtime_path_contract.v1'),
                 'graph_sha256': self.graph_sha256,
                 'nodes': [asdict(v) for v in sorted(self.nodes, key=lambda v: v.node_id)],
-                'edges': [asdict(v) for v in sorted(self.edges, key=lambda v: v.key)]}
+                'edges': [{k: value for k,value in asdict(v).items()
+                           if k not in ('irq_group_id','irq_group_sha256') or value is not None}
+                          for v in sorted(self.edges, key=lambda v: v.key)]}
         if self.dma_master_routes:
             document['dma_master_routes'] = [v.document()
                 for v in self.dma_master_routes]
@@ -369,8 +380,8 @@ class RuntimePathContract:
             raise ValueError('invalid runtime path contract document') from error
 
 
-_RELATIONS = {'DATA_BINDING': {'direct_binding', 'mmio_route'},
-              'EVENT_ORDER': {'direct_binding', 'mmio_route', 'causal_order'},
+_RELATIONS = {'DATA_BINDING': {'direct_binding', 'mmio_route', 'irq_delivery_group'},
+              'EVENT_ORDER': {'direct_binding', 'mmio_route', 'causal_order', 'irq_delivery_group'},
               'PERSISTENT_STATE_RULE': {'mmio_route', 'persistent_state'},
               'DMA_MASTER_TRANSFER': {'dma_master_route'}}
 
@@ -391,6 +402,7 @@ class _DmaMasterRouteSnapshot:
     regions: tuple | None = field(default=None, repr=False, compare=False)
     memory_windows_list: Any = field(default=None, repr=False, compare=False)
     memory_windows: tuple | None = field(default=None, repr=False, compare=False)
+    endpoint_dynamic: tuple | None = field(default=None, repr=False, compare=False)
 
 
 @dataclass(frozen=True)
@@ -407,6 +419,8 @@ class CompiledRuntimePathContract:
     _dma_routes: tuple[_DmaMasterRouteSnapshot, ...] = field(default=(), repr=False, compare=False)
 
     _topology_guard: Any = field(default=None, repr=False, compare=False)
+    _dynamic_topology_guard: Any = field(default=None, repr=False, compare=False)
+    _boundary_static_validation: bool = field(default=False, repr=False, compare=False)
 
     def document(self) -> dict:
         return json.loads(self._document_bytes)
@@ -428,8 +442,17 @@ class CompiledRuntimePathContract:
         return tuple(value.route for value in self._dma_routes)
 
     def validate_topology(self) -> None:
-        if self._topology_guard is not None:
-            self._topology_guard()
+        """Full metadata and live topology check at an execution boundary."""
+        self._validate_topology(dynamic=False)
+
+    def validate_dynamic_topology(self) -> None:
+        """Live object/resource checks; static metadata remains boundary-owned."""
+        self._validate_topology(dynamic=self._boundary_static_validation)
+
+    def _validate_topology(self, *, dynamic):
+        guard = self._dynamic_topology_guard if dynamic else self._topology_guard
+        if guard is not None:
+            guard()
         runner = self._runner
         if runner.ownership is not self._ownership or runner.bindings is not self._bindings:
             raise ValueError('runtime path topology ownership/Binding changed')
@@ -451,11 +474,16 @@ class CompiledRuntimePathContract:
                 raise ValueError('DMA route topology endpoint session changed')
             from myfuzz.local_harness.wishbone_dma_session import (
                 dma_route_endpoint_identity_document)
-            endpoint_identity = dma_route_endpoint_identity_document(
-                snapshot.initiator_session)
-            if (_canonical(endpoint_identity) != snapshot.endpoint_identity_json
-                    or _digest(endpoint_identity) != route.endpoint_identity_sha256):
-                raise ValueError('DMA route topology endpoint identity changed')
+            if dynamic and snapshot.endpoint_dynamic is not None:
+                from myfuzz.local_harness.wishbone_dma_session import dma_route_endpoint_dynamic_identity
+                if dma_route_endpoint_dynamic_identity(snapshot.initiator_session) != snapshot.endpoint_dynamic:
+                    raise ValueError('DMA route topology endpoint identity changed')
+            else:
+                endpoint_identity = dma_route_endpoint_identity_document(
+                    snapshot.initiator_session)
+                if (_canonical(endpoint_identity) != snapshot.endpoint_identity_json
+                        or _digest(endpoint_identity) != route.endpoint_identity_sha256):
+                    raise ValueError('DMA route topology endpoint identity changed')
             if route.target_kind == 'peripheral':
                 windows = getattr(snapshot.initiator_session, 'master_targets', None)
                 if (windows is not snapshot.master_targets
@@ -489,12 +517,13 @@ class CompiledRuntimePathContract:
                        for window in windows
                        for base, limit, _region in snapshot.memory_windows):
                     raise ValueError('DMA route topology master window shadows persistent memory')
-                target_identity = persistent_memory_route_identity_document(
-                    snapshot.memory, memory_id=route.target_id,
-                    base=route.base, size=route.size)
-                if (_canonical(target_identity) != snapshot.target_identity_json
-                        or _digest(target_identity) != route.target_identity_sha256):
-                    raise ValueError('DMA route topology memory identity changed')
+                if not dynamic:
+                    target_identity = persistent_memory_route_identity_document(
+                        snapshot.memory, memory_id=route.target_id,
+                        base=route.base, size=route.size)
+                    if (_canonical(target_identity) != snapshot.target_identity_json
+                            or _digest(target_identity) != route.target_identity_sha256):
+                        raise ValueError('DMA route topology memory identity changed')
 
 
 def _runtime_selection(graph, contract: RuntimePathContract, paths: tuple, *,
@@ -602,8 +631,38 @@ def _freeze_runtime_selection(selection):
             tuple(MappingProxyType(dict(row)) for row in resolved_paths), sources)
 
 
+def _host_input_position(runner, node):
+    """Map one physical input node from DUT to host (port-local) coordinates.
+
+    Contract nodes come from the profile and therefore carry DUT vector bits.
+    Runner ownership/bindings address the *declared host input port*: for a
+    profile whose IRQ endpoint is a one-bit slice of a wider core vector the
+    host port is that slice, so the host offset is ``node.bit_offset -
+    export.bit_lo``.  Every existing CPU whose host port starts at bit zero is
+    unchanged.  A port without one unambiguous input export keeps the DUT
+    position so the caller's own checks refuse it.
+    """
+    if node.kind != 'physical' or node.port is None:
+        return node.bit_offset
+    session = runner.sessions.get(node.component)
+    artifact = getattr(session, 'artifact', None)
+    document = getattr(artifact, 'runtime_document', None)
+    if not isinstance(document, dict):
+        return node.bit_offset
+    rows = [row for row in document.get('physical_exports', ())
+            if row.get('physical_port') == node.port and row.get('direction') == 'input'
+            and type(row.get('bit_lo')) is int and type(row.get('bit_hi')) is int
+            and type(row.get('width')) is int and row['width'] >= 1]
+    if len(rows) != 1:
+        return node.bit_offset
+    row = rows[0]
+    if not row['bit_lo'] <= node.bit_offset < row['bit_lo'] + row['width']:
+        return node.bit_offset
+    return node.bit_offset - row['bit_lo']
+
+
 def compile_runtime_path_contract(graph, contract: RuntimePathContract, runner, *, paths: tuple,
-                                  _selection=None, topology_guard=None) -> CompiledRuntimePathContract:
+                                  _selection=None, topology_guard=None, dynamic_topology_guard=None, boundary_static_validation=False) -> CompiledRuntimePathContract:
     """Inspect topology; prepared callers reuse already validated graph facts."""
     if _selection is None:
         _selection = _runtime_selection(graph, contract, paths)
@@ -621,10 +680,13 @@ def compile_runtime_path_contract(graph, contract: RuntimePathContract, runner, 
     dma_route_snapshots = []
     input_keys = {(nodes[v].component, nodes[v].port) for v in selected_nodes
                   if nodes[v].kind == 'physical' and (nodes[v].component, nodes[v].port) in runner.ownership._bits}
+    host_offsets = {}
     for node_id in selected_nodes:
         node = nodes[node_id]
         if node.kind == 'physical' and (node.component, node.port) in input_keys:
-            if node.bit_offset + node.width > len(runner.ownership._bits[(node.component, node.port)]):
+            host = _host_input_position(runner, node)
+            host_offsets[node_id] = host
+            if host + node.width > len(runner.ownership._bits[(node.component, node.port)]):
                 raise ValueError('runtime physical input range exceeds declared field')
     for key, edge in selected_edges.items():
         source, target = nodes[edge.prerequisite], nodes[edge.target]
@@ -637,12 +699,26 @@ def compile_runtime_path_contract(graph, contract: RuntimePathContract, runner, 
                 raise ValueError(f'selected cross-component edge {key} lacks contract')
             continue
         relation = declaration.relation
-        if relation == 'direct_binding':
+        if relation == 'irq_delivery_group':
+            from .runner import ScenarioRunner, Binding
+            if (type(runner) is not ScenarioRunner or source.kind!='physical' or target.kind!='physical'
+                    or source.width!=1 or target.width!=1):
+                raise ValueError(f'IRQ group edge {key} requires actual runner and scalar physical ends')
+            target_host=host_offsets.get(edge.target,_host_input_position(runner,target))
+            member=Binding(source.component,source.port,target.component,target.port,1,source.bit_offset,target_host)
+            group=ScenarioRunner.irq_group_for(runner,member)
+            if (group is None or group.group_id!=declaration.irq_group_id
+                    or group.identity_sha256!=declaration.irq_group_sha256
+                    or runner._irq_group_states[group.group_id].group is not group
+                    or runner.ownership.irq_group_owner(target.component,target.port,target_host,1)!=group.group_id):
+                raise ValueError(f'IRQ group identity mismatch on edge {key}')
+        elif relation == 'direct_binding':
             if source.kind != 'physical' or target.kind != 'physical' or source.width != target.width:
                 raise ValueError(f'direct edge {key} requires physical endpoints with equal widths')
+            target_host=host_offsets.get(edge.target,_host_input_position(runner,target))
             matches = [b for b in runner.bindings if (b.source_component, b.source_port, b.target_component, b.target_port,
                        b.width, b.source_bit_offset, b.target_bit_offset) ==
-                       (source.component, source.port, target.component, target.port, source.width, source.bit_offset, target.bit_offset)]
+                       (source.component, source.port, target.component, target.port, source.width, source.bit_offset, target_host)]
             if len(matches) != 1:
                 raise ValueError(f'direct edge {key} Binding matches={len(matches)}')
             binding = matches[0]
@@ -650,10 +726,10 @@ def compile_runtime_path_contract(graph, contract: RuntimePathContract, runner, 
                 if other is binding:
                     continue
                 if ((other.target_component, other.target_port) == (target.component, target.port)
-                        and other.target_bit_offset < target.bit_offset + target.width
-                        and target.bit_offset < other.target_bit_offset + other.width):
+                        and other.target_bit_offset < target_host + target.width
+                        and target_host < other.target_bit_offset + other.width):
                     raise ValueError(f'direct edge {key} overlapping target drivers')
-            if runner.ownership.binding_producer(target.component, target.port, target.bit_offset, target.width) != f'{source.component}.{source.port}':
+            if runner.ownership.binding_producer(target.component, target.port, target_host, target.width) != f'{source.component}.{source.port}':
                 raise ValueError(f'direct edge {key} ownership producer mismatch')
         elif relation == 'mmio_route':
             initiator, device = declaration.initiator_component, declaration.device_id
@@ -688,7 +764,7 @@ def compile_runtime_path_contract(graph, contract: RuntimePathContract, runner, 
             continue
 
     from myfuzz.local_harness.wishbone_dma_session import (
-        MasterTargetWindow, dma_route_endpoint_identity_document)
+        MasterTargetWindow, dma_route_endpoint_identity_document, dma_route_endpoint_dynamic_identity)
     from .ledger import TransactionLedger
     from .memory_service import MemoryService
     configured_validators = {}
@@ -780,7 +856,8 @@ def compile_runtime_path_contract(graph, contract: RuntimePathContract, runner, 
             region = resource_rows[0]
             permissions = tuple(sorted((['read'] if region.readable else [])
                                        + (['write'] if region.writable else [])))
-            if permissions != route.permissions:
+            if (not set(route.permissions).issubset(permissions)
+                    or route.operation not in permissions):
                 raise ValueError('DMA RAM route permissions differ from selected memory region')
             target_identity = persistent_memory_route_identity_document(
                 memory, memory_id=route.target_id,
@@ -813,7 +890,9 @@ def compile_runtime_path_contract(graph, contract: RuntimePathContract, runner, 
             window=window, target_endpoint=target_endpoint,
             memory_service=service, memory=memory, ledger=ledger,
             regions=regions, memory_windows_list=memory_windows_list,
-            memory_windows=memory_windows))
+            memory_windows=memory_windows,
+            endpoint_dynamic=(dma_route_endpoint_dynamic_identity(initiator_session)
+                if boundary_static_validation else None)))
     selected_windows = {}
     for snapshot in dma_route_snapshots:
         if snapshot.route.target_kind == 'peripheral':
@@ -838,6 +917,8 @@ def compile_runtime_path_contract(graph, contract: RuntimePathContract, runner, 
                                                           for w in windows]} for name, (_, windows) in sorted(routers.items())],
                 'resources': [{'component': name, 'regions': [asdict(v) for v in regions]}
                               for name, (_, regions, _) in sorted(resources.items())]}
+    if getattr(runner,'irq_delivery_groups',()):
+        topology['irq_delivery_groups']=[g.document() for g in runner.irq_delivery_groups]
     if dma_route_rows:
         topology['dma_master_routes'] = dma_route_rows
     document = {'schema_version': ('runtime_path_compilation.v2' if dma_route_rows
@@ -852,11 +933,11 @@ def compile_runtime_path_contract(graph, contract: RuntimePathContract, runner, 
         runner.ownership, tuple((key, runner.ownership._bits[key]) for key in sorted(input_keys)),
         tuple((name, router, windows) for name, (router, windows) in sorted(routers.items())),
         tuple((name, memory, regions, windows) for name, (memory, regions, windows) in sorted(resources.items())),
-        tuple(dma_route_snapshots), topology_guard)
+        tuple(dma_route_snapshots), topology_guard, dynamic_topology_guard, boundary_static_validation)
     if dma_route_rows:
         compiled.validate_topology()
         for component, callback in sorted(configured_validators.items()):
-            callback(compiled.validate_topology)
+            callback(compiled.validate_dynamic_topology if boundary_static_validation else compiled.validate_topology)
     return compiled
 
 
@@ -1027,7 +1108,7 @@ class PreparedRuntimePathContract:
         except (KeyError, TypeError) as exc:
             raise ValueError("unknown prepared runtime path identity") from exc
 
-    def bind(self, runner, *, path_ids: tuple[str, ...] | None = None, topology_guard=None):
+    def bind(self, runner, *, path_ids: tuple[str, ...] | None = None, topology_guard=None, dynamic_topology_guard=None, boundary_static_validation=False):
         selected_ids = self.path_ids if path_ids is None else path_ids
         if (not isinstance(selected_ids, tuple) or not selected_ids
                 or any(type(value) is not str for value in selected_ids)
@@ -1048,7 +1129,7 @@ class PreparedRuntimePathContract:
         resolved_paths = tuple(dict(path) for value in selections for path in value[4])
         selected_sources = tuple(source for value in selections for source in value[5])
         selection = nodes, contracts, selected_nodes, selected_edges, resolved_paths, selected_sources
-        return compile_runtime_path_contract(None, self.contract, runner, paths=(), _selection=selection, topology_guard=topology_guard)
+        return compile_runtime_path_contract(None, self.contract, runner, paths=(), _selection=selection, topology_guard=topology_guard, dynamic_topology_guard=dynamic_topology_guard, boundary_static_validation=boundary_static_validation)
 
     @classmethod
     def from_document(cls, document):

@@ -1,0 +1,20 @@
+{
+  "schema_version": "declared_irq_f5_config.v1",
+  "single_source": true,
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {"reset_assert_ticks": 8, "reset_release_ticks": 8, "max_wait_cycles": 16},
+  "source_profile": "configs/peripherals/pulp_spi/component_profile.json",
+  "source_timing": {"reset_assert_ticks": 2, "reset_release_ticks": 3, "max_wait_cycles": 16},
+  "source_tuning": {"fixed_inputs": [
+    {"endpoint_id": "spi.pins", "role": "sdi0", "value": 0},
+    {"endpoint_id": "spi.pins", "role": "sdi1", "value": 0},
+    {"endpoint_id": "spi.pins", "role": "sdi2", "value": 0},
+    {"endpoint_id": "spi.pins", "role": "sdi3", "value": 0}
+  ]},
+  "irq_behavior": "configs/scenarios/inprocess-irq-pulp-spi-eot-irq-behavior.json",
+  "active_id": "spi_active",
+  "active_base": 1073745920,
+  "image_start": 65536,
+  "image_end": 196608,
+  "result_address": 68672
+}

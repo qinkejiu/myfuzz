@@ -16,14 +16,14 @@ from types import MappingProxyType
 from typing import Callable, Iterator
 
 from myfuzz.scenario.protocol_io import (
-    BoundedLineReader, _deadline, command_deadline, end_local_process,
+    BoundedLineReader, LocalCommandDeadlineExceeded, _deadline, command_deadline, end_local_process,
     read_startup_ready, write_local_command,
 )
 from .build import build_local_harness, local_build_identity, build_local_harness_with_receipt
 from .runtime_artifact import LocalRuntimeArtifact
 from .wire import (MAX_REPLY_LINE_BYTES, DriverReceipt, parse_driver_ack,
                    parse_driver_ready, parse_driver_receipt)
-from .wishbone_dma_fields import DMA_STEP_MAXIMA
+from .wishbone_dma_fields import DMA_STEP_MAXIMA, DMA_SELECTED_STEP_MAXIMA
 from .axi4_fields import AXI_STEP_MAXIMA
 from .cva6_axi4_fields import CVA6_AXI_STEP_MAXIMA
 from .vexii_axi_fields import (IRQ_STEP_MAXIMA as REDUCED_AXI_IRQ_STEP_MAXIMA,
@@ -37,6 +37,132 @@ _BUILT_REGISTRY_PINS = (_BUILT_SESSION_PINS, _BUILT_OPTED_SESSIONS)
 
 _command_timing_observer: ContextVar[Callable[[str, float], None] | None] = (
     ContextVar('local_command_timing_observer', default=None))
+_local_command_trace: ContextVar[object | None] = ContextVar(
+    'local_command_trace', default=None)
+
+
+class LocalCommandTrace:
+    """Bounded record of commands accepted by each actual local session."""
+
+    def __init__(self, max_commands: int, max_bytes: int, capture_records: bool = True):
+        if type(max_commands) is not int or not 1 <= max_commands <= 4096:
+            raise ValueError('invalid command trace capacity')
+        if type(max_bytes) is not int or not 1 <= max_bytes <= 256 * 1024 * 1024:
+            raise ValueError('invalid command trace byte capacity')
+        if type(capture_records) is not bool:
+            raise ValueError("invalid capture_records flag")
+        self._capture_records = capture_records
+        self._processes = {}
+        self._max_commands = max_commands
+        self._max_bytes = max_bytes
+        self._sessions = {}
+        self._sizes = {}
+        self._incomplete = set()
+        self._identities = {}
+
+    def _key(self, session):
+        return session, session._execution
+
+    def _observe(self, session):
+        key = self._key(session)
+        if key in self._identities:
+            return
+        component = getattr(getattr(getattr(session.artifact, 'plan', None),
+                                    'request', None), 'instance_id', None)
+        binary = session._binary
+        binary_sha256 = manifest_sha256 = build_digest = None
+        if isinstance(binary, Path):
+            try:
+                with binary.open('rb') as stream:
+                    binary_sha256 = hashlib.file_digest(stream, 'sha256').hexdigest()
+                if binary.name == 'harness' and re.fullmatch(r'[0-9a-f]{64}', binary.parent.name):
+                    build_digest = binary.parent.name
+                    manifest = binary.parent / 'manifest.json'
+                    if manifest.is_file():
+                        with manifest.open('rb') as stream:
+                            manifest_sha256 = hashlib.file_digest(stream, 'sha256').hexdigest()
+            except OSError:
+                pass
+        proc = session.process
+        self._processes[key] = proc
+        self._identities[key] = {'component': component,
+            'execution_nonce': session._execution,
+            'pid': proc.pid if proc is not None else None,
+            'artifact_digest': session._artifact_document.get('artifact_digest'),
+            'build_digest': build_digest, 'binary_sha256': binary_sha256,
+            'binary_path': str(binary) if binary is not None else None,
+            'manifest_sha256': manifest_sha256}
+        self._sessions.setdefault(key, [])
+        if not self._capture_records or session._sequence != 0:
+            self._incomplete.add(key)
+
+    def _mark_incomplete(self, session):
+        self._incomplete.add(self._key(session))
+
+    def _record(self, session, operation, fields, receipt, reply):
+        if not self._capture_records:
+            return
+        key = self._key(session)
+        rows = self._sessions.setdefault(key, [])
+        if len(rows) >= self._max_commands or not isinstance(reply, str):
+            self._incomplete.add(key)
+            return
+        command = (f'CMD {receipt.execution} {receipt.sequence:x} {operation}'
+                   + ('' if not fields else ' ' + ' '.join(f'{value:x}' for value in fields)))
+        size = self._sizes.get(key, 0) + len(command) + len(reply)
+        if size > self._max_bytes:
+            self._incomplete.add(key)
+            return
+        if receipt.execution != key[1] or receipt.sequence != len(rows) + 1:
+            self._incomplete.add(key)
+        self._sizes[key] = size
+        rows.append({'command': command, 'reply': reply.strip(),
+                     'sequence': receipt.sequence, 'tick_before': receipt.tick_before,
+                     'tick_after': receipt.tick_after, 'reset_epoch': session.reset_epoch})
+
+    def for_session(self, session) -> tuple[dict, ...]:
+        keys = [key for key in self._sessions if key[0] is session]
+        if len(keys) > 1:
+            raise ValueError('multiple traced executions for session')
+        return tuple(copy.deepcopy(self._sessions[keys[0]] if keys else ()))
+
+    def complete_for(self, session) -> bool:
+        keys = [key for key in self._sessions if key[0] is session]
+        return len(keys) == 1 and bool(self._sessions[keys[0]]) and keys[0] not in self._incomplete
+
+    def export_executions(self) -> tuple[dict, ...]:
+        """Snapshot observed identities and actual process exits; no audit authority."""
+        rows = []
+        for key, identity in self._identities.items():
+            process = self._processes.get(key)
+            code = process.poll() if process is not None else None
+            rows.append(copy.deepcopy(identity) | {
+                'reaped': type(code) is int,
+                'exit_code': code if type(code) is int else None})
+        return tuple(rows)
+
+    def export_sessions(self) -> tuple[dict, ...]:
+        """Return distinct execution snapshots, without asserting audit authority."""
+        return tuple({'component': self._identities[key]['component'],
+                      'identity': copy.deepcopy(self._identities[key]),
+                      'complete': bool(rows) and key not in self._incomplete,
+                      'records': copy.deepcopy(rows)}
+                     for key, rows in self._sessions.items() if key in self._identities)
+
+
+@contextmanager
+def record_local_commands(max_commands: int = 4096,
+                          max_bytes: int = 64 * 1024 * 1024, *,
+                          capture_records: bool = True) -> Iterator[LocalCommandTrace]:
+    """Capture successful commands and original replies without changing RTL inputs."""
+    if _local_command_trace.get() is not None:
+        raise ValueError('nested local command recording is unsupported')
+    trace = LocalCommandTrace(max_commands, max_bytes, capture_records=capture_records)
+    token = _local_command_trace.set(trace)
+    try:
+        yield trace
+    finally:
+        _local_command_trace.reset(token)
 
 
 @contextmanager
@@ -69,6 +195,10 @@ _OPERATIONS = {
     # rsp_rdata, rsp_error) as the other memory CPUs.
     'ahb_lite_cpu': {'STEP_MEMORY': (1, 1, 0xffffffff, 1), 'READ_AHB_STARTUP': (63,)},
     'obi_cpu': {'STEP_CPU': (1, 1, 1, 0xffffffff, 1, 1, 1, 0xffffffff, 1)},
+    # TileLink coherent client: the same four-field backend beat step as the
+    # other memory CPUs, but the payload is one 8-byte word (rsp_rdata is 64
+    # bits), because the client's beat really is 8 bytes wide.
+    'tilelink_coherent_cpu': {'STEP_TL_COHERENT': (1, 1, 0xffffffffffffffff, 1)},
     'apb_gpio': {'STEP_GPIO': (0xffffffff,),
                  'ACCESS_GPIO': (0xffffffff, 1, 4092, 0xffffffff, 15)},
     'tlul_gpio': {'STEP_TLUL_GPIO': (0xffffffff, 1),
@@ -256,6 +386,9 @@ class GeneratedLocalSession:
                 or canonical(result.receipt_document()) != canonical(receipt)
                 or result.receipt_sha256 != digest):
             raise ValueError('fixed built executable receipt or binary path changed')
+        if (self._binary.is_symlink() or not self._binary.is_file()
+                or hashlib.sha256(self._binary.read_bytes()).hexdigest() != receipt['binary_sha256']):
+            raise ValueError('fixed built executable binary changed')
         if result.validate_current(self.artifact, base_dir=self.base_dir,
                                   cache_dir=self.cache_dir) != self._binary:
             raise ValueError('validated built executable path changed')
@@ -446,6 +579,12 @@ class GeneratedLocalSession:
             self._process = subprocess.Popen((str(self._binary),), cwd=self.base_dir,
                                              stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                              stderr=subprocess.DEVNULL, text=True, bufsize=1)
+            trace = _local_command_trace.get()
+            if trace is not None:
+                try:
+                    trace._observe(self)
+                except Exception:
+                    trace._mark_incomplete(self)
             if launch_row is not None:
                 launch_row['pid'] = self._process.pid
                 self._built_launches.append(launch_row)
@@ -482,21 +621,41 @@ class GeneratedLocalSession:
             raise
 
     def command(self, operation: str, fields: tuple[int, ...]) -> DriverReceipt:
-        self._check_built_mode()
-        _NATIVE_RESET_OWNER_GUARD_PIN[0](self)
-        observer = _command_timing_observer.get()
-        if observer is None:
-            return self._command_impl(operation, fields)
-        started = time.monotonic()
-        try:
-            return self._command_impl(operation, fields)
-        finally:
-            # The measurement must never replace a driver receipt or failure.
-            elapsed = time.monotonic() - started
+        trace = _local_command_trace.get()
+        if trace is not None:
             try:
-                observer(operation, elapsed)
+                trace._observe(self)
             except Exception:
-                pass
+                trace._mark_incomplete(self)
+        try:
+            self._check_built_mode()
+            _NATIVE_RESET_OWNER_GUARD_PIN[0](self)
+            observer = _command_timing_observer.get()
+            if observer is None:
+                receipt = self._command_impl(operation, fields)
+                recorded_reply = self._last_wire_reply
+            else:
+                started = time.monotonic()
+                try:
+                    receipt = self._command_impl(operation, fields)
+                    recorded_reply = self._last_wire_reply
+                finally:
+                    # The measurement must never replace a driver receipt or failure.
+                    elapsed = time.monotonic() - started
+                    try:
+                        observer(operation, elapsed)
+                    except Exception:
+                        pass
+        except BaseException:
+            if trace is not None:
+                trace._mark_incomplete(self)
+            raise
+        if trace is not None:
+            try:
+                trace._record(self, operation, fields, receipt, recorded_reply)
+            except Exception:
+                trace._mark_incomplete(self)
+        return receipt
 
     def _command_impl(self, operation: str, fields: tuple[int, ...]) -> DriverReceipt:
         _NATIVE_RESET_OWNER_GUARD_PIN[0](self)
@@ -526,6 +685,12 @@ class GeneratedLocalSession:
             if len(native_taps) != len(rows):
                 raise ValueError('duplicate admitted native tap')
         maxima = _OPERATIONS[kind].get(operation)
+        if kind == 'wishbone_dma' and operation in ('STEP_WB_DMA','STEP_WB_DMA_SEL',
+                                                   'STEP_WB_DMA_WIDE','STEP_WB_DMA_SEL_WIDE'):
+            from .wishbone_dma_fields import dma_profile_edge_contract
+            expected = dma_profile_edge_contract(self.artifact.plan.profile.capabilities)
+            maxima = (tuple(expected['input_maxima']) if expected['operation'] == operation
+                and self._artifact_document.get('dma_edge_contract') == expected else None)
         if maxima is None and kind == 'apb3_register_observe':
             document = self._artifact_document
             # Merge the private retrieval allowance only after the exact A2
@@ -580,7 +745,9 @@ class GeneratedLocalSession:
         line = (f'CMD {self._execution} {sequence:x} {operation}'
                 + ('' if not fields else ' ' + ' '.join(f'{value:x}' for value in fields))
                 + '\n')
-        deadline = time.monotonic() + self.command_timeout_seconds
+        command_started = time.monotonic()
+        local_deadline = command_started + self.command_timeout_seconds
+        deadline = local_deadline
         outer = _deadline.get()
         if outer is not None:
             deadline = min(deadline, outer)
@@ -600,6 +767,15 @@ class GeneratedLocalSession:
                                            clock_schedule=self._artifact_document.get('clock_schedule'),
                                            native_taps=native_taps)
         except BaseException as primary:
+            if isinstance(primary, LocalCommandDeadlineExceeded):
+                now = time.monotonic()
+                primary.timeout_diagnostic = dict(
+                    operation=operation,
+                    command_elapsed_seconds=now-command_started,
+                    command_timeout_seconds=self.command_timeout_seconds,
+                    outer_remaining_seconds=None if outer is None else outer-now,
+                    limiting_deadline='outer_deadline' if outer is not None and outer <= local_deadline
+                        else 'local_command')
             self._abort_failed_operation(primary, 'command')
             raise
         if observer is not None:
@@ -673,7 +849,8 @@ _NATIVE_RESET_SESSION_FUNCTIONS = {name: (getattr(GeneratedLocalSession, name),
      '_command_impl', 'command', '_abort', 'reset_local', 'end_case')}
 _NATIVE_RESET_BUILD_FUNCTIONS = {name: (getattr(_native_reset_build_module,name),
     getattr(_native_reset_build_module,name).__code__) for name in
-    ('build_local_harness','local_build_identity','_prepare','_prepared_if_current','_validate_cache','_host_sources')}
+    ('build_local_harness','local_build_identity','_prepare','_prepared_if_current','_validate_cache','_validate_cache_current','_receipt_cache','_receipt_cache_current',
+     'static_validation','strict_validation_active','_host_sources')}
 _NATIVE_RESET_BUILD_ISSUANCES = WeakKeyDictionary()
 _NATIVE_RESET_BUILD_REGISTRY_PIN = _NATIVE_RESET_BUILD_ISSUANCES
 _NATIVE_RESET_OPERATIONS = (_OPERATIONS, json.dumps(_OPERATIONS, sort_keys=True),
@@ -687,7 +864,7 @@ _NATIVE_RESET_WIRE_FUNCTIONS = {name: (globals()[name], globals()[name].__code__
 from . import native_reset_observation as _NATIVE_RESET_OBSERVER_MODULE
 _NATIVE_RESET_OBSERVER_FUNCTIONS = MappingProxyType({name:(getattr(_NATIVE_RESET_OBSERVER_MODULE,name),
     getattr(_NATIVE_RESET_OBSERVER_MODULE,name).__code__) for name in
-    ('_actual_producer_frame','_actual_fact_origin','_check_observer_methods')})
+    ('_actual_producer_frame','_actual_fact_origin','_check_observer_methods','static_validation')})
 _NATIVE_RESET_OBSERVER_FUNCTIONS_PIN = _NATIVE_RESET_OBSERVER_FUNCTIONS
 _NATIVE_RESET_OBSERVER_MODULE_PIN = _NATIVE_RESET_OBSERVER_MODULE
 
@@ -697,7 +874,7 @@ _NATIVE_RESET_PRODUCER_PIN = (_NATIVE_RESET_PRODUCER_MODULE,
     _NATIVE_RESET_PRODUCER_MODULE._check_origin, _NATIVE_RESET_PRODUCER_MODULE._check_origin.__code__,
     _NATIVE_RESET_PRODUCER_MODULE._CHECK_ORIGIN, _NATIVE_RESET_PRODUCER_MODULE._DEPENDENCIES)
 
-def _native_reset_check_producers(owner):
+def _validate_producer_static():
     from .gpio_session import GeneratedPulpGpioSession, _NATIVE_RESET_GPIO_FUNCTIONS, _NATIVE_RESET_GPIO_FUNCTIONS_PIN
     if (_native_reset_check_producers is not _NATIVE_RESET_CHECK_PRODUCERS[0]
             or _native_reset_check_producers.__code__ is not _NATIVE_RESET_CHECK_PRODUCERS[1]
@@ -727,15 +904,13 @@ def _native_reset_check_producers(owner):
             or _NATIVE_RESET_PRODUCER_MODULE._CHECK_ORIGIN is not _NATIVE_RESET_PRODUCER_PIN[5]
             or _NATIVE_RESET_PRODUCER_MODULE._DEPENDENCIES is not _NATIVE_RESET_PRODUCER_PIN[6]):
         raise ValueError('native reset producer registry drift')
-    producer_kind = _NATIVE_RESET_PRODUCER_PIN[1](owner)
-    if producer_kind == 'apb_storage':
-        _storage_version_authority(owner)
+    if _NATIVE_RESET_PRODUCER_MODULE.static_validation is not _NATIVE_RESET_BUILD_FUNCTIONS['static_validation'][0]:
+        raise ValueError('native reset static validation producer drift')
     for name,(method,code) in _NATIVE_RESET_SESSION_FUNCTIONS.items():
-        if (getattr(GeneratedLocalSession,name) is not method or method.__code__ is not code
-                or name in vars(owner)):
+        if (getattr(GeneratedLocalSession,name) is not method or method.__code__ is not code):
             raise ValueError('native reset producer method drift:'+name)
     for name,(method,code) in _NATIVE_RESET_GPIO_FUNCTIONS.items():
-        if getattr(GeneratedPulpGpioSession,name) is not method or method.__code__ is not code or producer_kind == 'gpio' and name in vars(owner):
+        if getattr(GeneratedPulpGpioSession,name) is not method or method.__code__ is not code:
             raise ValueError('native reset GPIO producer method drift:'+name)
     for name,(function,code) in _NATIVE_RESET_BUILD_FUNCTIONS.items():
         if getattr(_native_reset_build_module,name) is not function or function.__code__ is not code:
@@ -747,8 +922,6 @@ def _native_reset_check_producers(owner):
             or _STORAGE_STARTUP_OPERATIONS is not _NATIVE_RESET_OPERATIONS[2]
             or json.dumps(_STORAGE_STARTUP_OPERATIONS,sort_keys=True) != _NATIVE_RESET_OPERATIONS[3]):
         raise ValueError('native reset operation domain drift')
-    if owner._native_reset_observation is not None:
-        _NATIVE_RESET_OBSERVER_FUNCTIONS['_check_observer_methods'][0](owner._native_reset_observation)
     if subprocess.Popen is not _NATIVE_RESET_POPEN:
         raise ValueError('native reset process producer drift')
     for name,(method,code) in _NATIVE_RESET_POPEN_METHODS.items():
@@ -757,6 +930,34 @@ def _native_reset_check_producers(owner):
     for name,(function,code) in _NATIVE_RESET_WIRE_FUNCTIONS.items():
         if globals()[name] is not function or function.__code__ is not code:
             raise ValueError('native reset wire producer drift:'+name)
+    return True
+
+
+def _native_reset_check_producers(owner):
+    _NATIVE_RESET_BUILD_FUNCTIONS['static_validation'][0](('native-reset-producer-code',), _validate_producer_static)
+    producer_kind = _NATIVE_RESET_PRODUCER_PIN[1](owner)
+    if producer_kind == 'apb_storage':
+        _storage_version_authority(owner)
+    for name in _NATIVE_RESET_SESSION_FUNCTIONS:
+        if name in vars(owner):
+            raise ValueError('native reset producer method drift:'+name)
+    if producer_kind == 'gpio':
+        from .gpio_session import _NATIVE_RESET_GPIO_FUNCTIONS
+        for name in _NATIVE_RESET_GPIO_FUNCTIONS:
+            if name in vars(owner):
+                raise ValueError('native reset GPIO producer method drift:'+name)
+    locations = (str(Path(owner.base_dir).resolve()), str(Path(owner.cache_dir).resolve()))
+    admitted_locations = _NATIVE_RESET_BUILD_FUNCTIONS['static_validation'][0](
+        ('session_locations', owner),
+        lambda: (str(Path(owner.base_dir).resolve()), str(Path(owner.cache_dir).resolve())))
+    if locations != admitted_locations:
+        raise ValueError('native reset session root or cache drift')
+    from .execution_validation import static_validation_matches
+    if not static_validation_matches(('session_artifact', owner),
+                                     lambda: owner.artifact, owner.artifact):
+        raise ValueError('native reset complete artifact drift')
+    if owner._native_reset_observation is not None:
+        _NATIVE_RESET_OBSERVER_FUNCTIONS['_check_observer_methods'][0](owner._native_reset_observation)
 
 def _native_reset_native_eligible(owner):
     _NATIVE_RESET_CHECK_PRODUCERS[0](owner)

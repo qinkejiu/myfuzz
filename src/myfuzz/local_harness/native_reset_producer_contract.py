@@ -3,6 +3,7 @@
 Class tables are sealed when each code-owned session module is imported, not
 when an observer is requested. There is deliberately no registration API.
 """
+from .execution_validation import static_validation
 from .native_physical_observation import verify_apb_register_trace
 _VERIFY = (verify_apb_register_trace, verify_apb_register_trace.__code__)
 from types import MappingProxyType
@@ -88,7 +89,7 @@ def check_producer(owner):
     if selected == 'apb_storage':
         if _DEPENDENCIES is not _DEPENDENCIES_PIN:
             raise ValueError('native reset storage dependency registry drift')
-        if hashlib.sha256(Path(_STORAGE_ISSUER_SOURCE[0].__file__).read_bytes()).hexdigest()!=_STORAGE_ISSUER_SOURCE[1]:
+        if static_validation(('storage_issuer_source', owner), lambda: hashlib.sha256(Path(_STORAGE_ISSUER_SOURCE[0].__file__).read_bytes()).hexdigest())!=_STORAGE_ISSUER_SOURCE[1]:
             raise ValueError('native reset storage issuer source drift')
         for name,(module,functions) in _DEPENDENCIES.items():
             if import_module(name) is not module or any(
@@ -107,7 +108,7 @@ def check_producer(owner):
             raise ValueError('native reset storage verifier drift')
         # Canonical reconstruction rereads exact registered source bytes and
         # reprojects every storage port/metadata/runtime expression. No frontend.
-        if _VERIFY[0](owner.artifact) is not True:
+        if static_validation(('storage_projection', owner), lambda: _VERIFY[0](owner.artifact)) is not True:
             raise ValueError('native reset storage probe canonical projection required')
         document=owner._artifact_document
         if ('storage_startup_capture' in document

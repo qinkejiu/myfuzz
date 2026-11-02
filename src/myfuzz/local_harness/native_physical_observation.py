@@ -32,9 +32,13 @@ def native_physical_observation_mapping(plan, kind, exports, primary_clock):
                     aliases=[], physical_exports=projected, endpoint_clock_domains=clocks)
     if kind == 'obi_cpu':
         cpu = plan.profile.cpu
+        # A declared CPU IRQ endpoint may be a real one-bit slice of a wider
+        # physical vector, so its host-facing port is the exported one-bit
+        # value at whatever bit position the profile declares; only the width
+        # is fixed.  The alias names the runtime port, never a DUT bit offset.
         rows = [row for row in projected if row['endpoint_id'] == cpu.irq_entry_endpoint
                 and row['role'] == cpu.irq_entry_role and row['direction'] == 'input'
-                and row['bit_lo'] == 0 and row['width'] == 1]
+                and row['width'] == 1]
     elif kind == 'apb_gpio':
         # The admitted STEP_GPIO executor exports this exact native pulse as
         # its scenario `irq` output. A profile observe action authorizes only
@@ -43,13 +47,17 @@ def native_physical_observation_mapping(plan, kind, exports, primary_clock):
                    if a.port == 'interrupt' and a.action == 'observe'
                    and not a.member_path and not a.bits]
         rows = [row for row in projected if row['physical_port'] == 'interrupt'
-                and row['direction'] == 'output' and row['disposition'] == 'observe'
-                and row['bit_lo'] == 0 and row['width'] == 1]
-        if len(actions) != 1 or 'local_observed_ports' in clocks:
-            raise ValueError('native-physical-observation-alias-unsupported')
-        if len(rows) == 1 and rows[0]['endpoint_id'] is None and rows[0]['role'] is None:
+                and row['direction'] == 'output' and row['bit_lo'] == 0
+                and row['width'] == 1]
+        if len(rows) == 1 and rows[0]['disposition'] == 'observe':
+            if (len(actions) != 1 or 'local_observed_ports' in clocks
+                    or rows[0]['endpoint_id'] is not None or rows[0]['role'] is not None):
+                raise ValueError('native-physical-observation-alias-unsupported')
             rows[0].update(endpoint_id='local_observed_ports', role='interrupt')
             clocks['local_observed_ports'] = primary_clock
+        elif (len(rows) != 1 or actions or rows[0]['disposition'] != 'functional'
+              or rows[0]['endpoint_id'] != 'gpio.interrupts' or rows[0]['role'] != 'irq'):
+            raise ValueError('native-physical-observation-alias-unsupported')
     else:
         raise ValueError('native-physical-observation-runtime-unsupported')
     if len(rows) != 1 or rows[0]['endpoint_id'] not in clocks:
@@ -262,10 +270,59 @@ def verify_cpu_obi_protocol_traces(artifact):
             sample_group='protocol_taps',boundary='cpu_physical_abi'))
     expected = dict(schema_version='ip_protocol_trace_set.v1',sampling='pre_post',
                     sample_group='protocol_taps',traces=expected_traces)
-    if (len(expected_traces) != 2 or document.get('base_protocol_traces') != expected
-            or document.get('protocol_tap_ports') != expected_ports
-            or {p['name'] for p in expected_ports} & {p['name'] for p in document['backend_ports']}
+
+    # Python considers bool equal to its integer values (True == 1). Reject
+    # malformed JSON-shaped inventories before comparing them with generated
+    # expectations, so an artifact cannot substitute booleans for widths.
+    tap_ports = document.get('protocol_tap_ports')
+    port_fields = {'name', 'direction', 'width', 'role', 'endpoint_id', 'source_wire'}
+    tap_ports_well_typed = (type(tap_ports) is list and all(
+        type(row) is dict and set(row) == port_fields
+        and all(type(row.get(name)) is str for name in
+            ('name', 'direction', 'role', 'endpoint_id', 'source_wire'))
+        and type(row.get('width')) is int
+        for row in tap_ports))
+
+    traces_doc = document.get('base_protocol_traces')
+    trace_set_fields = {'schema_version', 'sampling', 'sample_group', 'traces'}
+    trace_fields = {'schema_version', 'protocol', 'endpoint_id', 'clock_domain',
+        'max_wait_cycles', 'max_outstanding', 'signals', 'signal_widths',
+        'sample_group', 'boundary'}
+    traces_well_typed = (type(traces_doc) is dict
+        and set(traces_doc) == trace_set_fields
+        and all(type(traces_doc.get(name)) is str for name in
+            ('schema_version', 'sampling', 'sample_group'))
+        and type(traces_doc.get('traces')) is list
+        and all(type(row) is dict and set(row) == trace_fields
+            and all(type(row.get(name)) is str for name in
+                ('schema_version', 'protocol', 'endpoint_id', 'clock_domain',
+                 'sample_group', 'boundary'))
+            and all(type(row.get(name)) is int for name in
+                ('max_wait_cycles', 'max_outstanding'))
+            and type(row.get('signals')) is dict
+            and all(type(role) is str and type(signal) is str
+                for role, signal in row.get('signals', {}).items())
+            and type(row.get('signal_widths')) is dict
+            and all(type(role) is str and type(width) is int
+                for role, width in row.get('signal_widths', {}).items())
+            for row in traces_doc.get('traces', ())))
+
+    backend_ports = document.get('backend_ports')
+    runtime_ports = document.get('runtime_ports')
+    simple_ports_well_typed = (
+        type(backend_ports) is list and type(runtime_ports) is list
+        and all(type(row) is dict and type(row.get('name')) is str
+            and type(row.get('direction')) is str and type(row.get('width')) is int
+            for row in backend_ports)
+        and all(type(row) is dict and set(row) == {'name', 'direction', 'width'}
+            and type(row.get('name')) is str and type(row.get('direction')) is str
+            and type(row.get('width')) is int for row in runtime_ports))
+
+    if (len(expected_traces) != 2 or not tap_ports_well_typed
+            or not traces_well_typed or not simple_ports_well_typed
+            or traces_doc != expected or tap_ports != expected_ports
+            or {p['name'] for p in expected_ports} & {p['name'] for p in backend_ports}
             or any(dict(name=p['name'],direction='output',width=p['width'])
-                   not in document['runtime_ports'] for p in expected_ports)):
+                   not in runtime_ports for p in expected_ports)):
         raise ValueError('cpu-obi-protocol-trace-contract-mismatch')
     return True

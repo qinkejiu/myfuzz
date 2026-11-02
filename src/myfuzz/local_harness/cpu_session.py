@@ -28,6 +28,44 @@ _BACKEND_LIMITS = {
 }
 
 
+def declared_rvfi_fields(artifact):
+    """RVFI observations physically exported by the admitted CPU artifact.
+
+    This describes sampled outputs only, never IRQ acceptance or F6 authority.
+    A partial RVFI export is not a retirement stream.
+    """
+    plan = artifact.plan
+    actions = getattr(getattr(plan, 'profile', None), 'port_actions', ())
+    observed = {a.port for a in actions if a.action == 'observe' and a.port.startswith('rvfi_')}
+    required = {'rvfi_valid': 1, 'rvfi_order': 64, 'rvfi_insn': 32, 'rvfi_pc_rdata': 32}
+    if not set(required) <= observed:
+        return {}
+    facts = {port.name: port for port in plan.facts.ports}
+    exports = artifact.runtime_document['physical_exports']
+    fields = {}
+    for name in sorted(observed):
+        port = facts.get(name)
+        rows = [r for r in exports if r['physical_port'] == name]
+        if (port is None or port.direction != 'output' or type(port.width) is not int
+                or len(rows) != 1 or rows[0]['direction'] != 'output'
+                or rows[0]['bit_lo'] != 0 or rows[0]['width'] != port.width
+                or (name in required and port.width != required[name])):
+            raise ValueError('declared RVFI physical output mismatch: ' + name)
+        fields[name] = port.width
+    return fields
+
+
+def rvfi_observation_contract(artifact):
+    fields = declared_rvfi_fields(artifact)
+    if not fields:
+        return None
+    # Preserve the established extended RVFI observation identity without
+    # selecting on CPU model names. Native IRQ authority is separately verified.
+    schema = ('ibex_rvfi_observation.v1' if 'rvfi_ext_irq_valid' in fields
+              else 'rvfi_observation.v1')
+    return dict(schema_version=schema, sampling_edge='post_rising', fields=fields)
+
+
 class GeneratedCve2Session(GeneratedLocalSession):
     """Advance real OBI CPU RTL once; service each accepted request exactly once.
 
@@ -47,7 +85,22 @@ class GeneratedCve2Session(GeneratedLocalSession):
                  native_irq_receipts: bool = False,
                  memory_commit_receipts: bool = False,
                  memory_readback_receipts: bool = False,
-                 physical_tick_samples: bool = False):
+                 physical_tick_samples: bool = False,
+                 irq_input_port: str = 'irq'):
+        if type(irq_input_port) is not str or not irq_input_port:
+            raise ValueError('invalid CPU IRQ input port')
+        if irq_input_port != 'irq':
+            role = artifact.plan.profile.cpu.irq_entry_role
+            endpoints = [e for e in artifact.plan.profile.endpoints
+                if any(f.role == role and irq_input_port in f.aliases for f in e.fields)]
+            if len(endpoints) != 1:
+                raise ValueError('undeclared physical CPU IRQ input port')
+            matches = [p for p in artifact.structural.abi_document['ports']
+                if p['physical_port']==irq_input_port and p['endpoint_id']==endpoints[0].endpoint_id
+                and p['direction']=='input' and p['role']==role and p['width']==1]
+            if len(matches) != 1:
+                raise ValueError('invalid physical CPU IRQ input ABI')
+        self.irq_input_port = irq_input_port
         if type(physical_tick_samples) is not bool:
             raise ValueError('physical tick samples must be boolean')
         if type(native_irq_receipts) is not bool:
@@ -57,10 +110,18 @@ class GeneratedCve2Session(GeneratedLocalSession):
         if type(memory_readback_receipts) is not bool:
             raise ValueError('memory_readback_receipts must be boolean')
         if native_irq_receipts:
-            from .ibex_irq_receipt_contract import verify_ibex_irq_receipt_artifact
-            irq_runtime_name = verify_ibex_irq_receipt_artifact(artifact, base_dir=base_dir)
+            from .native_irq_receipt_contract import (verify_native_irq_receipt_artifact,
+                native_irq_receipt_contract, native_irq_decision_probes,
+                native_irq_serial_observable)
+            irq_runtime_name = verify_native_irq_receipt_artifact(artifact, base_dir=base_dir)
+            irq_contract = native_irq_receipt_contract(artifact)
+            irq_probe_widths = native_irq_decision_probes(irq_contract)
+            irq_serial_observable = native_irq_serial_observable(irq_contract)
         else:
             irq_runtime_name = None
+            irq_contract = None
+            irq_probe_widths = {}
+            irq_serial_observable = False
         if artifact.runtime_document.get('kind') != 'obi_cpu':
             raise ValueError('generated CPU requires an OBI CPU artifact')
         if not isinstance(memory, PersistentMemory) or not isinstance(router, DataflowRouter):
@@ -91,27 +152,30 @@ class GeneratedCve2Session(GeneratedLocalSession):
         self.last_samples: tuple[dict, ...] = ()
         self._physical_tick_samples_enabled = physical_tick_samples
         self._physical_tick_samples: list[dict] = []
+        self._last_drained_physical_tick_samples: tuple[dict, ...] = ()
         self.cpu_events: list[dict] = []
         self._started_cpu = False
         self._resetting_cpu = False
         self._request_evidence: dict[str, dict] = {}
         self._last_retire_order: tuple[int, int] | None = None
         self._native_irq_receipts = native_irq_receipts
+        self._native_irq_contract = irq_contract
+        self._native_irq_probe_widths = irq_probe_widths
+        self._native_irq_serial_observable = irq_serial_observable
         self._irq_runtime_name = irq_runtime_name
         self._next_irq_input_context = None
         self._active_irq_input_context = None
         self._native_irq_last_receipt = None
         self._native_irq_take_sequence = 0
-        self._rvfi_enabled = getattr(getattr(artifact.plan, 'profile', None),
-                                     'component_id', None) == 'ibex_rvfi_local'
+        self._rvfi_contract = rvfi_observation_contract(artifact)
+        self._rvfi_enabled = self._rvfi_contract is not None
 
     def identity_document(self) -> dict[str, object]:
-        observation = ({'cpu_observation_schema_version': 'ibex_rvfi_observation.v1',
+        observation = ({'cpu_observation_schema_version': self._rvfi_contract['schema_version'],
                         'cpu_retirement_sampling_edge': 'post_rising'}
                        if self._rvfi_enabled else {})
         if self.native_irq_receipts_enabled:
-            from .ibex_irq_receipt_contract import ibex_irq_receipt_contract
-            observation['cpu_native_irq_receipt_contract'] = ibex_irq_receipt_contract()
+            observation['cpu_native_irq_receipt_contract'] = copy.deepcopy(self._native_irq_contract)
         if self.memory_commit_receipts_enabled:
             observation['memory_commit_stream'] = {
                 'schema_version': 'memory_write_commit_stream.v1', 'capacity': 256}
@@ -122,6 +186,9 @@ class GeneratedCve2Session(GeneratedLocalSession):
             observation['cpu_physical_tick_stream'] = {
                 'schema_version': 'cpu_physical_tick_stream.v1',
                 'capacity': 256, 'sampling': 'pre_post'}
+        f6_return = _f6_isr_return_document(self)
+        if f6_return is not None:
+            observation['native_f6_isr_return'] = f6_return
         return {**super().identity_document(), **observation,
                 'cpu_service_schema_version': 'generated_obi_cpu_service.v1',
                 'source_component': self.source_component,
@@ -131,6 +198,7 @@ class GeneratedCve2Session(GeneratedLocalSession):
         self._clear_native_irq_receipts()
         super().begin_case(testcase_id)
         self._physical_tick_samples.clear()
+        self._last_drained_physical_tick_samples = ()
         if self.native_irq_receipts_enabled and not self._started_cpu:
             self._cpu_event('cpu_native_startup', schema_version='cpu_native_startup.v1',
                 **self._native_reset_fields())
@@ -158,7 +226,7 @@ class GeneratedCve2Session(GeneratedLocalSession):
     @property
     def pending_responses(self) -> int:
         return (int(self._pending_instr is not None or self._waiting_instr is not None) + int(self._pending_data is not None)
-                + int(self._queued_mmio))
+                + int(self._queued_mmio) + _f6_instruction_fetch_pending(self))
 
     @property
     def waiting_instruction_address(self) -> int | None:
@@ -168,15 +236,18 @@ class GeneratedCve2Session(GeneratedLocalSession):
     def declare_instruction_slots(self, address: int, count: int = 1) -> None:
         self.memory.declare_instruction_slots(address, count)
 
-    def accept_instructions(self, address: int, data: bytes, *, source_event_id: str) -> None:
-        self.service.accept_instructions(address, data, source_event_id=source_event_id)
+    def accept_instructions(self, address: int, data: bytes, *, source_event_id: str):
+        acceptance = self.service.accept_instructions(address, data, source_event_id=source_event_id)
+        _capture_f6_instruction_acceptance(self, acceptance)
         self._resume_instruction()
+        return acceptance if getattr(self, '_f6_instruction_fetch', None) is not None else None
 
     def _resume_instruction(self) -> None:
         if self._waiting_instr is None:
             return
         key, address = self._waiting_instr
         try:
+            _arm_f6_instruction_read(self, key)
             snapshot = self.service.read(key, address, width_bytes=4)
         except InstructionNotReady:
             return
@@ -189,11 +260,20 @@ class GeneratedCve2Session(GeneratedLocalSession):
             raise RuntimeError('generated CPU process is not running')
         self._quiescing = True
 
+    def _abort(self) -> None:
+        revoke_f6_instruction_fetch(self)
+        super()._abort()
+
+    def end_case(self) -> None:
+        revoke_f6_instruction_fetch(self)
+        super().end_case()
+
     def reset_local(self) -> dict[str, object]:
+        cancelled = self.pending_responses
+        revoke_f6_instruction_fetch(self)
         self._clear_native_irq_receipts()
         if self.process is None or self.process.poll() is not None:
             raise RuntimeError('generated CPU process is not running')
-        cancelled = self.pending_responses
         targets = self.router.cancel_for_ledger(self.service.ledger)
         if self._queued_mmio and len(targets) != 1:
             raise RuntimeError('queued generated MMIO request was not cancelled')
@@ -209,6 +289,7 @@ class GeneratedCve2Session(GeneratedLocalSession):
         try:
             reset_outcome = super().reset_local()
             self._physical_tick_samples.clear()
+            self._last_drained_physical_tick_samples = ()
         finally:
             self._resetting_cpu = False
         self._cpu_event('cpu_reset', cancelled_responses=cancelled,
@@ -268,6 +349,8 @@ class GeneratedCve2Session(GeneratedLocalSession):
                     self.source_component, self.service, key, beat_address,
                     width_bytes=4)
             else:
+                if channel == 'instr':
+                    _arm_f6_instruction_read(self, key)
                 snapshot = self.service.read(key, beat_address, width_bytes=4)
         except InstructionNotReady:
             if channel != 'instr':
@@ -285,6 +368,7 @@ class GeneratedCve2Session(GeneratedLocalSession):
                 tick=self.local_ticks, **fields)))
 
     def _freeze_snapshot(self, channel: str, snapshot) -> None:
+        _capture_f6_instruction_snapshot(self, channel, snapshot)
         frozen = asdict(snapshot)
         frozen.pop('data')
         self._request_evidence[channel]['snapshot'] = {
@@ -292,12 +376,11 @@ class GeneratedCve2Session(GeneratedLocalSession):
 
     def _native_reset_fields(self):
         digest, asserted, released, _ = self._expected_ready()
-        from .ibex_irq_receipt_contract import ibex_irq_receipt_contract
         return {'physical_reset':True, 'local_tick':self.local_ticks,
                 'phase':'startup_ready',
                 'command_scope':{'component':self.source_component,'reset_epoch':self.reset_epoch,'command_sequence':0},
                 'receipt_id':{'execution':self._execution,'sequence':0},
-                'observation_contract':ibex_irq_receipt_contract(),
+                'observation_contract':copy.deepcopy(self._native_irq_contract),
                 'artifact_digest':digest,
                 'boot_base':self._artifact_document['boot_contract']['configured_boot_base'],
                 'reset_outcome':{'schema_version':'native_cpu_reset_outcome.v1',
@@ -315,19 +398,20 @@ class GeneratedCve2Session(GeneratedLocalSession):
         exports records None plus an explicit unobservable status, and a present
         but invalid physical value fails closed.
         """
-        from .ibex_irq_receipt_contract import (IBEX_IRQ_SERIAL_DECISION_PORT,
-            IBEX_IRQ_SERIAL_RETIREMENT_PORT, ibex_irq_serial_observation)
+        from .native_irq_receipt_contract import native_irq_serial_observation
+        if not self.native_irq_receipts_enabled or self._native_irq_contract is None:
+            raise ValueError('native IRQ serial authority is not installed')
+        ports = {'decision': 'irq_decision_serial', 'retirement': 'irq_retirement_serial'}
         try:
-            return ibex_irq_serial_observation(sampling=sampling,
+            return native_irq_serial_observation(self._native_irq_contract, sampling=sampling,
                 decision_phase=decision_phase, retirement_phase=retirement_phase,
-                decision_value=decision_physical.get(IBEX_IRQ_SERIAL_DECISION_PORT),
-                retirement_value=retirement_physical.get(IBEX_IRQ_SERIAL_RETIREMENT_PORT))
+                decision_value=decision_physical.get(ports['decision']),
+                retirement_value=retirement_physical.get(ports['retirement']))
         except ValueError as error:
             raise ProtocolEnvironmentError('invalid physical IRQ serial observation') from error
 
     def _native_retirement_receipt(self, receipt, physical):
         from .wire import DriverReceipt
-        from .ibex_irq_receipt_contract import ibex_irq_receipt_contract
         identity = (self.reset_epoch, getattr(receipt,'execution',None),
                     getattr(receipt,'sequence',None), getattr(receipt,'tick_after',None))
         if (type(receipt) is not DriverReceipt or receipt.status != 'result'
@@ -343,7 +427,7 @@ class GeneratedCve2Session(GeneratedLocalSession):
         post=self._physical_outputs({'observations':sample['post']})
         rvfi={name:value for name,value in physical.items() if name.startswith('rvfi_')}
         actual={name:value for name,value in post.items() if name.startswith('rvfi_')}
-        if (len(rvfi)!=44 or type(sample.get('local_tick')) is not int
+        if (set(rvfi)!=set(self._rvfi_contract['fields']) or type(sample.get('local_tick')) is not int
                 or sample['local_tick']!=receipt.tick_after
                 or json.dumps(rvfi,sort_keys=True,allow_nan=False)!=json.dumps(actual,sort_keys=True,allow_nan=False)):
             raise ProtocolEnvironmentError('native retirement requires complete actual POST RVFI')
@@ -354,29 +438,36 @@ class GeneratedCve2Session(GeneratedLocalSession):
             'receipt_ticks':{'tick_before':receipt.tick_before,'tick_after':receipt.tick_after,
                 'new_ticks':receipt.new_ticks,'local_tick_base':self._tick_base},
             'actual_post_ref':{'command_scope':copy.deepcopy(scope),'local_tick':self.local_ticks,'phase':'post'},
-            'observation_contract':ibex_irq_receipt_contract()}
+            'observation_contract':copy.deepcopy(self._native_irq_contract)}
 
     def _retire(self, physical: dict[str, int], receipt=None) -> None:
         measured=(self._native_retirement_receipt(receipt,physical)
                   if self.native_irq_receipts_enabled else {})
+        _capture_f6_native_retirement(self, receipt, physical)
         if not self._rvfi_enabled or not physical.get('rvfi_valid'):
             return
+        names = self._rvfi_contract['fields']
+        if any(name not in physical or type(physical[name]) is not int
+               or not 0 <= physical[name] < (1 << width) for name, width in names.items()):
+            raise ProtocolEnvironmentError('incomplete declared POST RVFI observation')
         identity = (self.reset_epoch, physical['rvfi_order'])
         if self._last_retire_order is not None and self._last_retire_order[0] == self.reset_epoch:
             if identity[1] == self._last_retire_order[1]:
                 return
             if identity[1] < self._last_retire_order[1]:
-                raise ProtocolEnvironmentError('Ibex RVFI retirement order regressed in one epoch')
+                raise ProtocolEnvironmentError('RVFI retirement order regressed in one epoch')
         self._last_retire_order = identity
-        fields = {name.removeprefix('rvfi_'): value for name, value in physical.items()
-                  if name.startswith('rvfi_')}
-        self._cpu_event('cpu_retire', **fields, **measured,
-                        irq_serial_observation=self._serial_observation(
-                            physical, physical, sampling='post_rising',
-                            decision_phase='post', retirement_phase='post'),
+        fields = {name.removeprefix('rvfi_'): physical[name] for name in names}
+        serial = {}
+        if self.native_irq_receipts_enabled and self._native_irq_serial_observable:
+            # Only an adapter with an exact serial token may emit one; the
+            # CV32E40P contract has none and must stay silent here.
+            serial['irq_serial_observation'] = self._serial_observation(
+                physical, physical, sampling='post_rising',
+                decision_phase='post', retirement_phase='post')
+        self._cpu_event('cpu_retire', **fields, **measured, **serial,
                         observation={'sampling_edge': 'post_rising', 'physical':
-                                     {name: value for name, value in physical.items()
-                                      if name.startswith('rvfi_')}})
+                                     {name: physical[name] for name in names}})
 
     @staticmethod
     def _validate_pre(receipt, values: tuple[int, ...]) -> dict[str, int]:
@@ -459,12 +550,23 @@ class GeneratedCve2Session(GeneratedLocalSession):
         self._next_irq_input_context = copy.deepcopy(context)
 
     def step_local(self, inputs: Mapping[str, int]) -> Mapping[str, object]:
+        if self.irq_input_port != 'irq':
+            if set(inputs) - {self.irq_input_port}:
+                raise ValueError('undeclared physical CPU input')
+            # The host-facing CPU IRQ port is the profile's declared one-bit
+            # slice, so its value is the port-local 0/1 line.  The contract's
+            # ``input_bit_offset`` is a documentary DUT coordinate, not a host
+            # delivery offset.
+            inputs = {'irq': inputs.get(self.irq_input_port, 0)}
         if self._physical_tick_samples_enabled and len(self._physical_tick_samples) >= 256:
             raise RuntimeError('CPU physical tick stream capacity exceeded')
         self._active_irq_input_context = self._next_irq_input_context
         self._next_irq_input_context = None
         try:
             return self._step_local(inputs)
+        except BaseException:
+            revoke_f6_instruction_fetch(self)
+            raise
         finally:
             self._next_irq_input_context = None
             self._active_irq_input_context = None
@@ -473,11 +575,16 @@ class GeneratedCve2Session(GeneratedLocalSession):
         """Drain copied STEP_CPU receipts, never reconstructed host decisions."""
         samples = self._physical_tick_samples
         self._physical_tick_samples = []
+        # Runner drains every session after every component step. Keep the
+        # most recent non-empty CPU receipt batch so same-batch boundary
+        # predicates can inspect the physical handshake after the drain.
+        if samples:
+            self._last_drained_physical_tick_samples = tuple(
+                copy.deepcopy(samples))
         return samples
 
     def _native_irq_facts(self, receipt, values):
         from .wire import DriverReceipt
-        from .ibex_irq_receipt_contract import ibex_irq_receipt_contract
         if (type(receipt) is not DriverReceipt or receipt.status != 'result'
                 or type(receipt.execution) is not str or re.fullmatch(r'[0-9a-f]{32}', receipt.execution) is None
                 or receipt.execution != self._execution
@@ -506,41 +613,76 @@ class GeneratedCve2Session(GeneratedLocalSession):
         if context is not None and (context['target_epoch'] != self.reset_epoch
                 or context['expected_input'] != values[0]):
             raise ProtocolEnvironmentError('native IRQ planned context differs from actual command')
-        decisions = {name: physical[0].get('probe_' + name)
-                     for name in ('irq_masked_pre', 'irq_taken_pre')}
-        if any(type(value) is not int or value not in (0, 1) for value in decisions.values()):
-            raise ProtocolEnvironmentError('invalid native IRQ actual decision')
+        from .native_irq_receipt_contract import (native_irq_acceptance,
+            native_irq_redirect_probes)
+        decisions = {}
+        for name, width in self._native_irq_probe_widths.items():
+            value = physical[0].get('probe_' + name)
+            if type(value) is not int or not 0 <= value < 1 << width:
+                raise ProtocolEnvironmentError('invalid native IRQ actual decision')
+            decisions[name] = value
         decoded = [self._physical_outputs({'observations': sample[phase]}) for phase in ('pre', 'post')]
-        names = tuple(ibex_irq_receipt_contract()['notification_widths'])
+        names = tuple(self._native_irq_contract['notification_widths'])
         before, after = ({name: decoded[index][name] for name in names} for index in (0, 1))
         tick = self._tick_base + receipt.tick_after
         if tick != self.local_ticks:
             raise ProtocolEnvironmentError('native IRQ parsed lifetime tick mismatch')
         scope = dict(component=self.source_component, reset_epoch=self.reset_epoch,
                      command_sequence=receipt.sequence)
+        # Only an adapter that owns an exact serial token may emit one; the
+        # CV32E40P contract owns none, so its events carry no serial document.
+        serial = ({'irq_serial_observation': self._serial_observation(
+                decoded[0], decoded[1], sampling='pre_post_rising',
+                decision_phase='pre', retirement_phase='post')}
+            if self._native_irq_serial_observable else {})
         common = dict(local_tick=tick, phase='pre_post_rising', command_scope=scope,
             receipt_id={'execution':receipt.execution, 'sequence':receipt.sequence},
             receipt_ticks={'tick_before':receipt.tick_before,'tick_after':receipt.tick_after,
                 'new_ticks':receipt.new_ticks,'local_tick_base':self._tick_base},
             expected_input=values[0], actual_pre_input=physical[0][self._irq_runtime_name],
             actual_post_input=physical[1][self._irq_runtime_name],
-            input_context=copy.deepcopy(context), observation_contract=ibex_irq_receipt_contract(),
+            input_context=copy.deepcopy(context), observation_contract=copy.deepcopy(self._native_irq_contract),
             notification_pre=before, notification_post=after,
-            # The decision token is a combinational pre-edge observation; the
-            # retirement token is read from the same edge's post sample.
-            irq_serial_observation=self._serial_observation(
-                decoded[0], decoded[1], sampling='pre_post_rising',
-                decision_phase='pre', retirement_phase='post'),
-            actual_post_ref={'command_scope':copy.deepcopy(scope),'local_tick':tick,'phase':'post'}, **decisions)
+            # A pre-edge decision token is read from the same edge's pre
+            # sample; a declared retirement token from its post sample.
+            **serial,
+            actual_post_ref={'command_scope':copy.deepcopy(scope),'local_tick':tick,'phase':'post'},
+            **decisions)
         if context is not None:
             common.update(binding_delivery_event_id=context['binding_delivery_event_id'],
                           source_output_key=copy.deepcopy(context['source_output_key']))
+        taken = decisions['irq_taken_pre'] == 1
+        acceptance = native_irq_acceptance(self._native_irq_contract)
+        if taken and acceptance is not None:
+            # A declared take must be corroborated by the same edge's real
+            # ack/id outputs and an aligned real exception-entry PC.
+            ack = decisions[acceptance['ack_probe']]
+            identifier = decisions[acceptance['id_probe']]
+            entry_pc = decisions[acceptance['entry_pc_probe']]
+            if (ack != 1 or identifier != acceptance['source_id']
+                    or not 0 <= entry_pc < 1 << 32 or entry_pc % 4 != 0):
+                raise ProtocolEnvironmentError(
+                    'native IRQ take lacks the declared ack/id/entry-PC acceptance')
         records = [('cpu_external_irq_sample', common)]
-        if decisions['irq_taken_pre'] == 1:
-            records.append(('cpu_external_irq_taken', {**common,
+        if taken:
+            record = {**common,
                 'sample_ref': {'command_scope':copy.deepcopy(scope), 'local_tick':tick},
-                'take_key':[self.source_component,self.reset_epoch,self._native_irq_take_sequence+1]}))
-        if after['rvfi_ext_irq_valid'] == 1:
+                'take_key':[self.source_component,self.reset_epoch,self._native_irq_take_sequence+1]}
+            if acceptance is not None:
+                record.update(irq_ack_pre=decisions[acceptance['ack_probe']],
+                    irq_id_pre=decisions[acceptance['id_probe']],
+                    irq_entry_pc=decisions[acceptance['entry_pc_probe']],
+                    accepted_source_id=acceptance['source_id'])
+            records.append(('cpu_external_irq_taken', record))
+        redirect = native_irq_redirect_probes(self._native_irq_contract)
+        if redirect is not None and not taken and decisions[redirect['taken']] == 1:
+            # A real non-IRQ exception redirect: the cause is the value the
+            # controller actually drives at that redirect edge.
+            records.append(('cpu_native_exception_redirect', {**common,
+                'sample_ref': {'command_scope':copy.deepcopy(scope), 'local_tick':tick},
+                'redirect_cause': decisions[redirect['cause']]}))
+        from .native_irq_receipt_contract import native_irq_notification_observed
+        if native_irq_notification_observed(self._native_irq_contract, after):
             records.append(('cpu_irq_notification', {**common, 'phase':'post', **after}))
         return identity, records
 
@@ -567,23 +709,35 @@ class GeneratedCve2Session(GeneratedLocalSession):
             self._physical_tick_samples.extend(
                 {**copy.deepcopy(sample), 'local_tick': self._tick_base + sample['local_tick']}
                 for sample in self.last_samples)
+        if getattr(self, '_f6_instruction_fetch', None) is not None:
+            for sample in self._physical_tick_samples[-1:]:
+                sample['f6_obi_scope'] = [receipt.execution, receipt.sequence,
+                    self.reset_epoch, self.local_ticks]
         # IRQ acceptance is a combinational decision *before* the edge being
         # advanced.  The final physical snapshot is after that edge and may
         # already have cleared the pulse, so consume the driver's pre sample.
-        if getattr(getattr(self.artifact.plan, 'profile', None), 'component_id', None) in ('ibex_obi_local', 'ibex_rvfi_local'):
+        # Names and widths come from the registered contract, never from one CPU.
+        pre_probe_widths = (self._native_irq_probe_widths if self.native_irq_receipts_enabled
+                            else {'irq_masked_pre': 1, 'irq_taken_pre': 1})
+        if self.native_irq_receipts_enabled or any(row['physical_port'] in pre_probe_widths
+                for row in self._artifact_document['physical_exports']):
             pre_physical = self.last_samples[0].get('pre', {}).get('physical', {})
-            for name in ('irq_masked_pre', 'irq_taken_pre'):
+            for name, width in pre_probe_widths.items():
                 observed = pre_physical.get('probe_' + name)
-                if type(observed) is not int or observed not in (0, 1):
-                    raise ProtocolEnvironmentError('invalid Ibex pre-edge IRQ probe: ' + name)
+                if type(observed) is not int or not 0 <= observed < 1 << width:
+                    raise ProtocolEnvironmentError('invalid declared pre-edge IRQ probe: ' + name)
                 physical_outputs[name] = observed
+        _observe_f6_native_instruction_response(self, receipt, pre)
         iconsumed = int(bool(pre['i_rsp_valid'] and pre['i_rsp_ready']))
         dconsumed = int(bool(pre['d_rsp_valid'] and pre['d_rsp_ready']))
         if iconsumed:
             if ipending is None:
                 raise ProtocolEnvironmentError('instruction response without source request')
             self._cpu_event('instr_response', **self._request_evidence.pop('instr'),
-                            rdata=ipending[0], error=ipending[1], response_tick=self.local_ticks)
+                            rdata=ipending[0], error=ipending[1], response_tick=self.local_ticks,
+                            **({'response_boundary': 'obi_adapter_backend_acceptance'}
+                               if getattr(self, '_f6_instruction_fetch', None) is not None else {}))
+            _complete_f6_instruction_fetch(self, receipt, pre, ipending)
             self._pending_instr = None
         if dconsumed:
             if dpending is None:
@@ -596,6 +750,7 @@ class GeneratedCve2Session(GeneratedLocalSession):
         if iaccepted:
             self._pending_instr = self._serve('instr', pre['i_req_write'], pre['i_req_addr'],
                                               pre['i_req_wdata'], pre['i_req_be'])
+            _capture_f6_instruction_request(self, receipt, pre)
         if daccepted:
             self._pending_data = self._serve('data', pre['d_req_write'], pre['d_req_addr'],
                                              pre['d_req_wdata'], pre['d_req_be'])
@@ -610,6 +765,9 @@ class GeneratedCve2Session(GeneratedLocalSession):
         self.memory.advance_step()
         return {**physical_outputs, 'instr_req_valid': pre['i_req_valid'], 'instr_req_accepted': iaccepted,
                 'instr_addr': pre['i_req_addr'], 'instr_rsp_consumed': iconsumed,
+                'instr_rsp_rdata': ipending[0] if iconsumed else 0,
+                'instr_rsp_source_epoch': self.reset_epoch if iconsumed else 0,
+                'instr_rsp_source_sequence': ipending[2] if iconsumed else 0,
                 'data_req_valid': pre['d_req_valid'], 'data_req_accepted': daccepted,
                 'data_write': pre['d_req_write'], 'data_addr': pre['d_req_addr'],
                 'data_wdata': pre['d_req_wdata'], 'data_be': pre['d_req_be'],
@@ -617,5 +775,22 @@ class GeneratedCve2Session(GeneratedLocalSession):
                 'data_rsp_rdata': dpending[0] if dconsumed else 0,
                 'data_rsp_source_epoch': self.reset_epoch if dconsumed else 0,
                 'data_rsp_source_sequence': dpending[2] if dconsumed else 0,
-                'driver_samples': copy.deepcopy(self.last_samples),
+                'driver_samples': tuple(
+                    {**copy.deepcopy(sample), 'local_tick': self._tick_base + sample['local_tick']}
+                    for sample in self.last_samples),
                 'physical_observations': copy.deepcopy(receipt.payload['observations']['physical'])}
+
+
+# Seal only the code-owned provider after its original methods exist.
+from myfuzz.scenario.native_f6_isr_return import (
+    _capture_f6_native_retirement, _f6_isr_return_document, _seal_f6_cpu_session)
+_seal_f6_cpu_session(GeneratedCve2Session)
+
+from myfuzz.scenario.f6_instruction_fetch_receipt import (
+    _arm_f6_instruction_read, _capture_f6_instruction_acceptance, _capture_f6_instruction_snapshot,
+    _capture_f6_instruction_request, _complete_f6_instruction_fetch,
+    _observe_f6_native_instruction_response, _f6_instruction_fetch_pending,
+    revoke_f6_instruction_fetch, _seal_f6_fetch_provider)
+_seal_f6_fetch_provider(GeneratedCve2Session, ('accept_instructions', '_resume_instruction',
+    '_serve', '_freeze_snapshot', '_key', '_step_local', '_validate_pre', '_cpu_event',
+    'step_local', 'drain_tick_samples', 'reset_local', '_abort', 'end_case'))

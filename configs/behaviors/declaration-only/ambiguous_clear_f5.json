@@ -1,0 +1,18 @@
+{
+  "schema_version": "inprocess_source_behavior.v1",
+  "description": "Declaration-only F5 behavior that states the same clear twice: one clear_writes row and a one-step clear_sequence. The two spellings are not merged, so the declaration is refused as the ambiguous form.",
+  "notes": [
+    "the facts are the PULP I2C level interrupt of pulp_i2c_level_f5.json; only the duplicated clear spelling is different",
+    "the refusal this file exists for is behavior-source-conflict:clear_writes: a declaration states its clear one way, and this host does not choose between two answers",
+    "no execution is claimed"
+  ],
+  "source_port": "interrupt_o",
+  "source_bit_offset": 0,
+  "trigger_writes": [[4, 192], [16, 90], [20, 16]],
+  "status_offsets": [12],
+  "status_cause_bits": [0],
+  "clear_writes": [[20, 1]],
+  "clear_sequence": [
+    {"kind": "write", "offset": 20, "value": 1}
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": "inprocess_dma_behavior.v1",
+  "description": "ZipDMA F6 behavior: a four-word block and the control-status bits the completion criterion reads.",
+  "notes": [
+    "busy_bit 31 and err_bit 30 are the ZipDMA control bits (third_party/soc-zipcpu/rtl/zipdma/zipdma_ctrl.v:116-117); the executor used to carry them as the anonymous constants DMA_BUSY_BIT and DMA_ERR_BIT, and this file is the declaration that makes them explicit",
+    "the selected profile configs/peripherals/zipdma_smoke/component_profile.json declares only the CONTROL_STATUS side effect (start_or_clear_irq), not the meaning of its bits",
+    "block_words 4 is the value configs/scenarios/inprocess-obi-apb-ibex-timer-zipdma-f1f6.json declares as dma_block_words and the length of the recorded four-word F6 transfer",
+    "status_kind status follows the CONTROL_STATUS register name; the executor still cross-checks the declaration against the DMA profile and the generated binding",
+    "this declaration does not prove the RTL raises bit 31 or bit 30 as stated; the F6 case still records the observed ctl_status word"
+  ],
+  "block_words": 4,
+  "busy_bit": 31,
+  "err_bit": 30,
+  "status_kind": "status"
+}

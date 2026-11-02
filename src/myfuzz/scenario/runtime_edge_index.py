@@ -331,7 +331,8 @@ def _validate_dma_route_rows(route_documents, topology_rows, edges, nodes, topol
                 + (['write'] if region['writable'] else [])))
             if (resource_identity.get('readable') is not region['readable']
                     or resource_identity.get('writable') is not region['writable']
-                    or tuple(sorted(permissions)) != expected_permissions):
+                    or not permissions.issubset(expected_permissions)
+                    or declaration.get('operation') not in expected_permissions):
                 raise ValueError('DMA RAM permissions exceed its selected region')
         elif target['kind'] == 'peripheral':
             identity = target['identity']
@@ -501,10 +502,35 @@ class RuntimeEdgeIndex:
         topology_fields = {'components', 'bindings', 'ownership_inputs', 'routers', 'resources'}
         if has_dma_routes:
             topology_fields.add('dma_master_routes')
+        has_irq_groups=any(e.relation=='irq_delivery_group' for e in contract.edges)
+        if has_irq_groups:
+            topology_fields.add('irq_delivery_groups')
         if (type(topology) is not dict or set(topology) != topology_fields
                 or any(type(topology[key]) is not list for key in topology)):
             raise ValueError('invalid compiled topology')
         _validate_topology(topology, nodes, selected_node_ids, selected_sources)
+        irq_groups={}
+        if has_irq_groups:
+            from .irq_delivery_group import IrqDeliveryGroup
+            from dataclasses import asdict
+            for document in topology['irq_delivery_groups']:
+                group=IrqDeliveryGroup.from_document(document)
+                if group.group_id in irq_groups:
+                    raise ValueError('duplicate compiled IRQ delivery group')
+                irq_groups[group.group_id]=group
+                member_rows=[asdict(b) for b in group.member_bindings()]
+                if any(topology['bindings'].count(row)!=1 for row in member_rows):
+                    raise ValueError('compiled IRQ group actual member binding mismatch')
+                if any((row['target_component'],row['target_port'],row['target_bit_offset']) ==
+                        (group.target_component,group.target_port,group.target_bit_offset)
+                        and row not in member_rows for row in topology['bindings']):
+                    raise ValueError('compiled IRQ group has an unrelated additional driver')
+                owners=[r['owners'] for r in topology['ownership_inputs']
+                    if (r['component'],r['port'])==(group.target_component,group.target_port)]
+                if (len(owners)!=1 or len(owners[0])<=group.target_bit_offset
+                        or owners[0][group.target_bit_offset]['kind']!='bound'
+                        or owners[0][group.target_bit_offset]['producer_ref']!=group.owner_ref):
+                    raise ValueError('compiled IRQ group unique owner mismatch')
         route_documents = contract.document().get('dma_master_routes', [])
         if has_dma_routes:
             _validate_dma_route_rows(route_documents, topology['dma_master_routes'],
@@ -544,6 +570,7 @@ class RuntimeEdgeIndex:
                 or {row['component'] for row in topology['resources']} != expected_resources):
             raise ValueError('compiled router/resource selection mismatch')
         self._direct, self._irq, self._mmio = {}, {}, {}
+        self._irq_group_bindings = {}
         self._dma_routes_by_key = {}
         route_documents_by_key = {
             (row['rule_index'], row['prerequisite_index']): row
@@ -563,32 +590,60 @@ class RuntimeEdgeIndex:
             candidate = {'graph_sha256': contract.graph_sha256,
                          'rule_index': key[0], 'prerequisite_index': key[1],
                          'relation': declaration.relation, 'path_ids': list(dict.fromkeys(path_ids))}
-            if declaration.relation == 'direct_binding':
+            if declaration.relation == 'irq_delivery_group':
+                from .runner import Binding
+                group=irq_groups.get(declaration.irq_group_id)
+                if (group is None or group.identity_sha256!=declaration.irq_group_sha256
+                        or source.kind!='physical' or target.kind!='physical' or source.width!=1 or target.width!=1):
+                    raise ValueError('compiled IRQ group identity mismatch')
+                # Contract nodes carry DUT vector bits; the installed group and
+                # every runtime event address the declared host input port.
+                host_target = getattr(group, 'target_bit_offset', target.bit_offset)
+                binding=Binding(source.component,source.port,target.component,target.port,
+                    source.width,source.bit_offset,host_target)
+                if binding not in group.member_bindings():
+                    raise ValueError('compiled IRQ group source membership mismatch')
+                candidate.update(scope='irq_group_member',irq_group_id=group.group_id,
+                    irq_group_sha256=group.identity_sha256)
+                endpoint=(source.component,source.port,target.component,target.port)
+                direct_key=(*endpoint,source.bit_offset,host_target,source.width)
+                self._irq_group_bindings.setdefault(direct_key,[]).append(candidate)
+                self._irq.setdefault(endpoint,[]).append(candidate)
+            elif declaration.relation == 'direct_binding':
                 if source.kind != 'physical' or target.kind != 'physical' or source.width != target.width:
                     raise ValueError('direct binding requires physical equal-width endpoints')
-                binding = {'source_component': source.component, 'source_port': source.port,
-                           'target_component': target.component, 'target_port': target.port,
-                           'source_bit_offset': source.bit_offset,
-                           'target_bit_offset': target.bit_offset, 'width': source.width}
-                if topology['bindings'].count(binding) != 1:
+                # Resolve the host (port-local) target bit from the compiled
+                # topology rows: contract nodes keep the DUT vector position,
+                # while every binding/ownership/event here is host-local.
+                candidates = [row for row in topology['bindings']
+                              if row['source_component'] == source.component
+                              and row['source_port'] == source.port
+                              and row['target_component'] == target.component
+                              and row['target_port'] == target.port
+                              and row['width'] == source.width
+                              and row['source_bit_offset'] == source.bit_offset]
+                if len(candidates) != 1:
                     raise ValueError('compiled direct binding mismatch')
+                row = candidates[0]
+                host_target = row['target_bit_offset']
+                binding = dict(row)
+                owners = [owner_row['owners'] for owner_row in topology['ownership_inputs']
+                          if (owner_row['component'], owner_row['port']) == (target.component, target.port)]
+                if (len(owners) != 1 or len(owners[0]) < host_target + target.width
+                        or any(owner['kind'] != 'bound'
+                               or owner['producer_ref'] != f'{source.component}.{source.port}'
+                               for owner in owners[0][host_target:host_target + target.width])):
+                    raise ValueError('compiled direct binding ownership mismatch')
                 for other in topology['bindings']:
                     if other == binding:
                         continue
                     if ((other['target_component'], other['target_port']) == (target.component, target.port)
-                            and other['target_bit_offset'] < target.bit_offset + target.width
-                            and target.bit_offset < other['target_bit_offset'] + other['width']):
+                            and other['target_bit_offset'] < host_target + target.width
+                            and host_target < other['target_bit_offset'] + other['width']):
                         raise ValueError('compiled direct binding overlapping target drivers')
-                owners = [row['owners'] for row in topology['ownership_inputs']
-                          if (row['component'], row['port']) == (target.component, target.port)]
-                if (len(owners) != 1 or len(owners[0]) < target.bit_offset + target.width
-                        or any(owner['kind'] != 'bound'
-                               or owner['producer_ref'] != f'{source.component}.{source.port}'
-                               for owner in owners[0][target.bit_offset:target.bit_offset + target.width])):
-                    raise ValueError('compiled direct binding ownership mismatch')
                 candidate['scope'] = 'binding'
                 endpoint = source.component, source.port, target.component, target.port
-                direct_key = (*endpoint, source.bit_offset, target.bit_offset, source.width)
+                direct_key = (*endpoint, source.bit_offset, host_target, source.width)
                 self._direct.setdefault(direct_key, []).append(candidate)
                 if source.width == 1:
                     self._irq.setdefault(endpoint, []).append(candidate)
@@ -808,6 +863,8 @@ class RuntimeEdgeIndex:
                 if any(type(value) is not int for value in bits):
                     return ()
                 matches = self._direct.get((*endpoint, *bits), ())
+                if kind != 'dataflow_delivery':
+                    matches = (*matches,*self._irq_group_bindings.get((*endpoint,*bits),()))
             else:
                 matches = self._irq.get(endpoint, ())
         elif kind in ('mmio_acceptance', 'mmio_delivery'):

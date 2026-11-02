@@ -1,0 +1,49 @@
+{
+  "schema_version": "inprocess_source_behavior.v1",
+  "description": "Declaration-only serial peer whose rx and tx roles are the same pad: a half-duplex line the host's driver has no model for, refused by name.",
+  "notes": [
+    "rx_role and tx_role are both 'rx', so one wire would have to be driven and sampled at the same time; the host's peer owns one input and one output",
+    "the refusal is unsupported-behavior-execution:serial_peer:half_duplex"
+  ],
+  "source_port": "intr_tx_done_o",
+  "source_bit_offset": 0,
+  "trigger_writes": [
+    [
+      4,
+      4
+    ],
+    [
+      16,
+      2147483651
+    ],
+    [
+      28,
+      90
+    ]
+  ],
+  "status_offsets": [
+    0
+  ],
+  "status_cause_bits": [
+    2
+  ],
+  "clear_sequence": [
+    {
+      "kind": "write",
+      "offset": 0,
+      "value": 4
+    }
+  ],
+  "pin_groups": [
+    {
+      "name": "serial_halfduplex",
+      "kind": "serial_peer",
+      "rx_role": "rx",
+      "tx_role": "rx",
+      "tx_en_role": "tx_en",
+      "idle_level": 1,
+      "bit_ticks": 32,
+      "frame": "8n1"
+    }
+  ]
+}

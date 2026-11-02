@@ -1,0 +1,22 @@
+{
+  "schema_version": "declared_irq_f5_config.v1",
+  "single_source": true,
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {"reset_assert_ticks": 8, "reset_release_ticks": 8, "max_wait_cycles": 16},
+  "source_profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+  "source_timing": {"reset_assert_ticks": 2, "reset_release_ticks": 3, "max_wait_cycles": 16},
+  "source_adapter": "declared-output.v1",
+  "source_port": "irq_o",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 16,
+  "active_id": "pulp_timer_active",
+  "active_base": 1073745920,
+  "trigger_writes": [[4, 0], [8, 0], [0, 4294967295]],
+  "target_window": {"base": 1073745920, "size": 4096},
+  "status_offsets": [0],
+  "clear_writes": [],
+  "status_cause_bits": null,
+  "image_start": 65536,
+  "image_end": 196608,
+  "result_address": 68672
+}

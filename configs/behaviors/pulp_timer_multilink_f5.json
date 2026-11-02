@@ -1,0 +1,26 @@
+{
+  "schema_version": "inprocess_source_behavior.v2",
+  "description": "PULP APB timer links used by the two-link F5 batch: timer0 overflow (irq_o[0]) and timer0 compare (irq_o[1]). Both are pulse outputs on one physical port; each link has its own status word and trigger sequence.",
+  "irq_sources": [
+    {
+      "name": "timer0_overflow",
+      "source_port": "irq_o",
+      "source_bit_offset": 0,
+      "pulse_width_ticks": 16,
+      "trigger_writes": [[4, 0], [8, 0], [0, 4294967295]],
+      "status_offsets": [0],
+      "status_cause_bits": null,
+      "clear_writes": []
+    },
+    {
+      "name": "timer0_compare",
+      "source_port": "irq_o",
+      "source_bit_offset": 1,
+      "pulse_width_ticks": 24,
+      "trigger_writes": [[4, 0], [8, 3], [0, 3]],
+      "status_offsets": [8],
+      "status_cause_bits": null,
+      "clear_writes": []
+    }
+  ]
+}

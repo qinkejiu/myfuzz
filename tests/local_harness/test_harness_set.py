@@ -416,7 +416,7 @@ def test_a_component_render_refusal_is_named(tmp_path, monkeypatch):
     def refuse_render(*args, **kwargs):
         raise ValueError('synthetic-render-defect')
 
-    monkeypatch.setattr(harness_set, 'render_local_runtime', refuse_render)
+    monkeypatch.setattr(harness_set, 'render_generated_runtime', refuse_render)
     compose = load_compose(compose_document(tmp_path), base_dir=ROOT)
     output = tmp_path / 'out'
     with pytest.raises(HarnessSetRefused) as raised:
@@ -504,3 +504,8 @@ def test_the_cli_reviews_profiles_against_the_repository_not_the_compose_dir(tmp
                for row in review['components'])
     document = json.loads((output / 'harness_set.json').read_text(encoding='utf-8'))
     assert document['tier'] == 'generated'
+
+def test_dma_linked_generation_provider_is_explicit_default_off():
+    import inspect
+    from myfuzz.local_harness.harness_set import generate_harness_set
+    assert inspect.signature(generate_harness_set).parameters['dma_endpoint_provider'].default is None

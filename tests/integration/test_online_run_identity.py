@@ -176,3 +176,74 @@ class OnlineRunIdentityTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_f6_bound_online_identity_preserves_complete_source_closure(tmp_path, monkeypatch):
+    """Bound F6 archives must validate the same source closure they record."""
+    import hashlib
+    from myfuzz.integration import scenario_rfuzz_live as live
+    from myfuzz.scenario.dma_binding_replay import encode_dma_bound_payload
+    from tests.integration.test_dma_intent_binding_replay import declaration_fixture, credential_fixture
+
+    for name, data in {'decoder_manifest.json': '{"schema_version":"compiled_F6_decoder.v1","feedback_projection":{}}',
+            'targets.json': '[]', 'rfuzz.toml': '[general]\nfilename="plan"\n'}.items():
+        (tmp_path / name).write_text(data)
+    (tmp_path / 'seed.bin').write_bytes(b'seed')
+    client = tmp_path / 'client'
+    client.write_bytes(b'client')
+    plan = b'{"schema_version":24,"cases":[]}'
+    declaration = declaration_fixture()
+    bound = encode_dma_bound_payload(plan, payload_kind='online_session_plan',
+        declaration=declaration, binding_compilations={'session': credential_fixture(declaration)})
+    (tmp_path / 'online_plan.json').write_bytes(bound)
+    manifest = {'schema_version': 'online_session_manifest.v1',
+        'runner': {'sessions': {}}, 'online_source_files': [], 'checker': None}
+    digest = lambda b: hashlib.sha256(b).hexdigest()
+    manifest_hash = digest(live._canonical_json(manifest))
+    trace = ScenarioTrace(digest(plan), 'complete', [], {}, 'semantic', manifest_hash)
+    (tmp_path / 'online_final_trace.json').write_bytes(live._canonical_json({
+        'genome_sha256': trace.genome_sha256, 'status': trace.status, 'events': [],
+        'local_ticks': {}, 'semantic_sha256': trace.semantic_sha256,
+        'manifest_sha256': trace.manifest_sha256}))
+    f6_sources = tuple('src/myfuzz/' + name for name in (
+        'scenario/compiled_f6_decoder.py', 'integration/compiled_f6_rfuzz.py',
+        'integration/compiled_f6_rfuzz_session.py', 'integration/compiled_f6_receipts.py',
+        'integration/compiled_f6_saved_outputs.py', 'integration/compiled_f6.py',
+        'integration/compiled_f6_runtime_path.py', 'integration/compiled_f6_consumer.py',
+        'integration/compiled_f6_firmware.py', 'integration/compiled_f6_layout.py',
+        'scenario/f6_assertion_evidence.py', 'scenario/f6_execution_binding.py',
+        'scenario/f6_execution_contract.py', 'local_harness/generated_artifact_admission.py',
+        'local_harness/harness_set.py'))
+    paths = live._fresh_runtime_source_names(dma_bound=True) + f6_sources
+    frozen = {'source_files': [{'path': name, 'sha256': live._sha256_file(live._ROOT / name)}
+                               for name in paths],
+              'client': live._rfuzz_client_identity(client), 'collector': None}
+    monkeypatch.setattr(live, '_verify_runtime_path_material', lambda *a, **k: None)
+    monkeypatch.setattr(live, '_verify_instruction_image_material', lambda *a, **k: None)
+    monkeypatch.setattr(live, '_verify_dma_binding_compilations', lambda *a, **k: None)
+    identity_hash = live._write_online_run_identity(tmp_path, session_manifest=manifest,
+        plan_bytes=plan, trace=trace, client_binary=client, run_config={},
+        frozen_inputs=frozen, dma_bound_payload=bound)
+    outer = json.loads(bound)
+    (tmp_path / 'report.json').write_bytes(live._canonical_json({
+        'online_run_identity_sha256': identity_hash,
+        'dma_binding_required': 'p7_dma_bound_payload.v1',
+        'dma_binding_identity_sha256': outer['identity_sha256'],
+        'dma_binding_payload_sha256': digest(plan)}))
+    result = live._verify_online_run_identity(tmp_path, plan_path=tmp_path / 'online_plan.json',
+        trace_path=tmp_path / 'online_final_trace.json', trace=trace)
+    assert [row['path'] for row in result['source_files']] == list(paths)
+    # Alter a recorded source digest and reseal the envelope; verification must
+    # still reject it against the current file, independently of envelope SHA.
+    envelope_path = tmp_path / 'online_run_identity.json'
+    envelope = json.loads(envelope_path.read_bytes())
+    envelope['identity']['source_files'][-1]['sha256'] = '0' * 64
+    envelope['sha256'] = digest(live._canonical_json(envelope['identity']))
+    envelope_path.write_bytes(live._canonical_json(envelope))
+    report = json.loads((tmp_path / 'report.json').read_bytes())
+    report['online_run_identity_sha256'] = envelope['sha256']
+    (tmp_path / 'report.json').write_bytes(live._canonical_json(report))
+    import pytest
+    with pytest.raises(ValueError, match='online transport source identity mismatch'):
+        live._verify_online_run_identity(tmp_path, plan_path=tmp_path / 'online_plan.json',
+            trace_path=tmp_path / 'online_final_trace.json', trace=trace)

@@ -12,6 +12,56 @@ from myfuzz.composition.source_crawler import _content_hash
 
 _PINNED_UNION_REVISION = 'sha256:c653811843b453f0689a8f6942934ff9d551734aa4bc4e197d8b9acbfb020230'
 _PINNED_PARAMETERS = {'APB_ADDR_WIDTH': '12', 'BUFFER_DEPTH': '10'}
+#: The only event outputs this RTL drives: apb_spi_master.sv:116-117 assigns
+#: ``events_o[0] = s_int_tx | s_int_rx`` and ``events_o[1] = s_eot``, both one
+#: cycle wide and neither read back.  A declaration may pick one of the two.
+_EVENT_BITS = (0, 1)
+#: Register side effects that would claim a state a handler can latch or clear.
+#: The pinned RTL has none: ``spi_master_apb_if.sv:82`` decodes REG_INTSTA as a
+#: read with no arm in the read mux (:210-211), so the status word reads 0.
+_CLEAR_CLAIMS = ('read_clears', 'write_1_to_clear')
+_EVENT_PORT = 'events_o'
+_STATUS_OFFSET = 0x28
+
+
+def _declared_event_sources(profile: ComponentProfile) -> list:
+    """Admit event outputs declared as pulse interrupts; refuse latch/clear claims.
+
+    The pinned RTL drives two one-cycle event bits (:116-117) and keeps no status
+    bit a handler could latch, clear or read back (``spi_master_apb_if.sv:82`` with
+    no read-mux arm at :210-211).  So an event output may be declared as a pulse
+    interrupt source, but only as a pulse, with its own declared width, on one of
+    the two real event bits, and never with a latched-status or clear claim.
+    """
+    endpoints = {endpoint.endpoint_id: endpoint for endpoint in profile.endpoints}
+    declared = []
+    for source in profile.interrupts:
+        if source.trigger != 'pulse':
+            # A level (or edge-detected level) declaration claims the device holds
+            # the event until software acknowledges it. It does not.
+            raise ValueError('pulp-spi-interrupt-must-be-pulse')
+        if source.pulse_width_cycles is None:
+            # The width is the capture contract the controller's per-cycle sampling
+            # relies on; without it the pulse would be stretched by guesswork.
+            raise ValueError('pulp-spi-interrupt-pulse-width-required')
+        if source.bit is None or source.bit not in _EVENT_BITS:
+            raise ValueError('pulp-spi-interrupt-bit-unsupported')
+        endpoint = endpoints.get(source.endpoint_id)
+        if endpoint is None or endpoint.function != 'interrupt_source':
+            raise ValueError('pulp-spi-interrupt-endpoint-unsupported')
+        fields = [field for field in endpoint.fields
+                  if field.role == source.role and field.direction == 'output'
+                  and _EVENT_PORT in field.aliases]
+        if len(fields) != 1:
+            raise ValueError('pulp-spi-interrupt-not-on-events_o')
+        if type(fields[0].width) is int and source.bit >= fields[0].width:
+            raise ValueError('pulp-spi-interrupt-bit-unsupported')
+        declared.append(source)
+    registers = () if profile.address is None else profile.address.registers
+    for register in registers:
+        if register.side_effect in _CLEAR_CLAIMS:
+            raise ValueError('pulp-spi-interrupt-clear-claim-unsupported')
+    return declared
 
 
 def verify_pulp_spi_source_contract(profile: ComponentProfile, *, base_dir: Path) -> dict:
@@ -84,8 +134,14 @@ def verify_pulp_spi_source_contract(profile: ComponentProfile, *, base_dir: Path
     if any(profile.capabilities.get(name) != value
            for name, value in expected_capabilities.items()):
         raise ValueError('pulp-spi-capability-mismatch')
-    if profile.interrupts or not any(action.port == 'events_o' and action.action == 'observe'
-                                     for action in profile.port_actions):
+    declared = _declared_event_sources(profile)
+    if declared:
+        # One owner per physical output: an observation action and an interrupt
+        # source on the same wire are two declarations of one port.
+        if any(action.port == _EVENT_PORT for action in profile.port_actions):
+            raise ValueError('pulp-spi-event-port-double-declared')
+    elif not any(action.port == _EVENT_PORT and action.action == 'observe'
+                 for action in profile.port_actions):
         raise ValueError('pulp-spi-native-event-observation-required')
     return {
         'schema_version': 'pulp_spi_native_contract.v1',
@@ -119,4 +175,22 @@ def verify_pulp_spi_source_contract(profile: ComponentProfile, *, base_dir: Path
             {'port': 'events_o', 'bit': 1, 'trigger': 'native_pulse',
              'meaning': 'end_of_transfer', 'level_conversion': False},
         ],
+        # What the profile declared about the event outputs, and what stays true
+        # about the device regardless of the declaration.  The two are kept apart
+        # so a pulse source can never be read as a status register.
+        'declared_interrupts': [
+            {'endpoint_id': source.endpoint_id, 'role': source.role,
+             'bit': source.bit, 'trigger': source.trigger,
+             'polarity': source.polarity, 'clock_domain': source.clock_domain,
+             'source_id': source.source_id,
+             'pulse_width_cycles': source.pulse_width_cycles}
+            for source in declared],
+        'interrupt_semantics': {
+            'trigger': 'pulse', 'latched_status': None, 'software_clear': None,
+            'status_register': {'offset': _STATUS_OFFSET, 'readback_value': 0,
+                                'read_mux': 'absent',
+                                'reason': 'spi_master_apb_if.sv:82,210-211 has no '
+                                          'read mux arm for REG_INTSTA'},
+            'trigger_source': 'native end-of-transfer event, not a status bit',
+        },
     }

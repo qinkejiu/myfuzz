@@ -1,6 +1,6 @@
 # CVW 定向会话（D4）实测：`cvw-ahb-pulp-gpio` 会话装配落地
 
-日期：2026-10-18。范围：`/home/qinkejiu/myfuzz` 当前工作树（门禁时 HEAD `2c99a00` ＋本任务源码改动；最终提交 `3d86c19`），本机真实 RTL。上游依据：[P6 逐协议行清单](../../superpowers/plans/2026-10-13-p6-per-protocol-row-checklist.md) §CVW、[P7 自动 onboarding 计划](../../superpowers/plans/2026-10-13-p7-automatic-onboarding-implementation.md)。证据目录：`docs/reports/evidence/cvw-session-20261018/`。同一 worktree 的 Vexii 并发改动由另一 agent 提交（`69556d3`/`9287e47`/`2c99a00`）并原样保留；本报告提交只包含 CVW 文件。
+日期：2026-10-18。范围：`/home/qinkejiu/myfuzz` 当前工作树（门禁时 HEAD `2c99a00` ＋本任务源码改动；最终提交 `3d86c19`），本机真实 RTL。上游依据：[P6 逐协议行清单](../superpowers/plans/2026-10-13-p6-per-protocol-row-checklist.md) §CVW、[P7 自动 onboarding 计划](../superpowers/plans/2026-10-13-p7-automatic-onboarding-implementation.md)。证据目录：`docs/reports/evidence/cvw-session-20261018/`。同一 worktree 的 Vexii 并发改动由另一 agent 提交（`69556d3`/`9287e47`/`2c99a00`）并原样保留；本报告提交只包含 CVW 文件。
 
 ## 1. 结论
 

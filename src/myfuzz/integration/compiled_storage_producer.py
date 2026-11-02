@@ -1,22 +1,29 @@
 """Closed, code-owned storage producer selection for an admitted compiled F4.
 
-Two rows exist and nothing else:
+Three rows exist and nothing else:
 
-* the existing PULP GPIO causal ABI (unchanged construction and consumers), and
-* the source-registered generic APB storage ABI (exact ``GeneratedApb3RegisterSession``
-  with empty setup/probe inputs and ``ApbStorageRegisterVersionAuthority``).
+* the existing PULP GPIO causal ABI (unchanged construction and consumers),
+* the source-registered generic APB storage ABI (exact
+  ``GeneratedApb3RegisterSession`` with empty setup/probe inputs and
+  ``ApbStorageRegisterVersionAuthority``), and
+* the source-registered generic Wishbone storage ABI (exact
+  ``GeneratedWishboneRegisterSession`` with empty setup/probe inputs and
+  ``WishboneStorageRegisterVersionAuthority``), the third row added by the
+  G8.1 Wishbone sibling.
 
 Rows name the exact session/issuer classes and consumer functions in code. A
 caller document can never supply a factory, method, expression or authority
 descriptor, and a component id/profile name never selects a producer. The
-registered timer contract is a reviewed source identity/register contract, not
-arbitrary same-protocol IP inference.
+registered timer/spi and WBUART SETUP contracts are reviewed source
+identity/register contracts, not arbitrary same-protocol IP inference.
 
 The returned binding is immutable and is rebuilt from trusted source inputs on
 every admission, stability check and fresh prefix. It grants no live token,
-certificate, native eligibility, reset prerequisite or storage authority; the
-generic row's in-row commit consumer only consumes a token that the native C
-issuer actually issued in the same live process.
+certificate, native eligibility, reset prerequisite or storage authority; a
+generic row's in-row commit consumer only consumes a token that the native
+issuer actually issued in the same live process. The Wishbone probe is
+prospective: no committed Wishbone hierarchy/native proof exists, so the row
+requires both flags to stay false.
 """
 from __future__ import annotations
 
@@ -36,6 +43,10 @@ from myfuzz.integration.generated_storage_consumer import (
     CONSUMER_QUALNAME as APB_COMMIT_CONSUMER,
     RECEIPT_ELEMENTS as APB_RECEIPT_ELEMENTS,
     check_storage_observation, storage_consumer_support)
+from myfuzz.integration.generated_wishbone_storage_consumer import (
+    CONSUMER_QUALNAME as WISHBONE_COMMIT_CONSUMER,
+    check_wishbone_storage_observation, wishbone_storage_consumer_support)
+from myfuzz.integration.wishbone_register_writer import declare_wishbone_writer
 from myfuzz.local_harness.apb3_register_session import GeneratedApb3RegisterSession
 from myfuzz.local_harness.apb_storage_probe_contract import storage_probe_selection
 from myfuzz.local_harness.apb_storage_probe_verification import (
@@ -48,20 +59,34 @@ from myfuzz.local_harness.native_physical_observation import (
 from myfuzz.local_harness.pulp_gpio_probe_contract import (
     pulp_gpio_observation_contract, pulp_gpio_probe_document, pulp_gpio_register_map)
 from myfuzz.local_harness.runtime_artifact import LocalRuntimeArtifact
+from myfuzz.local_harness.wishbone_register_session import GeneratedWishboneRegisterSession
+from myfuzz.local_harness.wishbone_storage_probe_contract import (
+    wishbone_storage_probe_selection)
+from myfuzz.local_harness.wishbone_storage_probe_verification import (
+    verified_wishbone_storage_observation)
+from myfuzz.local_harness.wishbone_storage_source_contract import (
+    validate_wishbone_storage_source_contract, wishbone_setup_matches,
+    wishbone_word_index)
 from myfuzz.scenario.apb_storage_register_version import ApbStorageRegisterVersionAuthority
 from myfuzz.scenario.gpio_register_version import GpioRegisterVersionAuthority
+from myfuzz.scenario.wishbone_storage_register_version import (
+    WishboneStorageRegisterVersionAuthority)
 
 SCHEMA = 'compiled_F4_storage_producer_binding.v1'
 ROW_GPIO_CAUSAL = 'gpio_causal_abi'
 ROW_GENERIC_APB_STORAGE = 'generic_apb_storage_abi'
-ROWS = (ROW_GPIO_CAUSAL, ROW_GENERIC_APB_STORAGE)
+ROW_GENERIC_WISHBONE_STORAGE = 'generic_wishbone_storage_abi'
+ROWS = (ROW_GPIO_CAUSAL, ROW_GENERIC_APB_STORAGE, ROW_GENERIC_WISHBONE_STORAGE)
 
 _GPIO_TEMPLATE = MappingProxyType(dict(template_id='pulp.gpio.causal',
     template_version='1', variant_id='pulp_gpio_causal_v1'))
 _APB_TEMPLATE = MappingProxyType(dict(template_id='target.apb3',
     template_version='1', variant_id='full-word'))
+_WISHBONE_TEMPLATE = MappingProxyType(dict(template_id='target.wishbone',
+    template_version='1', variant_id='word-addressed-registered-ack'))
 _GPIO_COMMIT_CONSUMER = 'myfuzz.integration.generated_register_writer.check_writer_observation'
 _APB_COMMIT_CONSUMER = APB_COMMIT_CONSUMER
+_WISHBONE_COMMIT_CONSUMER = WISHBONE_COMMIT_CONSUMER
 
 
 def _json(value):
@@ -112,6 +137,17 @@ _DEPENDENCIES = {
     'check_writer_observation': check_writer_observation,
     'check_storage_observation': check_storage_observation,
     'storage_consumer_support': storage_consumer_support,
+    'GeneratedWishboneRegisterSession': GeneratedWishboneRegisterSession,
+    'WishboneStorageRegisterVersionAuthority': WishboneStorageRegisterVersionAuthority,
+    'check_wishbone_storage_observation': check_wishbone_storage_observation,
+    'wishbone_storage_consumer_support': wishbone_storage_consumer_support,
+    'declare_wishbone_writer': declare_wishbone_writer,
+    'wishbone_storage_probe_selection': wishbone_storage_probe_selection,
+    'verified_wishbone_storage_observation': verified_wishbone_storage_observation,
+    'validate_wishbone_storage_source_contract':
+        validate_wishbone_storage_source_contract,
+    'wishbone_setup_matches': wishbone_setup_matches,
+    'wishbone_word_index': wishbone_word_index,
 }
 _PINNED = MappingProxyType({name: _pin(value) for name, value in _DEPENDENCIES.items()})
 _ORIGINS = MappingProxyType({name: value.__module__ for name, value in _DEPENDENCIES.items()})
@@ -180,12 +216,12 @@ class AdmittedStorageProducerBinding:
         return json.loads(self.document_json)['target_component']
 
 
-def _endpoint_protocol(artifact, endpoint_id):
+def _endpoint_protocol(artifact, endpoint_id, expected=('apb', '3')):
     rows = [e for e in artifact.plan.binding.endpoints if e.endpoint_id == endpoint_id]
     if len(rows) != 1 or rows[0].protocol is None:
         raise ValueError('compiled-F4-producer-endpoint-unsupported')
     protocol = tuple(rows[0].protocol)
-    if protocol != ('apb', '3'):
+    if protocol != tuple(expected):
         raise ValueError('compiled-F4-producer-endpoint-unsupported')
     return protocol
 
@@ -277,7 +313,7 @@ def _gpio_document(*, artifacts, compiled_inputs, path, image, stream, access, l
         raise ValueError('compiled-F4-producer-observation-contract-mismatch')
     if access.get('register') != 'GPIOEN':
         raise ValueError('compiled-F4-producer-register-mismatch')
-    protocol = _endpoint_protocol(artifact, target_endpoint)
+    protocol = _endpoint_protocol(artifact, target_endpoint, ('apb', '3'))
     register_map = pulp_gpio_register_map()
     entry = register_map['registers'].get(str(access.get('register_offset')))
     if (not isinstance(entry, dict) or entry.get('name') != 'GPIOEN'
@@ -415,7 +451,7 @@ def _generic_apb_document(*, artifacts, compiled_inputs, path, image, stream, ac
     decode = registered['decode']
     if apb_storage_address_matches(registered, access['register_offset']) is not True:
         raise ValueError('compiled-F4-producer-decode-mismatch')
-    protocol = _endpoint_protocol(artifact, target_endpoint)
+    protocol = _endpoint_protocol(artifact, target_endpoint, ('apb', '3'))
     producer = dict(
         session_class=_qualified(GeneratedApb3RegisterSession),
         session_source_sha256=_module_source(GeneratedApb3RegisterSession),
@@ -464,6 +500,160 @@ def _generic_apb_document(*, artifacts, compiled_inputs, path, image, stream, ac
         candidate=_candidate(path, stream, layout, []),
         live_authority='not_claimed',
         runtime_commit_join='generic_apb_storage_commit_consumer')
+
+
+def _wishbone_template(artifact, endpoint_id):
+    policies = artifact.plan.request.tuning.document().get('endpoint_policies', [])
+    rows = [row for row in policies if isinstance(row, dict)
+            and row.get('endpoint_id') == endpoint_id]
+    if len(rows) != 1:
+        raise ValueError('compiled-F4-producer-template-unsupported')
+    row = rows[0]
+    if ({key: row.get(key) for key in ('template_id', 'template_version', 'variant_id')}
+            != dict(_WISHBONE_TEMPLATE) or row.get('max_outstanding') != 1):
+        raise ValueError('compiled-F4-producer-template-unsupported')
+    return dict(_WISHBONE_TEMPLATE)
+
+
+def _generic_wishbone_document(*, artifacts, compiled_inputs, path, image, stream,
+                               access, layout, target_endpoint, base_dir):
+    target_component = access['target_component']
+    artifact = artifacts[target_component]
+    document = artifact.runtime_document
+    if not isinstance(artifact, LocalRuntimeArtifact):
+        raise ValueError('compiled-F4-producer-artifact-required')
+    if document.get('kind') != 'wishbone_register_observe':
+        raise ValueError('compiled-F4-producer-unsupported')
+    if document.get('dynamic_physical_inputs') or document.get('bound_physical_inputs'):
+        raise ValueError('compiled-F4-producer-input-producer-unsupported')
+    external_pins = [s for s in path['sources'] if s['kind'] == 'external_pin']
+    if external_pins:
+        raise ValueError('compiled-F4-producer-external-pin-unsupported')
+    template = _wishbone_template(artifact, target_endpoint)
+    if base_dir is None:
+        raise ValueError('compiled-F4-producer-source-inputs-required')
+    observation = document.get('storage_observation')
+    if not isinstance(observation, dict):
+        raise ValueError('compiled-F4-producer-observation-contract-mismatch')
+    if any(observation.get(key) is not False for key in (
+            'hierarchy_verified', 'native_verified')):
+        raise ValueError('compiled-F4-producer-observation-contract-mismatch')
+    try:
+        # Prospective documents re-derive every documentary field and return
+        # None: no committed Wishbone hierarchy/native proof exists, so this
+        # must never be recorded as a verification.
+        verification = verified_wishbone_storage_observation(
+            observation, artifact, base_dir=base_dir)
+    except ValueError as error:
+        raise ValueError('compiled-F4-producer-observation-contract-mismatch') from error
+    if verification is not None:
+        raise ValueError('compiled-F4-producer-observation-contract-mismatch')
+    try:
+        selection = wishbone_storage_probe_selection(artifact.plan)
+    except ValueError as error:
+        raise ValueError('compiled-F4-producer-observation-contract-mismatch') from error
+    if (selection is None or observation.get('selection') != selection
+            or observation.get('protocol') != ['wishbone', 'classic']):
+        raise ValueError('compiled-F4-producer-observation-contract-mismatch')
+    try:
+        registered = validate_wishbone_storage_source_contract(
+            observation.get('source_contract'), artifact.plan.profile,
+            base_dir=base_dir)
+    except ValueError as error:
+        raise ValueError('compiled-F4-producer-observation-contract-mismatch') from error
+    contract_id = registered['contract_id']
+    contract = registered['register']
+    if (selection.get('contract_id') != contract_id
+            or selection.get('register') != contract['name']
+            or access.get('register') != contract['name']
+            or contract.get('name') != 'SETUP'
+            or contract.get('word_index') != 0
+            or contract.get('write_mask') != 0x7fffffff):
+        raise ValueError('compiled-F4-producer-register-mismatch')
+    offset = access.get('register_offset')
+    if (type(offset) is not int
+            or type(access.get('window_size')) is not int
+            or not 0 <= offset < access['window_size']
+            or offset % 4 or offset + 4 > access['window_size']):
+        raise ValueError('compiled-F4-producer-register-mismatch')
+    try:
+        word_index = wishbone_word_index(offset)
+        setup_matches = wishbone_setup_matches(registered, offset)
+    except ValueError as error:
+        raise ValueError('compiled-F4-producer-register-mismatch') from error
+    if (word_index != contract['word_index'] or setup_matches is not True):
+        raise ValueError('compiled-F4-producer-register-mismatch')
+    if (registered.get('scope') != 'source_reviewed_wishbone_storage_row'
+            or registered.get('decode', {}).get('address_units') != 'word'
+            or registered.get('decode', {}).get('window_bytes')
+            != access['window_size']):
+        raise ValueError('compiled-F4-producer-register-mismatch')
+    register = _register_access(access, contract['name'],
+        contract['canonical_offset'], 4, artifact.plan.profile,
+        contract['read_mask'])
+    if (register['write_mask'] != contract['write_mask']
+            or access['value_mask'] != contract['write_mask']
+            or register['width'] != contract['width']):
+        raise ValueError('compiled-F4-producer-register-mismatch')
+    register['word_index'] = word_index
+    protocol = _endpoint_protocol(artifact, target_endpoint,
+                                  ('wishbone', 'classic'))
+    decode = registered['decode']
+    producer = dict(
+        commit_consumer=_WISHBONE_COMMIT_CONSUMER,
+        commit_consumer_source_sha256=_module_source(
+            check_wishbone_storage_observation),
+        issuer_class=_qualified(WishboneStorageRegisterVersionAuthority),
+        issuer_source_sha256=_module_source(
+            WishboneStorageRegisterVersionAuthority),
+        version_issuance='WishboneStorageRegisterVersionAuthority.issue/consume/writes',
+        live_token_scope='actual_initial_samples_required_not_claimed',
+        grants_reset_prerequisite=False,
+        write_declaration=_qualified(declare_wishbone_writer),
+        write_declaration_source_sha256=_module_source(declare_wishbone_writer))
+    producer['producer_digest'] = _digest(producer)
+    return dict(schema_version=SCHEMA, row=ROW_GENERIC_WISHBONE_STORAGE,
+        target_component=target_component,
+        target_artifact_kind='wishbone_register_observe',
+        target_artifact_digest=document['artifact_digest'],
+        endpoint_id=target_endpoint, protocol=list(protocol),
+        template=template,
+        executor_template=dict(document.get('selected_template', {}).get('contract') or {}),
+        register=register,
+        decode=dict(decode=decode['expression'],
+            address_units=decode['address_units'],
+            address_width=decode['address_width'],
+            canonical_word_index=decode['canonical_word_index'],
+            window_bytes=decode['window_bytes'], mask=decode['mask'],
+            value=decode['value'], child_select=decode['child_select'],
+            alias_period_bytes=decode['alias_period_bytes'],
+            host_alignment_bytes=decode['host_alignment_bytes'],
+            host_alignment_scope=decode['host_alignment_scope'],
+            ignored_address_bits=list(decode['ignored_bits'])),
+        source=dict(closure_kind='registered_reviewed_source_contract',
+            contract_id=contract_id, contract_digest=registered['digest'],
+            root=registered['source']['root'],
+            revision=registered['source']['revision'],
+            top_module=registered['source']['top_module'],
+            profile_fingerprint=artifact.plan.profile.profile_fingerprint,
+            source_verification_sha256=_digest(artifact.source_verification),
+            source_closure=dict(registered['source']['files'])),
+        probe=dict(digest=observation['digest'],
+            source_contract_digest=observation['source_contract']['digest'],
+            hierarchy_verified=observation['hierarchy_verified'],
+            native_verified=observation['native_verified'],
+            reset_authority=False, version_authority=False,
+            source_authority=False),
+        producer=producer,
+        bound_input=_bound_input(path, target_component, target_endpoint,
+                                 contract['name']),
+        prerequisite=dict(allowed_kinds=['ip_register_version'],
+            expected=dict(kind='ip_register_version', subject=dict(
+                component=target_component, register=contract['name'],
+                reset_epoch=0))),
+        candidate=_candidate(path, stream, layout, []),
+        live_authority='not_claimed',
+        runtime_commit_join='generic_wishbone_storage_commit_consumer')
 
 
 def select_storage_producer(*, artifacts, compiled_inputs, base_dir=None):
@@ -521,6 +711,11 @@ def select_storage_producer(*, artifacts, compiled_inputs, base_dir=None):
             compiled_inputs=compiled_inputs, path=path, image=image, stream=stream,
             access=access, layout=layout, target_endpoint=target_endpoint,
             base_dir=base_dir)
+    elif kind == 'wishbone_register_observe':
+        document = _generic_wishbone_document(artifacts=artifacts,
+            compiled_inputs=compiled_inputs, path=path, image=image, stream=stream,
+            access=access, layout=layout, target_endpoint=target_endpoint,
+            base_dir=base_dir)
     else:
         raise ValueError('compiled-F4-producer-unsupported')
     return AdmittedStorageProducerBinding.build(document)
@@ -569,6 +764,18 @@ def build_storage_producer(binding, *, artifact, base_dir, cache_dir, max_cases)
         target = GeneratedApb3RegisterSession(artifact, base_dir=base_dir,
             cache_dir=cache_dir, setup_writes=(), probe_offsets=())
         authority = ApbStorageRegisterVersionAuthority(target,
+            max_writes=max_cases + 8, max_samples=65536, max_tokens=16)
+        return target, authority
+    if document['row'] == ROW_GENERIC_WISHBONE_STORAGE:
+        support = wishbone_storage_consumer_support(binding=binding,
+            artifacts={document['target_component']: artifact})
+        if support['complete'] is not True:
+            missing = ','.join(row['element'] for row in support['refusals'])
+            raise ValueError(
+                'compiled-F4-producer-receipt-join-incomplete:' + missing)
+        target = GeneratedWishboneRegisterSession(artifact, base_dir=base_dir,
+            cache_dir=cache_dir, setup_writes=(), probe_offsets=())
+        authority = WishboneStorageRegisterVersionAuthority(target,
             max_writes=max_cases + 8, max_samples=65536, max_tokens=16)
         return target, authority
     raise ValueError('compiled-F4-producer-unsupported')

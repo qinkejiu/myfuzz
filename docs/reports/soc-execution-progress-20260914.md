@@ -372,7 +372,7 @@ include root 下的每个文件（含 `src/myfuzz/protocols/rtl`），所以协�
 ### 仍未提交的并行工作流改动（本次未触碰）
 
 `configs/soc/cva6-pulp.json`、`docs/reports/soc-acceptance-20260914.md`、
-`docs/系统总览与RFuzz约束组合示例_20260909.md`、`tests/integration/test_soc_real_cva6.py`、
+`docs/history/experiments/系统总览与RFuzz约束组合示例_20260909.md`、`tests/integration/test_soc_real_cva6.py`、
 `tests/protocols/test_axi4_processor_memory_adapter_rtl.py`、`.superpowers/sdd/task-2-report.md`，
 以及未跟踪的 `tests/fixtures/soc_cva6_pulp_boot.hex`、`tests/fixtures/soc_ibex_pulp_loop.hex`、
 `tests/integration/rtl/soc_cva6_pulp_tb.sv`。

@@ -1,0 +1,54 @@
+{
+  "name": "spi-cvw-ahb-memory",
+  "cpu_profile": "configs/cpus/cvw/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "ip_profile": "configs/peripherals/pulp_spi/local_component_profile.json",
+  "ip_timing": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "max_wait_cycles": 16
+  },
+  "ip_capability": "configs/scenarios/compiled-f2-f4-obi-apb-spi-mmio-ibex/test_capability.json",
+  "cpu_endpoint": "cpu.external_bus",
+  "ip_endpoint": "spi.bus",
+  "mmio_base": 3221291008,
+  "register": "SPICMD",
+  "register_offset": 8,
+  "ram": {
+    "base": 3221225472,
+    "size": 65536
+  },
+  "write_values": [
+    85,
+    170
+  ],
+  "memory_flows": true,
+  "ip_tuning": {
+    "fixed_inputs": [
+      {
+        "endpoint_id": "spi.pins",
+        "role": "sdi0",
+        "value": 0
+      },
+      {
+        "endpoint_id": "spi.pins",
+        "role": "sdi1",
+        "value": 0
+      },
+      {
+        "endpoint_id": "spi.pins",
+        "role": "sdi2",
+        "value": 0
+      },
+      {
+        "endpoint_id": "spi.pins",
+        "role": "sdi3",
+        "value": 0
+      }
+    ]
+  }
+}

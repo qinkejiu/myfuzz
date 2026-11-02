@@ -142,3 +142,58 @@ def test_corrupted_actual_issuance_latches_barrier():
 @pytest.mark.parametrize('component',['other',None,[],True])
 def test_uninstalled_component_total_unknown(component):
  s,a=setup();r=write(s);assert a.stage(component,s,s.ledger,key(),r) is None
+
+
+def test_explicit_component_channel_map_authenticates_cpu_and_dma_commit_services():
+ memory=PersistentMemory(regions=(MemoryRegion('ram',0x20000,4096),),
+                         initialization_seed=9,max_initialized_bytes=4096)
+ cpu=MemoryService(memory,TransactionLedger(),commit_stream_capacity=4)
+ dma=MemoryService(memory,TransactionLedger(),commit_stream_capacity=4)
+ authority=MemoryCommitAuthority(services={'cpu':cpu,'dma':dma},
+                                 channel_ids={'cpu':'data','dma':'dma-memory'})
+ with pytest.raises(TypeError):
+  authority._channel_ids['dma']='data'
+ cpu_key=TransactionKey('execution','case','cpu',0,'data',1)
+ dma_key=TransactionKey('execution','case','dma',0,'dma-memory',1)
+ cpu_receipt=cpu.write(cpu_key,0x20000,0x11223344,width_bytes=4,byte_enable=15)
+ dma_receipt=dma.write(dma_key,0x20004,0x55667788,width_bytes=4,byte_enable=15)
+
+ cpu_token=authority.stage('cpu',cpu,cpu.ledger,cpu_key,cpu_receipt)
+ dma_token=authority.stage('dma',dma,dma.ledger,dma_key,dma_receipt)
+
+ assert type(cpu_token) is int and type(dma_token) is int
+ assert authority.resolve(cpu_token)['fullkey']==asdict(cpu_key)
+ assert authority.resolve(dma_token)['fullkey']==asdict(dma_key)
+ cpu.ack_commit_events((cpu_receipt.commit_document()['commit_id'],))
+ dma.ack_commit_events((dma_receipt.commit_document()['commit_id'],))
+
+
+def test_dma_channel_requires_explicit_component_channel_binding():
+ memory=PersistentMemory(regions=(MemoryRegion('ram',0x20000,4096),),
+                         initialization_seed=9,max_initialized_bytes=4096)
+ dma=MemoryService(memory,TransactionLedger(),commit_stream_capacity=4)
+ dma_key=TransactionKey('execution','case','dma',0,'dma-memory',1)
+ dma_receipt=dma.write(dma_key,0x20000,0x89abcdef,width_bytes=4,byte_enable=15)
+
+ default_channel=MemoryCommitAuthority(services={'dma':dma})
+ wrong_channel=MemoryCommitAuthority(services={'dma':dma},channel_ids={'dma':'data'})
+ assert default_channel.stage('dma',dma,dma.ledger,dma_key,dma_receipt) is None
+ assert wrong_channel.stage('dma',dma,dma.ledger,dma_key,dma_receipt) is None
+
+
+def test_component_channel_map_must_exactly_cover_installed_services():
+ service,_=setup()
+ with pytest.raises(ValueError):
+  MemoryCommitAuthority(services={'cpu':service},channel_ids={})
+ with pytest.raises(ValueError):
+  MemoryCommitAuthority(services={'cpu':service},
+                       channel_ids={'cpu':'data','extra':'dma-memory'})
+
+
+def test_multiple_services_require_explicit_channel_bindings():
+ memory=PersistentMemory(regions=(MemoryRegion('ram',0x20000,4096),),
+                         initialization_seed=9,max_initialized_bytes=4096)
+ cpu=MemoryService(memory,TransactionLedger(),commit_stream_capacity=4)
+ dma=MemoryService(memory,TransactionLedger(),commit_stream_capacity=4)
+ with pytest.raises(ValueError,match='exactly match installed services'):
+  MemoryCommitAuthority(services={'cpu':cpu,'dma':dma})

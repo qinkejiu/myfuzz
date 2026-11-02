@@ -11,6 +11,7 @@ import re
 _FORMATS = {
     'F4': ('compiled_F4_execution_binding.v1', 'compiled_F4_build_join.v1'),
     'F2': ('compiled_F2_execution_binding.v1', 'compiled_F2_build_join.v1'),
+    'F6': ('compiled_F6_execution_binding.v1', 'compiled_F6_build_join.v1'),
 }
 
 
@@ -63,6 +64,12 @@ def _binding_document(binding, *, flow):
              'binding-required')
     document = binding if type(binding) is dict else binding.document()
     _require(type(document) is dict and document.get('schema_version') == _format(flow)[0], 'binding-schema')
+    if flow == 'F6':
+        # F6 has its own closed execution-binding schema and UTF-8 digest
+        # contract. Reuse that structural validator without consulting its
+        # live-owner registry: a saved build join is descriptive evidence.
+        from myfuzz.scenario.f6_execution_binding import CompiledF6ExecutionBinding
+        return CompiledF6ExecutionBinding(document).document()
     # Existing binding contract uses JSON's default ASCII escaping.
     unsigned = {k:v for k,v in document.items() if k != 'binding_sha256'}
     digest = sha256(json.dumps(unsigned, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()).hexdigest()
@@ -104,30 +111,267 @@ def _validate(artifacts, binding, original, fresh):
             _require(type(exit_row.get('returncode')) is int and exit_row['returncode'] == 0 and exit_row.get('reaped') is True, 'process-exit')
 
 
-def build_compiled_build_join(*, flow, artifacts, execution_binding, compiled_document_sha256, runtime_path_id, logical_path_id, original, fresh, error=None):
+def _validate_f6(artifacts, binding, original, fresh):
+    """Join the F6 CPU/DMA artifacts to both actual build audit snapshots.
+
+    Unlike F2/F4, the F6 execution binding intentionally does not carry
+    built-executable receipts. The original and fresh process-audit snapshots
+    are the source of those receipts; this function checks both against the
+    same closed F6 binding and the selected artifact objects.
+    """
+    from .compiled_f4 import _artifact_execution_identity
+
+    _require(binding.get('flow_id') == 'F6', 'flow-id')
+    cpu = binding.get('cpu', {}).get('instance_id')
+    dma = binding.get('dma', {}).get('instance_id')
+    issuers = binding.get('issuer_contracts')
+    _require(type(issuers) is dict, 'issuer-contracts')
+    companions = issuers.get('shared_companions', {})
+    _require(type(cpu) is str and bool(cpu) and type(dma) is str and bool(dma)
+        and cpu != dma and type(companions) is dict
+        and set(companions) == set(artifacts) - {cpu, dma}
+        and {cpu, dma} <= set(artifacts), 'selected-components')
+    _require(_same(binding.get('artifact_identities'),
+        {component: _artifact_execution_identity(artifact)
+         for component, artifact in sorted(artifacts.items())}),
+        'binding-artifacts')
+
+    path = binding.get('runtime_path_admission')
+    _require(type(path) is dict
+        and path.get('schema_version') == 'compiled_F6_runtime_path_admission.v1',
+        'runtime-path-admission')
+    from .compiled_f6_runtime_path import _digest as _f6_digest
+    path_body = {key: value for key, value in path.items()
+                 if key != 'admission_sha256'}
+    runtime_path_ids = path.get('runtime_path_ids')
+    path_count = len(path['shared_flow_paths'])+1 if 'shared_flow_paths' in path else (3 if 'shared_storage_path' in path else 2)
+    _require(type(runtime_path_ids) is list and len(runtime_path_ids) == path_count
+        and all(type(value) is str and bool(value) for value in runtime_path_ids)
+        and len(set(runtime_path_ids)) == path_count
+        and path.get('admission_sha256') == _f6_digest(path_body)
+        and binding.get('runtime_path_admission_sha256') == path['admission_sha256'],
+        'runtime-path-admission-digest')
+    logical_path = path.get('logical_path')
+    contract = path.get('execution_contract')
+    _require(type(logical_path) is dict
+        and type(contract) is dict
+        and logical_path.get('path_id') == binding.get('path_id')
+        and binding.get('selected_path_sha256') == path.get('selected_path_sha256')
+        and binding.get('selected_path_sha256') == _f6_digest(logical_path)
+        and binding.get('compiled_document_sha256')
+            == path.get('compiled_document_sha256'), 'logical-path-identity')
+    _require(binding.get('request_sha256') == path.get('request_sha256')
+        and binding.get('execution_contract_sha256')
+            == path.get('execution_contract_sha256') == _f6_digest(contract)
+        and binding.get('sparse_program_manifest')
+            == path.get('sparse_program_manifest'), 'compiled-path-associations')
+    from .compiled_f6_firmware import build_f6_firmware
+    program_document = build_f6_firmware(contract).document()
+    _require(binding.get('program_sha256') == _f6_digest(program_document),
+        'program-manifest')
+    _require(binding.get('expectation_ids') == contract.get('expectation_ids'),
+        'expectation-scope')
+
+    topology = binding.get('topology_binding')
+    _require(type(topology) is dict
+        and topology.get('identity_sha256') == binding.get('topology_binding_sha256')
+        and binding.get('topology_binding_sha256') == _f6_digest({
+            key: value for key, value in topology.items()
+            if key != 'identity_sha256'}), 'topology-binding-digest')
+    route_admission = binding.get('dma_route_admission')
+    _require(type(route_admission) is dict
+        and route_admission.get('schema_version') == 'dma_master_route_admission.v1'
+        and route_admission.get('binding_identity_sha256')
+            == binding.get('topology_binding_sha256')
+        and binding.get('dma_route_admission_sha256')
+            == _f6_digest(route_admission), 'route-admission-identity')
+    memory = binding.get('memory')
+    _require(type(memory) is dict and type(memory.get('identity')) is dict
+        and memory.get('identity_sha256') == _f6_digest(memory['identity'])
+        and memory.get('cpu_service_owner') == 'cpu'
+        and memory.get('dma_service_owner') == 'dma'
+        and memory.get('distinct_service_objects') is True
+        and memory.get('distinct_ledger_objects') is True,
+        'memory-identity')
+    selected_routes = path.get('selected_dma_routes')
+    _require(type(selected_routes) is list and len(selected_routes) == 2
+        and binding.get('dma_routes') == selected_routes,
+        'selected-dma-routes')
+    routes_by_operation = {row.get('operation'): row for row in selected_routes
+        if type(row) is dict}
+    _require(set(routes_by_operation) == {'read', 'write'}
+        and route_admission.get('path_id') in runtime_path_ids
+        and route_admission.get('read_route_sha256')
+            == routes_by_operation['read'].get('identity_sha256')
+        and route_admission.get('write_route_sha256')
+            == routes_by_operation['write'].get('identity_sha256')
+        and routes_by_operation['read'].get('target_identity_sha256')
+            == routes_by_operation['write'].get('target_identity_sha256')
+        == memory.get('identity_sha256'), 'route-memory-association')
+    beat_policy = route_admission.get('beat_policy')
+    _require(type(beat_policy) is dict
+        and beat_policy.get('schema_version') == 'f6_ram_dma_policy.v1'
+        and beat_policy.get('contract') == contract,
+        'route-policy-contract')
+    expected_issuers = dict(response_fault_schema='f6_dma_response_fault.v1',
+        task5_consumer='myfuzz.integration.compiled_f6_consumer.capture_f6_case',
+        read_issuer_schema='f6_dma_read_result.v1',
+        mret_issuer_schema='native_f6_isr_return.v1')
+    if companions:
+        from myfuzz.scenario.compiled_paths import load_path_wiring
+        from .f6_storage_companion import validate_companion_build_documents
+        wiring = load_path_wiring(path['dma_intent_binding']['wiring'])
+        validate_companion_build_documents(companions, artifacts=artifacts, wiring=wiring)
+        expected_issuers['shared_companions'] = companions
+    _require(binding.get('issuer_contracts') == expected_issuers,
+        'issuer-contracts')
+
+    # Ensure the embedded route/runtime contract documents are structurally
+    # consumable; the source/build join does not issue live topology authority.
+    from .compiled_f6_runtime_path import restore_prepared_runtime_paths
+    prepared = restore_prepared_runtime_paths(path)
+    _require(list(prepared.path_ids) == runtime_path_ids, 'runtime-path-order')
+    _require(set(path.get('artifact_identities', {})) == set(artifacts),
+        'runtime-path-artifacts')
+    for component, artifact in artifacts.items():
+        row = path['artifact_identities'][component]
+        _require(type(row) is dict
+            and row.get('instance_id') == component
+            and row.get('artifact_digest')
+                == artifact.runtime_document.get('artifact_digest')
+            and row.get('profile_fingerprint')
+                == artifact.plan.profile.profile_fingerprint
+            and row.get('runtime_artifact_sha256')
+                == _f6_digest(artifact.runtime_document),
+            'runtime-path-artifact-' + component)
+    for role, component in (('cpu', cpu), ('dma', dma)):
+        role_row = binding.get(role)
+        artifact = artifacts[component]
+        _require(type(role_row) is dict
+            and role_row.get('instance_id') == component
+            and role_row.get('profile_fingerprint')
+                == artifact.plan.profile.profile_fingerprint
+            and role_row.get('runtime_artifact_sha256')
+                == _f6_digest(artifact.runtime_document),
+            'role-artifact-' + role)
+    _require(binding['cpu'].get('irq_provider')
+        == contract.get('irq', {}).get('native_take_provider')
+        and binding['cpu'].get('mret_issuer_schema')
+            == 'native_f6_isr_return.v1', 'cpu-issuer-scope')
+
+    pids = set()
+    nonces = set()
+    receipts = None
+    for snapshot in (original, fresh):
+        _require(type(snapshot) is dict, 'snapshot')
+        unavailable = snapshot.get('unavailable', {})
+        _require(type(unavailable) is dict and not unavailable,
+            'snapshot-unavailable')
+        current_receipts = snapshot.get('receipts')
+        validate_built_receipts(artifacts, current_receipts)
+        if receipts is None:
+            receipts = deepcopy(current_receipts)
+        else:
+            _require(_same(current_receipts, receipts), 'stable-receipts')
+        observations = snapshot.get('preparation_observations')
+        _require(type(observations) is dict and set(observations) == set(artifacts)
+            and all(type(value) is dict for value in observations.values()),
+            'preparation-components')
+        audit = snapshot.get('execution_audit')
+        # `original_build`/`fresh_build` are BuiltProcessAudit snapshots. Their
+        # embedded audit has this exact shape and deliberately has no separate
+        # schema_version (the runtime's execution_audit() is a different row).
+        _require(type(audit) is dict
+            and set(audit) == {'identities', 'exits', 'closed'}
+            and audit.get('closed') is True, 'audit-closed')
+        identities, exits = audit.get('identities'), audit.get('exits')
+        _require(type(identities) is dict and type(exits) is dict
+            and set(identities) == set(exits) == set(artifacts),
+            'process-components')
+        for component, receipt in current_receipts.items():
+            row, exit_row = identities[component], exits[component]
+            _require(type(row) is dict and type(exit_row) is dict,
+                'process-row')
+            expected = dict(component=component,
+                role='cpu' if component == cpu else 'bound_target',
+                artifact_digest=receipt['artifact_digest'],
+                build_digest=receipt['build_digest'],
+                binary_sha256=receipt['binary_sha256'],
+                built_receipt_sha256=built_receipt_sha256(receipt),
+                observed_executable_sha256=receipt['binary_sha256'],
+                ready_artifact_digest=receipt['artifact_digest'])
+            _require(all(_same(row.get(key), value)
+                for key, value in expected.items()), 'process-receipt')
+            pid, nonce = row.get('pid'), row.get('execution_nonce')
+            _require(type(pid) is int and pid > 0
+                and type(nonce) is str and bool(nonce), 'process-identity')
+            _require(pid not in pids and nonce not in nonces, 'process-reused')
+            pids.add(pid)
+            nonces.add(nonce)
+            _require(type(exit_row.get('returncode')) is int
+                and exit_row['returncode'] == 0
+                and exit_row.get('reaped') is True, 'process-exit')
+    return receipts
+
+
+def build_compiled_build_join(*, flow, artifacts, execution_binding,
+        compiled_document_sha256, runtime_path_id, logical_path_id, original,
+        fresh, error=None, runtime_path_ids=None,
+        runtime_path_admission=None, runtime_path_admission_sha256=None,
+        selected_path_sha256=None):
     """Build a complete strict join, or preserve available material on refusal."""
     binding = ({} if execution_binding is None and error is not None
                else _binding_document(execution_binding, flow=flow))
+    # F2/F4 refused joins historically retain receipt facts already present
+    # in their binding. F6's binding intentionally carries no build receipts;
+    # a refused F6 join must not derive authority from partial snapshots.
+    receipts = (binding.get('built_executable_receipts', {})
+        if error is not None and flow != 'F6' else {})
     if error is None:
         _require(_hex(compiled_document_sha256) and compiled_document_sha256 == binding.get('compiled_document_sha256'), 'compiled-document')
-        _require(type(runtime_path_id) is str and bool(runtime_path_id) and runtime_path_id == binding.get('runtime_path_id'), 'runtime-path')
-        _require(type(logical_path_id) is str and bool(logical_path_id) and logical_path_id == binding.get('path_id'), 'logical-path')
-        _validate(artifacts, binding, original, fresh)
-    receipts = binding.get('built_executable_receipts', {})
-    return deepcopy(dict(
+        if flow == 'F6':
+            _require(type(runtime_path_ids) is list
+                and runtime_path_ids == binding.get('runtime_path_admission', {}).get('runtime_path_ids'),
+                'runtime-path-ids')
+            _require(runtime_path_admission == binding.get('runtime_path_admission'),
+                'runtime-path-admission')
+            _require(runtime_path_admission_sha256
+                == binding.get('runtime_path_admission_sha256'),
+                'runtime-path-admission-digest')
+            _require(selected_path_sha256 == binding.get('selected_path_sha256'),
+                'selected-path-digest')
+            _require(logical_path_id == binding.get('path_id'), 'logical-path')
+            _require(runtime_path_id is None, 'f6-singular-runtime-path-forbidden')
+            receipts = _validate_f6(artifacts, binding, original, fresh)
+        else:
+            _require(type(runtime_path_id) is str and bool(runtime_path_id) and runtime_path_id == binding.get('runtime_path_id'), 'runtime-path')
+            _require(type(logical_path_id) is str and bool(logical_path_id) and logical_path_id == binding.get('path_id'), 'logical-path')
+            _validate(artifacts, binding, original, fresh)
+            receipts = binding.get('built_executable_receipts', {})
+    common = dict(
         schema_version=_format(flow)[1],
         status='complete' if error is None else 'refused',
-        scope=f'selected compiled {flow} D2/build/native process association only; no cold-build cost or general throughput acceptance',
+        scope=(f'selected compiled {flow} D2/build/native process association only; no cold-build cost or general throughput acceptance'
+            if flow != 'F6' else 'compiled F6 build receipt and CPU/DMA process identity association only; no F6 dataflow, IRQ/ISR, fresh replay, or capability acceptance'),
         error=None if error is None else (str(error) or type(error).__name__),
         execution_binding_sha256=binding.get('binding_sha256'),
         compiled_document_sha256=compiled_document_sha256,
-        runtime_path_id=runtime_path_id, logical_path_id=logical_path_id,
         artifact_digests={c:a.runtime_document.get('artifact_digest')
                           for c,a in artifacts.items()},
-        built_executable_receipts=receipts,
+        built_executable_receipts=deepcopy(receipts),
         built_executable_receipts_sha256=built_receipt_sha256(receipts),
         built_receipt_sha256={c:built_receipt_sha256(r) for c,r in receipts.items()},
-        original=original, fresh=fresh))
+        original=original, fresh=fresh)
+    if flow == 'F6':
+        common.update(runtime_path_admission=deepcopy(runtime_path_admission),
+            runtime_path_admission_sha256=runtime_path_admission_sha256,
+            runtime_path_ids=deepcopy(runtime_path_ids),
+            selected_path_sha256=selected_path_sha256,
+            logical_path_id=logical_path_id)
+    else:
+        common.update(runtime_path_id=runtime_path_id,
+            logical_path_id=logical_path_id)
+    return deepcopy(common)
 
 
 def verify_compiled_build_join(document, *, flow, artifacts, execution_binding, original, fresh):
@@ -138,15 +382,29 @@ def verify_compiled_build_join(document, *, flow, artifacts, execution_binding, 
     _require(document.get('status') in ('complete', 'refused'), 'document-status')
     error = document.get('error')
     _require((document['status'] == 'complete' and error is None) or (document['status'] == 'refused' and type(error) is str and bool(error)), 'document-error')
-    expected = build_compiled_build_join(
+    common = dict(
         flow=flow, artifacts=artifacts, execution_binding=execution_binding,
         compiled_document_sha256=(binding.get('compiled_document_sha256')
                                   if binding else document.get('compiled_document_sha256')),
-        runtime_path_id=(binding.get('runtime_path_id')
-                         if binding else document.get('runtime_path_id')),
-        logical_path_id=(binding.get('path_id')
-                         if binding else document.get('logical_path_id')),
         original=original, fresh=fresh, error=error)
+    if flow == 'F6':
+        common.update(runtime_path_id=None,
+            logical_path_id=(binding.get('path_id') if binding
+                             else document.get('logical_path_id')),
+            runtime_path_ids=(binding.get('runtime_path_admission', {}).get('runtime_path_ids')
+                if binding else document.get('runtime_path_ids')),
+            runtime_path_admission=(binding.get('runtime_path_admission')
+                if binding else document.get('runtime_path_admission')),
+            runtime_path_admission_sha256=(binding.get('runtime_path_admission_sha256')
+                if binding else document.get('runtime_path_admission_sha256')),
+            selected_path_sha256=(binding.get('selected_path_sha256')
+                if binding else document.get('selected_path_sha256')))
+    else:
+        common.update(runtime_path_id=(binding.get('runtime_path_id')
+            if binding else document.get('runtime_path_id')),
+            logical_path_id=(binding.get('path_id') if binding
+                else document.get('logical_path_id')))
+    expected = build_compiled_build_join(**common)
     _require(_same(document, expected), 'saved-material')
 
 

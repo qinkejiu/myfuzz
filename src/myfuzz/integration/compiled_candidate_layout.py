@@ -251,7 +251,8 @@ def compile_candidate_layout(path):
     image = images[0]
     bounds = image.get('range')
     _require(image['component'] == streams[0]['component'] and image.get('bit_offset') == 0
-             and image.get('mask') == 0xffffffff and image.get('alignment') in (2, 4)
+             and image.get('mask') in (0xffffffff, (1 << 64) - 1)
+             and image.get('alignment') in (2, 4)
              and isinstance(image.get('port'), str) and image['port']
              and isinstance(bounds, (list, tuple)) and len(bounds) == 2
              and all(_integer(v, 0, 0xffffffff) for v in bounds)

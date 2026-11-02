@@ -628,3 +628,144 @@ def _save_ibex_pulp_register_bundle(*,output_dir,assembly,session_manifest,plan_
         scope='directed_register_program_saved_prefix',rfuzz_client_executed=False,
         functional_completion_verified=False,verified_level=None))
     return identity_sha256
+
+
+# Separate opt-in ABI. The shipped ordinary register selector stays closed.
+MIXED_SIDECAR = 'configs/scenarios/compiled-f4-obi-apb-ibex/test_capability.json'
+_MIXED_FIXED = dict(_FIXED, schema_version='mixed_register_program_assembly.v1',
+    selector='ibex_pulp_mixed_gpio', sidecar_selector='pulp_gpio_causal_declared',
+    gpio_consumption=True)
+
+
+def _mixed_declarations():
+    from myfuzz.scenario.ibex_pulp_dual_source import make_ibex_pulp_dual_source_online_decoder
+    from myfuzz.scenario.mixed_external_runtime import external_pin_sources_from_decoder
+    return external_pin_sources_from_decoder(make_ibex_pulp_dual_source_online_decoder())
+
+
+def make_mixed_register_assembly(*, advance_rounds=48, max_program_bytes=64, max_records=256):
+    return validate_mixed_register_assembly(dict(_MIXED_FIXED,
+        advance_rounds=advance_rounds,max_program_bytes=max_program_bytes,max_records=max_records,
+        runtime_contract_sha256=_contract(),external_sources=[d.document() for d in _mixed_declarations()]))
+
+
+def validate_mixed_register_assembly(document):
+    keys=set(_MIXED_FIXED)|set(_LIMITS)|{'runtime_contract_sha256','external_sources'}
+    if type(document) is not dict or set(document)!=keys:
+        raise ValueError('mixed register assembly requires closed fields')
+    for name,expected in _MIXED_FIXED.items():
+        if type(document[name]) is not type(expected) or document[name]!=expected:
+            raise ValueError('mixed register assembly unsupported '+name)
+    for name,(low,high) in _LIMITS.items():
+        if type(document[name]) is not int or not low<=document[name]<=high:
+            raise ValueError('mixed register assembly invalid '+name)
+    if (document['max_program_bytes']%4 or document['runtime_contract_sha256']!=_contract()
+            or _json(document['external_sources'])!=_json([d.document() for d in _mixed_declarations()])):
+        raise ValueError('mixed register assembly declaration mismatch')
+    return json.loads(_json(document))
+
+
+def make_mixed_register_factory(*, cache_dir, assembly):
+    from myfuzz.scenario.ibex_pulp_dual_source import make_ibex_pulp_dual_source_factory
+    d=validate_mixed_register_assembly(assembly)
+    return make_ibex_pulp_dual_source_factory(Path(cache_dir),source_actions=True,
+        gpio_consumption=True,physical_observations=True,memory_commit_receipts=True,
+        persistent_memory_runtime_contract_sha256=d['runtime_contract_sha256'])
+
+
+def make_mixed_register_runtime_factory(assembly):
+    from myfuzz.scenario.register_program_runtime import RegisterProgramRuntime
+    d=validate_mixed_register_assembly(assembly)
+    def install(session):
+        return RegisterProgramRuntime(session,cpu_component='cpu',
+            sidecars={name:_ROOT/MIXED_SIDECAR for name in ('gpio_a','gpio_b')},
+            external_sources=_mixed_declarations(),**{name:d[name] for name in _LIMITS})
+    return install
+
+
+def _mixed_sources():
+    paths={row['path'] for row in _sources()}|{MIXED_SIDECAR,
+        'src/myfuzz/scenario/mixed_external_runtime.py'}
+    return [dict(path=p,sha256=hashlib.sha256((_ROOT/p).read_bytes()).hexdigest()) for p in sorted(paths)]
+
+
+def _verify_mixed_configuration(assembly,configuration):
+    d=validate_mixed_register_assembly(assembly)
+    for key in ('cpu_component',*tuple(_LIMITS),'external_sources'):
+        if _json(configuration.get(key))!=_json(d[key]):
+            raise ValueError('mixed register configuration mismatch: '+key)
+    expected={name:dict(path=str((_ROOT/MIXED_SIDECAR).resolve()),
+        sha256=hashlib.sha256((_ROOT/MIXED_SIDECAR).read_bytes()).hexdigest()) for name in ('gpio_a','gpio_b')}
+    if (_json(configuration.get('sidecars'))!=_json(expected)
+            or configuration.get('provider',{}).get('runtime_contract_sha256')!=d['runtime_contract_sha256']):
+        raise ValueError('mixed register configuration sidecar/provider mismatch')
+
+
+def save_ibex_pulp_mixed_register_bundle(*,output_dir,assembly,session_manifest,plan_bytes,trace,runtime_state):
+    """Authenticate a mixed prefix; no saved declaration installs a live decoder."""
+    from myfuzz.local_harness.build import host_source_discovery_scope
+    import sys
+    with host_source_discovery_scope(reuse_nested=True):
+        d=validate_mixed_register_assembly(assembly)
+        _validate_reference(trace)
+        document=json.loads(plan_bytes)
+        state=_validate_saved_register_documents(document,runtime_state)
+        _verify_mixed_configuration(d,state['configuration'])
+        _verify_bootstrap_plan(document)
+        if (session_manifest.get('checker') is not None or session_manifest.get('runtime_paths') is not None
+                or _json(session_manifest.get('register_program_configuration'))!=_json(state['configuration'])):
+            raise ValueError('mixed register writer manifest mismatch')
+        output=Path(output_dir);output.mkdir(parents=True,exist_ok=False);(output/'corpus').mkdir()
+        def write(name,value):
+            raw=(_json(value)+'\n').encode();(output/name).write_bytes(raw);return hashlib.sha256(raw).hexdigest()
+        (output/'online_plan.json').write_bytes(plan_bytes)
+        write('online_final_trace.json',dict(genome_sha256=trace.genome_sha256,status=trace.status,
+            events=[dict(row) for row in trace.events],local_ticks=dict(trace.local_ticks),
+            semantic_sha256=trace.semantic_sha256,manifest_sha256=trace.manifest_sha256))
+        write('corpus/register_program_assembly.json',d)
+        state_hash=write('corpus/register_program_state.json',state)
+        write('decoder_manifest.json',dict(schema_version='directed_mixed_register_decoder.v1',
+            decoder_executed=False,scope='original_typed_operation_requests_only'))
+        write('targets.json',[])
+        (output/'rfuzz.toml').write_text('# Compatibility artifact; RFuzz client was not executed.\n')
+        (output/'seed.bin').write_bytes(b'')
+        return _write_online_run_identity(output,session_manifest=session_manifest,plan_bytes=plan_bytes,
+            trace=trace,client_binary=Path(sys.executable),frozen_inputs=dict(collector=None,source_files=[],client=None),
+            execution_mode='mixed_register_programs',run_config=dict(register_program_assembly=d,
+                register_program_source_files=_mixed_sources(),register_program_state_sha256=state_hash,
+                rfuzz_client_executed=False))
+
+
+def replay_ibex_pulp_mixed_register_files(*,cache_dir,output_dir):
+    from myfuzz.local_harness.build import host_source_discovery_scope
+    from myfuzz.scenario.session_runtime import replay_online_session
+    with host_source_discovery_scope(reuse_nested=True):
+        output=Path(output_dir)
+        trace_path,reference=_candidate_reference(output)
+        identity=_verify_online_run_identity(output,plan_path=output/'online_plan.json',trace_path=trace_path,trace=reference)
+        if identity is None or identity.get('execution_mode')!='mixed_register_programs':
+            raise ValueError('mixed register replay requires verified mixed bundle')
+        config=identity['run_config']
+        if set(config)!={'register_program_assembly','register_program_source_files','register_program_state_sha256','rfuzz_client_executed'} or config['rfuzz_client_executed'] is not False:
+            raise ValueError('mixed register bundle closed configuration required')
+        assembly=validate_mixed_register_assembly(config['register_program_assembly'])
+        if _json(config['register_program_source_files'])!=_json(_mixed_sources()):
+            raise ValueError('mixed register bundle source identity mismatch')
+        plan=_authenticated_bytes(output,'online_plan.json',identity)
+        document=json.loads(plan)
+        raw=_authenticated_bytes(output,'corpus/register_program_state.json',identity)
+        if hashlib.sha256(raw).hexdigest()!=config['register_program_state_sha256']:
+            raise ValueError('mixed register state digest mismatch')
+        state=_validate_saved_register_documents(document,json.loads(raw))
+        _verify_mixed_configuration(assembly,state['configuration'])
+        _verify_bootstrap_plan(document)
+        _validate_reference(reference)
+        captured=[];install=make_mixed_register_runtime_factory(assembly)
+        def runtime_factory(session):
+            runtime=install(session);captured.append(runtime);return runtime
+        comparison=replay_online_session(plan,make_mixed_register_factory(cache_dir=cache_dir,assembly=assembly),
+            reference,checker=None,register_runtime_factory=runtime_factory)
+        if len(captured)!=1 or _json(captured[0].snapshot())!=_json(state):
+            raise ValueError('mixed register fresh state mismatch')
+        return RegisterReplayResult(comparison,verification_scope=('mixed_operation_reconstruction',
+            'original_source_and_support_admission','online_complete_prefix'))

@@ -503,7 +503,7 @@ git commit -m "feat: add held-out APB and AXI-Lite targets"
 **Files:**
 - Generate under ignored `runs/static_projection/heldout/`: raw reports and logs.
 - Create: `docs/STATIC_PROJECTION_HELDOUT_RESULTS_20260726.md`
-- Modify: `docs/PROJECT_SUMMARY_AND_ARTIFACT_INDEX_20260615.md`
+- Modify: `docs/history/experiments/PROJECT_SUMMARY_AND_ARTIFACT_INDEX_20260615.md`
 
 **Interfaces:**
 - Consumes: frozen policy and held-out experiment manifest.
@@ -536,6 +536,6 @@ Audit with `ps` and the run directory that no RFuzz/Verilator process or FIFO re
 - [ ] **Step 5: Commit**
 
 ```bash
-git add docs/STATIC_PROJECTION_HELDOUT_RESULTS_20260726.md docs/PROJECT_SUMMARY_AND_ARTIFACT_INDEX_20260615.md
+git add docs/STATIC_PROJECTION_HELDOUT_RESULTS_20260726.md docs/history/experiments/PROJECT_SUMMARY_AND_ARTIFACT_INDEX_20260615.md
 git commit -m "docs: publish static projection evaluation"
 ```

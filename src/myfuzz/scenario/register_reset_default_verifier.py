@@ -58,7 +58,7 @@ from .ordinary_apb_access_evidence import OrdinaryApbAccessEvidence as _Ordinary
 _SOURCE='third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv'
 _SOURCE_SHA='1e271914da4d25c87acd12121dde60a6ed955033870fd7a6730b2c9bafcbcaef'
 _PROBE_SOURCE='src/myfuzz/local_harness/pulp_gpio_probe_contract.py'
-_PROBE_SHA='52c5a3eb0aa3cd14d4e4f2543e4e483d0d23ae02c0812b93622931730f4063dd'
+_PROBE_SHA='413cdbad48f25e667ec8175e4a053de64725bf2208925c8aed4152e85ccce94e'
 _REVISION='git:f82caeb7f7d89427f05e9af5ed31e0675efe0d83'
 _EVIDENCE_REF='rtl:'+_SOURCE+'@f82caeb7f7d89427f05e9af5ed31e0675efe0d83:217,325-328,590-598,138;sha256='+_SOURCE_SHA
 _CRITICAL_SOURCE_NAMES=('native_reset_evidence.py','register_program_runtime.py','memory_commit_authority.py',

@@ -206,6 +206,8 @@
       "fields": [
         {
           "role": "external",
+          "direction": "input",
+          "width": 1,
           "aliases": [
             "irq_external_i"
           ]

@@ -348,7 +348,7 @@ git commit -m "test: smoke real OpenTitan RFuzz target"
 ### Task 5: Run the Short Comparison and Publish Corrected Results
 
 **Files:**
-- Modify: `docs/ALL_TEST_RESULTS_MASTER.md`
+- Modify: `docs/history/experiments/ALL_TEST_RESULTS_MASTER.md`
 - Modify: `configs/designs/ibex_multicomponent_ip/README.md`
 - Produce: `runs/pilots/ibex_opentitan_real_ip_*/summary.json`
 - Produce: `runs/pilots/ibex_opentitan_real_ip_*/samples.csv`
@@ -396,6 +396,6 @@ process remains.
 - [ ] **Step 5: Commit tracked implementation and documentation**
 
 ```bash
-git add configs/designs/ibex_opentitan_real_ip scripts/runs/run_ibex_opentitan_real_ip_pilot.py tests/test_ibex_opentitan_real_ip_target.py docs/ALL_TEST_RESULTS_MASTER.md configs/designs/ibex_multicomponent_ip/README.md
+git add configs/designs/ibex_opentitan_real_ip scripts/runs/run_ibex_opentitan_real_ip_pilot.py tests/test_ibex_opentitan_real_ip_target.py docs/history/experiments/ALL_TEST_RESULTS_MASTER.md configs/designs/ibex_multicomponent_ip/README.md
 git commit -m "feat: validate real OpenTitan common-IP coverage target"
 ```

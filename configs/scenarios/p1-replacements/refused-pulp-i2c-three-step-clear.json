@@ -1,0 +1,59 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "p1-refused-pulp-i2c-three-step-clear",
+  "description": "Refusal sample: the PULP APB I2C target names the declaration-only behavior whose acknowledge is an ordered write/read/write clear_sequence. The declaration normalizes; this host performs one clear write, so the sequence is refused by name before any F5 case runs.",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "source_profile": "configs/peripherals/pulp_i2c_irq/component_profile.json",
+  "source_timing": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "max_wait_cycles": 16
+  },
+  "active_id": "pulp_i2c_active",
+  "source_behavior": "configs/behaviors/declaration-only/pulp_i2c_three_step_clear_f5.json",
+  "target_window": {
+    "base": 1073745920,
+    "size": 4096
+  },
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "handler_wait_iterations": 128,
+  "notes": [
+    "This scenario exists to record the named refusal of an ordered multi-step clear, not to pass. The two-write acknowledge the current executor really performs is declared through its own scenario key (irq_clear_sequence) in configs/scenarios/inprocess-obi-apb-pulp-i2c-two-step-clear-f5.json; this file is the behavior-schema spelling, which states a three-step sequence including a read.",
+    "The refusal is raised by the behavior declaration layer (myfuzz.composition.inprocess_behavior.source_behavior) as unsupported-behavior-execution:multi_step_clear:3.",
+    "No execution is claimed: the handler in this host writes one clear word.",
+    "scl_pad_i=1 and sda_pad_i=1 are the same idle pin constants configs/scenarios/inprocess-obi-apb-i2c-zipdma-fuzz.json declares for this RTL: the APB3 register kernel refuses an unowned input, so an idle bus has to be stated before the behavior declaration is reached."
+  ],
+  "source_fixed_inputs": [
+    {
+      "endpoint_id": "i2c.pins",
+      "role": "scl_pad_i",
+      "value": 1
+    },
+    {
+      "endpoint_id": "i2c.pins",
+      "role": "sda_pad_i",
+      "value": 1
+    }
+  ],
+  "source_tuning": {
+    "fixed_inputs": [
+      {
+        "endpoint_id": "i2c.pins",
+        "role": "scl_pad_i",
+        "value": 1
+      },
+      {
+        "endpoint_id": "i2c.pins",
+        "role": "sda_pad_i",
+        "value": 1
+      }
+    ]
+  }
+}

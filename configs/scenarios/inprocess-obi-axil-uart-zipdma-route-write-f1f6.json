@@ -1,0 +1,95 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "dma_profile": "configs/peripherals/zipdma_smoke/component_profile.json",
+  "dma_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "dma_capability": "configs/scenarios/compiled-f1-f6-ibex-gpio-zipdma-shared/dma.test_capability.json",
+  "dma_behavior": "configs/behaviors/zipdma_f6.json",
+  "dma_block_words": 4,
+  "dma_window": {
+    "base": 1073754112,
+    "size": 16
+  },
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "name": "inprocess-obi-axil-uart-zipdma-route-write-f1f6",
+  "description": "One Ibex RVFI OBI CPU with one real AXI4-Lite ZipCPU UART and a ZipDMA: the master pushes the RAM source block into the UART TXREG through the target's own AW/W/B channels, and the case line states the target's channel counters and the FIFO status readback.",
+  "targets": [
+    {
+      "name": "axiluart",
+      "profile": "configs/peripherals/zipcpu_axiluart/component_profile.json",
+      "active_id": "axiluart_target",
+      "window": {
+        "base": 536895488,
+        "size": 16
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 2,
+        "max_wait_cycles": 16
+      },
+      "behavior": null,
+      "pins": null,
+      "fixed_inputs": [
+        {
+          "endpoint_id": "uart.pins",
+          "role": "rx",
+          "value": 1
+        },
+        {
+          "endpoint_id": "uart.pins",
+          "role": "cts_n",
+          "value": 0
+        }
+      ],
+      "tuning": {}
+    }
+  ],
+  "dma_increment_source": true,
+  "dma_increment_destination": false,
+  "dma_route": {
+    "kind": "target_window",
+    "direction": "write",
+    "target_name": "axiluart",
+    "target_index": 0,
+    "target_profile": "configs/peripherals/zipcpu_axiluart/component_profile.json",
+    "target_window": {
+      "base": 536895488,
+      "size": 16
+    },
+    "register": "SETUP",
+    "offset": 0,
+    "address_mode": "fixed",
+    "evidence": {
+      "kind": "register_readback",
+      "register": "SETUP",
+      "offset": 0,
+      "field": "uart_setup",
+      "sampling": "pre_post_transfer",
+      "source": "third_party/soc-zipcpu-wbuart/rtl/wbuart.v:119-137 (uart_setup is written from the four byte lanes of UART_SETUP) and 513 (a read of UART_SETUP returns {1'b0, uart_setup}), so the word the master pushed last is the word the CPU reads back"
+    },
+    "notes": [
+      "the routed register is SETUP (offset 0x00) and the declared evidence is SETUP itself: the RTL stores the four byte lanes of the write into the 31-bit uart_setup register and a read returns {1'b0, uart_setup} (wbuart.v:119-137,513), so the AXI4-Lite readback after the transfer is exactly the last word the master pushed.  A TXREG write route was tried and rejected for the same device fact as the Wishbone scenario: the transmitter drains one entry per push, so the whole-word FIFO_STATUS readback would not change",
+      "the four routed beats present the same fixed target address, so the last one wins: the RAM source block (the F6 record's words) is the data the master pushes"
+    ]
+  },
+  "notes": [
+    "the routed target is the pinned ZipCPU axiluart AXI4-Lite slave behind the generated axi4_lite_mmio_bridge; the host presents the routed beat on the same generic request port the CPU's own MMIO uses, and the bridge drives AW/W/B or AR/R and returns the slave's R data as the beat's response",
+    "the target is mapped at 0x20006000 rather than its SoC 0x40000000 because the pinned ZipDMA's SOURCE/DESTINATION CSR fields are 30-bit byte addresses: a byte address >= 0x40000000 cannot be encoded",
+    "rx=1 and cts_n=0 are the same pin constants the F2/F4 AXI4-Lite scenario declares for this slave; SETUP 0 (rw), FIFO_STATUS 4 (ro), RXREG 8 (rw) and TXREG 12 (rw) are the four declared registers",
+    "the RAM source block is the four input words the F6 record carries, so the pushed bytes are the record's own data"
+  ],
+  "fuzz_seed_records": [
+    "F6:0110c000:08000000:deadbeef:12345678"
+  ]
+}

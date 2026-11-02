@@ -1,0 +1,38 @@
+{
+  "schema_version": "inprocess_source_behavior.v1",
+  "description": "PULP APB3 GPIO F5 behavior plus two named dir-resolved pad groups over the same PADIN word: the host drives the groups in declaration order, each for its own declared window, before the case's own CPU work. The F5 facts are the reviewed PULP GPIO sequence.",
+  "notes": [
+    "the F5 facts are the reviewed sequence of configs/scenarios/inprocess-obi-apb-gpio-pins-f1f5.json: GPIOEN(4)=0xffffffff, INTEN(24)=1, INTTYPE_LOW(28)=1 (pin 0 rise) and PADOUT(12)=0x2b, with INTSTATUS(36) as the read-clearing status word",
+    "the two groups address the one pad word the bound gpio.pins endpoint exposes (PADIN at offset 8): PADDIR(0) is still zero in the cases that carry them, so both groups declare inout and the device's own dir port decides bit by bit. A group naming a second pad word would need a second pad port on the model and is refused by name, not merged",
+    "group0 'phase_low' declares external_value 0x00001111 and holds it for 2 host ticks; group1 'phase_high' declares 0x00002222 and, being the last group, keeps the wire for the rest of the case. The order in this file is the order the host drives: phase_low first, then phase_high",
+    "the external values are stimulus facts, not device facts: they are what the host drives while the device's dir bit is low, and the case line states which group presented which word and how many ticks it held it",
+    "no execution is claimed by this file: the run under runs/p2-pins-serial-20261103/ is the evidence"
+  ],
+  "source_port": "interrupt",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 16,
+  "trigger_writes": [[4, 4294967295], [24, 1], [28, 1], [12, 43]],
+  "status_offsets": [36],
+  "status_cause_bits": null,
+  "clear_writes": [],
+  "pin_groups": [
+    {
+      "name": "phase_low",
+      "kind": "dir_resolved_pad_word",
+      "direction": "inout",
+      "hold_ticks": 2,
+      "padin_offset": 8,
+      "external_value": 4369,
+      "pad_resolution": "device_drives_when_dir_bit_high_else_host"
+    },
+    {
+      "name": "phase_high",
+      "kind": "dir_resolved_pad_word",
+      "direction": "inout",
+      "hold_ticks": 3,
+      "padin_offset": 8,
+      "external_value": 8738,
+      "pad_resolution": "device_drives_when_dir_bit_high_else_host"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-axi4lite-ibex-zipcpu-axiluart-zipdma-f1f6",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {"reset_assert_ticks": 8, "reset_release_ticks": 8, "max_wait_cycles": 16},
+  "source_profile": "configs/peripherals/zipcpu_axiluart/component_profile.json",
+  "source_timing": {"reset_assert_ticks": 8, "reset_release_ticks": 8, "max_wait_cycles": 16},
+  "active_id": "axiluart_target",
+  "source_fixed_inputs": [
+    {"endpoint_id": "uart.pins", "role": "rx", "value": 1},
+    {"endpoint_id": "uart.pins", "role": "cts_n", "value": 0}
+  ],
+  "dma_profile": "configs/peripherals/zipdma_smoke/component_profile.json",
+  "dma_timing": {"reset_assert_ticks": 8, "reset_release_ticks": 8, "max_wait_cycles": 16},
+  "dma_capability": "configs/scenarios/compiled-f1-f6-ibex-gpio-zipdma-shared/dma.test_capability.json",
+  "dma_block_words": 4,
+  "target_window": {"base": 1073745920, "size": 16},
+  "dma_window": {"base": 1073746176, "size": 16},
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "notes": [
+    "same CPU, same Wishbone DMA and same fixed RAM image as configs/scenarios/inprocess-obi-apb-ibex-timer-zipdma-f1f6.json; only the target changed, so the two runs differ in exactly the target protocol",
+    "the target is the pinned ZipCPU axiluart AXI4-Lite slave (C_AXI_ADDR_WIDTH=4, window 16 bytes) behind the generated axi4_lite_mmio_bridge: register map SETUP 0 (rw), FIFO_STATUS 4 (ro), RXREG 8 (rw), TXREG 12 (rw)",
+    "rx=1 and cts_n=0 are the pin constants the phase-one descriptor declared for this slave; the entry renders them from the generated model's own input rows (IP_FIXED_INPUTS)",
+    "target_window 0x40000000..0x4000000f and dma_window 0x40001000..0x4000100f do not overlap and both clear the 4 GiB bound",
+    "F5 is not declared here and the entry refuses it by name (unsupported-f5:target-irq-semantics:axi4-lite:...): the UART's four interrupt outputs are level sources that rise on serial RX activity or on FIFO occupancy, and none of them is raised by a write to a declared register.  The tx/txfifo sources are asserted at reset (TX FIFO empty), so wiring them would interrupt the CPU outside any F5 case instead of inside a declared trigger sequence.  This entry does not drive the serial RX pin over time, so the run covers F1-F4 and F6 and states the refusal instead of inventing an F5",
+    "F4 uses TXREG (offset 12): a write to it really pushes the TX FIFO, so the AXI4-Lite write has a device effect and not just a handshake",
+    "all three profiles declare 50 MHz except the ZipDMA's nominal 1 Hz simulation rate, so assume_single_clock states that one host tick drives all three models"
+  ]
+}

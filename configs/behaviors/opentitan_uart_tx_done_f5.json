@@ -1,0 +1,43 @@
+{
+  "schema_version": "inprocess_source_behavior.v1",
+  "description": "OpenTitan UART F5 behavior: the sticky tx_done event on intr_tx_done_o, the INTR_STATE word the ISR reads, and the one-write W1C acknowledge. The clear is stated as an ordered clear_sequence with one write step, which is the executor's single clear write.",
+  "notes": [
+    "facts read from third_party/soc-opentitan/hw/ip/uart/rtl/uart_core.sv and uart_reg_pkg.sv: INTR_STATE 0 (rw, w1c), INTR_ENABLE 4 (rw), INTR_TEST 8 (wo), CTRL 16 (rw), WDATA 28 (wo, pushes the TX FIFO)",
+    "source_port intr_tx_done_o is the RTL's own output port (uart.sv:45) and source_bit_offset 0 is bit 0 of that one-bit port; the profile row for role tx_done declares exactly this alias, active high, level",
+    "the INTR_STATE/INTR_ENABLE bit is NOT the port bit and the profile does not state it: uart_reg_pkg.sv's uart_hw2reg_intr_state_reg_t lists the nine fields tx_empty, rx_parity_err, rx_timeout, rx_break_err, rx_frame_err, rx_overflow, tx_done, rx_watermark, tx_watermark, and a packed struct's first field is its MSB, so tx_done is bit 2, tx_watermark bit 0, rx_watermark bit 1 and tx_empty bit 8. The F2 probe of INTR_STATE at reset read 0x101 (tx_watermark and tx_empty, the two status-type bits that are true while the FIFOs are empty), which is what confirms the order",
+    "intr_tx_done is one of the six Event-type sources (uart_core.sv:443-454, prim_intr_hw default IntrT=\"Event\"), so an event sets INTR_STATE bit 2 and it stays set until software writes 1 to that bit. The three Status-type sources (tx_watermark, tx_empty, rx_watermark) follow live FIFO conditions and a W1C write cannot deassert them, which is why they are not the declared source",
+    "trigger_writes: INTR_ENABLE(4)=4 unmasks tx_done only, CTRL(16)=0xffff0001 enables the transmitter and sets NCO=0xffff so the 16x baud tick runs almost every clock (uart_core.sv:164-177; with NCO=0 the tick never fires and tx_done could not occur), and WDATA(28)=0x5a pushes one byte into the TX FIFO. tx_enable = ctrl.tx (uart_core.sv:77) and the FIFO is popped when the transmitter is idle, so the byte is really serialized and event_tx_done really pulses (uart_core.sv:328)",
+    "clear_sequence is [{\"kind\": \"write\", \"offset\": 0, \"value\": 4}]: the handler writes 1 to INTR_STATE bit 2 and the event latch clears. Because the event is a one-cycle pulse the line stays low afterwards; that is the difference from the timer, whose level is re-asserted while its condition holds",
+    "the RX pin is held idle (1) by the scenario's fixed input and CTRL enables only the transmitter, so no RX event can set another INTR_STATE bit during F5; the status-type bits are left masked by INTR_ENABLE=4",
+    "this file states device facts only: the executor cross-checks them against configs/peripherals/opentitan_uart_local/component_profile.json, and the declaration does not prove the RTL raises the event (the real F5 run is the evidence)"
+  ],
+  "source_port": "intr_tx_done_o",
+  "source_bit_offset": 0,
+  "trigger_writes": [
+    [
+      4,
+      4
+    ],
+    [
+      16,
+      4294901761
+    ],
+    [
+      28,
+      90
+    ]
+  ],
+  "status_offsets": [
+    0
+  ],
+  "status_cause_bits": [
+    2
+  ],
+  "clear_sequence": [
+    {
+      "kind": "write",
+      "offset": 0,
+      "value": 4
+    }
+  ]
+}

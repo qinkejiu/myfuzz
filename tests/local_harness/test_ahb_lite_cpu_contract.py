@@ -258,14 +258,24 @@ def test_the_contract_claims_a_parameterised_boundary_and_no_elaboration():
 
 
 def test_the_contract_is_not_the_tilelink_or_tl_ul_entry():
-    """Three different entries must not be confused for one another."""
+    """The AHB entry must not be confused with the TileLink entries.
+
+    The two abstract ``('tilelink','1')`` CPU variants were retired once the
+    BOOM declaration collapsed to a single coherent endpoint; the CPU-side
+    TileLink row is now ``('tilelink-coherent','1')`` while ``target.tl-ul``
+    stays the peripheral target.  What this test pins is the separation: one
+    AHB CPU row, no abstract TileLink pair left, one TL-UL target row.
+    """
     rows = list_template_contracts()
     ahb = [row for row in rows if row.template_id == 'cpu.ahb-lite']
     tl_cpu = [row for row in rows if row.protocol == ('tilelink', '1')]
+    tl_coherent = [row for row in rows if row.protocol == ('tilelink-coherent', '1')]
     tl_ul = [row for row in rows if row.template_id == 'target.tl-ul']
-    assert len(ahb) == 1 and len(tl_cpu) == 2 and len(tl_ul) == 1
-    assert ahb[0].side == 'cpu' and tl_ul[0].side == 'target'
-    assert ahb[0].protocol != tl_cpu[0].protocol
+    assert len(ahb) == 1 and len(tl_cpu) == 0 and len(tl_coherent) == 1 and len(tl_ul) == 1
+    assert ahb[0].side == 'cpu' and tl_coherent[0].side == 'cpu'
+    assert tl_ul[0].side == 'target'
+    assert ahb[0].protocol != tl_coherent[0].protocol
+    assert ahb[0].protocol != tl_ul[0].protocol
 
 
 def test_a_dropped_role_is_refused_rather_than_silently_tolerated():

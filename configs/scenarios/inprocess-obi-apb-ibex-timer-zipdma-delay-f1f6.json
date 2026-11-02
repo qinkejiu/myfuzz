@@ -1,0 +1,92 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-apb-ibex-timer-zipdma-delay-f1f6",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "source_profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+  "source_timing": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "max_wait_cycles": 16
+  },
+  "active_id": "pulp_timer_active",
+  "source_port": "irq_o",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 16,
+  "trigger_writes": [
+    [
+      4,
+      0
+    ],
+    [
+      8,
+      0
+    ],
+    [
+      0,
+      4294967295
+    ]
+  ],
+  "status_offsets": [
+    0
+  ],
+  "status_cause_bits": null,
+  "clear_writes": [],
+  "dma_profile": "configs/peripherals/zipdma_smoke/component_profile.json",
+  "dma_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "dma_capability": "configs/scenarios/compiled-f1-f6-ibex-gpio-zipdma-shared/dma.test_capability.json",
+  "dma_behavior": "configs/behaviors/zipdma_f6.json",
+  "dma_block_words": 4,
+  "dma_response_delay": 2,
+  "dma_backpressure": {
+    "pattern": "per_response_stall",
+    "applies_to": [
+      "read",
+      "write"
+    ],
+    "max_consecutive_ticks": 2
+  },
+  "dma_observation_expectations": {
+    "stall_ticks_min": 2,
+    "stall_ticks_max": 2,
+    "dma_reads": 4,
+    "dma_writes": 4,
+    "completion_irq": "level_until_clear",
+    "control_clear_required": true,
+    "per_word_data_integrity": true
+  },
+  "target_window": {
+    "base": 1073745920,
+    "size": 4096
+  },
+  "dma_window": {
+    "base": 1073754112,
+    "size": 16
+  },
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "dma_host_support": {
+    "status": "supported",
+    "response_delay_max": 8,
+    "reason": "the host adds the declared dma_response_delay to mwb_stall/mwb_ack for each accepted master beat and measures the wait of every response; the case line reports dma_wait_min/max, dma_stall_ticks, dma_max_consecutive_stalls and dma_delay_evidence, and the pass criterion refuses a declared delay that was not observed",
+    "where": [
+      "scripts/inprocess_obi_apb_f1f4_spike.cpp (Master.delay = DMA_RESPONSE_DELAY + the write-data-late cycle; per-accept accept_tick; dma_delay_evidence)",
+      "scripts/run_inprocess_f1f6.py (DMA_RESPONSE_DELAY/DMA_STALL_EXPECT_* rendered from the plan)"
+    ]
+  },
+  "notes": [
+    "same timer/target, DMA profile/behavior and four-word block as configs/scenarios/inprocess-obi-apb-ibex-timer-zipdma-f1f6.json; this copy adds the delay/backpressure declaration and what a run has to observe",
+    "dma_response_delay 2 declares two host-generated stall ticks before each DMA master response; evidence: runs/round1-dma-a/delay (dma_wait_min 3 = 2 declared ticks plus the host's one pending tick, dma_delayed_acks 8/8, dma_max_consecutive_stalls 4)",
+    "observation expectations: every accepted master read/write response is held 2 ticks, the four-word data payload is unchanged by the stall, the level-sensitive completion IRQ still arrives, and the declared clear write still deasserts it.  A run that cannot measure per-response wait ticks reports dma_delay_evidence unknown and fails the correspondence check rather than passing silently",
+    "the ZipDMA profile's nominal 1 Hz is a simulation scheduling value, not hardware timing; assume_single_clock states that one host tick drives CPU, timer and DMA"
+  ]
+}

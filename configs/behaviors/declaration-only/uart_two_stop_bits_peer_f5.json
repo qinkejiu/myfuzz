@@ -1,0 +1,50 @@
+{
+  "schema_version": "inprocess_source_behavior.v1",
+  "description": "Declaration-only serial peer with two stop bits. The host's serial driver encodes and decodes 8n1/8e1/8o1 only, so this shape is refused by name by the declaration layer and never narrowed to one stop bit.",
+  "notes": [
+    "this is a schema example, not a pinned device declaration: no UART scenario references it",
+    "frame 8n2 is one start bit, eight data bits and two stop bits; the host's frame word has one stop position, so the extra bit time would be silently dropped if this declaration ran",
+    "the refusal is unsupported-behavior-value:pin_groups.frame, raised where the frame value is checked, before any model is built"
+  ],
+  "source_port": "intr_tx_done_o",
+  "source_bit_offset": 0,
+  "trigger_writes": [
+    [
+      4,
+      4
+    ],
+    [
+      16,
+      2147483651
+    ],
+    [
+      28,
+      90
+    ]
+  ],
+  "status_offsets": [
+    0
+  ],
+  "status_cause_bits": [
+    2
+  ],
+  "clear_sequence": [
+    {
+      "kind": "write",
+      "offset": 0,
+      "value": 4
+    }
+  ],
+  "pin_groups": [
+    {
+      "name": "serial_8n2",
+      "kind": "serial_peer",
+      "rx_role": "rx",
+      "tx_role": "tx",
+      "tx_en_role": "tx_en",
+      "idle_level": 1,
+      "bit_ticks": 32,
+      "frame": "8n2"
+    }
+  ]
+}

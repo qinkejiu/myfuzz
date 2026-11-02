@@ -1,0 +1,65 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "p2-wbdmac-f6-ram",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "source_profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+  "source_timing": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "max_wait_cycles": 16
+  },
+  "active_id": "pulp_timer_active",
+  "source_port": "irq_o",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 16,
+  "trigger_writes": [
+    [
+      4,
+      0
+    ],
+    [
+      8,
+      0
+    ],
+    [
+      0,
+      4294967295
+    ]
+  ],
+  "status_offsets": [
+    0
+  ],
+  "status_cause_bits": null,
+  "clear_writes": [],
+  "dma_profile": "configs/peripherals/zipcpu_wbdmac/component_profile.json",
+  "dma_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "dma_capability": "configs/scenarios/compiled-f6-ibex-wbdmac-storage/dma.test_capability.json",
+  "dma_block_words": 4,
+  "target_window": {
+    "base": 1073745920,
+    "size": 4096
+  },
+  "dma_window": {
+    "base": 1073754112,
+    "size": 16
+  },
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "notes": [
+    "one Ibex RVFI OBI CPU, the PULP timer as the F5 source, and the pinned configs/peripherals/zipcpu_wbdmac profile, whose RTL is third_party/soc-zipcpu/rtl/peripherals/wbdmac.v: a pipelined Wishbone memory master plus a registered-ack control target, i.e. a different device from the ZipDMA (rtl/zipdma/*), not a second profile of it",
+    "the F6 firmware writes the plan start word 0x0fed0004 (key 0xfed in bits 27:16, block length in bits 9:0) to the control word, waits for the transfer, then reads the control status back; the destination block is read back by the CPU",
+    "the transfer is RAM -> RAM: the DMA master really reads the source block it was configured with and really writes the destination block, and the case line reports both beat counts",
+    "this scenario is the four-word reference transfer: one word per master request, one response in flight at a time, the shape the entry has executed since the wbdmac path was admitted"
+  ],
+  "dma_behavior": "configs/behaviors/p2-wbdmac_f6_status.json"
+}

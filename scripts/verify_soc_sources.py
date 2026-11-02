@@ -151,7 +151,118 @@ def _command_options(command):
     return include_dirs, include_files, defines, parameter_tokens
 
 
-def verify_elaboration(record, base_dir, owners, allowed_roots=None):
+def _ports_digest(rows):
+    """Stable digest of ``[name, direction, width]`` port rows."""
+    canonical = json.dumps([list(row) for row in sorted(rows)],
+                           sort_keys=True, separators=(",", ":"), allow_nan=False)
+    return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+def _verify_port_evidence(closure, record, base_dir):
+    """Authenticate a stored port-evidence section against the pinned bytes.
+
+    A derived top can be too large for the frontend JSON walker
+    (``myfuzz.composition.source_elaboration._MAX_AST_NODES``) while its
+    structured port facts are already published beside the generated source.
+    When a closure records that evidence, this re-derives the top module's
+    declared ports from the *pinned bytes* with the same bounded text parser the
+    crawler uses and requires an exact match, so the stored artifact is
+    authenticated rather than trusted.  Closure documents without the section
+    are unaffected.
+    """
+    block = closure.get("port_evidence")
+    if block is None:
+        return None
+    if not isinstance(block, dict):
+        raise ValueError("invalid-port-evidence")
+    for field in ("top_module", "source_revision", "artifact", "manifest",
+                  "ports", "ports_sha256"):
+        if field not in block:
+            raise ValueError("missing-port-evidence-field:" + field)
+    if block["top_module"] != closure.get("top_module"):
+        raise ValueError("port-evidence-top-mismatch")
+    if block["source_revision"] != record["source"].get("revision"):
+        raise ValueError("port-evidence-revision-mismatch")
+    base = Path(base_dir).resolve()
+
+    def read_pinned(spec, label):
+        if not isinstance(spec, dict):
+            raise ValueError("invalid-port-evidence:" + label)
+        path = _safe_child(base, _declared_relative(spec.get("path")))
+        raw = path.read_bytes()
+        digest = spec.get("sha256")
+        if not isinstance(digest, str) or not HEX64.fullmatch(digest):
+            raise ValueError("invalid-port-evidence-hash:" + label)
+        if hashlib.sha256(raw).hexdigest() != digest:
+            raise ValueError("port-evidence-hash-mismatch:" + label)
+        return raw, digest
+
+    artifact_raw, artifact_digest = read_pinned(block["artifact"], "artifact")
+    manifest_raw, _manifest_digest = read_pinned(block["manifest"], "manifest")
+    try:
+        artifact = json.loads(artifact_raw)
+        manifest = json.loads(manifest_raw)
+    except json.JSONDecodeError as error:
+        raise ValueError("invalid-port-evidence-json") from error
+    if manifest.get("revision") != block["source_revision"]:
+        raise ValueError("port-evidence-manifest-revision-mismatch")
+    if manifest.get("top_module") != block["top_module"]:
+        raise ValueError("port-evidence-manifest-top-mismatch")
+    if manifest.get("physical_ports_sha256") != artifact_digest:
+        raise ValueError("port-evidence-manifest-digest-mismatch")
+
+    rows = block["ports"]
+    if not isinstance(rows, list) or not rows:
+        raise ValueError("empty-port-evidence")
+    recorded = []
+    for row in rows:
+        if (not isinstance(row, dict) or not isinstance(row.get("name"), str)
+                or row.get("direction") not in ("input", "output", "inout")
+                or type(row.get("width")) is not int or row["width"] < 1):
+            raise ValueError("invalid-port-evidence-row")
+        recorded.append([row["name"], row["direction"], row["width"]])
+    if len({row[0] for row in recorded}) != len(recorded):
+        raise ValueError("duplicate-port-evidence")
+    if _ports_digest(recorded) != block["ports_sha256"]:
+        raise ValueError("port-evidence-digest-mismatch")
+
+    # The published artifact must carry the same rows as the closure.
+    modules = artifact.get("modules") if isinstance(artifact, dict) else None
+    published = modules.get(block["top_module"]) if isinstance(modules, dict) else None
+    artifact_rows = [[row.get("name"), row.get("direction"), row.get("width")]
+                     for row in (published or {}).get("ports", [])]
+    if _ports_digest(artifact_rows) != block["ports_sha256"]:
+        raise ValueError("port-evidence-artifact-mismatch")
+
+    # ... and the pinned source text must declare exactly the same ports.  Only
+    # the top module's header is parsed: sibling modules in a generated file may
+    # use parameterised ports this parser refuses on purpose, so a whole-file
+    # crawl would fail on them (``unsupported-port-width``) instead of checking
+    # the one module the closure is about.
+    from myfuzz.composition.stored_elaboration import top_module_text_ports
+    root = _safe_child(base, _declared_relative(block.get("root") or closure.get("root")
+                                               or record["source"]["root"]))
+    files = [_safe_child(_safe_child(base, _declared_relative(item["root"])),
+                         _declared_relative(item["path"]))
+             for item in closure["closure_files"]]
+    text_ports, _modules = top_module_text_ports(
+        root, files, block["top_module"], lambda path: path.read_bytes())
+    text_rows = [[port.name, port.direction, port.width] for port in text_ports]
+    if not text_rows:
+        raise ValueError("port-evidence-top-not-found:" + block["top_module"])
+    if _ports_digest(text_rows) != block["ports_sha256"]:
+        raise ValueError("port-evidence-source-mismatch")
+    return {
+        "ports": len(recorded),
+        "ports_sha256": block["ports_sha256"],
+        "artifact_sha256": artifact_digest,
+        "artifact": block["artifact"]["path"],
+        "manifest": block["manifest"]["path"],
+        "derivation": "pinned-source-text-reparse",
+    }
+
+
+def verify_elaboration(record, base_dir, owners, allowed_roots=None, inline_evidence=None):
     """Re-derive the elaboration claim from the pinned evidence document."""
     status = record["elaboration_status"]
     block = record.get("elaboration")
@@ -170,8 +281,18 @@ def verify_elaboration(record, base_dir, owners, allowed_roots=None):
         raise ValueError("invalid-elaboration-evidence-hash")
 
     base = Path(base_dir).resolve()
-    evidence = _safe_child(base, _declared_relative(block["evidence"]))
-    raw = evidence.read_bytes()
+    if inline_evidence is None:
+        evidence = _safe_child(base, _declared_relative(block["evidence"]))
+        raw = evidence.read_bytes()
+    else:
+        # Profile-embedded closure is covered by the profile identity. All
+        # closure contents and pinned Git blobs are verified exactly as for a
+        # separately tracked closure file.
+        if not isinstance(inline_evidence, dict):
+            raise ValueError("invalid-elaboration-evidence")
+        _declared_relative(block["evidence"])
+        raw = json.dumps(inline_evidence, sort_keys=True, separators=(',', ':'),
+                         allow_nan=False).encode()
     if hashlib.sha256(raw).hexdigest() != block["evidence_sha256"]:
         raise ValueError("elaboration-evidence-hash-mismatch")
     try:
@@ -291,7 +412,8 @@ def verify_elaboration(record, base_dir, owners, allowed_roots=None):
         if not isinstance(digest, str) or not HEX64.fullmatch(digest):
             raise ValueError("invalid-closure-hash:" + relative)
         revision = owners.get(root_relative)
-        if not isinstance(revision, str) or not revision.startswith("git:"):
+        if not isinstance(revision, str) or not (revision.startswith("git:")
+                                                or revision.startswith("sha256:")):
             raise ValueError("unpinned-closure-root:" + root_relative)
         if root_relative not in allowed:
             raise ValueError("undeclared-closure-root:" + root_relative)
@@ -300,12 +422,18 @@ def verify_elaboration(record, base_dir, owners, allowed_roots=None):
         content = path.read_bytes()
         if hashlib.sha256(content).hexdigest() != digest:
             raise ValueError("closure-hash-mismatch:" + relative)
-        blob = subprocess.run(
-            ["git", "-C", str(root), "cat-file", "blob", revision[4:] + ":" + relative],
-            capture_output=True, check=False,
-        )
-        if blob.returncode or blob.stdout != content:
-            raise ValueError("git-content-mismatch:" + relative)
+        if revision.startswith("git:"):
+            blob = subprocess.run(
+                ["git", "-C", str(root), "cat-file", "blob", revision[4:] + ":" + relative],
+                capture_output=True, check=False,
+            )
+            if blob.returncode or blob.stdout != content:
+                raise ValueError("git-content-mismatch:" + relative)
+        # A derived (``sha256:``-pinned) root has no Git object to compare
+        # against: the closure entry's own digest above and the record's
+        # ``selected_content_hash`` (recomputed by ``verify_record`` from exactly
+        # these bytes) are the pin.  This is the same rule a generated
+        # component's derived source manifest already uses.
         labelled.add(path.relative_to(base).as_posix())
         roots.add(root_relative)
 
@@ -317,12 +445,12 @@ def verify_elaboration(record, base_dir, owners, allowed_roots=None):
             if candidate.resolve().relative_to(base).as_posix() not in labelled:
                 raise ValueError("command-file-not-in-closure:" + token)
 
-    if _is_git_worktree(base) and not _is_tracked(base, block["evidence"]):
+    if inline_evidence is None and _is_git_worktree(base) and not _is_tracked(base, block["evidence"]):
         # Untracked evidence is not durable: it can be edited with no trace in
         # any commit, so the claim would not be reviewable after the fact.
         raise ValueError("untracked-elaboration-evidence:" + block["evidence"])
 
-    return {
+    report = {
         "elaboration_status": status,
         "closure_files": len(files),
         "closure_roots": sorted(roots),
@@ -330,6 +458,10 @@ def verify_elaboration(record, base_dir, owners, allowed_roots=None):
         "tool": closure["tool"]["version"],
         "lint": lint,
     }
+    evidence = _verify_port_evidence(closure, record, base)
+    if evidence is not None:
+        report["port_evidence"] = evidence
+    return report
 
 
 def replay_elaboration(record, base_dir):
@@ -396,7 +528,7 @@ def replay_elaboration(record, base_dir):
             "read_set_matches_closure": True}
 
 
-def verify_record(record, base_dir, owners=None, replay=False, allowed_roots=None):
+def verify_record(record, base_dir, owners=None, replay=False, allowed_roots=None, inline_elaboration=None):
     for field in ("id", "source", "artifacts", "selected_content_hash", "closure_status", "source_status", "elaboration_status", "runtime_status"):
         if field not in record:
             raise ValueError("missing-lock-field:" + field)
@@ -411,7 +543,7 @@ def verify_record(record, base_dir, owners=None, replay=False, allowed_roots=Non
         owners = document_owners({"components": [record]}, base_dir)
     if allowed_roots is None:
         allowed_roots = document_roots({"components": [record]}).get(record["id"], set())
-    elaboration = verify_elaboration(record, base_dir, owners, allowed_roots)
+    elaboration = verify_elaboration(record, base_dir, owners, allowed_roots, inline_evidence=inline_elaboration)
     if "interface_description" in record:
         interface = _safe_child(Path(base_dir).resolve(), record["interface_description"])
         if hashlib.sha256(interface.read_bytes()).hexdigest() != record.get("interface_description_sha256"):
@@ -449,9 +581,15 @@ def verify_record(record, base_dir, owners=None, replay=False, allowed_roots=Non
         if artifact["path"] not in paths:
             owners_for_artifact = [(root, locator.revision)] + [(_safe_child(root, p.path), p.revision) for p in locator.repositories]
             owner, revision = max((p for p in owners_for_artifact if p[0] in path.parents), key=lambda p: len(p[0].parts))
-            blob = subprocess.run(["git", "-C", str(owner), "cat-file", "blob", revision[4:] + ":" + path.relative_to(owner).as_posix()], capture_output=True, check=False)
-            if blob.returncode or blob.stdout != content:
-                raise ValueError("git-content-mismatch:" + artifact["path"])
+            if revision.startswith("git:"):
+                blob = subprocess.run(["git", "-C", str(owner), "cat-file", "blob", revision[4:] + ":" + path.relative_to(owner).as_posix()], capture_output=True, check=False)
+                if blob.returncode or blob.stdout != content:
+                    raise ValueError("git-content-mismatch:" + artifact["path"])
+            # On a derived (``sha256:``-pinned) root there is no Git object: the
+            # artifact digest checked just above is the pin, and the file must
+            # live inside the component's own root (``_safe_child`` enforces it).
+            elif not path.is_relative_to(root):
+                raise ValueError("artifact-outside-derived-root:" + artifact["path"])
     if replay and record["elaboration_status"] == ELABORATION_VERIFIED:
         elaboration.update(replay_elaboration(record, base_dir))
     return {

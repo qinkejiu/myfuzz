@@ -246,6 +246,86 @@ def test_policy_requires_full_exact_memory_resource_and_window():
         refuse(changed, prepared, links, 'dma-binding-target-unsupported')
 
 
+def f6_write_only_ram_route_fixture():
+    """Represent F6's write-only route over its shared read/write RAM."""
+    wiring, prepared, links = fixture()
+    routes = list(prepared.contract.dma_master_routes)
+    index = next(i for i, route in enumerate(routes)
+                 if route.target_kind == 'persistent_memory')
+    routes[index] = replace(routes[index], permissions=('write',))
+    contract = replace(prepared.contract, dma_master_routes=tuple(routes))
+    prepared = PreparedRuntimePathContract(prepared.graph, contract,
+        prepared.runtime_paths)
+    document = deepcopy(wiring.document)
+    document['dma_master_routes']['routes'][index]['permissions'] = ['write']
+    document['dma_master_routes_sha256'] = digest(document['dma_master_routes'])
+    wiring = load_path_wiring(document)
+    route_key = routes[index].key
+    link = next(row for row in links
+                if (row['rule_index'], row['prerequisite_index']) == route_key)
+    link['runtime_route_sha256'] = routes[index].identity_sha256
+    return wiring, prepared, links
+
+
+def test_operation_scoped_ram_write_route_is_subset_of_shared_rw_resource():
+    wiring, prepared, links = f6_write_only_ram_route_fixture()
+    declaration = prepare_dma_intent_binding(wiring, prepared, route_links=links)
+    assert declaration.document()['wiring']['resources'][0]['read'] is True
+    assert declaration.document()['wiring']['resources'][0]['write'] is True
+    assert next(route for route in prepared.contract.dma_master_routes
+        if route.target_kind == 'persistent_memory').permissions == ('write',)
+
+
+@pytest.mark.parametrize('change', ['remove_write', 'extra_read_permission', 'unknown_read_permission'])
+def test_operation_scoped_ram_write_route_refuses_disabled_or_unselected_permission(change):
+    wiring, prepared, links = f6_write_only_ram_route_fixture()
+    if change == 'remove_write':
+        wiring = rebuild(wiring, lambda d: d['resources'][0].update(write=False))
+    elif change == 'unknown_read_permission':
+        wiring = rebuild(wiring, lambda d: d['resources'][0].update(read=None))
+    else:
+        routes = list(prepared.contract.dma_master_routes)
+        index = next(i for i, route in enumerate(routes)
+                     if route.target_kind == 'persistent_memory')
+        routes[index] = replace(routes[index], permissions=('read', 'write'))
+        prepared = PreparedRuntimePathContract(prepared.graph,
+            replace(prepared.contract, dma_master_routes=tuple(routes)),
+            prepared.runtime_paths)
+        document = deepcopy(wiring.document)
+        document['dma_master_routes']['routes'][index]['permissions'] = ['read', 'write']
+        document['dma_master_routes_sha256'] = digest(document['dma_master_routes'])
+        document['resources'][0]['read'] = False
+        wiring = load_path_wiring(document)
+        route_key = routes[index].key
+        link = next(row for row in links if
+            (row['rule_index'], row['prerequisite_index']) == route_key)
+        link['runtime_route_sha256'] = routes[index].identity_sha256
+    refuse(wiring, prepared, links, 'dma-binding-target-unsupported')
+
+
+def test_route_contract_rejects_operation_missing_from_its_permission_tuple():
+    wiring, prepared, links = f6_write_only_ram_route_fixture()
+    route = next(route for route in prepared.contract.dma_master_routes
+                 if route.target_kind == 'persistent_memory')
+    with pytest.raises(ValueError):
+        replace(route, permissions=('read',))
+
+
+def test_operation_scoped_ram_route_still_requires_exact_static_live_permission_tuple():
+    wiring, prepared, links = f6_write_only_ram_route_fixture()
+    routes = list(prepared.contract.dma_master_routes)
+    index = next(i for i, route in enumerate(routes)
+                 if route.target_kind == 'persistent_memory')
+    routes[index] = replace(routes[index], permissions=('read', 'write'))
+    changed = PreparedRuntimePathContract(prepared.graph,
+        replace(prepared.contract, dma_master_routes=tuple(routes)),
+        prepared.runtime_paths)
+    link = next(row for row in links if row['rule_index'] == routes[index].rule_index)
+    link['runtime_route_sha256'] = routes[index].identity_sha256
+    refuse(wiring, changed, links, 'dma-binding-policy-mismatch',
+        '/wiring/dma_master_routes/routes/1/permissions')
+
+
 def test_declaration_rejects_changed_retained_wiring_and_constructor_bytes():
     wiring, prepared, links = fixture()
     declaration = prepare_dma_intent_binding(wiring, prepared, route_links=links)
@@ -610,3 +690,55 @@ def test_live_session_key_must_match_actual_artifact_instance(issued_artifact, t
         live_bind(declaration, runner, artifact_links=evidence)
     assert error.value.code == 'dma-binding-artifact-mismatch'
     assert error.value.pointer == '/sessions/' + session_key + '/artifact/plan/request/instance_id'
+
+
+def test_explicit_boundary_validation_defers_static_drift_but_keeps_full_gate(issued_artifact,tmp_path):
+    declaration,runner,evidence,_=live_fixture(issued_artifact,tmp_path)
+    from myfuzz.scenario.dma_intent_topology_binding import bind_dma_intent_topology
+    bound=bind_dma_intent_topology(declaration,runner,artifact_links=evidence,
+        boundary_static_validation=True)
+    bound.runtime_compilation.validate_dynamic_topology()
+    runner.sessions['dma'].artifact.runtime_document['boundary_test_drift']=True
+    try:
+        bound.runtime_compilation.validate_dynamic_topology()
+        with pytest.raises(ValueError):bound.validate_topology()
+    finally:
+        runner.sessions['dma'].artifact.runtime_document.pop('boundary_test_drift')
+
+
+def test_dynamic_topology_still_rejects_replaced_session(issued_artifact,tmp_path):
+    declaration,runner,evidence,_=live_fixture(issued_artifact,tmp_path)
+    from myfuzz.scenario.dma_intent_topology_binding import bind_dma_intent_topology
+    bound=bind_dma_intent_topology(declaration,runner,artifact_links=evidence,
+        boundary_static_validation=True)
+    runner.sessions['dma']=deepcopy(runner.sessions['dma'])
+    with pytest.raises(ValueError):bound.runtime_compilation.validate_dynamic_topology()
+
+
+@pytest.mark.parametrize('mutation',['artifact','session','service','ledger','memory_index','config'])
+def test_boundary_mode_keeps_dynamic_owners_and_config(issued_artifact,tmp_path,mutation):
+    from copy import copy
+    declaration,runner,evidence,_=live_fixture(issued_artifact,tmp_path)
+    from myfuzz.scenario.dma_intent_topology_binding import bind_dma_intent_topology
+    bound=bind_dma_intent_topology(declaration,runner,artifact_links=evidence,
+        boundary_static_validation=True)
+    dma=runner.sessions['dma']
+    if mutation=='artifact':dma.artifact=replace(dma.artifact)
+    elif mutation=='session':runner.sessions['dma']=copy(dma)
+    elif mutation=='service':dma.memory_service=copy(dma.memory_service)
+    elif mutation=='ledger':dma.memory_service.ledger=copy(dma.memory_service.ledger)
+    elif mutation=='memory_index':dma.memory_service.memory._windows=list(dma.memory_service.memory._windows)
+    else:dma.max_events+=1
+    with pytest.raises(ValueError):bound.runtime_compilation.validate_dynamic_topology()
+
+
+def test_boundary_dynamic_does_not_recreate_static_endpoint_document(issued_artifact,tmp_path,monkeypatch):
+    declaration,runner,evidence,_=live_fixture(issued_artifact,tmp_path)
+    from myfuzz.scenario.dma_intent_topology_binding import bind_dma_intent_topology
+    bound=bind_dma_intent_topology(declaration,runner,artifact_links=evidence,
+        boundary_static_validation=True)
+    import myfuzz.local_harness.wishbone_dma_session as module
+    def expensive(_):raise AssertionError('static endpoint reconstruction')
+    monkeypatch.setattr(module,'dma_route_endpoint_identity_document',expensive)
+    bound.runtime_compilation.validate_dynamic_topology()
+    with pytest.raises(AssertionError,match='static endpoint'):bound.validate_topology()

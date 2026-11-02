@@ -1,0 +1,28 @@
+{
+  "adapter_id": "apb3.storage.v1",
+  "adapter_version": "1",
+  "alias_register_offsets": [
+    0,
+    128,
+    256,
+    384
+  ],
+  "capability": "configs/scenarios/compiled-f4-obi-apb-gpio-storage/test_capability.json",
+  "compose": "configs/scenarios/compiled-f4-obi-apb-gpio-storage/compose.json",
+  "f4_records": [
+    "55000000",
+    "aa000000",
+    "78563412"
+  ],
+  "flows": [
+    "F2",
+    "F4"
+  ],
+  "non_alias_register_offset": 4,
+  "register": "PADDIR",
+  "renamed_instance": false,
+  "scenario": "gpio",
+  "schema_version": "generic_storage_contract_selection.v1",
+  "source_contract_id": "pulp-apb-gpio.paddir.source.v1",
+  "supplement": "configs/scenarios/compiled-f4-obi-apb-gpio-storage/execution_supplement.json"
+}

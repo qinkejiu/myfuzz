@@ -116,6 +116,13 @@ class MemoryDependencyEvidenceConsumer:
             kind = event.get('kind')
             if commit_token is not None and kind != 'memory_write_commit' or read_token is not None and kind != 'memory_read_issuance':
                 self._fail('authority_token_kind_mismatch')
+            elif (kind == 'memory_write_commit' and commit is None
+                  and type(event.get('component')) is str
+                  and event['component'] not in self._commit_authority._installed):
+                # Other real memory services can share this journal and memory,
+                # but their commits are outside this consumer's installed scope.
+                # Their bytes never acquire an authenticated writer here.
+                pass
             elif kind == 'memory_write_commit':
                 self._write(event, commit)
             elif kind == 'memory_read_issuance':

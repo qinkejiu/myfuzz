@@ -238,6 +238,80 @@ def test_synthetic_full_read_chain_certifies_exact_hops(generated):
     assert all(edge['status'] == 'certified' for edge in observed['edges'])
 
 
+def _reindex_journal(context):
+    """Rebind event references and native fetch sequences after coherent edits."""
+    events = context['events']
+    identities = {event['event_id']: index for index, event in enumerate(events, 1)}
+    references = ('event_id', 'producer_event_id', 'delivery_event',
+                  'acceptance_event', 'native_APB_event')
+    for event in [*events, context['join']]:
+        for key in references:
+            if key in event:
+                event[key] = identities[event[key]]
+        if 'local_tick' in event:
+            event['local_tick'] = event['event_id']
+            event['outputs']['driver_samples'][0]['local_tick'] = event['event_id']
+    sequence = 0
+    for event in events:
+        if event.get('kind') == 'memory_read':
+            sequence += 1
+            event['transaction']['source_sequence'] = sequence
+    context['ram_event_id'] = context['ram_event']['event_id']
+
+
+def test_coherent_late_xor_fetch_cannot_certify_dependent_store(generated):
+    context = _journal(generated)
+    # Move a complete native XOR fetch after the store, and rebind both event
+    # references and source sequences. Each word still has its correct bytes,
+    # source writer, snapshot and actual native acceptance/response beat.
+    xor_fetch = context['events'][10:13]
+    del context['events'][10:13]
+    context['events'].extend(xor_fetch)
+    _reindex_journal(context)
+    with pytest.raises(ValueError, match='functional-fetch-order|instruction-store-order'):
+        _check(context)
+
+
+def test_coherent_out_of_order_functional_fetch_refuses(generated):
+    context = _journal(generated)
+    context['events'][10:16] = context['events'][13:16] + context['events'][10:13]
+    _reindex_journal(context)
+    with pytest.raises(ValueError, match='functional-fetch-order'):
+        _check(context)
+
+
+def test_native_fetch_response_and_next_acceptance_may_share_sample(generated):
+    context = _journal(generated)
+    previous_response = context['events'][3]
+    next_request = context['events'][4]
+    signals = context['traces']['instr']
+    previous_response['outputs']['driver_samples'][0]['pre']['protocol_taps'].update(
+        next_request['outputs']['driver_samples'][0]['pre']['protocol_taps'])
+    assert previous_response['outputs']['driver_samples'][0]['pre']['protocol_taps'][signals['rvalid']] == 1
+    context['events'][5]['producer_event_id'] = previous_response['event_id']
+    context['events'].remove(next_request)
+    _reindex_journal(context)
+    assert len(_check(context)['instruction_hops']) == 7
+
+
+def test_observed_wrong_instruction_source_is_contradictory(generated):
+    from myfuzz.integration.native_obi_hops import F2ObservationMissing
+    context = _journal(generated)
+    context['events'][0]['data_hex'] = '00' * len(bytes.fromhex(context['events'][0]['data_hex']))
+    with pytest.raises(ValueError) as caught:
+        _check(context)
+    assert not isinstance(caught.value, F2ObservationMissing)
+
+
+def test_unavailable_native_read_response_is_missing(generated):
+    from myfuzz.integration.native_obi_hops import F2ObservationMissing
+    context = _journal(generated)
+    for key in ('read_response', 'store_request', 'ram_event', 'store_response'):
+        context['events'].remove(context[key])
+    with pytest.raises(F2ObservationMissing, match='native-data-route-hop-missing'):
+        _check(context)
+
+
 # ----------------------------------------------------------- missing responses
 
 
@@ -387,5 +461,12 @@ def test_unsupported_flows_and_shapes_refuse(generated):
     access['value_mask'] = 0x000000ff
     row['execution_contract'] = build_f2_read_contract(row)
     from myfuzz.integration.compiled_f2_layout import compile_f2_candidate_layout
+    # A response bit mask is not the address-selector width. Protocol MMIO
+    # admits this declared mask without granting the old storage producer.
+    layout=compile_f2_candidate_layout(row)
+    assert layout.byte_length==4
+    assert layout.classify(row['execution_contract']['address'].to_bytes(4,'little')).accepted
+    access['value_mask']=0x100000000
+    row['execution_contract']=build_f2_read_contract(row)
     with pytest.raises(ValueError, match='register-word-shape'):
         compile_f2_candidate_layout(row)

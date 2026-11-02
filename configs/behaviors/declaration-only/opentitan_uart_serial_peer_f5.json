@@ -1,0 +1,59 @@
+{
+  "schema_version": "inprocess_source_behavior.v1",
+  "description": "Declaration-only F5 behavior for the OpenTitan UART that states a serial peer beside the tx_done interrupt: the peer drives rx and samples tx/tx_en at a declared bit period and frame. The declaration normalizes two groups; this host has no serial driver, so it refuses the peer by name. Since 2026-11-03 (P2) the host executes one serial peer for real (8n1/8e1/8o1); this file stays declaration-only evidence of the shape, and two peers or half duplex are still refused by name.",
+  "notes": [
+    "the two pad roles are the profile's own external_pins roles (uart.pins: rx input, tx output, tx_en output); idle_level 1 is the UART line's idle level and bit_ticks 434 is 50 MHz / 115200 baud rounded up - it is a declaration of the peer timing, not a measurement",
+    "the dir-resolved group is the pad word the current host really resolves, so the declaration mixes one executable group with one it cannot execute. The refusal must name the serial peer rather than silently resolving the pad word and dropping the peer",
+    "a serial peer is what the UART's rx_break_err / rx_frame_err / rx_parity_err sources would need: they are triggered by what arrives on the wire, which no host-side register write can produce",
+    "no execution is claimed for the nearline frame or for any rx_* event"
+  ],
+  "source_port": "intr_tx_done_o",
+  "source_bit_offset": 0,
+  "trigger_writes": [
+    [
+      4,
+      8
+    ],
+    [
+      16,
+      4294901761
+    ],
+    [
+      28,
+      90
+    ]
+  ],
+  "status_offsets": [
+    0
+  ],
+  "status_cause_bits": [
+    3
+  ],
+  "clear_sequence": [
+    {
+      "kind": "write",
+      "offset": 0,
+      "value": 8
+    }
+  ],
+  "pin_groups": [
+    {
+      "name": "pads",
+      "kind": "dir_resolved_pad_word",
+      "direction": "inout",
+      "padin_offset": 8,
+      "external_value": 0,
+      "pad_resolution": "device_drives_when_dir_bit_high_else_host"
+    },
+    {
+      "name": "serial0",
+      "kind": "serial_peer",
+      "rx_role": "rx",
+      "tx_role": "tx",
+      "tx_en_role": "tx_en",
+      "idle_level": 1,
+      "bit_ticks": 434,
+      "frame": "8n1"
+    }
+  ]
+}

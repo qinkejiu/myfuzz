@@ -1,0 +1,15 @@
+{
+  "capabilities": [
+    "configs/scenarios/compiled-f6-ibex-wbdmac-storage/dma.test_capability.json",
+    "configs/scenarios/compiled-f4-obi-apb-timer/test_capability.json"
+  ],
+  "compose": "compose.json",
+  "max_cases": 1,
+  "records": [
+    "0110c00008000000"
+  ],
+  "rounds": 1024,
+  "schema_version": "shared_F6_assembly_case.v1",
+  "storage_flow_consumption": "fixed_CPU_MMIO_readback_requires_native_evidence",
+  "supplement": "execution_supplement.json"
+}

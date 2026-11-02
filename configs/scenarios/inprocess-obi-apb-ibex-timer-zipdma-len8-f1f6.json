@@ -1,0 +1,75 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-apb-ibex-timer-zipdma-len8-f1f6",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "source_profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+  "source_timing": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "max_wait_cycles": 16
+  },
+  "active_id": "pulp_timer_active",
+  "source_port": "irq_o",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 16,
+  "trigger_writes": [
+    [
+      4,
+      0
+    ],
+    [
+      8,
+      0
+    ],
+    [
+      0,
+      4294967295
+    ]
+  ],
+  "status_offsets": [
+    0
+  ],
+  "status_cause_bits": null,
+  "clear_writes": [],
+  "dma_profile": "configs/peripherals/zipdma_smoke/component_profile.json",
+  "dma_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "dma_capability": "configs/scenarios/compiled-f1-f6-ibex-gpio-zipdma-shared/dma.test_capability.json",
+  "dma_behavior": "configs/behaviors/zipdma_len8_f6.json",
+  "dma_block_words": 8,
+  "target_window": {
+    "base": 1073745920,
+    "size": 4096
+  },
+  "dma_window": {
+    "base": 1073754112,
+    "size": 16
+  },
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "dma_host_support": {
+    "status": "supported",
+    "block_words_max": 8,
+    "reason": "the entry consumes the plan the declaration/planning layer builds: the block length, the start word and the master byte enable are rendered into the generated header (DMA_BLOCK_WORDS/DMA_START_WORD/DMA_MASTER_*) and the C++ host executes them; the mailbox span, the DMA source/destination spans and declared_windows were raised to the eight-word block, so this scenario runs for real",
+    "where": [
+      "scripts/run_inprocess_f1f6.py (MAILBOX_BYTES = INPUT_BLOCK + 4*8, DMA_MAX_BLOCK_WORDS = 8, declared_windows headroom, dma_declaration)",
+      "scripts/inprocess_obi_apb_f1f4_spike.cpp (DMA_BLOCK_WORDS drives the record length, the copy loop and the destination checks)"
+    ]
+  },
+  "notes": [
+    "same timer/target, CPU timing and address windows as configs/scenarios/inprocess-obi-apb-ibex-timer-zipdma-f1f6.json; only the declared DMA block length and its behavior file differ",
+    "the eight-word block is executed: src/myfuzz/composition/dma_transfer.py normalizes it to LENGTH 32 bytes and start word 0x00000000, and the entry renders DMA_BLOCK_WORDS 8 into the C++ host. Evidence: runs/round1-dma-a/len8-fixed and runs/round1-dma-a/len-sweep",
+    "the planner still reports its own 1..4 host bound as host-only (src/myfuzz/composition/dma_transfer.py HOST_BLOCK_WORDS = 4); the run summary lists that limit under f6.host_limits and the entry records DMA_MAX_BLOCK_WORDS = 8 under f6.host_limits_raised.  A block longer than eight words would need a larger mailbox-to-handler gap and is refused by name",
+    "the behavior file configs/behaviors/zipdma_len8_f6.json also exceeds the 1..4 bound of myfuzz.composition.inprocess_behavior; the entry reads the same control-status facts from the plan and states that loader refusal in f6.behavior_loader_refusal",
+    "dma_window must not overlap the APB target window; the timer owns 0x40000000..0x40000fff and the DMA control window is 16 bytes at 0x40003000"
+  ]
+}

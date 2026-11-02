@@ -187,11 +187,16 @@ def test_replay_registers_actual_case_before_submit_and_cleans_up_refusal(factor
         def __init__(self, template, runner, **kwargs):
             self.runner = runner; self.runtime_path_document = None
             self._terminal_failure = None; self._source_schedule_ticks = {}
-        def begin(self): calls.append('begin')
+            self.instruction_image_binding_documents = ()
+            # The replay cleanup path asks the real session whether it is begun
+            # and already finished, so the stand-in must model those flags.
+            self._begun = False; self._finished = False
+        def _native_source_binding_configuration(self): return None
+        def begin(self): self._begun = True; calls.append('begin')
         def submit_case(self, replayed, **kwargs):
             self.runner.persistent_memory_prerequisite_gate.require_case(replayed)
             calls.append('submit')
-        def finish(self): calls.append('finish'); return reference
+        def finish(self): self._finished = True; calls.append('finish'); return reference
     monkeypatch.setattr(module, 'ScenarioSession', RecordingSession)
     monkeypatch.setattr(module, '_online_manifest', lambda *a, **k: {})
     runner, _, _ = prepared(factory)

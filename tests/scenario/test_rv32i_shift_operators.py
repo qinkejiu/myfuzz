@@ -259,13 +259,9 @@ def test_srai_imm10_is_the_only_legal_high_bit_and_imm11_is_not():
 
 
 @pytest.mark.parametrize("funct3", [2, 3])
-def test_slti_and_sltiu_stay_outside_the_deliberate_legal_subset(funct3):
-    """Shifts widen OP-IMM; SLTI/SLTIU remain refused with a precise funct3."""
+def test_slti_and_sltiu_are_in_the_legal_subset(funct3):
     word = _itype(funct3, 0, 5, 3) | (1 << 20)
-    rejection = _caught(lambda: validate_instruction_bytes(_bytes(word)))
-    assert (rejection.code, rejection.pointer) == (
-        rc.RejectionCode.ISA_DISALLOWED_OPERATION, "fragment[0].funct3")
-    assert rejection.detail == {"funct3": funct3, "opcode": OP_IMM}
+    validate_instruction_bytes(_bytes(word))
 
 
 # --------------------------------------------------------------------------

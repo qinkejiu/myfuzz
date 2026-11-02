@@ -1,0 +1,203 @@
+{
+  "status": "verified",
+  "authority": false,
+  "native_target_protocol": "wishbone",
+  "phases": {
+    "original": {
+      "events": 2130,
+      "CPU_store_tick": 74,
+      "commands": {
+        "cpu": 107,
+        "wb_timer_active": 110,
+        "wb_timer_idle": 108
+      },
+      "native_WB_request": {
+        "ack": 0,
+        "cyc": 1,
+        "dat_r": 0,
+        "dat_w": 8,
+        "sel": 15,
+        "stall": 0,
+        "stb": 1,
+        "we": 1,
+        "event_id": 1385,
+        "local_tick": 75
+      },
+      "native_WB_response": {
+        "ack": 1,
+        "cyc": 1,
+        "dat_r": 8,
+        "dat_w": 8,
+        "sel": 15,
+        "stall": 0,
+        "stb": 0,
+        "we": 1,
+        "event_id": 1389,
+        "local_tick": 76
+      },
+      "pulse_event": 1505,
+      "pulse_tick": 83,
+      "pulse_phase": "post",
+      "latest_source_tick": 84,
+      "latest_source_value": 0,
+      "take_tick": 79,
+      "serial": 1,
+      "first_retire_tick": 85,
+      "first_pc": 66092,
+      "identities": [
+        {
+          "artifact_digest": "11aee60741bdaa15ce6c4d5dd2f6fc187269fe6951af4eb4a19f537c7f1425fc",
+          "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/384522453af79197a89f2c9bddb90e23917236482dd60a2c644d0a7cd7f07d43/harness",
+          "binary_sha256": "2a2219b805406e83ece2c981268c5e61128862eaad33c7794bf774fc65a63889",
+          "build_digest": "384522453af79197a89f2c9bddb90e23917236482dd60a2c644d0a7cd7f07d43",
+          "component": "cpu",
+          "execution_nonce": "2e9c36ee67674e83b1f232ecc90ce1f4",
+          "exit_code": 0,
+          "manifest_sha256": "deab8f39fb0f8a3b5741a8dc0d84fb291d723a818be27d147bdbee50a7de29e7",
+          "pid": 3639587,
+          "reaped": true
+        },
+        {
+          "artifact_digest": "e2db64cfb66da680ea2c0069c6637bd70f98e69736d1605f84aaebc48ea2d6eb",
+          "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/e73373851e4e23e6c849d9de5c398bc8e816cbe1b05e7c2440fcc2e57be679f5/harness",
+          "binary_sha256": "00239256a027b44be3459e74dfdce77e00ec8d24a66f5e5f97c9f7f9fef46c53",
+          "build_digest": "e73373851e4e23e6c849d9de5c398bc8e816cbe1b05e7c2440fcc2e57be679f5",
+          "component": "wb_timer_active",
+          "execution_nonce": "2abec970a4fc44f5b2c093d8a5f63328",
+          "exit_code": 0,
+          "manifest_sha256": "8ec3619e187144953b4d1b2da4b539270890aff901b3a875c30ce30de4079377",
+          "pid": 3639619,
+          "reaped": true
+        },
+        {
+          "artifact_digest": "ded291aad698ac48d24716061ce4616141d6bc50d2c328ac8196bd0bd78d9401",
+          "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/8a16d76159bcc0cd662d227c0ac68b3abaef93ec0401b2eb5f88b22f14d6276a/harness",
+          "binary_sha256": "7cbbb7cf1092c707c21aaef190c3f6db640df29cb0bc88ba2a8edb80b95e77f2",
+          "build_digest": "8a16d76159bcc0cd662d227c0ac68b3abaef93ec0401b2eb5f88b22f14d6276a",
+          "component": "wb_timer_idle",
+          "execution_nonce": "011114e38abf48a29afed30cc5b0f098",
+          "exit_code": 0,
+          "manifest_sha256": "1f627d61ed152c2cd9991ba59e7e4b3823c8b3813157f4d3662833611b26461c",
+          "pid": 3639651,
+          "reaped": true
+        }
+      ],
+      "raw_sha256": {
+        "events.json": "a00c07236f0401b41120b7b4ce014833d10f033e07be3aac39cf413bc6e57b6b",
+        "local_commands.json": "f27d78849b69e69ba68bb85ccb60cc40eedbcf1ff0f3d7a0735f96cff8179953",
+        "executions.json": "88133e70e3b6e95e1b79a0ec347ece7d70e18ca31bad3e51badbeeb9a44f931c",
+        "result.json": "968eadeb310343515f24be734d2d2e1d719c50d2ae35802d50d56ebbf54427b4"
+      }
+    },
+    "fresh": {
+      "events": 2130,
+      "CPU_store_tick": 74,
+      "commands": {
+        "cpu": 107,
+        "wb_timer_active": 110,
+        "wb_timer_idle": 108
+      },
+      "native_WB_request": {
+        "ack": 0,
+        "cyc": 1,
+        "dat_r": 0,
+        "dat_w": 8,
+        "sel": 15,
+        "stall": 0,
+        "stb": 1,
+        "we": 1,
+        "event_id": 1385,
+        "local_tick": 75
+      },
+      "native_WB_response": {
+        "ack": 1,
+        "cyc": 1,
+        "dat_r": 8,
+        "dat_w": 8,
+        "sel": 15,
+        "stall": 0,
+        "stb": 0,
+        "we": 1,
+        "event_id": 1389,
+        "local_tick": 76
+      },
+      "pulse_event": 1505,
+      "pulse_tick": 83,
+      "pulse_phase": "post",
+      "latest_source_tick": 84,
+      "latest_source_value": 0,
+      "take_tick": 79,
+      "serial": 1,
+      "first_retire_tick": 85,
+      "first_pc": 66092,
+      "identities": [
+        {
+          "artifact_digest": "11aee60741bdaa15ce6c4d5dd2f6fc187269fe6951af4eb4a19f537c7f1425fc",
+          "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/384522453af79197a89f2c9bddb90e23917236482dd60a2c644d0a7cd7f07d43/harness",
+          "binary_sha256": "2a2219b805406e83ece2c981268c5e61128862eaad33c7794bf774fc65a63889",
+          "build_digest": "384522453af79197a89f2c9bddb90e23917236482dd60a2c644d0a7cd7f07d43",
+          "component": "cpu",
+          "execution_nonce": "7333f64ec1664c8a986fbf0030e60e8f",
+          "exit_code": 0,
+          "manifest_sha256": "deab8f39fb0f8a3b5741a8dc0d84fb291d723a818be27d147bdbee50a7de29e7",
+          "pid": 3639716,
+          "reaped": true
+        },
+        {
+          "artifact_digest": "e2db64cfb66da680ea2c0069c6637bd70f98e69736d1605f84aaebc48ea2d6eb",
+          "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/e73373851e4e23e6c849d9de5c398bc8e816cbe1b05e7c2440fcc2e57be679f5/harness",
+          "binary_sha256": "00239256a027b44be3459e74dfdce77e00ec8d24a66f5e5f97c9f7f9fef46c53",
+          "build_digest": "e73373851e4e23e6c849d9de5c398bc8e816cbe1b05e7c2440fcc2e57be679f5",
+          "component": "wb_timer_active",
+          "execution_nonce": "3f9b18d6989a4bcc85a6f78d8171cb0b",
+          "exit_code": 0,
+          "manifest_sha256": "8ec3619e187144953b4d1b2da4b539270890aff901b3a875c30ce30de4079377",
+          "pid": 3639748,
+          "reaped": true
+        },
+        {
+          "artifact_digest": "ded291aad698ac48d24716061ce4616141d6bc50d2c328ac8196bd0bd78d9401",
+          "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/8a16d76159bcc0cd662d227c0ac68b3abaef93ec0401b2eb5f88b22f14d6276a/harness",
+          "binary_sha256": "7cbbb7cf1092c707c21aaef190c3f6db640df29cb0bc88ba2a8edb80b95e77f2",
+          "build_digest": "8a16d76159bcc0cd662d227c0ac68b3abaef93ec0401b2eb5f88b22f14d6276a",
+          "component": "wb_timer_idle",
+          "execution_nonce": "30f05cf19a6946868274612e1ee6cea9",
+          "exit_code": 0,
+          "manifest_sha256": "1f627d61ed152c2cd9991ba59e7e4b3823c8b3813157f4d3662833611b26461c",
+          "pid": 3639780,
+          "reaped": true
+        }
+      ],
+      "raw_sha256": {
+        "events.json": "a00c07236f0401b41120b7b4ce014833d10f033e07be3aac39cf413bc6e57b6b",
+        "local_commands.json": "74fb10bcad9d11ead0d4c10babb341c09a714cd0072eda95f357079fac1c683f",
+        "executions.json": "dcc26ab8a5a1a01af62c5bb8e1b056b7bf2c4b8eb624e7172678b6a2c7674db6",
+        "result.json": "968eadeb310343515f24be734d2d2e1d719c50d2ae35802d50d56ebbf54427b4"
+      }
+    }
+  },
+  "result": {
+    "decision_serial": 1,
+    "first_fetch": 65664,
+    "first_retirement_pc": 66092,
+    "grants_F5": false,
+    "grants_F6": false,
+    "idle_observed_samples": 216,
+    "isr_mmio": "unknown",
+    "native_take_tick": 79,
+    "native_target_protocol": "wishbone",
+    "reward_eligible": false,
+    "scope": "declared-IP-output-to-CPU-first-handler",
+    "source_pulse_tick": 83,
+    "source_version": "unknown",
+    "status": "verified",
+    "transport_only": true,
+    "trigger_writes": [
+      [
+        0,
+        8
+      ]
+    ]
+  },
+  "fresh_scope": "same-invocation-independent-native-sessions"
+}

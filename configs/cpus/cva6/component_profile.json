@@ -2,7 +2,7 @@
   "schema_version": "component_profile.v1",
   "component_id": "cva6",
   "kind": "cpu",
-  "description": "Real OpenHW Group CVA6 (cva6) at the pinned revision, built as the cv64a6_imafdc_sv39 configuration, composed as one AXI4 memory master plus the machine-external interrupt entry. The AXI4 master is packed into the two top-level struct ports noc_req_o (AW+W+AR, 470 bits) and noc_resp_i (B+R, 210 bits), so each of the 45 protocol roles is declared as its own role on its own member with the elaborated bit range recorded as a checked claim. Debug entry, the timer, the software interrupt, the second external interrupt bit, the CVXIF coprocessor response and the RVFI probe bundle have no in-SoC producer in this composition and are held at their declared inactive values or left open under the RTL's own contract; see evidence.unknown for what that costs.",
+  "description": "Real OpenHW Group CVA6 (cva6) at the pinned revision, built as the cv64a6_imafdc_sv39 configuration, composed as one AXI4 memory master plus the machine-external interrupt entry. The AXI4 master is packed into the two top-level struct ports noc_req_o (AW+W+AR, 470 bits) and noc_resp_i (B+R, 210 bits), so each of the 45 protocol roles is declared as its own role on its own member with the elaborated bit range recorded as a checked claim. The RVFI probe bundle (rvfi_probes_o, 6974 bits) is exported whole as a passive observation so the pinned RVFI scoreboard can be attached to it. Debug entry, the timer, the software interrupt, the second external interrupt bit and the CVXIF coprocessor response have no in-SoC producer in this composition and are held at their declared inactive values; see evidence.unknown for what that costs.",
   "source": {
     "root": "third_party/cva6_upstream_reference",
     "revision": "git:2e1336dcff3d1a0b49fbe6282b97802f32ea32af",
@@ -845,12 +845,12 @@
     },
     {
       "port": "rvfi_probes_o",
-      "action": "unconnected",
+      "action": "observe",
       "protocol": [
         "cva6-rvfi-probes",
         "1"
       ],
-      "reason": "RVFI instruction-retirement probe bundle (6974 bits, 88 members). The RTL declares the contract in its own port comment: 'Probes to build RVFI, can be left open when not used - RVFI' (core/cva6.sv:339). No RVFI monitor is instantiated in this composition, so the bundle is left open under that declared contract; every bit of it is recorded as a coverage loss rather than being exported as a 6974-bit top-level port nothing observes."
+      "reason": "RVFI instruction-retirement probe bundle (6974 bits, 88 members), driven by cva6 itself (core/cva6.sv:339, wired at core/cva6.sv:1965 from cva6_rvfi_probes). It is exported whole as one top-level output so a real RVFI monitor can be attached to it. The probe bundle is a raw observation, not an instruction record: the record is produced by the pinned scoreboard core/cva6_rvfi.sv, which is not in the core filelist and is therefore Verilated beside the generated model (src/myfuzz/local_harness/rtl/cva6_rvfi_top.sv) and driven from this port on the same clock edge. Exporting the bundle is not itself a retirement claim; only the scoreboard's rvfi_valid/insn/pc_rdata/rd_* records are."
     }
   ],
   "evidence": {
@@ -873,7 +873,7 @@
       "The CVXIF coprocessor interface is declared but not exercised: cvxif_resp_i is held at zero, so no coprocessor request/response handshake can complete and behaviour reachable only through a real coprocessor is not covered. The declared ISA extensions (i,m,a,f,d,c) contain no custom instruction, so no XIF instruction can be issued by a program built for this profile.",
       "Debug mode is not covered: debug_req_i is held inactive and the profile declares no debug transport, so the debug-module entry path (core/csr_regfile.sv:2661) is unreachable in this composition.",
       "No Timer device or interrupt controller is physically composed by this local profile. The native time_irq_i pin is available as a one-bit scenario input and can be bound to a real Timer RTL output; without such a binding it has no producer. ipi_i and irq_i[1] (supervisor external) remain held inactive.",
-      "The RVFI probe bundle is left open under the RTL's own 'can be left open when not used' contract; instruction-retirement coverage from RVFI probes is therefore a recorded coverage loss, not evidence.",
+      "The RVFI probe bundle is exported whole (rvfi_probes_o, 6974 bits) and is consumed only by a separately Verilated instance of the pinned scoreboard core/cva6_rvfi.sv driven from that port. What that keeps outside this profile's declaration: cva6_rvfi.sv is not part of the pinned core filelist, so the scoreboard is a local-harness RTL addition, not part of the declared component closure. The probe bundle alone is not a retirement record, and no claim is made here about the cycles in which a retirement becomes visible to that external scoreboard.",
       "AXI4 burst and atomic behaviour is outside this composition: the composed beat backend is single-beat (single_outstanding_fabric), arlen/awlen bursts longer than one beat are refused by the adapter, and awatop completes with an AXI error instead of performing the atomic operation. CVA6's two-beat instruction fetch is therefore not admitted by this fabric; a request that needs it must not claim it.",
       "Static profile evidence does not itself contain instruction-execution results. CVA6 runtime execution and replay are covered by the separate generated local-harness integration tests and reports; profile elaboration, binding, disposition and composition evidence remain distinct."
     ]

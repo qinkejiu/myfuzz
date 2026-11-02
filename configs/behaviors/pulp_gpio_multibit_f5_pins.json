@@ -1,0 +1,45 @@
+{
+  "schema_version": "inprocess_source_behavior.v1",
+  "description": "PULP APB3 GPIO F5 behavior with two declared cause bits: INTSTATUS (0x24, ro, read_clears) bits 0 and 1 are the pin-0 and pin-1 rise causes the ISR reads. The source is the one real interrupt output; the vector is the status word's content, not a CPU vector.",
+  "notes": [
+    "the F5 facts are the same device facts as configs/behaviors/pulp_gpio_cause_f5_pins.json; only the enable mask, the type word and the stimulus value differ, so the same PULP apb_gpio RTL raises both pins' status bits",
+    "GPIOEN(4)=0xffffffff enables the output, INTEN(24)=0x3 enables pins 0 and 1, INTTYPE_LOW(28)=0x5 gives pins 0 and 1 the 2'b01 rising-edge type (rtl/apb_gpio.sv:131-137), and PADOUT(12)=0x3 raises both pins in one write",
+    "INTSTATUS (0x24) is the profile's ro + read_clears status word (rtl/apb_gpio.sv:154/160 clears r_status when the word is read), so reading it both returns the two-bit cause and clears it; clear_writes stays empty because the device declares no acknowledge register",
+    "PADDIR(0)=0x3 must be written by a preceding F4 case so both pins are device-driven; the rise that raises the interrupt comes from the PADOUT write, not from the host driver",
+    "this file states device facts only: the executor still cross-checks them against configs/peripherals/pulp_gpio_causal_local/component_profile.json, and the declaration does not prove the RTL raises both bits (the real run does)"
+  ],
+  "source_port": "interrupt",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 16,
+  "trigger_writes": [
+    [
+      4,
+      4294967295
+    ],
+    [
+      24,
+      3
+    ],
+    [
+      28,
+      5
+    ],
+    [
+      12,
+      3
+    ]
+  ],
+  "status_offsets": [
+    36
+  ],
+  "status_cause_bits": [
+    0,
+    1
+  ],
+  "clear_writes": [],
+  "pins": {
+    "padin_offset": 8,
+    "external_value": 0,
+    "pad_resolution": "device_drives_when_dir_bit_high_else_host"
+  }
+}

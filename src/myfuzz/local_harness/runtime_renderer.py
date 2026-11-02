@@ -25,8 +25,15 @@ from .apb3_register_template import register_observe_policy as apb3_register_obs
 from .axi4lite_register_template import (register_observe_policy as axi4lite_register_policy)
 from .wishbone_register_template import register_observe_policy as wishbone_register_policy
 from .wishbone_dma_template import dma_edge_policy
-from .wishbone_dma_fields import DMA_CONTROL_SHAPE, DMA_MASTER_SHAPE, dma_edge_contract
+from .wishbone_dma_fields import (DMA_CONTROL_SHAPE, DMA_MASTER_SHAPE, dma_edge_contract,
+    DMA_SELECTED_CONTROL_SHAPE, DMA_SELECTED_MASTER_SHAPE, selected_dma_edge_contract, dma_control_shape,
+    dma_select_modes, dma_profile_edge_contract)
 from .clock_schedule import build_local_clock_schedule
+from .tilelink_coherent_fields import (
+    DATA_WIDTH as TL_COHERENT_DATA_WIDTH,
+    PROTOCOL as TL_COHERENT_PROTOCOL,
+    TL_COHERENT_SHAPE,
+)
 
 _NATIVE = {'valid': ('output', 1), 'addr': ('output', 32), 'wdata': ('output', 32), 'wstrb': ('output', 4), 'ready': ('input', 1), 'rdata': ('input', 32)}
 _RVX_MEMORY = {'addr': ('output', 32), 'read_request': ('output', 1),
@@ -120,6 +127,69 @@ def _expose_cpu_ahb_trace(endpoint_id, clock_domain, wires, ports, statements,
         protocol='ahb-lite', endpoint_id=endpoint_id, clock_domain=clock_domain,
         signals=signals, signal_widths={r:w for r,(_,w) in _AHB_LITE.items()},
         sample_group='protocol_taps', boundary='cpu_physical_abi'))
+
+
+def _expose_cpu_axil_trace(endpoint_id, clock_domain, wires, ports, statements,
+                           protocol_tap_ports, cpu_protocol_traces, fetch_observation=None):
+    """Sideband copies of the exact admitted AXI4-Lite CPU wires, never drivers.
+
+    The generated ``axi4_lite_processor_memory_adapter`` samples ``AWPROT`` and
+    ``ARPROT`` and deliberately ignores them, so the protection sidebands -- and
+    the fetch flag the pinned PicoRV32 really drives on ``ARPROT[2]``
+    (``picorv32.v:2779``) -- are only observable as passive per-tick pin taps.
+    No logic is derived here: the reader must qualify ``arprot[2]`` with the
+    sampled ``arvalid``/``arready`` itself.
+    """
+    signals = {}
+    for role, (_, width) in sorted(_AXI_LITE.items()):
+        name = 'cpu_axil_trace_' + role
+        signals[role] = name
+        ports.append((name, 'output', width))
+        statements.append(f'assign {name} = {wires[role]};')
+        protocol_tap_ports.append(dict(name=name, direction='output', width=width,
+            role=role, endpoint_id=endpoint_id, source_wire=wires[role]))
+    trace=dict(schema_version='ip_protocol_trace.v1',
+        protocol='axi4-lite', endpoint_id=endpoint_id, clock_domain=clock_domain,
+        signals=signals, signal_widths={r:w for r,(_,w) in _AXI_LITE.items()},
+        sample_group='protocol_taps', boundary='cpu_physical_abi')
+    if fetch_observation is not None:
+        trace['fetch_observation']=fetch_observation
+    cpu_protocol_traces.append(trace)
+
+
+def _expose_tl_coherent_trace(endpoint_id, clock_domain, wires, ports, statements,
+                              protocol_tap_ports, max_wait_cycles):
+    """Passive per-role taps of the admitted coherent client, never drivers.
+
+    Every one of the 39 declared roles gets its own tap port, so a later reader
+    can qualify an A beat with the sampled ``a_ready`` itself instead of
+    reconstructing it.  The five channels are also published in a channel view
+    (``channels``) so the width/shape of each channel is checkable without
+    knowing the flat role names.
+
+    ``instruction_hop_refusal`` is deliberate: one shared A/D boundary carries
+    instruction fetches and data beats, so this row declares that it cannot name
+    an instruction-only hop (see ``tilelink_coherent_fields``).
+    """
+    from .tilelink_coherent_fields import (INSTRUCTION_HOP_REFUSAL, TAP_PREFIX,
+                                           channel_document)
+    signals, widths = {}, {}
+    for role in sorted(TL_COHERENT_SHAPE):
+        _, width = TL_COHERENT_SHAPE[role]
+        name = TAP_PREFIX + role
+        signals[role] = name
+        widths[role] = width
+        ports.append((name, 'output', width))
+        statements.append(f'assign {name} = {wires[role]};')
+        protocol_tap_ports.append(dict(name=name, direction='output', width=width,
+            role=role, endpoint_id=endpoint_id, source_wire=wires[role]))
+    return dict(schema_version='ip_protocol_trace.v1',
+        protocol='tilelink-coherent', endpoint_id=endpoint_id,
+        clock_domain=clock_domain, max_outstanding=1,
+        max_wait_cycles=max_wait_cycles, signals=signals, signal_widths=widths,
+        channels=channel_document(), sample_group='protocol_taps',
+        boundary='cpu_physical_abi',
+        instruction_hop_refusal=INSTRUCTION_HOP_REFUSAL)
 
 
 def _tlul_runtime_kind(request, variant):
@@ -318,6 +388,8 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw,
         reset_release_ticks=plan.request.reset_release_ticks)
     endpoints = [endpoint for endpoint in plan.binding.endpoints if endpoint.protocol is not None]
     profile_endpoint_clocks = {endpoint.endpoint_id: endpoint.clock
+                               for endpoint in plan.profile.endpoints}
+    profile_endpoint_resets = {endpoint.endpoint_id: endpoint.reset
                                for endpoint in plan.profile.endpoints}
     endpoint_controls = {endpoint.endpoint_id: _endpoint_clock_reset(
         plan, endpoint.endpoint_id, clock_schedule) for endpoint in endpoints}
@@ -532,6 +604,20 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw,
         boot = _obi_boot_contract(plan.profile.cpu, 64, endpoints)
         adapters = []
 
+    elif (len(endpoints) == 1 and functions == {'memory_master'}
+          and tuple(endpoints[0].protocol) == TL_COHERENT_PROTOCOL):
+        # The real five-channel coherent client (BOOM's ``BoomTile`` boundary).
+        # Its declared capabilities are the ones the profile really carries: a
+        # 64-bit beat, a 32-bit address, byte enables, a denial bit and an
+        # issue depth larger than the one pending request this harness accepts.
+        c = plan.profile.capabilities
+        if (c.get('data_width'), c.get('address_width'), c.get('byte_enable'),
+                c.get('error_response')) != (TL_COHERENT_DATA_WIDTH, 32, True, True):
+            raise ValueError('runtime-tilelink-coherent-capabilities')
+        kind = 'tilelink_coherent_cpu'
+        boot = _obi_boot_contract(plan.profile.cpu, 32, endpoints)
+        adapters = ['src/myfuzz/protocols/rtl/tl_coherent_memory_adapter.sv']
+
     elif (len(endpoints) == 1 and functions == {'mmio_slave'}
           and endpoints[0].protocol == ('axi4-lite', '1')):
         kind = 'axi4_lite_uart'
@@ -671,6 +757,9 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw,
                 kind == 'wishbone_uart' and row['endpoint_id'] in
                 ('uart.pins', 'uart.interrupts') or
                 kind == 'apb_i2c' and row['endpoint_id'] == 'i2c.pins' or
+                kind == 'apb_gpio' and row['endpoint_id'] == 'gpio.interrupts'
+                and row['role'] == 'irq' and row['direction'] == 'output'
+                and row['width'] == 1 or
                 kind == 'tlul_gpio' and row['endpoint_id'] == 'gpio.interrupts'
                 and row['direction'] == 'output' and row['width'] == 32 or
                 kind == 'tlul_timer' and row['endpoint_id'] == 'timer.interrupts'
@@ -699,6 +788,7 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw,
     ports = [('clk', 'input', 1), ('reset', 'input', 1)]
     locals_, statements, exports, backend, instances = [], [], [], [], []
     base_protocol_trace = None
+    dma_protocol_checker_trace_set = None
     cpu_protocol_traces = []
     protocol_tap_ports = []
     manager_domain = None
@@ -726,7 +816,8 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw,
     # this pilot, expose the same pre-edge controller decision used by the
     # independently checked local Ibex harness.  These are passive probes of
     # real RTL; they never drive the core or synthesize an interrupt outcome.
-    if kind == 'obi_cpu' and plan.profile.component_id in ('ibex_obi_local', 'ibex_rvfi_local'):
+    if (kind == 'obi_cpu' and 'native_irq_observation' not in plan.profile.evidence
+            and plan.profile.component_id in ('ibex_obi_local', 'ibex_rvfi_local')):
         core = ('u_component.u_dut.u_ibex.u_ibex_core' if plan.profile.component_id == 'ibex_rvfi_local'
                 else 'u_component.u_dut.u_ibex_core')
         controller = core + '.id_stage_i.controller_i'
@@ -749,6 +840,59 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw,
                                 width=1, direction='output', endpoint_id=None,
                                 role=None, disposition='observe', encoding='integer',
                                 hex_digits=1))
+
+    from .cv32e20_irq_receipt_contract import uses_cv32e20_irq_adapter
+    if (kind == 'obi_cpu' and uses_cv32e20_irq_adapter(plan.profile)):
+        from .cv32e20_irq_receipt_contract import (verify_cv32e20_irq_source_contract,
+            cv32e20_irq_receipt_contract, cv32e20_irq_sideband)
+        verify_cv32e20_irq_source_contract(plan.profile, base_dir=root)
+        probes = cv32e20_irq_receipt_contract()['decision_probes']
+        for name, width in (('irq_masked_pre',1),('irq_taken_pre',1),
+                ('irq_decision_serial',64),('irq_retirement_serial',64)):
+            runtime_name = 'probe_' + name
+            ports.append((runtime_name,'output',width))
+            exports.append(dict(physical_port=name,wrapper_name=runtime_name,
+                runtime_name=runtime_name,bit_lo=0,bit_hi=width-1,width=width,
+                direction='output',endpoint_id=None,role=None,disposition='observe',
+                encoding='integer',hex_digits=(width+3)//4))
+        statements.extend(f'assign probe_{name} = {expression};' for name,expression in probes.items())
+        statements.append(cv32e20_irq_sideband())
+
+    if (kind == 'obi_cpu' and 'native_irq_observation' not in plan.profile.evidence
+            and plan.profile.component_id == 'cv32e40p_rvfi_local'):
+        # The local top only assigns four RVFI fields; IRQ acceptance must come
+        # from the real controller decision plus its real ack/id outputs and the
+        # real IF-stage exception PC.  These are passive probes, never drivers.
+        from .cv32e40p_irq_receipt_contract import (verify_cv32e40p_irq_source_contract,
+            cv32e40p_irq_receipt_contract)
+        verify_cv32e40p_irq_source_contract(plan.profile, base_dir=root)
+        contract = cv32e40p_irq_receipt_contract()
+        probes = {**contract['decision_probes'], **contract['decision_probes_all']}
+        for name, width in contract['decision_probe_widths'].items():
+            runtime_name = 'probe_' + name
+            ports.append((runtime_name, 'output', width))
+            exports.append(dict(physical_port=name, wrapper_name=runtime_name,
+                runtime_name=runtime_name, bit_lo=0, bit_hi=width-1, width=width,
+                direction='output', endpoint_id=None, role=None, disposition='observe',
+                encoding='integer', hex_digits=(width+3)//4))
+        if set(probes) != set(contract['decision_probe_widths']):
+            raise ValueError('cv32e40p-IRQ-decision-probe-set-mismatch')
+        statements.extend(f'assign probe_{name} = {expression};' for name, expression in probes.items())
+
+    if kind == 'obi_cpu' and 'native_irq_observation' in plan.profile.evidence:
+        from .profile_native_irq import (profile_irq_contract, profile_irq_probe_outputs,
+                                         verify_profile_irq_source)
+        verify_profile_irq_source(plan.profile, base_dir=root)
+        contract = profile_irq_contract(plan.profile)
+        sources = profile_irq_probe_outputs(contract, exports)
+        for name, signal in sources.items():
+            runtime_name = 'probe_' + name
+            ports.append((runtime_name, 'output', 1))
+            statements.append(f'assign {runtime_name} = {signal};')
+            exports.append(dict(physical_port=name, wrapper_name=runtime_name,
+                runtime_name=runtime_name, bit_lo=0, bit_hi=0, width=1,
+                direction='output', endpoint_id=None, role=None, disposition='observe',
+                encoding='integer', hex_digits=1))
 
     gpio_observation = None
     if plan.profile.component_id == 'pulp_gpio_causal_local':
@@ -786,11 +930,13 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw,
     elif plan.profile.capabilities.get('uart_fifo_observation_variant') is not None:
         raise ValueError('uart-fifo-observation-profile-required')
 
-    def beat_ports(prefix, cpu, address_width=32):
+    def beat_ports(prefix, cpu, address_width=32, data_width=32):
         # ``address_width`` defaults to 32 because every other adapter's beat face
         # is 32-bit; the AHB-Lite one passes the boundary's real address width
         # (CVW rv32imc drives a 34-bit HADDR), so the beat face must carry it too
-        # rather than silently truncating the top bits.
+        # rather than silently truncating the top bits.  ``data_width`` defaults
+        # to the same 32-bit beat: the TileLink coherent client passes its real
+        # 64-bit beat, whose lane mask is one bit per byte.
         directions = {'req_valid': 'output' if cpu else 'input', 'req_ready': 'input' if cpu else 'output',
                       'req_write': 'output' if cpu else 'input', 'req_addr': 'output' if cpu else 'input',
                       'req_wdata': 'output' if cpu else 'input', 'req_be': 'output' if cpu else 'input',
@@ -798,15 +944,19 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw,
                       'rsp_rdata': 'input' if cpu else 'output', 'rsp_error': 'input' if cpu else 'output'}
         for role, direction in directions.items():
             width = (address_width if role == 'req_addr'
-                     else 32 if role in ('req_wdata', 'rsp_rdata')
-                     else 4 if role == 'req_be' else 1)
+                     else data_width if role in ('req_wdata', 'rsp_rdata')
+                     else data_width // 8 if role == 'req_be' else 1)
             name = prefix + '_' + role
             ports.append((name, direction, width))
             backend.append(dict(name=name, direction=direction, width=width, role=role, channel=prefix))
 
+    wishbone_storage_probe = None
     if kind == 'wishbone_dma':
-        for prefix, endpoint, shape in (('swb', dma_target, DMA_CONTROL_SHAPE),
-                                         ('mwb', dma_master, DMA_MASTER_SHAPE)):
+        dma_control_selected, dma_master_selected = dma_select_modes(plan.profile.capabilities)
+        master_fixed_be = plan.profile.capabilities.get('master_fixed_byte_enable')
+        dma_protocol_traces = []
+        for prefix, endpoint, shape in (('swb', dma_target, dma_control_shape(plan.profile.capabilities['address_width'],selected=dma_control_selected)),
+                                         ('mwb', dma_master, DMA_SELECTED_MASTER_SHAPE if dma_master_selected else DMA_MASTER_SHAPE)):
             wires = _shape(endpoint, shape, abi)
             for role, (direction, width) in shape.items():
                 name = prefix + '_' + role
@@ -824,6 +974,38 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw,
                         'physical_port': field.port, 'member_path': list(field.member_path),
                         'raw_lo': field.raw_lo, 'raw_hi': field.raw_hi,
                         'port_width': field.port_width, 'backend_port': name})
+            endpoint_role = ('control_target' if endpoint.function == 'mmio_slave'
+                             else 'memory_master' if endpoint.function == 'memory_master'
+                             else None)
+            if endpoint_role is None:
+                raise ValueError('runtime-wishbone-dma-endpoint-role-invalid')
+            selected = dma_control_selected if endpoint_role == 'control_target' else dma_master_selected
+            byte_enable = {'signal': 'sel', 'partial_write': True} if selected else {'signal': 'absent', 'partial_write': False}
+            if endpoint_role == 'memory_master' and not dma_master_selected:
+                byte_enable.update(fixed_value=master_fixed_be,
+                    basis='profile.capabilities.master_fixed_byte_enable')
+            dma_protocol_traces.append({
+                'schema_version': 'ip_protocol_trace.v1',
+                'protocol': 'wishbone',
+                'endpoint_id': endpoint.endpoint_id,
+                'endpoint_role': endpoint_role,
+                'clock_domain': profile_endpoint_clocks[endpoint.endpoint_id]
+                    or clock_schedule['primary_clock_domain'],
+                'reset_domain': profile_endpoint_resets[endpoint.endpoint_id],
+                'max_wait_cycles': plan.request.max_wait_cycles,
+                'max_outstanding': 1,
+                'same_edge_accept_completion': False,
+                'signals': {role: prefix + '_' + role for role in shape},
+                'signal_widths': {role: width for role, (_, width) in shape.items()},
+                'sample_group': 'backend',
+                'byte_enable': byte_enable,
+            })
+        dma_protocol_checker_trace_set = {
+            'schema_version': 'wishbone_dma_protocol_checker.v1',
+            'sampling': 'pre_post',
+            'sample_group': 'backend',
+            'traces': dma_protocol_traces,
+        }
     elif kind == 'wishbone_cpu':
         wires = _shape(endpoints[0], _WISHBONE, abi)
         for role, (direction, width) in _WISHBONE.items():
@@ -963,6 +1145,13 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw,
             '  ) u_native_completion (\n    ' + ',\n    '.join(f'.{p}({v})' for p,v in pairs.items()) + '\n  );')
     elif kind == 'axi4_lite_cpu':
         wires = _shape(endpoints[0], _AXI_LITE, abi)
+        # Per-tick pin taps of the real master, before the adapter: the fetch
+        # flag is observable on the sampled ARPROT[2], never reconstructed.
+        from myfuzz.integration.profile_cpu_fetch import profile_axil_fetch_observation
+        fetch_observation=profile_axil_fetch_observation(plan.profile,base_dir=root)
+        _expose_cpu_axil_trace(endpoints[0].endpoint_id,
+            clock_schedule['primary_clock_domain'], wires, ports, statements,
+            protocol_tap_ports, cpu_protocol_traces,fetch_observation=fetch_observation)
         beat_ports('m', True)
         locals_.extend(['logic [1:0] unused_bresp;', 'logic [1:0] unused_rresp;'])
         local_clk, local_reset = endpoint_controls[endpoints[0].endpoint_id]
@@ -1055,6 +1244,43 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw,
             '    .ADDRESS_WIDTH(34), .DATA_WIDTH(32),\n'
             f'    .MAX_WAIT_CYCLES({wait})\n'
             '  ) u_ahb_target (\n    '
+            + ',\n    '.join(f'.{p}({v})' for p, v in pairs.items()) + '\n  );')
+    elif kind == 'tilelink_coherent_cpu':
+        # One declared coherent client: the DUT drives A/C/E and receives B/D,
+        # so ``_shape`` binds the physical pins exactly as declared and the
+        # generated adapter owns what the host really answers.  The driver plays
+        # the backend beat face only (host memory is the authority), so this
+        # kind exports no physical input at all.
+        wires = _shape(endpoints[0], TL_COHERENT_SHAPE, abi)
+        cpu_protocol_traces.append(_expose_tl_coherent_trace(
+            endpoints[0].endpoint_id, clock_schedule['primary_clock_domain'],
+            wires, ports, statements, protocol_tap_ports,
+            plan.request.max_wait_cycles))
+        # 64-bit data and 8 byte lanes on the backend face: the client's beat is
+        # 8 bytes, so the host answers one 8-byte word per local tick.
+        beat_ports('m', True, address_width=32, data_width=TL_COHERENT_DATA_WIDTH)
+        for name, width in (('m_fault', 1), ('m_fault_code', 2)):
+            ports.append((name, 'output', width))
+            backend.append(dict(name=name, direction='output', width=width,
+                                role=name[2:], channel='m'))
+        declared_wait = plan.profile.capabilities.get('max_wait_cycles',
+                                                      plan.request.max_wait_cycles)
+        if type(declared_wait) is not int or declared_wait < 1:
+            raise ValueError('runtime-tilelink-coherent-wait-bound')
+        wait = min(declared_wait, plan.request.max_wait_cycles)
+        local_clk, local_reset = endpoint_controls[endpoints[0].endpoint_id]
+        pairs = {'clk_i': local_clk, 'rst_ni': '~' + local_reset,
+                 'req_valid_o': 'm_req_valid', 'req_ready_i': 'm_req_ready',
+                 'req_write_o': 'm_req_write', 'req_addr_o': 'm_req_addr',
+                 'req_wdata_o': 'm_req_wdata', 'req_be_o': 'm_req_be',
+                 'rsp_valid_i': 'm_rsp_valid', 'rsp_ready_o': 'm_rsp_ready',
+                 'rsp_rdata_i': 'm_rsp_rdata', 'rsp_error_i': 'm_rsp_error',
+                 'fault_o': 'm_fault', 'fault_code_o': 'm_fault_code'}
+        pairs.update({role: wires[role] for role in sorted(TL_COHERENT_SHAPE)})
+        instances.append('tl_coherent_memory_adapter #(\n'
+            f'    .ADDRESS_WIDTH(32), .DATA_WIDTH({TL_COHERENT_DATA_WIDTH}),\n'
+            f'    .MAX_WAIT_CYCLES({wait})\n'
+            '  ) u_adapter_tl (\n    '
             + ',\n    '.join(f'.{p}({v})' for p, v in pairs.items()) + '\n  );')
     elif kind == 'obi_cpu':
         error_response = plan.profile.capabilities.get('error_response')
@@ -1161,6 +1387,24 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw,
                          f'    .SUPPORTS_PARTIAL_WRITE({int(plan.profile.capabilities["partial_write"])}), .HAS_ERR(0),\n'
                          f'    .MAX_WAIT_CYCLES({wait}), .WINDOW_BASE(32\'d0), .WINDOW_SIZE({plan.profile.address.window_size})\n'
                          f'  ) u_adapter_{channel} (\n    '+',\n    '.join(f'.{p}({v})' for p,v in pairs.items())+'\n  );')
+        if generic and any(row.kind == 'wishbone_storage_observations'
+                           for row in plan.request.tuning.records):
+            try:
+                from .wishbone_storage_probe_contract import (
+                    generate_wishbone_storage_probe,
+                    wishbone_storage_probe_selection)
+            except ImportError as error:
+                raise ValueError(
+                    'wishbone-storage-probe-contract-unavailable') from error
+            if wishbone_storage_probe_selection(plan) is not None:
+                wishbone_storage_probe = generate_wishbone_storage_probe(
+                    plan, wires, base_dir=root)
+                if wishbone_storage_probe is None:
+                    raise ValueError('wishbone-storage-probe-required')
+                for row in wishbone_storage_probe['ports']:
+                    ports.append((row['name'], 'output', row['width']))
+                    statements.append(
+                        f"assign {row['name']} = {row['expression']};")
     elif kind in ('tlul_gpio', 'tlul_timer', 'tlul_spi_host', 'tlul_uart', 'tlul_i2c', 'tlul_register_observe', 'tlul_spi_device'):
         wires = _shape(endpoints[0], _TLUL, abi)
         if kind == 'tlul_register_observe':
@@ -1266,6 +1510,12 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw,
     if storage_probe is not None:
         document['storage_observation'] = storage_probe
         document['storage_probe_ports'] = storage_probe['ports']
+    if wishbone_storage_probe is not None:
+        # Prospective wishbone source-mapped storage: the probe document keeps
+        # its own prospective flags.  No native hierarchy proof is attached
+        # here, so this artifact never claims hierarchy or native authority.
+        document['storage_observation'] = wishbone_storage_probe
+        document['storage_probe_ports'] = wishbone_storage_probe['ports']
     from .apb_storage_startup import startup_selection
     startup = startup_selection(plan,storage_probe)
     if startup is not None:
@@ -1276,6 +1526,9 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw,
         document['base_protocol_traces'] = dict(schema_version='ip_protocol_trace_set.v1',
             sampling='pre_post', sample_group='protocol_taps', traces=cpu_protocol_traces)
         document['protocol_tap_ports'] = protocol_tap_ports
+    if dma_protocol_checker_trace_set is not None:
+        document['protocol_checker_trace_set'] = dma_protocol_checker_trace_set
+        document['raw_observation_schema_version'] = 'ip_raw_observation.v1'
     if native_raw:
         if kind not in ('obi_cpu', 'apb_gpio', 'native_memory_cpu'):
             raise ValueError('native-physical-observation-runtime-unsupported')
@@ -1394,7 +1647,8 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw,
     if kind == 'native_memory_cpu' and native_raw:
         document['native_completion_observation'] = observation['contract']
     if kind == 'wishbone_dma':
-        document['dma_edge_contract'] = dma_edge_contract()
+        control_width=plan.profile.capabilities['address_width']
+        document['dma_edge_contract'] = dma_profile_edge_contract(plan.profile.capabilities)
         protocol_path = 'src/myfuzz/protocols/plugins/wishbone_pipelined.json'
         document['protocol_sources'] = [dict(path=protocol_path,
             sha256=hashlib.sha256((Path(__file__).resolve().parents[3]/protocol_path).read_bytes()).hexdigest())]
@@ -1430,13 +1684,19 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw,
         for name in ('src/myfuzz/local_harness/apb_storage_source_contract.py',
                      'src/myfuzz/local_harness/apb_storage_probe_contract.py'):
             implementation_sources.append({'path':name,'sha256':hashlib.sha256((implementation_root/name).read_bytes()).hexdigest()})
+    if wishbone_storage_probe is not None:
+        for name in ('src/myfuzz/local_harness/wishbone_storage_source_contract.py',
+                     'src/myfuzz/local_harness/wishbone_storage_probe_contract.py'):
+            implementation_sources.append({'path':name,'sha256':hashlib.sha256((implementation_root/name).read_bytes()).hexdigest()})
     if startup is not None:
         name='src/myfuzz/local_harness/apb_storage_startup.py'
         implementation_sources.append({'path':name,'sha256':hashlib.sha256((implementation_root/name).read_bytes()).hexdigest()})
     if kind == 'wishbone_dma':
         for name in ('src/myfuzz/local_harness/wishbone_dma_template.py',
                      'src/myfuzz/local_harness/wishbone_dma_fields.py',
-                     'src/myfuzz/protocols/plugins/wishbone_pipelined.json'):
+                     'src/myfuzz/protocols/plugins/wishbone_pipelined.json',
+                     'src/myfuzz/scenario/ip_protocol_checker.py',
+                     'src/myfuzz/scenario/runner.py'):
             implementation_sources.append({'path':name,'sha256':hashlib.sha256((implementation_root/name).read_bytes()).hexdigest()})
     if gpio_observation is not None:
         name = 'src/myfuzz/local_harness/pulp_gpio_probe_contract.py'

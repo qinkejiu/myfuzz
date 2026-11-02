@@ -124,3 +124,19 @@ def test_rejected_cpu_begin_preserves_undrained_ticks(case_id):
     with pytest.raises(ValueError):
         cpu.begin_case(case_id)
     assert len(cpu.drain_tick_samples()) == 1
+
+
+def test_returned_cpu_sample_uses_lifetime_tick_after_reset():
+    from dataclasses import replace
+    from tests.local_harness.test_cpu_session import make_receipt
+    cpu = cpu_session(enabled=True)
+    cpu._tick_base = cpu.local_ticks = 100
+    def command(op, fields):
+        receipt = make_receipt(cpu, fields, {})
+        receipt.payload['samples'][0]['local_tick'] = 1
+        return replace(receipt, tick_before=0, tick_after=1)
+    with patch.object(GeneratedLocalSession, 'command', side_effect=command):
+        result = cpu.step_local({'irq': 0})
+    assert result['driver_samples'][0]['local_tick'] == 101
+    assert cpu.last_samples[0]['local_tick'] == 1
+    assert cpu.drain_tick_samples()[0]['local_tick'] == 101

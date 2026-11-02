@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import uuid
 
 from myfuzz.scenario.evidence import replay_evidence_bundle, save_evidence_bundle
 from myfuzz.scenario.contracts import ResourceBudget
@@ -34,6 +35,45 @@ class _PinSession:
 
     def step_local(self, inputs):
         return {"out": inputs.get("pin", 0) + self.offset}
+
+    def end_case(self):
+        pass
+
+
+class _NonceObservationSession:
+    """Software session whose only per-run value is its execution nonce.
+
+    ``begin_case`` mints a new nonce exactly like a fresh native process does,
+    and every observed event records it under ``scope.execution_id`` - the same
+    shape ``bounded_full_axi_observation.v1`` uses.  ``data`` and ``address``
+    are measured values that must never be normalized.
+    """
+
+    def __init__(self, data=0xA5, *, declare_nonce=True):
+        self.runtime_events = []
+        self.data = data
+        self.declare_nonce = declare_nonce
+        self.execution = ''
+        self.case_id = ''
+
+    def identity_document(self):
+        return {"fixture_source": "nonce-observation-v1"}
+
+    def begin_case(self, testcase_id):
+        self.execution = uuid.uuid4().hex
+        self.case_id = testcase_id
+        self.runtime_events.clear()
+
+    def step_local(self, inputs):
+        event = {'kind': 'full_axi_accept', 'testcase_id': self.case_id,
+                 'local_tick': len(self.runtime_events) + 1,
+                 'payload': {'data': self.data, 'address': 0x400}}
+        if self.declare_nonce:
+            event['scope'] = {'execution_id': self.execution,
+                              'testcase_id': self.case_id,
+                              'reset_epoch': 0, 'source_component': 'gpio'}
+        self.runtime_events.append(event)
+        return {"out": inputs.get("pin", 0)}
 
     def end_case(self):
         pass
@@ -335,6 +375,89 @@ class EvidenceBundleTests(unittest.TestCase):
             coverage = json.loads((bundle / "coverage.json").read_text())
             self.assertEqual(["gpio.high"], coverage["hits"])
             self.assertTrue(replay_evidence_bundle(bundle, self.factory).matches)
+
+    def nonce_factory(self, settings):
+        """One factory identity whose behaviour is switched by ``settings``."""
+        def factory():
+            session = _NonceObservationSession(**settings)
+            self.instances.append(session)
+            return ScenarioRunner(sessions={"gpio": session},
+                                  ownership=self.ownership, bindings=())
+        return factory
+
+    @staticmethod
+    def _nonces(events):
+        return [event['scope']['execution_id'] for event in events
+                if isinstance(event.get('scope'), dict)]
+
+    def test_replay_matches_when_only_the_execution_nonce_differs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = Path(directory) / "case-bundle"
+            factory = self.nonce_factory({})
+            save_evidence_bundle(self.genome, factory, bundle)
+            replay = replay_evidence_bundle(bundle, factory)
+            saved = json.loads((bundle / "trace.json").read_text())
+            reference_nonces = self._nonces(saved["events"])
+            actual_nonces = self._nonces(replay.actual_trace.events)
+            # The two runs really did mint different nonces; only the declared
+            # normalization is why the rest of the trace still compares equal.
+            self.assertEqual(1, len(set(reference_nonces)))
+            self.assertEqual(1, len(set(actual_nonces)))
+            self.assertNotEqual(reference_nonces, actual_nonces)
+            self.assertIs(True, replay.matches, replay.difference_context)
+            self.assertIsNone(replay.first_difference)
+            report = json.loads((bundle / "replay_report.json").read_text())
+            self.assertIs(True, report["matches"])
+            self.assertEqual({"schema_version": "typed_replay_normalizer.v1",
+                              "applied": True, "fields": ["execution_id"],
+                              "mapping":
+                                  "per_side_own_values_in_first_appearance_order",
+                              "rewrites": {"reference": 1, "actual": 1}},
+                             report["normalization"])
+
+    def test_replay_still_fails_when_a_measured_value_differs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = Path(directory) / "case-bundle"
+            settings = {'data': 0xA5}
+            factory = self.nonce_factory(settings)
+            save_evidence_bundle(self.genome, factory, bundle)
+            settings['data'] = 0xA6
+            replay = replay_evidence_bundle(bundle, factory)
+            self.assertFalse(replay.matches)
+            self.assertIsNotNone(replay.first_difference)
+            self.assertEqual(0xA6,
+                             replay.difference_context['actual']['payload']['data'])
+            self.assertEqual(0xA5,
+                             replay.difference_context['expected']['payload']['data'])
+            self.assertEqual(0xA6, replay.actual_event['payload']['data'])
+            report = json.loads((bundle / "replay_report.json").read_text())
+            # The nonce was normalized on both sides, and the payload byte -
+            # which the rule table declares retained - still diverged.
+            self.assertIs(True, report["normalization"]["applied"])
+            self.assertEqual(["execution_id"], report["normalization"]["fields"])
+            self.assertIs(False, report["matches"])
+
+    def test_evidence_without_a_declared_identity_field_compares_exactly(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = Path(directory) / "case-bundle"
+            settings = {'declare_nonce': False}
+            factory = self.nonce_factory(settings)
+            save_evidence_bundle(self.genome, factory, bundle)
+            saved = json.loads((bundle / "trace.json").read_text())
+            self.assertEqual([], self._nonces(saved["events"]))
+            replay = replay_evidence_bundle(bundle, factory)
+            self.assertIs(True, replay.matches)
+            report = json.loads((bundle / "replay_report.json").read_text())
+            self.assertIs(False, report["normalization"]["applied"])
+            self.assertEqual([], report["normalization"]["fields"])
+            self.assertEqual({'reference': 0, 'actual': 0},
+                             report["normalization"]["rewrites"])
+            settings['data'] = 0xA6
+            drifted = replay_evidence_bundle(bundle, factory)
+            self.assertFalse(drifted.matches)
+            self.assertIsNotNone(drifted.first_difference)
+            self.assertEqual(0xA6, drifted.difference_context['actual']['payload']['data'])
+            self.assertEqual(0xA5, drifted.difference_context['expected']['payload']['data'])
 
     def test_cli_explicitly_rejects_host_checkpoint_resume(self):
         root = Path(__file__).resolve().parents[2]

@@ -180,13 +180,14 @@ class ScenarioRunner:
     def __init__(self, *, sessions: Mapping[str, LocalHarnessSession],
                  ownership: OwnershipMap, bindings: tuple[Binding, ...],
                  irq_pulses: Mapping[Binding, int] | None = None,
+                 irq_delivery_groups: tuple = (),
                  independent_baseline: bool = False,
                  reduced_axi_stream_limits: Mapping[str, dict] | None = None) -> None:
         if not sessions:
             raise ValueError("at least one local harness is required")
         if not isinstance(independent_baseline, bool):
             raise ValueError("independent_baseline must be boolean")
-        if independent_baseline and (bindings or irq_pulses):
+        if independent_baseline and (bindings or irq_pulses or irq_delivery_groups):
             raise ValueError("independent baseline cannot have cross-component bindings")
         if independent_baseline and any(
                 owner["kind"] == "bound" for owner in ownership.document()["owners"]):
@@ -201,12 +202,48 @@ class ScenarioRunner:
             if callable(validate):
                 validate(component, ownership)
         self.independent_baseline = independent_baseline
+        from .irq_delivery_group import IrqDeliveryGroup, IrqDeliveryGroupState, verify_group_sessions
+        if (type(irq_delivery_groups) is not tuple
+                or any(type(g) is not IrqDeliveryGroup for g in irq_delivery_groups)
+                or len({g.group_id for g in irq_delivery_groups}) != len(irq_delivery_groups)
+                or len({(g.target_component,g.target_port,g.target_bit_offset) for g in irq_delivery_groups}) != len(irq_delivery_groups)):
+            raise ValueError('explicit unique typed IRQ delivery groups required')
+        self.irq_delivery_groups = irq_delivery_groups
+        self._irq_group_members = {}
+        self._irq_group_adapters = {}
+        pulse_specs = dict(irq_pulses or {})
+        for group in irq_delivery_groups:
+            if ownership.irq_group_owner(group.target_component,group.target_port,group.target_bit_offset,1) != group.group_id:
+                raise ValueError('IRQ group owner mismatch')
+            for member,binding in zip(group.members,group.member_bindings()):
+                if binding not in bindings or binding in self._irq_group_members:
+                    raise ValueError('IRQ group requires each actual binding exactly once')
+                if sum(b == binding for b in bindings) != 1:
+                    raise ValueError('IRQ group duplicate member binding')
+                self._irq_group_members[binding] = group
+                if member.mode == 'pulse':
+                    if binding in pulse_specs and pulse_specs[binding] != member.pulse_width_ticks:
+                        raise ValueError('IRQ group pulse width mismatch')
+                    pulse_specs[binding] = member.pulse_width_ticks
+                elif binding in pulse_specs:
+                    raise ValueError('IRQ level group member cannot also be a pulse')
+            self._irq_group_adapters.update(verify_group_sessions(group,self.sessions))
+        for binding in bindings:
+            if binding not in self._irq_group_members and any(
+                    (binding.target_component,binding.target_port,binding.target_bit_offset) ==
+                    (g.target_component,g.target_port,g.target_bit_offset) for g in irq_delivery_groups):
+                raise ValueError('IRQ group input has an undeclared additional driver')
         self._irq_pulses: dict[Binding, IrqPulseDelivery] = {}
-        for binding, width in (irq_pulses or {}).items():
+        for binding, width in pulse_specs.items():
             if binding not in bindings or binding.width != 1:
                 raise ValueError("IRQ pulse must select a declared one-bit binding")
-            self._irq_pulses[binding] = IrqPulseDelivery(width_ticks=width)
+            group=self._irq_group_members.get(binding)
+            declared=(group is not None and any(m.source_adapter=='declared-output.v1' and b==binding
+                for m,b in zip(group.members,group.member_bindings())))
+            self._irq_pulses[binding] = IrqPulseDelivery(width_ticks=width,require_observed_baseline=declared)
         self._irq_event_offsets = {binding: 0 for binding in self._irq_pulses}
+        self._irq_group_states = {g.group_id: IrqDeliveryGroupState(g,self._irq_pulses) for g in irq_delivery_groups}
+        self._irq_group_delivery_ids = {g.group_id: {} for g in irq_delivery_groups}
         for binding in bindings:
             if binding.source_component not in self.sessions \
                     or binding.target_component not in self.sessions:
@@ -215,7 +252,8 @@ class ScenarioRunner:
             actual = ownership.binding_producer(
                 binding.target_component, binding.target_port,
                 binding.target_bit_offset, binding.width)
-            if actual != expected:
+            group = self._irq_group_members.get(binding)
+            if actual != (group.owner_ref if group is not None else expected):
                 raise ValueError("binding producer does not match input ownership")
         for component, session in self.sessions.items():
             validate = getattr(session, 'validate_scenario_bindings', None)
@@ -303,6 +341,10 @@ class ScenarioRunner:
         self._memory_dependency_configuration = None
         self._irq_dependency_consumer = None
         self._irq_dependency_configuration = None
+        self._gpio_irq_dependency_consumer = None
+        self._gpio_irq_session_pins = None
+        self._gpio_irq_dependency_configuration = None
+        self._gpio_irq_runtime_ports = {}
         self.persistent_memory_prerequisite_gate = None
         from .dependency_lifecycle import DependencyWitnessLifecycle
         self._dependency_witness_lifecycle = DependencyWitnessLifecycle()
@@ -442,8 +484,15 @@ class ScenarioRunner:
             self._uart_store_memory_join = None
 
     def configure_memory_dependency_evidence(self, *, runtime_contract_sha256,
-            max_records=256, max_writer_versions=4096, max_event_gap=4096) -> None:
-        """Install historical RAM evidence on actual opt-in CPU callbacks."""
+            max_records=256, max_writer_versions=4096, max_event_gap=4096,
+            channel_ids=None) -> None:
+        """Install historical RAM evidence on actual opt-in CPU callbacks.
+
+        ``channel_ids`` names the native channel each installed CPU stamps on its
+        own data transactions, for a row whose port does not number them on the
+        default ``data`` channel (the packed unified ones use ``memory``).  It is
+        forwarded verbatim to the commit authority and never inferred.
+        """
         if self._native_reset_evidence is not None:
             raise ValueError('memory authority configuration must occur before native reset evidence')
         if (self._status != 'created' or self._events
@@ -478,7 +527,9 @@ class ScenarioRunner:
                 raise ValueError('same unused installed memory authorities required')
             if authority is not None:
                 authority.validate_consumer_registration('dependency_evidence')
-        commits = self._memory_commit_authority or MemoryCommitAuthority(services=services)
+        commits = self._memory_commit_authority or MemoryCommitAuthority(
+            services=services,
+            channel_ids=None if channel_ids is None else dict(channel_ids))
         writer_kinds = {c: s.include_writer_kinds for c, s in services.items()}
         try:
             for service in services.values():
@@ -562,12 +613,89 @@ class ScenarioRunner:
             runtime_contract_sha256=runtime_contract_sha256, max_records=max_records,
             max_pending=max_pending, max_event_gap=max_event_gap)
 
+    def configure_gpio_irq_dependency_evidence(self, *, source_component, target_component,
+            pin, runtime_contract_sha256, max_records=256, max_pending=256,
+            max_event_gap=4096) -> None:
+        """Install the actual causal GPIO/native CPU IRQ boundary observer."""
+        from myfuzz.local_harness.cpu_session import GeneratedCve2Session
+        from .gpio_irq_dependency_evidence import GpioNativeIrqEvidenceConsumer, gpio_irq_runtime_port
+        from .irq import IrqPulseDelivery
+        from myfuzz.local_harness.native_irq_receipt_contract import (
+            native_irq_receipt_contract, verify_native_irq_receipt_artifact)
+        if (self._status != 'created' or self._events or self._provenance is None
+                or self._gpio_consumption_tracker is None or self._gpio_irq_dependency_consumer is not None
+                or source_component not in self.sessions or target_component not in self.sessions
+                or self._provenance.edge_index.document()['contract_sha256'] != runtime_contract_sha256):
+            raise ValueError('GPIO IRQ provider requires actual once-only prepared startup')
+        source, target = self.sessions[source_component], self.sessions[target_component]
+        port = gpio_irq_runtime_port(source)
+        if type(target) is not GeneratedCve2Session or not target.native_irq_receipts_enabled:
+            raise ValueError('GPIO IRQ provider requires native CPU IRQ receipts')
+        verify_native_irq_receipt_artifact(target.artifact, base_dir=target.base_dir)
+        # The CPU IRQ input may be a real bit-slice of a wider vector port. The
+        # installed binding carries the declared bit, so select it instead of
+        # requiring offset zero and use that exact bit for owner and evidence.
+        bindings = [b for b in self.bindings if b.source_component == source_component
+            and b.source_port == port and b.target_component == target_component
+            and b.target_port == target.irq_input_port and b.width == 1
+            and b.source_bit_offset == 0]
+        if len(bindings) > 1:
+            raise ValueError('GPIO IRQ provider requires one physical binding')
+        group = self.irq_group_for(bindings[0]) if len(bindings)==1 else None
+        offset = bindings[0].target_bit_offset if bindings else 0
+        expected_owner = group.owner_ref if group is not None else f'{source_component}.{port}'
+        if (len(bindings) != 1 or bindings[0] not in self._irq_pulses
+                or type(self._irq_pulses[bindings[0]]) is not IrqPulseDelivery
+                or (group is not None and group.target_bit_offset != offset)
+                or self.ownership.binding_producer(target_component, target.irq_input_port, offset, 1)
+                    != expected_owner):
+            raise ValueError('GPIO IRQ provider requires exact physical binding and pulse')
+        consumer = GpioNativeIrqEvidenceConsumer(source_component=source_component,
+            target_component=target_component, pin=pin, source_port=port,
+            target_port=target.irq_input_port, runtime_contract_sha256=runtime_contract_sha256,
+            pulse_width_ticks=self._irq_pulses[bindings[0]].width_ticks,
+            observation_contract=native_irq_receipt_contract(target.artifact),
+            max_records=max_records, max_pending=max_pending, max_event_gap=max_event_gap,
+            target_bit_offset=offset)
+        self._gpio_irq_runtime_ports[source_component] = port
+        self._gpio_irq_session_pins = ((source_component, source), (target_component, target))
+        self._gpio_irq_dependency_consumer = consumer
+        self._gpio_irq_dependency_configuration = dict(
+            schema_version='gpio_native_irq_dependency_configuration.v1', provider=consumer.provider,
+            source_component=source_component, target_component=target_component, pin=pin,
+            source_port=port, target_port=target.irq_input_port,
+            target_bit_offset=offset,
+            runtime_contract_sha256=runtime_contract_sha256,
+            pulse_width_ticks=self._irq_pulses[bindings[0]].width_ticks,
+            max_records=max_records, max_pending=max_pending, max_event_gap=max_event_gap)
+        if group is not None:
+            self._gpio_irq_dependency_configuration['irq_delivery_group'] = group.document()
+
+    def gpio_irq_dependency_evidence_report(self) -> dict:
+        consumer = self._gpio_irq_dependency_consumer
+        if consumer is None:
+            return {'status': 'not_configured', 'irq_consumption': 'unknown',
+                    'isr_mmio': 'unknown', 'grants_prerequisites': False, 'reward_eligible': False}
+        if any(self.sessions.get(name) is not session for name, session in self._gpio_irq_session_pins):
+            raise ValueError('GPIO IRQ actual session changed')
+        return consumer.report()
+
     def irq_dependency_evidence_report(self) -> dict:
         return (self._irq_dependency_consumer.report()
                 if self._irq_dependency_consumer is not None
                 else {'status': 'not_configured', 'grants_prerequisites': False})
 
     def _consume_dependency_event(self, event, *, commit_token=None, read_token=None):
+        for state in self._irq_group_states.values():
+            if event.get('kind') in ('reset_barrier','gpio_reset','gpio_reset_resource','cpu_reset'):
+                if event.get('component') in (None,state.group.target_component,*(m.source_component for m in state.group.members)):
+                    state.reset()
+            else:
+                state.native(event)
+        if self._gpio_irq_dependency_consumer is not None:
+            if any(self.sessions.get(name) is not session for name, session in self._gpio_irq_session_pins):
+                raise ValueError('GPIO IRQ actual session changed')
+            self._gpio_irq_dependency_consumer.consume(event)
         if self._memory_dependency_consumer is not None:
             self._memory_dependency_consumer.consume(event,
                 commit_token=commit_token, read_token=read_token)
@@ -685,6 +813,10 @@ class ScenarioRunner:
         return observer.snapshot() if observer is not None else None
 
     def _append_ordinary_observed_event(self, record):
+        if (record.get('kind') == 'compiled_F6_instruction_fetch_completion'
+                or record.get('schema_version') == 'compiled_F6_instruction_fetch_completion.v1'):
+            from .f6_instruction_fetch_receipt import _guard_f6_completion_publication
+            _guard_f6_completion_publication(self, record)
         self._events.append(record)
         observer = self._ordinary_apb_access_evidence
         if observer is not None:
@@ -723,11 +855,26 @@ class ScenarioRunner:
         """Number of recorded events, usable as a cursor for ``events_since``."""
         return len(self._events)
 
-    def events_since(self, index: int) -> tuple[dict, ...]:
-        """Return a detached copy of events starting at zero-based ``index``."""
+    def events_since(self, index: int, *, stop: int | None = None) -> tuple[dict, ...]:
+        """Copy the requested event interval, with an optional exclusive stop."""
         if type(index) is not int or not 0 <= index <= len(self._events):
             raise ValueError("event index is outside the recorded prefix")
-        return deepcopy(tuple(self._events[index:]))
+        if stop is not None and (type(stop) is not int or not index <= stop <= len(self._events)):
+            raise ValueError("event stop is outside the recorded prefix")
+        return deepcopy(tuple(self._events[index:stop]))
+
+    def _event_refs_since(self, index: int, *, stop: int | None = None) -> tuple[dict, ...]:
+        """Borrow event references for synchronous code-owned pure checkers only.
+
+        Do not mutate or retain the records. Detach any checker output that
+        contains their fields before returning it outside the trusted call.
+        Public readers deliberately do not dispatch through this method.
+        """
+        if type(index) is not int or not 0 <= index <= len(self._events):
+            raise ValueError("event index is outside the recorded prefix")
+        if stop is not None and (type(stop) is not int or not index <= stop <= len(self._events)):
+            raise ValueError("event stop is outside the recorded prefix")
+        return tuple(self._events[index:stop])
 
     def event_by_id(self, event_id: int) -> dict | None:
         """Read one detached event from the authoritative indexed log."""
@@ -1067,6 +1214,8 @@ class ScenarioRunner:
             document["independent_baseline"] = True
         if self._memory_dependency_configuration is not None:
             document['memory_dependency_evidence'] = deepcopy(self._memory_dependency_configuration)
+        if self._gpio_irq_dependency_configuration is not None:
+            document['gpio_irq_dependency_evidence'] = deepcopy(self._gpio_irq_dependency_configuration)
         if self._irq_dependency_configuration is not None:
             document['irq_dependency_evidence'] = deepcopy(self._irq_dependency_configuration)
         if self.persistent_memory_prerequisite_gate is not None:
@@ -1082,6 +1231,8 @@ class ScenarioRunner:
         if self._controlled_irq_configuration is not None:
             document['controlled_uart_bootstrap_configuration'] = deepcopy(
                 self._controlled_irq_configuration)
+        if self.irq_delivery_groups:
+            document['irq_delivery_groups']=[g.document() for g in self.irq_delivery_groups]
         if self._irq_pulses:
             document["irq_pulses"] = [
                 {"binding": asdict(binding),
@@ -1251,12 +1402,18 @@ class ScenarioRunner:
                 'kind': 'controlled_uart_bootstrap_registration', 'component': component,
                 'registry': registry.document()})
 
-    def reset_all(self, policy: str) -> ResetResult:
+    def reset_all(self, policy: str, *, image: MemoryImage | None = None) -> ResetResult:
         """Apply an explicit whole-scenario RTL reset and memory resource policy."""
         if self._status != "running":
             raise RuntimeError("scenario is not running")
         if policy not in ("warm_all", "cold_all"):
             raise ValueError("unsupported reset policy; only warm_all/cold_all")
+        if image is not None:
+            if not isinstance(image, MemoryImage) or image.component not in self.sessions:
+                raise ValueError('reset image references unknown local harness')
+            image_memory = getattr(self.sessions[image.component], 'memory', None)
+            if image_memory is None:
+                raise ValueError('reset image destination has no persistent memory')
         for component, session in self.sessions.items():
             if not callable(getattr(session, "reset_local", None)):
                 raise ValueError(f"local harness {component} cannot reset")
@@ -1393,6 +1550,23 @@ class ScenarioRunner:
                                    "producer_event_id": barrier_id,
                                    "kind": "state_dependency"})
                     self._events.append(record)
+        if image is not None:
+            image_event_id = len(self._events) + 1
+            image_identity = f'reset-image:{image_event_id}'
+            memory_id, byte_offset, version = image_memory.reinstall_image(
+                image.address, image.data, event_id=image_identity)
+            self._events.append({'event_id': image_event_id, 'kind': 'reset_image',
+                'reset_event_id': reset_event_id, 'image_id': image.image_id,
+                'component': image.component, 'address': image.address,
+                'data_hex': image.data_hex})
+            for edge in self.state_dependencies.install_image(
+                    memory_id, byte_offset, len(image.data), version, image_identity):
+                record = asdict(edge)
+                record['edge_kind'] = record.pop('kind')
+                record.update({'event_id': len(self._events) + 1,
+                               'producer_event_id': image_event_id,
+                               'kind': 'state_dependency'})
+                self._events.append(record)
         return ResetResult(policy, generations, cancelled)
 
     def inject_source(self, component: str, port: str, value: int, *,
@@ -1438,6 +1612,41 @@ class ScenarioRunner:
         self._events.append(event)
         return scheduled_tick
 
+    def declare_target_bus_pin(self, *, component: str, port: str, value: int,
+                               bit_offset: int, width: int, direction: str,
+                               declaration) -> int:
+        """Record one declared target bus-input pin without driving any input.
+
+        A TL-UL target owns its local A/D channel: the generated adapter drives
+        those pins from the target session's own register access commands.  The
+        host can only *declare* the candidate value it observed; it never enters
+        ``_inputs``, ownership, or a local command, so the real RTL bus stays
+        exactly what the target itself drove.
+        """
+        from .target_bus_pins import TARGET_BUS_PIN_DIRECTION, declaration_identity
+        if self._status != "running":
+            raise RuntimeError("scenario is not running")
+        if component not in self.sessions:
+            raise ValueError("unknown local harness")
+        identity = declaration_identity(declaration)
+        if ((declaration["component"], declaration["port"],
+             declaration["bit_offset"], declaration["width"])
+                != (component, port, bit_offset, width)
+                or direction != TARGET_BUS_PIN_DIRECTION
+                or type(value) is not int or not 0 <= value < 1 << width):
+            raise ValueError("declared target bus pin differs from its declaration")
+        self._ensure_wall_capacity("before_target_bus_pin_declaration")
+        self._ensure_semantic_capacity("before_target_bus_pin_declaration")
+        event = {"event_id": len(self._events) + 1,
+                 "kind": "declared_target_bus_pin",
+                 "component": component, "port": port,
+                 "bit_offset": bit_offset, "width": width,
+                 "direction": direction, "value": value,
+                 "declaration_id": identity,
+                 "delivery": "target_adapter_internal_observed_only"}
+        self._events.append(event)
+        return event["event_id"]
+
     @timed_runtime_call("runner_step")
     def step(self, component: str) -> Mapping[str, int]:
         """Advance through the same idempotent command path as transport retries."""
@@ -1445,12 +1654,12 @@ class ScenarioRunner:
             raise ValueError("unknown local harness")
         if self._resource_budget is not None:
             self._sync_session_ticks()
-        receipt = self.execute_step(
+        receipt = self._execute_step(
             component, execution_id=self.execution_id,
             command_sequence=self._next_command_sequence,
             epoch=self.command_epoch,
             expected_inputs=self._effective_inputs(component))
-        return receipt.outputs
+        return deepcopy(receipt.outputs)
 
     @timed_runtime_call("scheduler_batch")
     def step_batch(
@@ -1482,14 +1691,62 @@ class ScenarioRunner:
     def _effective_inputs(self, component: str) -> dict[str, int]:
         inputs = dict(self._inputs[component])
         for binding, policy in self._irq_pulses.items():
-            if binding.target_component != component:
+            if binding.target_component != component or binding in self._irq_group_members:
                 continue
             value = policy.input_at(self.local_ticks[component] + 1)
             mask = 1 << binding.target_bit_offset
             inputs[binding.target_port] = (
                 (inputs.get(binding.target_port, 0) & ~mask)
                 | (value << binding.target_bit_offset))
+        for state in self._irq_group_states.values():
+            group=state.group
+            if group.target_component == component:
+                for member,binding in zip(group.members,group.member_bindings()):
+                    sample=state.samples.get(binding)
+                    if sample is not None and sample['reference']['reset_epoch']!=getattr(self.sessions[member.source_component],'reset_epoch',None):
+                        raise ValueError('IRQ group source epoch changed; native resample required')
+                value=state.frame(self.local_ticks[component]+1)['value']
+                mask=1<<group.target_bit_offset
+                inputs[group.target_port]=(inputs.get(group.target_port,0)&~mask)|(value<<group.target_bit_offset)
         return inputs
+
+    def irq_group_for(self, binding):
+        """Return the explicitly installed group; no single-producer fiction."""
+        return self._irq_group_members.get(binding)
+
+    def irq_group_delivery(self, binding, *, cpu_tick=None):
+        group=self.irq_group_for(binding)
+        if group is None:return None
+        epoch=getattr(self.sessions[group.target_component],'reset_epoch',None)
+        if cpu_tick is None:
+            row=self._irq_group_states[group.group_id].last_delivery
+            cpu_tick=row['cpu_tick'] if row is not None else None
+        event_id=self._irq_group_delivery_ids[group.group_id].get((epoch,cpu_tick))
+        if event_id is None:return None
+        row=self._event_ref_by_id(event_id)
+        if (not isinstance(row,dict) or row.get('kind')!='irq_group_delivery'
+                or row.get('group_id')!=group.group_id or row.get('group_sha256')!=group.identity_sha256
+                or row.get('target_epoch')!=epoch or row.get('cpu_tick')!=cpu_tick):
+            raise ValueError('IRQ group historical delivery journal mismatch')
+        return dict(deepcopy(row),delivery_event_id=row['event_id'])
+
+    def _guard_irq_group_input_context(self, component, session):
+        """A preplanned source context cannot override actual OR attribution."""
+        for state in self._irq_group_states.values():
+            if state.group.target_component!=component:continue
+            context=getattr(session,'_next_irq_input_context',None)
+            if context is None:continue
+            frame=state.active_frame;key=context.get('source_output_key') if type(context) is dict else None
+            valid=False
+            if frame is not None and frame['unique_source'] is not None and type(key) is list and len(key)==4:
+                for member,binding in zip(state.group.members,state.group.member_bindings()):
+                    if member.source_id!=frame['unique_source']:continue
+                    source=next(row['native_source'] for row in frame['members'] if row['source_id']==member.source_id)
+                    adapter=self._irq_group_adapters[binding]
+                    valid=(key[0]==member.source_component and key[2]==adapter['physical_port']
+                        and type(key[1]) is int and key[1]==source['reset_epoch']
+                        and type(key[3]) is int and key[3]==source['local_tick'])
+            if not valid:session.set_next_irq_input_context(None)
 
     def _sync_session_ticks(self) -> None:
         """Include target MMIO clocks advanced by another local harness."""
@@ -1620,6 +1877,9 @@ class ScenarioRunner:
                 if component in getattr(router, 'pending_targets', ()):
                     self._ordinary_apb_access_evidence.preflight_access(router, self.sessions[component])
         inputs = self._effective_inputs(component)
+        for state in self._irq_group_states.values():
+            if state.group.target_component == component:
+                state.begin_step(self.local_ticks[component]+1)
         tick_before_step = self.local_ticks[component]
         event_count_before_step = len(self._events)
         ticks_before_step = dict(self.local_ticks)
@@ -1628,6 +1888,7 @@ class ScenarioRunner:
             stage_irq = getattr(session, 'set_next_irq_input_context', None)
             if self._native_irq_join is not None and callable(stage_irq):
                 stage_irq(self._native_irq_input_context(component, inputs.get('irq', 0)))
+            self._guard_irq_group_input_context(component, session)
             stage_gpio = getattr(session, 'set_next_gpio_input_context', None)
             if (self._gpio_consumption_tracker is not None and callable(stage_gpio)
                     and getattr(session, 'routed_register_access_enabled', False)):
@@ -1689,19 +1950,22 @@ class ScenarioRunner:
                                             else self.failure_status),
                                  "uncertain_transactions": uncertain})
             failure_event_id = self._events[-1]['event_id']
-            self._drain_causal_gpio_events(failure_event_id, exclude=component)
-            self._append_external_events(component, failure_event_id)
-            if self._ordinary_apb_access_evidence is None:
-                self._drain_tick_samples(failure_event_id)
-            else:
-                try:
-                    self._drain_ordinary_apb_events(failure_event_id)
+            try:
+                self._drain_causal_gpio_events(failure_event_id, exclude=component)
+                self._append_external_events(component, failure_event_id)
+                if self._ordinary_apb_access_evidence is None:
                     self._drain_tick_samples(failure_event_id)
-                finally:
-                    for _, router in self._unique_routers():
-                        for window in router.windows:
-                            self._finalize_ordinary_apb_access(router, window.target,
-                                failure=type(exc).__name__)
+                else:
+                    try:
+                        self._drain_ordinary_apb_events(failure_event_id)
+                        self._drain_tick_samples(failure_event_id)
+                    finally:
+                        for _, router in self._unique_routers():
+                            for window in router.windows:
+                                self._finalize_ordinary_apb_access(router, window.target,
+                                    failure=type(exc).__name__)
+            except BaseException as cleanup_error:
+                exc.add_note(f"post-failure evidence cleanup failed: {type(cleanup_error).__name__}: {cleanup_error}")
             if timed_out:
                 self.failure_status = "budget_exhausted"
                 marker = {
@@ -1728,6 +1992,22 @@ class ScenarioRunner:
                              "inputs": inputs, "outputs": dict(outputs)})
         self._drain_causal_gpio_events(event_id, exclude=component)
         self._append_external_events(component, event_id)
+        for state in self._irq_group_states.values():
+            if state.group.target_component == component:
+                delivery=state.finish_step(event_id)
+                delivery_id=len(self._events)+1
+                self._events.append(dict(delivery,event_id=delivery_id,kind='irq_group_delivery',
+                    producer_event_id=event_id,proof_scope='native_CPU_input_equals_member_OR',grants_prerequisites=False))
+                state.last_delivery['delivery_event_id']=delivery_id
+                identifiers=self._irq_group_delivery_ids[state.group.group_id]
+                key=(delivery['target_epoch'],delivery['cpu_tick'])
+                if key in identifiers:raise ValueError('IRQ group duplicate CPU delivery identity')
+                identifiers[key]=delivery_id
+                if len(identifiers)>4096:identifiers.pop(next(iter(identifiers)))
+                if 'native_take_event_id' in delivery:
+                    self._events.append(dict(delivery,event_id=len(self._events)+1,kind='irq_group_acceptance',
+                        producer_event_id=delivery['native_take_event_id'],group_delivery_event_id=delivery_id,
+                        proof_scope='native_external_IRQ_acceptance',grants_prerequisites=False))
         for binding, policy in self._irq_pulses.items():
             if binding.target_component != component:
                 continue
@@ -1740,6 +2020,12 @@ class ScenarioRunner:
                 if observed is not None and (isinstance(observed, bool)
                                              or observed not in (0, 1)):
                     raise ValueError(f"invalid RTL {name} observation")
+            group=self.irq_group_for(binding)
+            if group is not None:
+                delivery=self._irq_group_states[group.group_id].last_delivery
+                if (delivery['unique_source'] != f'{binding.source_component}.{binding.source_port}'
+                        or 'native_take_event_id' not in delivery):
+                    taken_observed=None
             policy.sample_cpu(self.local_ticks[component],
                               masked=None if mask_observed is None else bool(mask_observed),
                               accepted=None if taken_observed is None else bool(taken_observed),
@@ -1800,6 +2086,25 @@ class ScenarioRunner:
             if isinstance(value, bool) or not isinstance(value, int) or value < 0:
                 raise ValueError("observed RTL output must be a nonnegative integer")
             fragment = value >> binding.source_bit_offset & ((1 << binding.width) - 1)
+            group=self.irq_group_for(binding)
+            if group is not None:
+                sample=self._event_ref_by_id(event_id)
+                adapter=self._irq_group_adapters[binding]
+                epoch=getattr(self.sessions[component],'reset_epoch',None)
+                physical=(sample.get('outputs',{}).get('physical',{}) if isinstance(sample,dict) else {})
+                if (not isinstance(sample,dict) or sample.get('kind')!='local_tick_sample'
+                        or sample.get('component')!=component or sample.get('local_tick')!=source_tick
+                        or sample.get('phase')!=source_phase or sample.get('reset_epoch')!=epoch
+                        or type(physical.get(adapter['runtime_name'])) is not int
+                        or not 0 <= physical[adapter['runtime_name']] < 1 << adapter.get('source_width', 1)
+                        or (physical[adapter['runtime_name']] >> adapter.get('raw_bit_offset',binding.source_bit_offset) & 1)!=fragment):
+                    raise ValueError('IRQ group actual native source sample required')
+                changed=self._irq_group_states[group.group_id].observe(binding,fragment,dict(
+                    event_id=event_id,component=component,reset_epoch=epoch,local_tick=source_tick,
+                    phase=source_phase,adapter_id=adapter['adapter_id'],runtime_name=adapter['runtime_name']))
+                if binding not in self._irq_pulses:
+                    if changed:self._pending_bound_targets.add(binding.target_component)
+                    continue
             if binding in self._irq_pulses:
                 policy = self._irq_pulses[binding]
                 source_trigger = None
@@ -2069,8 +2374,124 @@ class ScenarioRunner:
         self._ip_protocol_event_normalizers[component] = normalizer
         return normalizer
 
+    def _wishbone_dma_protocol_checker(self, component, artifact):
+        """Build dual endpoint checkers from the admitted DMA artifact contract."""
+        document = getattr(artifact, 'runtime_document', None)
+        plan = getattr(artifact, 'plan', None)
+        request = getattr(plan, 'request', None)
+        profile = getattr(plan, 'profile', None)
+        source_verification = getattr(artifact, 'source_verification', None)
+        trace_set = (document.get('protocol_checker_trace_set')
+                     if isinstance(document, dict) else None)
+        if (not isinstance(document, dict) or profile is None or request is None
+                or not callable(getattr(request, 'document', None))
+                or document.get('kind') != 'wishbone_dma'
+                or not isinstance(trace_set, dict)
+                or not isinstance(source_verification, dict)
+                or request.document().get('schema_version') not in (
+                    'local_harness.v1', 'local_harness.v2')):
+            raise ValueError('wishbone-dma-protocol-admission-required')
+        from myfuzz.local_harness.renderer import _sha
+        from myfuzz.local_harness.wishbone_dma_fields import dma_select_modes, dma_profile_edge_contract
+        from .ip_protocol_checker import WishboneDmaProtocolChecker
+        control_selected,master_selected = dma_select_modes(profile.capabilities)
+        edge_contract = dma_profile_edge_contract(profile.capabilities)
+        selected_source_ok = True
+        if control_selected or master_selected:
+            if source_verification.get('schema_version') == 'zipdma_selected_profile_contract.v1':
+                selected_source_ok = source_verification.get('profile_fingerprint') == profile.profile_fingerprint
+            else:
+                from myfuzz.local_harness.source_lock import verify_local_source_lock
+                session = self.sessions.get(component)
+                base_dir = getattr(session, 'base_dir', None)
+                selected_source_ok = (base_dir is not None and source_verification ==
+                    verify_local_source_lock(profile, base_dir=base_dir))
+            selected_source_ok = selected_source_ok and document.get('source_verification') == source_verification
+        artifact_digest = document.get('artifact_digest')
+        unsigned_document = dict(document)
+        unsigned_document.pop('artifact_digest', None)
+        if (type(artifact_digest) is not str or _sha(unsigned_document) != artifact_digest
+                or document.get('dma_edge_contract') != edge_contract
+                or not selected_source_ok
+                or trace_set.get('schema_version') != 'wishbone_dma_protocol_checker.v1'
+                or trace_set.get('sample_group') != 'backend'
+                or trace_set.get('sampling') != 'pre_post'):
+            raise ValueError('wishbone-dma-protocol-artifact-contract-mismatch')
+        endpoints = {row.endpoint_id: row for row in profile.endpoints
+                     if row.protocol is not None}
+        backend_rows = document.get('backend_ports')
+        if not isinstance(backend_rows, list):
+            raise ValueError('wishbone-dma-protocol-backend-map-required')
+        traces = trace_set.get('traces')
+        if not isinstance(traces, list) or len(traces) != 2:
+            raise ValueError('wishbone-dma-protocol-dual-trace-required')
+        seen = set()
+        for trace in traces:
+            if not isinstance(trace, dict):
+                raise ValueError('wishbone-dma-protocol-trace-invalid')
+            endpoint_id = trace.get('endpoint_id')
+            endpoint = endpoints.get(endpoint_id)
+            if endpoint is None or endpoint_id in seen:
+                raise ValueError('wishbone-dma-protocol-endpoint-identity-mismatch')
+            seen.add(endpoint_id)
+            endpoint_role = ('control_target' if endpoint.function == 'mmio_slave'
+                             else 'memory_master' if endpoint.function == 'memory_master'
+                             else None)
+            primary_clock = document.get('clock_schedule', {}).get(
+                'primary_clock_domain') if isinstance(document.get('clock_schedule'), dict) else None
+            expected_clock = endpoint.clock or primary_clock
+            expected_fields = {field.role: (field.direction, field.width)
+                               for field in endpoint.fields}
+            signals, widths = trace.get('signals'), trace.get('signal_widths')
+            if (endpoint_role is None or trace.get('endpoint_role') != endpoint_role
+                    or endpoint.protocol != ('wishbone', 'pipelined')
+                    or trace.get('protocol') != 'wishbone'
+                    or trace.get('schema_version') != 'ip_protocol_trace.v1'
+                    or trace.get('clock_domain') != expected_clock
+                    or trace.get('reset_domain') != endpoint.reset
+                    or trace.get('max_wait_cycles') != document.get('effective_max_wait_cycles')
+                    or trace.get('max_outstanding') != edge_contract['environment_max_outstanding']
+                    or trace.get('same_edge_accept_completion') is not False
+                    or trace.get('sample_group') != 'backend'
+                    or not isinstance(signals, dict) or not isinstance(widths, dict)
+                    or set(signals) != set(expected_fields)
+                    or set(widths) != set(expected_fields)):
+                raise ValueError('wishbone-dma-protocol-endpoint-contract-mismatch')
+            selected = control_selected if endpoint_role == 'control_target' else master_selected
+            expected_byte_enable = ({'signal': 'sel', 'partial_write': True} if selected
+                                    else {'signal': 'absent', 'partial_write': False})
+            if endpoint_role == 'memory_master' and not selected:
+                fixed = profile.capabilities.get('master_fixed_byte_enable')
+                expected_byte_enable.update(fixed_value=fixed,
+                    basis='profile.capabilities.master_fixed_byte_enable')
+            if trace.get('byte_enable') != expected_byte_enable:
+                raise ValueError('wishbone-dma-protocol-byte-enable-contract-mismatch')
+            for role, (direction, width) in expected_fields.items():
+                name = signals[role]
+                rows = [row for row in backend_rows
+                    if isinstance(row, dict) and row.get('name') == name]
+                if (type(name) is not str or len(rows) != 1
+                        or rows[0].get('role') != role
+                        or rows[0].get('width') != width
+                        or rows[0].get('direction') != direction
+                        or widths[role] != width):
+                    raise ValueError('wishbone-dma-protocol-backend-signal-mismatch')
+        if seen != set(endpoints):
+            raise ValueError('wishbone-dma-protocol-endpoint-coverage-mismatch')
+        identity = {
+            'component_id': profile.component_id,
+            'instance_id': request.instance_id,
+            'artifact_digest': artifact_digest,
+            'profile_fingerprint': profile.profile_fingerprint,
+            'source_verification_sha256': _sha(source_verification),
+            'runtime_artifact_sha256': _sha(document),
+        }
+        return WishboneDmaProtocolChecker(component_id=profile.component_id,
+            instance_id=request.instance_id, trace_set=trace_set,
+            artifact_identity=identity)
+
     def _ip_protocol_checker(self, component: str, session):
-        """Create an admitted v2 protocol-contract checker once per session."""
+        """Create an admitted protocol-contract checker once per session."""
         if component in self._ip_protocol_checkers:
             return self._ip_protocol_checkers[component]
         artifact = getattr(session, 'artifact', None)
@@ -2082,6 +2503,10 @@ class ScenarioRunner:
         if isinstance(document, dict) and request is not None:
             from myfuzz.local_harness.native_physical_observation import verify_native_physical_observation
             native_observation = verify_native_physical_observation(artifact)
+        if isinstance(document, dict) and document.get('kind') == 'wishbone_dma':
+            checker = self._wishbone_dma_protocol_checker(component, artifact)
+            self._ip_protocol_checkers[component] = checker
+            return checker
         trace = document.get('base_protocol_trace') if isinstance(document, dict) else None
         kind_protocol = {
             'tlul_register_observe': 'tl-ul',
@@ -2127,6 +2552,25 @@ class ScenarioRunner:
             protocol_trace=trace)
         self._ip_protocol_checkers[component] = checker
         return checker
+
+    def install_protocol_checker(self, component: str):
+        """Install the component's admitted checker before any session begins."""
+        if self._status != 'created' or self._events:
+            raise ValueError('protocol-checker-install-after-run-start')
+        session = self.sessions.get(component)
+        if session is None:
+            raise ValueError('protocol-checker-component-unknown')
+        return self._ip_protocol_checker(component, session)
+
+    def protocol_checker_snapshot(self, component: str):
+        checker = self._ip_protocol_checkers.get(component)
+        snapshot = getattr(checker, 'snapshot', None)
+        return deepcopy(snapshot()) if callable(snapshot) else None
+
+    def protocol_checker_report(self, component: str, *, since=None):
+        checker = self._ip_protocol_checkers.get(component)
+        report = getattr(checker, 'report', None)
+        return deepcopy(report(since=since)) if callable(report) else None
 
     def _protocol_trace_set(self, component, session):
         if component in self._protocol_trace_sets:
@@ -2212,6 +2656,8 @@ class ScenarioRunner:
                                  "producer_event_id": producer_event_id,
                                  "component": component, "local_tick": tick,
                                  "phase": phase, "outputs": dict(observed)}
+                    if 'f6_obi_scope' in sample:
+                        raw_event['f6_obi_scope'] = deepcopy(sample['f6_obi_scope'])
                     native_scope = sample.get('native_driver_scope')
                     if native_scope is not None:
                         from .native_cpu_events import NativeBusObserver
@@ -2292,6 +2738,8 @@ class ScenarioRunner:
                     self._drain_native_source_completions(
                         component, native_completion_producer_event_id)
                 self._last_sample_ticks[component] = tick
+            from .f6_instruction_fetch_receipt import _drain_f6_instruction_fetches
+            _drain_f6_instruction_fetches(self, component)
 
     def _drain_native_source_completions(self, component: str,
                                          producer_event_id: int) -> None:
@@ -2947,7 +3395,8 @@ class ScenarioRunner:
                                  tick: int, phase: str) -> dict | None:
         """Join only one matching RTL sample phase to a proven native rise."""
         from .gpio_consumption import is_authenticated_gpio_tick
-        if (binding.source_port != 'irq' or binding.source_bit_offset != 0
+        if (binding.source_port != self._gpio_irq_runtime_ports.get(binding.source_component, 'irq')
+                or binding.source_bit_offset != 0
                 or binding.width != 1 or phase not in ('pre', 'post')):
             return None
         component = binding.source_component
@@ -3035,12 +3484,22 @@ class ScenarioRunner:
                 'producer_event_id': producer['event_id'],
                 'component': report.get('component') or producer['component']}
             self._events.append(logged)
-            self._append_gpio_consumption(logged)
+            from .gpio_consumption import is_registered_non_gpio_delivery
+            if not is_registered_non_gpio_delivery(self.sessions,logged):
+                self._append_gpio_consumption(logged)
 
     def execute_step(self, component: str, *, execution_id: str,
                      command_sequence: int, epoch: int,
                      expected_inputs: Mapping[str, int]) -> StepReceipt:
         """Execute one host command, or return its complete cached observation."""
+        return deepcopy(self._execute_step(component, execution_id=execution_id,
+            command_sequence=command_sequence, epoch=epoch,
+            expected_inputs=expected_inputs))
+
+    def _execute_step(self, component: str, *, execution_id: str,
+                      command_sequence: int, epoch: int,
+                      expected_inputs: Mapping[str, int]) -> StepReceipt:
+        """Internal command path; callers detach only the fields they return."""
         if not self.execution_id or execution_id != self.execution_id:
             raise ValueError("stale_execution: STEP belongs to another testcase run")
         if (isinstance(command_sequence, bool) or not isinstance(command_sequence, int)
@@ -3059,7 +3518,7 @@ class ScenarioRunner:
                 raise ValueError("identity_conflict: STEP payload changed")
             if receipt is None:
                 raise RuntimeError("uncertain_effect: STEP outcome is not known")
-            return deepcopy(receipt)
+            return receipt
         if self._status not in ("running", "quiescing"):
             raise RuntimeError("scenario is not running")
         if epoch != self.command_epoch:
@@ -3125,6 +3584,16 @@ class ScenarioRunner:
                     self._transaction_count - transaction_count_before > maximum):
                 raise RuntimeError("local harness exceeded transaction event bound")
         except BaseException as exc:
+            if isinstance(exc, LocalCommandDeadlineExceeded):
+                now = time.monotonic()
+                details = dict(getattr(exc, 'timeout_diagnostic', {}))
+                details.update(session_elapsed_seconds=(None if self._wall_started_at is None
+                    else now-self._wall_started_at),
+                    session_budget_seconds=(None if budget is None else budget.max_wall_time_ms/1000),
+                    session_remaining_seconds=(None if budget is None or self._wall_started_at is None
+                        else self._wall_started_at+budget.max_wall_time_ms/1000-now),
+                    runner_component=component, runner_operation='step')
+                exc.timeout_diagnostic = details
             if self._status != "failed":
                 # The local step returned, but its observation failed host
                 # validation or routing after the DUT may have advanced.
@@ -3173,7 +3642,7 @@ class ScenarioRunner:
                               deepcopy(tuple(self._events[start:])),
                               self.local_ticks[component])
         self._step_commands[identity] = (component, payload, receipt)
-        return deepcopy(receipt)
+        return receipt
 
     def retire_step_receipts_through(self, epoch: int, command_sequence: int) -> None:
         """Release acknowledged online STEP payloads without permitting reexecution."""
@@ -3541,3 +4010,12 @@ def _native_instruction_runner_anchor():
 
 
 _NATIVE_INSTRUCTION_RUNNER_PRODUCERS = _native_instruction_runner_anchor()
+
+from .f6_instruction_fetch_receipt import _seal_f6_fetch_provider
+_seal_f6_fetch_provider(ScenarioRunner, ('register_source_admission', '_append_external_events',
+    '_drain_tick_samples', '_append_ordinary_observed_event',
+    '_event_ref_by_id', 'event_by_id', 'events', 'events_since', 'event_count'))
+_seal_f6_fetch_provider(_EventLog, ('__len__', '__getitem__', '__iter__', 'snapshot',
+    'append', 'append_unchecked', 'runner'))
+_seal_f6_fetch_provider(EventJournal, ('append', '__len__', '__getitem__', '__iter__',
+    '_chunk', 'snapshot'))

@@ -1,0 +1,18 @@
+{
+  "schema_version": "inprocess_source_behavior.v1",
+  "description": "PULP APB3 timer F5 behavior: the pulse declared on irq_o[0], the three MMIO writes that start the count, and the count word the ISR reads.",
+  "notes": [
+    "facts copied from configs/scenarios/inprocess-obi-apb-ibex-timer-zipdma-f1f6.json (source_port irq_o, source_bit_offset 0, pulse_width_ticks 16, trigger_writes [[4,0],[8,0],[0,4294967295]], status_offsets [0], status_cause_bits null, clear_writes [])",
+    "the same facts are also recorded in configs/scenarios/inprocess-irq-pulp-timer-profile.json and configs/peripherals/pulp_timer/irq_behavior.json for the same RTL",
+    "status_offsets [0] is TIMER0_COUNT (rw, 32-bit); the profile declares an unlatched pulse with no acknowledge register, so clear_writes stays empty",
+    "the three trigger writes are TIMER0_CTRL(4)=0, TIMER0_CMP(8)=0 and TIMER0_COUNT(0)=0xffffffff, the reviewed sequence that arms one timer0 event",
+    "this file states device facts only: the executor still cross-checks them against configs/peripherals/pulp_timer_irq/component_profile.json, and the declaration does not prove the RTL raises the pulse"
+  ],
+  "source_port": "irq_o",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 16,
+  "trigger_writes": [[4, 0], [8, 0], [0, 4294967295]],
+  "status_offsets": [0],
+  "status_cause_bits": null,
+  "clear_writes": []
+}

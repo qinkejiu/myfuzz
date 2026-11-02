@@ -95,3 +95,21 @@ class StateDependencyTracker:
             del self._current[key]
             self._readers.pop(key, None)
         return tuple(created)
+
+    def install_image(self, memory_id: str, byte_offset: int, size: int,
+                      version: tuple[int, int], identity: str) -> tuple[StateEdge, ...]:
+        """Record an actual reset-image replacement of previously observed bytes."""
+        start = len(self.edges)
+        for offset in range(byte_offset, byte_offset + size):
+            key = (memory_id, version[0], offset)
+            previous = self._current.get(key)
+            if previous is None:
+                continue
+            self.edges.append(StateEdge('WAW', previous[0], identity, memory_id,
+                                        version[0], offset, previous[1]))
+            for reader in self._readers.get(key, ()):
+                self.edges.append(StateEdge('WAR', reader, identity, memory_id,
+                                            version[0], offset, previous[1]))
+            self._current[key] = (identity, version)
+            self._readers[key] = []
+        return tuple(self.edges[start:])

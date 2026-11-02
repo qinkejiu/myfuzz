@@ -486,6 +486,117 @@ class DmaMasterRouteContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'topology|resource'):
             compiled.validate_topology()
 
+    def _operation_scoped_ram_fixture(self, *, readable=True, writable=True,
+                                      read_permissions=('read',),
+                                      write_permissions=('write',)):
+        """Small source-backed RAM route pair for operation-scoped rights."""
+        from myfuzz.scenario.ledger import TransactionLedger
+        from myfuzz.scenario.memory_service import MemoryService
+        from myfuzz.scenario.runtime_path_contract import (
+            DmaMasterRouteContract, RuntimeNode, RuntimeEdgeContract,
+            RuntimePathContract, PreparedRuntimePathContract,
+            persistent_memory_route_identity_document)
+
+        memory = PersistentMemory(regions=(MemoryRegion('ram', 0x1000, 0x1000,
+            readable=readable, writable=writable),), initialization_seed=1,
+            max_initialized_bytes=4096)
+        service = MemoryService(memory, TransactionLedger())
+
+        class Dma:
+            def __init__(self):
+                self.memory_service = service
+                self.master_targets = ()
+                self.validator = None
+
+            def dma_route_endpoint_identity_document(self):
+                return {'schema_version': 'test-f6-dma-endpoint.v1'}
+
+            def configure_dma_route_validator(self, callback):
+                if self.validator is not None:
+                    raise ValueError('already configured')
+                self.validator = callback
+
+        import hashlib
+        import json
+        def digest(value):
+            return hashlib.sha256(json.dumps(value, sort_keys=True,
+                separators=(',', ':'), ensure_ascii=False,
+                allow_nan=False).encode()).hexdigest()
+
+        dma = Dma()
+        cpu = SimpleNamespace(memory=memory)
+        runner = SimpleNamespace(sessions={'cpu': cpu, 'dma': dma},
+            ownership=compile_ownership((), ()), bindings=())
+        graph = DependencyGraph(
+            sources=(FuzzableSource('ram.source', 'cpu', 'ram', 0, 32,
+                ('CPU_TO_IP',), kind='memory_image', image_address=0x1000),),
+            rules=(DependencyRule('dma.read', ('ram.source',),
+                    'DMA_MASTER_TRANSFER'),
+                DependencyRule('dma.write', ('dma.read',), 'EVENT_ORDER'),
+                DependencyRule('ram.destination', ('dma.write',),
+                    'DMA_MASTER_TRANSFER')))
+        source_node, read_node, write_node, destination_node = (
+            RuntimeNode('ram.source', 'cpu', 'state'),
+            RuntimeNode('dma.read', 'dma', 'logical'),
+            RuntimeNode('dma.write', 'dma', 'logical'),
+            RuntimeNode('ram.destination', 'cpu', 'state'))
+        target_identity = persistent_memory_route_identity_document(memory,
+            memory_id='ram', base=0x1000, size=0x1000)
+        common = dict(initiator_component='dma', endpoint_id='memory_master',
+            endpoint_identity_sha256=digest(dma.dma_route_endpoint_identity_document()),
+            target_kind='persistent_memory', target_component='cpu',
+            target_id='ram', base=0x1000, size=0x1000, byte_enable=15,
+            readable_offsets=(), writable_offsets=(), accepted_write_values=(),
+            target_identity_sha256=digest(target_identity))
+        read_route = DmaMasterRouteContract(rule_index=0,
+            prerequisite_index=0, source_node_id='ram.source',
+            target_node_id='dma.read', operation='read',
+            permissions=read_permissions, **common)
+        write_route = DmaMasterRouteContract(rule_index=2,
+            prerequisite_index=0, source_node_id='dma.write',
+            target_node_id='ram.destination', operation='write',
+            permissions=write_permissions, **common)
+        contract = RuntimePathContract(digest(graph.edge_document()),
+            (source_node, read_node, write_node, destination_node),
+            (RuntimeEdgeContract(0, 0, 'dma_master_route'),
+             RuntimeEdgeContract(1, 0, 'causal_order'),
+             RuntimeEdgeContract(2, 0, 'dma_master_route')),
+            (read_route, write_route))
+        path = graph.edge_paths_to('ram.destination',
+            direction='CPU_TO_IP')[0]
+        prepared = PreparedRuntimePathContract(graph, contract,
+            (('CPU_TO_IP', path),))
+        return prepared, runner
+
+    def test_operation_scoped_ram_routes_bind_and_index_over_shared_rw_memory(self):
+        from myfuzz.scenario.runtime_edge_index import RuntimeEdgeIndex
+        prepared, runner = self._operation_scoped_ram_fixture()
+        compiled = prepared.bind(runner)
+        compiled.validate_topology()
+        document = compiled.document()
+        document['declaration'] = prepared.document()
+        index = RuntimeEdgeIndex(document, prepared.contract.document(),
+            prepared=prepared)
+        self.assertEqual({'read', 'write'},
+            {route.operation for route in prepared.contract.dma_master_routes})
+        self.assertEqual({('read',), ('write',)},
+            {route.permissions for route in prepared.contract.dma_master_routes})
+        self.assertEqual(2, len(index._dma_routes_by_key))
+
+    def test_operation_scoped_ram_routes_refuse_missing_or_extra_resource_rights(self):
+        for readable, writable, read_permissions, write_permissions in (
+                (False, True, ('read',), ('write',)),
+                (True, False, ('read',), ('write',)),
+                (True, False, ('read', 'write'), ('write',))):
+            prepared, runner = self._operation_scoped_ram_fixture(
+                readable=readable, writable=writable,
+                read_permissions=read_permissions,
+                write_permissions=write_permissions)
+            with self.subTest(readable=readable, writable=writable,
+                    read_permissions=read_permissions,
+                    write_permissions=write_permissions), self.assertRaises(ValueError):
+                prepared.bind(runner)
+
     def test_v2_topology_mutation_detects_equal_window_replacement_and_service_or_ledger_swap(self):
         from myfuzz.scenario.runtime_path_contract import PreparedRuntimePathContract
         for change in ('window', 'service', 'service_memory', 'ledger',

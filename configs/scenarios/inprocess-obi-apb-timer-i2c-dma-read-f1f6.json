@@ -1,0 +1,145 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-apb-timer-i2c-dma-read-f1f6",
+  "description": "One Ibex RVFI OBI CPU with two address-routed APB3 targets (PULP timer carrying F5 at 0x40001000, PULP I2C at 0x20001000 carrying a readable DMA route register) and a ZipDMA whose master reads the I2C PRESCALER and writes the captured word to a RAM block.",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "targets": [
+    {
+      "name": "timer",
+      "profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+      "active_id": "pulp_timer_active",
+      "window": {
+        "base": 1073745920,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": "configs/behaviors/pulp_timer_f5.json",
+      "pins": null,
+      "fixed_inputs": [],
+      "tuning": {}
+    },
+    {
+      "name": "i2c",
+      "profile": "configs/peripherals/pulp_i2c/component_profile.json",
+      "active_id": "pulp_i2c_target",
+      "window": {
+        "base": 536875008,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": null,
+      "pins": null,
+      "fixed_inputs": [
+        {
+          "endpoint_id": "i2c.pins",
+          "role": "scl_pad_i",
+          "value": 1
+        },
+        {
+          "endpoint_id": "i2c.pins",
+          "role": "sda_pad_i",
+          "value": 1
+        }
+      ],
+      "tuning": {
+        "fixed_inputs": [
+          {
+            "endpoint_id": "i2c.pins",
+            "role": "scl_pad_i",
+            "value": 1
+          },
+          {
+            "endpoint_id": "i2c.pins",
+            "role": "sda_pad_i",
+            "value": 1
+          }
+        ]
+      }
+    }
+  ],
+  "dma_profile": "configs/peripherals/zipdma_smoke/component_profile.json",
+  "dma_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "dma_capability": "configs/scenarios/compiled-f1-f6-ibex-gpio-zipdma-shared/dma.test_capability.json",
+  "dma_behavior": "configs/behaviors/zipdma_f6.json",
+  "dma_block_words": 4,
+  "dma_increment_source": false,
+  "dma_increment_destination": true,
+  "dma_route": {
+    "kind": "target_window",
+    "direction": "read",
+    "target_name": "i2c",
+    "target_index": 1,
+    "target_profile": "configs/peripherals/pulp_i2c/component_profile.json",
+    "target_window": {
+      "base": 536875008,
+      "size": 4096
+    },
+    "register": "PRESCALER",
+    "offset": 0,
+    "address_mode": "fixed",
+    "evidence": {
+      "kind": "register_readback",
+      "register": "PRESCALER",
+      "offset": 0,
+      "field": "prescaler",
+      "sampling": "pre_post_transfer",
+      "source": "third_party/soc-pulp-apb-i2c/apb_i2c.sv:74-76,110-113"
+    },
+    "notes": [
+      "the DMA master reads one fixed register: increment_source is disabled (ZipDMA control bit 18), so every read beat presents 0x20001000 and the captured word is written to the incrementing RAM destination block",
+      "PRESCALER is the I2C register file's RW clock-prescaler word (apb_i2c.sv:3,87-88,113); the RTL stores PWDATA[15:0] and reads it back as {16'h0, r_pre}, so the deterministic value this scenario writes with F4 is 0x00005a5a",
+      "the evidence register is the routed register itself: the F6 firmware reads it before and after the transfer, the CPU readbacks must equal the word the DMA master captured, and the RAM destination words must equal it too"
+    ]
+  },
+  "dma_window": {
+    "base": 1073754112,
+    "size": 16
+  },
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "f1_program_words": 4,
+  "handler_wait_iterations": 128,
+  "fuzz_seed_records": [
+    "F4:20001000:00005a5a"
+  ],
+  "dma_host_support": {
+    "status": "implemented_fixed_read_route",
+    "reason": "the host presents each accepted DMA master read beat on the declared target's APB3 request port (PSEL/PENABLE/PADDR, PWRITE=0), waits for the target's PREADY, captures PRDATA and returns it to the DMA master with ACK; the RAM source window is never read for a routed beat. The DMA then writes the captured word to the incrementing RAM destination block, and the F6 firmware reads the destination words and the declared PRESCALER word back into RAM evidence cells.",
+    "where": [
+      "scripts/run_inprocess_f1f6.py (dma_route_support read direction; DMA_ROUTE_* header macros; F6 firmware source/destination programming and destination readback)",
+      "scripts/inprocess_obi_apb_f1f4_spike.cpp (MasterRoute read state machine on the target APB port, captured PRDATA returned on mwb_dat_r, destination-word comparison)"
+    ],
+    "limits": [
+      "fixed source register only: the master presents the declared route address on every read beat; an incrementing/aperture route is refused by name",
+      "one outstanding master beat (the device's own limit), one routed target transaction at a time",
+      "the route target must be an APB3 target of this build and must declare the routed readable register; the evidence register must be that same register",
+      "no FIFO read route is implemented: a FIFO pop needs level evidence this increment does not produce"
+    ]
+  },
+  "notes": [
+    "the PULP I2C is mapped at 0x20001000 rather than its SoC 0x40002000 because the pinned ZipDMA's SOURCE/DESTINATION CSR fields are 30-bit byte addresses (third_party/soc-zipcpu/rtl/zipdma/zipdma_ctrl.v:73-74,161-181,259-260 with ADDRESS_WIDTH=32, BUS_WIDTH=32): any byte address >= 0x40000000 is truncated, so a route to 0x40002000 cannot be encoded by this device. The timer keeps its SoC base 0x40001000 because it is the CPU-visible F5 target and is not a DMA route target",
+    "the route register is I2C PRESCALER (offset 0x00, rw): a fixed readable word that no timer interrupt path touches, so the F4-written value persists to the F6 case (the read route does not reset the devices before its case)",
+    "the F4 record writes 0x00005a5a into 0x20001000; the RTL stores PWDATA[15:0] (apb_i2c.sv:87-88) and reads back {16'h0, r_pre} (apb_i2c.sv:113), so the deterministic readback is 0x00005a5a. A 32-bit value would be truncated by the device, which is why the fixed record uses a 16-bit value",
+    "the F6 record's four payload words are the historical block arity; for a read route the DMA source is the declared register, not the record payload, so they are not written to the DMA source window. The evidence is the host-observed PRDATA, the CPU's own pre/post readback of PRESCALER, and the four RAM destination words",
+    "the two targets are address-routed: target 0 is the PULP timer at 0x40001000 (the only F5-IRQ target, configs/behaviors/pulp_timer_f5.json), target 1 is the PULP I2C at 0x20001000, and the DMA control window is 16 bytes at 0x40003000. No window overlaps the fixed RAM image 0x10000..0x30000",
+    "the devices are not reset before a read-route F6 case: the F4-written PRESCALER value is the source data, so the case starts from the state the previous case left. The host prints dma_route_reset_before_case 0 for this reason"
+  ]
+}

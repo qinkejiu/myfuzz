@@ -1,0 +1,411 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "cv32e40p_rvfi_local",
+  "kind": "cpu",
+  "description": "Source-verified passive official CV32E40P RVFI monitor, with only assigned valid/order/insn/pc_rdata outputs. Timed simulation required. No IRQ lineage, intr, pc_wdata or halt is fabricated.",
+  "source": {
+    "root": ".",
+    "revision": "sha256:9920d9884748a2c55b45c0cd7b2eb5d34f64a4f85f8f8bdb9b55b6f7b657c242",
+    "top_module": "cv32e40p_rvfi_local_top",
+    "top_port_selection": "all",
+    "files": [
+      "external_designs/cv32e40p/rtl/include/cv32e40p_apu_core_pkg.sv",
+      "external_designs/cv32e40p/rtl/include/cv32e40p_fpu_pkg.sv",
+      "external_designs/cv32e40p/rtl/include/cv32e40p_pkg.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_if_stage.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_cs_registers.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_register_file_ff.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_load_store_unit.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_id_stage.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_aligner.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_decoder.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_compressed_decoder.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_fifo.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_prefetch_buffer.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_hwloop_regs.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_mult.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_int_controller.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_ex_stage.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_alu_div.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_alu.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_ff_one.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_popcnt.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_apu_disp.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_controller.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_obi_interface.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_prefetch_controller.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_sleep_unit.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_core.sv",
+      "external_designs/cv32e40p/rtl/cv32e40p_top.sv",
+      "external_designs/cv32e40p/bhv/cv32e40p_sim_clock_gate.sv",
+      "external_designs/cv32e40p/bhv/include/cv32e40p_tracer_pkg.sv",
+      "configs/cpus/cv32e40p_rvfi_local/cv32e40p_rvfi_local_top.sv"
+    ],
+    "include_roots": [
+      "external_designs/cv32e40p/rtl/include",
+      "external_designs/cv32e40p/bhv",
+      "external_designs/cv32e40p/bhv/include",
+      "external_designs/cv32e40p/sva"
+    ],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "parameters": [
+        {
+          "name": "COREV_PULP",
+          "value": "0"
+        },
+        {
+          "name": "COREV_CLUSTER",
+          "value": "0"
+        },
+        {
+          "name": "FPU",
+          "value": "0"
+        },
+        {
+          "name": "FPU_ADDMUL_LAT",
+          "value": "0"
+        },
+        {
+          "name": "FPU_OTHERS_LAT",
+          "value": "0"
+        },
+        {
+          "name": "ZFINX",
+          "value": "0"
+        },
+        {
+          "name": "NUM_MHPMCOUNTERS",
+          "value": "1"
+        }
+      ],
+      "warning_policy": "recorded-nonfatal"
+    }
+  },
+  "clocks": [
+    {
+      "port": "clk_i",
+      "domain": "core",
+      "frequency_hz": 50000000
+    }
+  ],
+  "resets": [
+    {
+      "port": "rst_ni",
+      "domain": "sys_rst",
+      "polarity": "active_low",
+      "synchronous": false,
+      "release": "The upstream core uses the active-low rst_ni port for sequential state; the local harness deasserts it on the declared core clock boundary."
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "processor.instruction",
+      "function": "instruction_memory_master",
+      "protocol": [
+        "obi",
+        "1"
+      ],
+      "clock": "core",
+      "reset": "sys_rst",
+      "fields": [
+        {
+          "role": "req",
+          "aliases": [
+            "instr_req_o"
+          ]
+        },
+        {
+          "role": "gnt",
+          "aliases": [
+            "instr_gnt_i"
+          ]
+        },
+        {
+          "role": "addr",
+          "aliases": [
+            "instr_addr_o"
+          ]
+        },
+        {
+          "role": "rvalid",
+          "aliases": [
+            "instr_rvalid_i"
+          ]
+        },
+        {
+          "role": "rdata",
+          "aliases": [
+            "instr_rdata_i"
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "processor.data",
+      "function": "data_memory_master",
+      "protocol": [
+        "obi",
+        "1"
+      ],
+      "clock": "core",
+      "reset": "sys_rst",
+      "fields": [
+        {
+          "role": "req",
+          "aliases": [
+            "data_req_o"
+          ]
+        },
+        {
+          "role": "gnt",
+          "aliases": [
+            "data_gnt_i"
+          ]
+        },
+        {
+          "role": "addr",
+          "aliases": [
+            "data_addr_o"
+          ]
+        },
+        {
+          "role": "we",
+          "aliases": [
+            "data_we_o"
+          ]
+        },
+        {
+          "role": "wdata",
+          "aliases": [
+            "data_wdata_o"
+          ]
+        },
+        {
+          "role": "be",
+          "aliases": [
+            "data_be_o"
+          ]
+        },
+        {
+          "role": "rvalid",
+          "aliases": [
+            "data_rvalid_i"
+          ]
+        },
+        {
+          "role": "rdata",
+          "aliases": [
+            "data_rdata_i"
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "processor.interrupts",
+      "function": "interrupt_entry",
+      "fields": [
+        {
+          "role": "external",
+          "aliases": [
+            "irq_i"
+          ],
+          "bit_range": [
+            11,
+            11
+          ],
+          "direction": "input",
+          "width": 1
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "address_width": 32,
+    "data_width": 32,
+    "max_outstanding": 1,
+    "byte_enable": true,
+    "error_response": false,
+    "evidence": "Pinned cv32e40p_core.sv declares split 32-bit instruction/data OBI fields and data_be_o[3:0]. It has no instr_err_i/data_err_i physical pins. The local OBI adapter is single-outstanding and must fail-stop if the backend reports an error that the CPU cannot represent.",
+    "verilator_timing_mode": "timing"
+  },
+  "port_actions": [
+    {
+      "port": "pulp_clock_en_i",
+      "action": "constant",
+      "value": 1,
+      "reason": "COREV_CLUSTER=0 disables cluster clock gating; keep the clock enable asserted."
+    },
+    {
+      "port": "scan_cg_en_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "Keep scan clock-gating override inactive during functional execution."
+    },
+    {
+      "port": "boot_addr_i",
+      "action": "constant",
+      "value": 65536,
+      "reason": "The upstream IF stage aligns boot_addr_i to four bytes; 0x10000 is the configured local program base."
+    },
+    {
+      "port": "mtvec_addr_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "The current CPU memory acceptance program does not enable interrupts; the trap base remains a deterministic inactive environment value."
+    },
+    {
+      "port": "dm_halt_addr_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "Debug entry is disabled by debug_req_i; use the deterministic unused halt vector."
+    },
+    {
+      "port": "hart_id_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "This local harness represents one hart."
+    },
+    {
+      "port": "dm_exception_addr_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "Debug entry is disabled by debug_req_i; use the deterministic unused exception vector."
+    },
+    {
+      "port": "irq_i",
+      "action": "constant",
+      "bits": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "value": 0,
+      "reason": "The endpoint binds the machine-external line irq_i[11]; bits 0 through 10 remain inactive."
+    },
+    {
+      "port": "irq_i",
+      "action": "constant",
+      "bits": [
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31
+      ],
+      "value": 0,
+      "reason": "The endpoint binds the machine-external line irq_i[11]; bits 12 through 31 remain inactive."
+    },
+    {
+      "port": "debug_req_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "Do not enter debug mode during the local program acceptance."
+    },
+    {
+      "port": "fetch_enable_i",
+      "action": "constant",
+      "value": 1,
+      "reason": "Enable instruction fetch after reset release."
+    },
+    {
+      "port": "irq_ack_o",
+      "action": "observe",
+      "reason": "Observe native interrupt acknowledgement."
+    },
+    {
+      "port": "irq_id_o",
+      "action": "observe",
+      "reason": "Observe the native interrupt identifier."
+    },
+    {
+      "port": "debug_havereset_o",
+      "action": "observe",
+      "reason": "Observe native debug reset status."
+    },
+    {
+      "port": "debug_running_o",
+      "action": "observe",
+      "reason": "Observe native debug running status."
+    },
+    {
+      "port": "debug_halted_o",
+      "action": "observe",
+      "reason": "Observe native debug halted status."
+    },
+    {
+      "port": "core_sleep_o",
+      "action": "observe",
+      "reason": "Observe the native sleep status."
+    },
+    {
+      "port": "rvfi_valid",
+      "action": "observe",
+      "reason": "Passive assigned official cv32e40p_rvfi output; no IRQ or retirement-source authority beyond the observed field."
+    },
+    {
+      "port": "rvfi_order",
+      "action": "observe",
+      "reason": "Passive assigned official cv32e40p_rvfi output; no IRQ or retirement-source authority beyond the observed field."
+    },
+    {
+      "port": "rvfi_insn",
+      "action": "observe",
+      "reason": "Passive assigned official cv32e40p_rvfi output; no IRQ or retirement-source authority beyond the observed field."
+    },
+    {
+      "port": "rvfi_pc_rdata",
+      "action": "observe",
+      "reason": "Passive assigned official cv32e40p_rvfi output; no IRQ or retirement-source authority beyond the observed field."
+    }
+  ],
+  "cpu": {
+    "family": "riscv",
+    "xlen": 32,
+    "extensions": [
+      "i",
+      "m",
+      "c"
+    ],
+    "reset_vector": 65536,
+    "master_endpoints": [
+      "processor.instruction",
+      "processor.data"
+    ],
+    "irq_entry_endpoint": "processor.interrupts",
+    "irq_entry_role": "external",
+    "irq_entry_polarity": "active_high",
+    "irq_semantics": "machine_external",
+    "boot_address_required": true
+  },
+  "evidence": {
+    "local_harness": {
+      "reset_assert_ticks": 8,
+      "reset_release_ticks": 8,
+      "max_wait_cycles": 16
+    }
+  }
+}

@@ -1,0 +1,1352 @@
+# 当前工作进度与证据入口
+
+## 2026-10-25 当前 F6 实现检查点（覆盖下方较早快照）
+
+Task9 producer 已在 Ibex/CVE2 原生 OBI 响应路径签发 source-bound completion，并在 `instruction_source` 发布 F6-only acceptance anchor。最终 F6 source closure `67221f53…0703d3` 下，Task9 全模块 **57 passed / 536.09s / exit 0**；anchor focused **5 passed**。Task10 保存态回归为 saved semantics **324 passed**、saved verifier **87 passed**、saved outputs **15 passed**；live edge-3 正例及边界 **9 passed / 176 deselected**。这些软件检查仍不等于真实 DUT/F6 原始归档验收。
+
+F6 Task8 远程 attempt16 已终态失败并保留。冻结审计本身通过，但软件命令 exit 1；pytest 文本结果为 **744 passed、106 failed、868 errors、12 skipped、10 subtests passed**。主要原因是运行包没有 `runs/task4-ibex-retire/rvfi-export-manifest.json`，以及归档源码缺少 profile pin 所需 Git 对象/身份元数据；不是 pytest 依赖缺失。远程证据位于 `/root/fanzehui/myfuzz/evidence/f6-task8-attempt16/`，独立冻结复审与根因见[Task8 attempt16 记录](../../.superpowers/sdd/compiled-f6-20261024/tasks/task-8-software.md#2026-10-25-attempt16-terminal-source-closure-failure)。attempt15/16 均原样保留；native F6 opt-in 为关闭。
+
+为下一次冻结补齐的 source-closure 修复已在本地接线：冻结清单显式纳入 RVFI manifest 和 16 份 profile 对应的浅层 Git 元数据包；一般源枚举无条件排除 `.git` 目录/指针；freeze prepare 校验并恢复 exact pins，执行前在复审、命令校验之后恢复元数据。profile 路径及输出路径中的 symlink、detached exact HEAD、缺失 commit/tree/blob 对象、已有冲突仓库、已存在 freeze 目标等边界均有回归。当前真实 profile 输入清点为 **22,939 files**，含 **16 Git repositories**；元数据生成拒绝 partial-clone/promisor 状态，清除 remote-tracking refs/logs，生成与恢复后都运行完整 `git fsck --full --strict --no-reflogs`。专项 metadata 软件门 **21 passed**，冻结监督器回归 **45 passed**，合计 **66 passed**；本轮复跑为 **66 passed / 1.55s**。`py_compile` 与 scoped `diff-check` 也通过。
+
+远端 freeze04 的独立冻结审查为 PASS，但没有安装 review 文件或执行 gate；freeze05 独立审查为 FAIL：9/16 个 Git metadata archive 含无效 `refs/remotes/origin/HEAD`，旧 runtime 也未显式拒绝 promisor/partial-clone 元数据。两个候选都已保留且未运行 gate。相关问题已修正并增加检查；在本段更新时，最终候选尚未重新冻结/审查，attempt17 仍未执行，attempt16 的失败不计为通过。远端 attempt17 的实时状态以独立 SSH 只读核验和本节后续追加记录为准。
+
+系统层状态仍是：六 CPU、四 IP 各有分开的有界证据，没有 6×4 联合验收；generic same-protocol 接入仍绑定固定 provider/session；P6 持久单 harness与闭环、P7-E、P8 的 5× 目标及系统总验收 OPEN。Freeze15 为 **4 passed / 5 failed，FAIL_PRESERVE**。Task9/10 软件门与当前 Task8 source-closure 修复均不能关闭这些系统级验收。
+
+## 2026-10-25 F6 Task9：native OBI 取指完成凭据 producer 软件 GREEN
+
+Ibex/CVE2 的 F6 路径现由 `GeneratedCve2Session` 原始 OBI 响应路径签发
+`compiled_F6_instruction_fetch_completion.v1`。backend `i_rsp_valid &&
+i_rsp_ready` 只冻结候选；下一 CPU tick 的原始 OBI PRE `rvalid/rdata/error`
+匹配后才发证。完成旧 response 后才登记同拍新 grant。receipt 绑定实际
+`InstructionAcceptance`、`ReadSnapshot`、case/path/run/binding/key/reset epoch，
+并由 Runner 原始 journal 回连 admission、source/read event、backend 与 native
+PRE/POST、step producer 和 `instr_response`。候选计入 pending；reset 会把它记入
+cancelled response 数。read-only backend `i_req_wdata` 固定为零并在 producer
+边界校验。凭据只证明 instruction bus transfer 完成，不授予 source authority、
+decode、retirement 或语义消费结论。
+
+- 最终候选 receipt SHA-256 `fbcbe9721098b5717de0bd8f2759a1e212805eb0fc4077973da41271de86df51`；CPU session `d58a004d3ad7fb6813e8b1a4094013632d4a2674ae338ba3d1cc8007eb9f6215`；Runner `c309ae2f9e722228c101512503efa77ded1ab7f33f2acaaaf2b9a75ed91153a1`。
+- 最终哈希下 receipt focused **53 passed**（三组 23/14/16）；最终 corrections **8 passed**；`py_compile` 7 files、scoped `diff-check` 均通过。详见[Task9 实施报告](../../.superpowers/sdd/f6-obi-receipt-20261025/task-9-report.md)及[证据目录](../../.superpowers/sdd/f6-obi-receipt-20261025)。独立只读复审按最终 SHA 通过；复审未运行测试。
+- 相邻回归：CPU/native completion/ISR **166 passed、33 subtests**（reset 次序变更前），最终 reset 兼容定向 **1 passed**；F6 consumer fixture 修正后旧 5 参数化引用归属检查 **5 passed**，同模块其他项 **171 passed**；runtime 边界 **2 passed**。这些 Python 软件门不等于真实 F6 DUT 运行。
+
+### Earlier Task10 strictness/TAP snapshots（历史结果，已被顶部检查点取代）
+
+Task10 已把 Task9 receipt 接入 live F6 consumer 和 detached saved projector。strictness 候选 SHA-256 `530f275f1e56f5365181c12aadb96841d3a5bbf214721907eb2e724a48279398` 的完整 saved-semantics **302 passed**、saved verifier **86 passed**、saved-output **15 passed**，`py_compile` 通过。独立复审确认 tuple/type 检查方向正确，但指出当前 acceptance 版本仍缺少独立原始分配器锚点（整条统一版本链被同步改写仍可能通过），且 bool/int 负例只覆盖了 3 个 producer 输出字段；这两项和真实 TAP 清单仍是开放修复。
+
+但同一冻结下 live edge-3 positive/boundary 仍为 **3 failed、6 passed、176 deselected**。三项失败分别是 32 字完整前缀正例、31 字时应为 missing 的优先级、以及不同完整 transaction key 的重复取指；六个篡改/越界控制通过。失败共同根因是 projector 把 request PRE `protocol_taps` 的集合硬性限制为 6 个 instruction OBI 信号，而真实 Task9 CPU sample 记录的是 CPU 两条 OBI trace 的合并字典，共 15 项（instruction 6 项、data 9 项）。预期全集应从当前 source-bound generated artifact 的两条协议 trace 导出并闭合，不能从 receipt 自身的 key 集合自证。**不得把这轮结果记为 Task10 GREEN 或 edge 3 通过。**
+
+冻结证据和精确 tap key 记录在[Task10 live 复测报告](../../.superpowers/sdd/f6-edge3-live-20261025/task-10-live-frozen-53e1cf78.md)；strictness RED/GREEN 命令、日志及 hash 在[Task10 strictness 报告](../../.superpowers/sdd/f6-edge3-strictness-20261025/task10-strictness-report.md)。上一轮 live gate（saved SHA `53e1cf78…`）仍为 3 failed/6 passed；根因是 15 项 artifact TAP inventory 被误限为 6 项。strictness 候选没有改变 TAP 检查；新的 source-root/version anchoring 与 TAP inventory RED/GREEN 还在实现，之后需要重跑 live、saved 和 independent-review gates。Task10 仍 OPEN，尚无完整真实 F6 original/fresh success 与 expected-error archive、独立 raw archive audit 或 Freeze16。Freeze15 仍 **4 passed / 5 failed，FAIL_PRESERVE**；六 CPU／四 IP 联合矩阵、通用同协议接入、P6、P7-E、P8 与系统总验收仍 OPEN。
+
+## 2026-10-25 最新进度：Freeze15 原样保留失败；F6 软件 checker/projector 持续补齐
+
+### 2026-10-25 通用同协议接入边界复核
+
+协议中立 `DmaMasterRouteAdmission` 已负责 route/transaction-key/beat-policy 匹配，但还不是 APB3、Wishbone 或 AHB-Lite 的 target executor。当前 D4 原生消费者分别绑定固定 PULP GPIO/APB3、ZipCPU UART/Wishbone、Caliptra SHA/AHB-Lite provider；OpenTitan TL-UL 仍只有 topology-binding 示例，Reduced AXI 是 `observation_only`。根因是 target binder 仍按 exact session class 和 provider identity 分支；APB3 storage F4 也要求 source-registered contract，未做任意 target 推断。下一切片建议为显式 source-contract 驱动、执行分派不看 CPU/IP 名称的 APB3 D4 storage adapter，并以第二个改名实例、错误偏移无副作用和 first/fresh raw audit 验证。完整审计见[通用同协议接入缺口](../reports/generic-protocol-onboarding-gap-20261025.md)。本次只读审计，没有运行测试、native/build 或远程任务；F6 凭据设计仍见下文未闭合门。
+
+### 2026-10-25 最新增量：F6 runtime graph 四边离线重投影已接入（仍是软件候选）
+
+F6 consumer 现从同次 Runner archive 重建 runtime graph 的四条声明边，保存态 verifier 对 original 与 fresh 两份归档分别重投影，并把 cross expectation 的引用清单收窄到该图自己的边证据。四条为 RAM source→DMA read、DMA read→write 因果顺序、DMA write→RAM destination、admitted instruction source→在线取指前缀。边级状态互相隔离：缺 DMA source snapshot 只影响 RAM→DMA read；四读先于四写的原始时序错误只影响因果边。`instruction_source` 已加到 F6 Observer 投影；live consumer 将 Observer 行回查 Runner 并比较完整事件。无 component-owned Observer 行的 `source_admission` 留在嵌套 projection 中，由 saved verifier 直接从 Runner archive 重建。
+
+独立复核闭合了边级状态归属、Observer→Runner 链接、original/fresh 四边重投影和 cross 自有引用精确闭合。最终代码审查发现引用行允许附带未知字段，现已收紧为 exact `{component,event_id,kind}` 并经复审确认无剩余问题。Task9 receipt producer 与 Task10 live/saved projector 已接线，但 latest frozen live gate 仍未通过：request PRE `protocol_taps` 在真实 Runner 记录中有来自 instruction 与 data OBI traces 的 15 项，Task10 candidate 误要求只有 6 项 instruction TAP。Task10/edge 3 当前为软件实现候选、未验收；service 标签或 fetch snapshot 不能替代原始凭据。
+
+consumer + assertion-evidence 联合模块 **198 passed／294.11s** 是最终 Observer 链接与引用精确闭合修改前的基线，不计为本次最终验收。当前四个 Python 文件 `py_compile` 通过；四文件直接空白检查通过。全工作区 `git diff --check` 只报未修改的 `.superpowers/sdd/task-2-report.md:1591` 文件末尾空行。本切片没有跑 native/build/RFuzz/远程任务。详情见[四边 projector 实施记录](../reports/f6-cross-component-edges-20261025.md)。
+
+边界：当前仍未得到完整真实 F6 original/fresh success 与 expected-error archive，也未执行独立 raw audit或 Freeze16；Freeze15 native-controls attempt14 仍 **4 passed / 5 failed，FAIL_PRESERVE**。六 CPU／四 IP 联合矩阵、任意同协议接入、P6、P7-E、P8 5× performance 与系统总验收仍 OPEN。
+
+### 2026-10-25 最新增量：WBDMAC 双端 Wishbone checker 与 F6 case report scope
+
+`wishbone_dma` runtime artifact 现在声明 `dma.control` 与 `dma.memory` 两个实际 Wishbone endpoint 的 passive trace，映射来自 profile 字段和 generated backend；两端都没有 `SEL`，合同显式记录 no-SEL/full-word 条件，memory master 的全字节使能 15 来自 profile capability。Runner 在 session 开始前安装独立 endpoint checker，并把同一条真实 Runner PRE tick sample 分别送给两端检查器；缺 endpoint、缺样本、身份漂移、发现违约或遗留 offer/outstanding 均不能形成 clean report。
+
+F6 运行代码通过 `_assemble_f6_protocol_checker_case_report()` 将 checker delta 和本次 admitted attempt 的 Runner cursor 合并：报告起点必须等于 attempt 自身保存的 `_runner_event_start`；PRE sample event IDs 按 Runner journal 重算；每项 checker finding 必须连到恰好一个带相同 endpoint/raw event/code 的 Runner `protocol_violation`。consumer 重验 artifact/profile/source/runtime/trace-set identity、完整样本集合、reset epoch 和 Runner 违规行；正式 `CompiledF6Runtime` 没有 live report 时不能落入 synthetic fixture 分支。`report(since=...)` 也拒绝超出已记录 finding 数或 endpoint 范围的 cursor。
+
+验证：相关协议 checker、DMA transport、F6 consumer 和 F6 runtime orchestration 联合回归 **207 passed／283.68s**；把最终 fallback 测试强化为实际调用 `capture_f6_case` 后，定向复跑 **1 passed／3.74s**；另一个 focused 增量组 **13 passed／8.04s**。生产改动和测试 `py_compile`、本切片 `git diff --check` 均 exit 0。独立只读复审无 Critical/Important findings；原 Minor（fallback 测试未经过 consumer）的建议已通过实际调用 consumer 修复。实现交接见[报告](../reports/f6-wbdmac-dual-endpoint-checker-20261025.md)。
+
+这仍是软件实现候选：没有用真实 F6 原生 first/fresh 运行生成可供离线审计的完整 success/expected-error archive，因此不关闭 F6，也不生成 Freeze16。runtime graph 四条 cross-component edge 的离线 projector 已在下方最新增量记录；剩余门是运行完整 original/fresh success 与 ERR 归档、独立 raw audit，并在 edge 3 原始 instruction-acceptance 凭据补齐后按冻结门验收。Freeze15 native-controls attempt14 仍 **4 passed / 5 failed，FAIL_PRESERVE**；WBDMAC checker 切片未运行 RFuzz 或远程任务。六 CPU 与四 IP 仍没有 6×4 联合矩阵或任意同协议接入验收，P6/P7-E/P8 与系统总验收保持 OPEN。
+
+### 2026-10-25 最新增量：saved IRQ/ISR original/fresh 语义重投影
+
+F6 离线 saved auditor 现除 CPU 配置与四字搬运外，也会对 `dma.irq_isr_completion` 在 original 与 fresh 两份归档中分别重建。projector 从 Runner 原始事实连接 DMA IRQ 输出、16 tick 输入窗/expiry、native take、ISR 入口、MRET 与第一条有效后继、控制状态读回、结果写回、四字目的读回/commit 和下一取指握手；生产里的 `source_start`、`binding_delivery`、MRET return、next-fetch 四类 Observer 派生行只作定位，并各自回连到原始事件/采样，不伪装成 Runner 行。完整闭合的 sealed-ERR ISR 记录 `error_completion`，断言结果仍为 `failed`、反馈为零。
+
+Verifier 还将完整 `compiled_F6_execution_binding.v1` 投影为 typed inventory 所需的六字段 scope；DMA IRQ 的物理采样 alias 由已重建 artifact 的唯一 source export 解析，逻辑 port 保持在契约/key 中；`attempt.next_fetch` 同时接受运行时实际写出的整数 Observer ID 与旧 dict 形式。独立复核未发现 blocker。fresh rerun：`test_compiled_f6_saved_semantics.py` **228 passed**，`test_verify_compiled_f6.py` **82 passed**；四个相关文件 `py_compile` 与 scoped `git diff --check` 均 exit 0。实现报告见[IRQ/ISR projector handoff](../../.superpowers/sdd/f6-saved-irq-isr-projector-report.md)。当前 SHA-256：projector `8ca0fd007910a35c2879777bef0f56931b5c3d8082d1a8bc65f6446b35058086`、projector tests `993a53b8bb2513569022fc3c904da9821a0688d867052af235131da16c11d60e`、saved verifier `2abb421180e4c862f9be0c51e4ba76180b5ca4b300ec2d215dfd01fb082b6a8c`、verifier tests `e2a607c7e99b7a0203eb8efd3890fb68b2dd175c0819a0402d56319b81831997`。
+
+此前 IRQ/ISR 增量仍仅覆盖 synthetic archived Runner 语义与 verifier wiring；上方新增的软件 checker/report 也尚无完整真实 F6 saved archive raw audit。Freeze15 和系统总验收状态见上方最新增量。此前的下一步“安装 WBDMAC checker”已由本轮软件接线完成，剩余门是 runtime graph 四条 cross-component edge 重建、真实 original/fresh success 与 ERR 归档、独立 raw audit 和后续冻结验收。
+
+以下是本日较早的审计快照，计数及“IRQ/ISR 未闭合”等描述已被上面的最新增量更新。
+
+### 2026-10-25 后续审计器/消费者增量
+
+最新执行进展：CPU Runner 已新增取指响应 `instr_rsp_rdata/source_epoch/source_sequence`；CPU session **12 passed、1 skipped**，包含停顿响应保持身份字段为零的回归，CPU 字段独立复审无 Important。`dma.cpu_configuration` projector focused **71 passed**，与 firmware/layout 合跑 **147 passed**，fresh producer review PASS。original/fresh saved audit 接入 CPU 配置与四字投影后，最新 `tests/integration/test_verify_compiled_f6.py` **68 passed**；独立集成复审无 Critical/Important。接线测试 mock raw-index/case-join helper，不能替代完整归档端到端审计。四字 `dma.word_transfer_join` 仍是软件候选：最新 partial-effect 矛盾组 **7 passed**，完整 `test_compiled_f6_saved_semantics.py` **141 passed**；verifier 接线回归 **68 passed**，`py_compile` 与 scoped diff-check 通过。新增回归覆盖缺 ERR/acceptance 时保留 raw DMA effects、畸形/缺失 transaction 时保留 case event ID、foreign provenance 排除、target effect 与 no-effect receipt 矛盾、无 acceptance 时重复 effect 与 effect-after-response 仍拒绝；只有缺 acceptance 且其余证据一致的结果归类为 missing。最新 effect-domain 独立静态复审 PASS、无 Important；当前源码/测试 SHA-256 分别为 `d9639f51a2f19ea966470a127713b7e072e6999d609cc6c00f31f9068f3e5e1d` 与 `2e6e364f3b8b42509be6b86422bc9e0a63da4dbcf89aa75fe9cc80ebfba90e14`。此前 **97/130/137/139 passed** 与旧 SHA 属于较早候选；旧 **61 passed** 是只接入 CPU-configuration 的中间结果，以 word-transfer 接线后的 **68 passed** 为准。Freeze15 结果不变。Consumer no-Runner envelope 修复后全模块 **169 passed／243.97s**，独立复审无遗留 findings，py_compile/diff-check 通过。
+
+历史状态（随后已有下述修复）：consumer 定向回归 **16 passed**，其完整模块第一次复跑曾失败；saved projector 初次 RED 为 **12 failed／41 passed**。独立审查指出 response 身份、缺 response 时 PRE payload、reset anchor 时序、ACK 序列四项 Important，以及正例因果顺序一项 Minor。修复后的当前结果见本节顶部。
+
+在下面的早期审计快照之后，又补齐了三项引用/身份修复：saved verifier 现在把完整 `{assertions, assertion_evidence}` wrapper 传给独立 validator；取指边界 `source_sequence` 由当前 reset epoch 内的真实 PRE `i_req_valid && i_req_ready` handshake 次数重算；Observer→Runner event 映射拒绝两个不同 Observer ID 指向同一 Runner event。新增 handshake、stall 与 reset 序号回归曾为 **57 passed／0.17s**。CPU 配置投影接线时的 verifier **61 passed／0.47s** 是中间结果；随后加入 word-transfer original/fresh 接线后当前为 **68 passed**。接线测试仍 mock raw-index/case-join helper，不能充当完整 saved attempt raw audit。
+
+consumer 的 owner-row 检查现按 receipt/tick/transaction 域收集相关候选，再验证候选的 Runner 身份；同时避免认证无关 DMA 行污染 IRQ 的独立 outcome。ZipCPU WBDMAC CPU CSR 配置使用固件写出的 byte address；仅 DMA bus `word_address` 使用 `address >> 2`。IRQ receipt execution 通过 Runner transport-scope 与固定 CPU session 映射校验。早期 consumer 候选曾有三个 Important（provenance envelope 比较、Wishbone 方向过滤、缺失 execution 映射），均已修复；最终全模块 **169 passed／243.97s**，独立复审无遗留 findings，`py_compile` 与 scoped diff-check 通过。较早的 151 passed 结果属于修复前候选。
+
+本地证据库存审计未找到可重新独立 raw-audit 的完整 saved F6 success 或 expected-error attempt。Freeze15 native-controls-attempt14 的独立收据没有 build join/native build receipts、完整 prefix、Runner event archive 或 DMA/IRQ saved output；`fix-obs11` 是 partial、零反馈且没有完整 Runner event array 的 mutable 诊断。它不能代替完整 F6 验收。saved verifier 已有 `dma.cpu_configuration` 投影；四字 `dma.word_transfer_join` 已从 synthetic Runner archive 重建 CPU source、DMA acceptance、read snapshot、destination commit 与 response，当前完整模块 **141 passed**，effect-domain latest-delta 独立复审 PASS、无 Important；但无完整真实 saved archive raw audit。IRQ/ISR、cross-component 与 protocol-checker scope 仍未闭合，Freeze16 不得准备。
+
+首项 `dma.cpu_configuration` 离线 projector `project_saved_cpu_configuration()`（新模块及 synthetic archive tests）检查四个 operand、CPU handshake、四笔配置、router receipt、DMA Wishbone 请求/ACK、缺失/矛盾/重复行优先级和 CPU 序号重算。CPU instruction/data `source_sequence` 在同一个 native CPU session 中从 `cpu_native_startup` 或最近 reset 起按 accepted PRE handshake 累积，跨 DMA logical case 不归零。projector focused 模块 **71 passed／0.96s**，与 firmware/layout 回归合跑 **147 passed／1.09s**；CPU Runner 新增的取指响应身份字段通过 session 门 **12 passed／1 skipped**。projector 已集成到 `verify_compiled_f6.py`：original 与 fresh 分别建立 Runner 索引并重投影，每 case 要求恰一条 `dma.cpu_configuration`，核对投影 outcome 与 inventory outcome、observation status。这里曾记录的 verifier **61 passed／0.47s** 是只接入 CPU 配置时的历史中间值；word-transfer 接线后的当前 verifier 模块为 **68 passed**。新增集成 fixture 仍 mock raw-index/case-join helper，且无完整 saved attempt 可端到端 raw audit。
+
+Freeze15（archive SHA `b7894842…22f7`，source-map `ab555102…7366a`）仍是当前最后一轮冻结门：software attempt14 **1,177 passed、11 个精确预期 native skip、10 subtests、exit 0**，D3 unsupported-IRQ 与 wrong-route refusal 均独立 `PASS_RAW_AUDIT`；native-controls attempt14 **4 passed、5 failed、exit 1，FAIL_PRESERVE**。这组结果保持不变；raw audit 通过只说明失败证据闭合，不会把 native 门改成通过。证据见 [software](../reports/evidence/compiled-f6-cpu-programmed-ram-20261024/software-attempt14)、[D3 unsupported IRQ](../reports/evidence/compiled-f6-cpu-programmed-ram-20261024/f6-unsupported-irq-attempt14)、[D3 wrong route](../reports/evidence/compiled-f6-cpu-programmed-ram-20261024/f6-wrong-route-attempt14) 与 [native-controls raw review](../reports/evidence/compiled-f6-cpu-programmed-ram-20261024/native-controls-attempt14/independent-raw-review.json)。
+
+Mutable candidate 修复了 ACK 后证据查询：Runner journal commit 与 completed ledger `WriteReceipt`、完整 transaction key、payload digest、memory span/version、四个 byte cells 逐项 join；Runner-backed provenance 先认证 journal row，再校验来源投影；no-Runner 合成路径拒绝未声明 identity 字段。IRQ early-stop 从 Runner journal 读取完整采样序列，以 `local-driver:cpu:N` 归一化 execution、命令序号、epoch、tick、delivery/source key 和实际输入绑定，observer projection 缺样不会抹掉 Runner 真实记录；布尔 tick/epoch 明确拒绝。Trace finish / partial feedback 修复保持为 mutable candidate；现有 99 项 runtime 与 20 项定向结果不是 Freeze16 证据。
+
+Trace finish 把 trace status 与完整性分开：结构有效且由 Runner/Session 所有的终态失败可以保存为 `partial`，永不升为 `complete`／`failed_prefix_full`；完整 trace 的 events、local ticks、semantic hash、plan genome hash、manifest hash 都与其 owner 快照交叉验证。partial/failed/expected-error 的总反馈为零，失败 attempt 异常清除其结果向量；若 Runner event export 失败或与 trace 不匹配，prefix 单独保留 trace events，finish 抛错时也会 best-effort 取 trace 快照。Runtime 修复经先前 review 和 mutable 回归，但仍需同一冻结输入的复验。
+
+上一轮 mutable 软件证据：完整 `tests/integration/test_compiled_f6_runtime.py` **99 passed／241.42s**；边界/trace/fallback定向组 **20 passed**；saved verifier crosswalk 回归 **27 passed**。native missing-read-snapshot 单项 `fix-obs11` **1 passed／187.44s**：`trace_status=complete`、Runner 无 failure、case boundary 261 次判断中 1 次命中；attempt 仍正确为 `partial`、read snapshot 为 `missing`、feedback `[0,0,0,0,0]`。这是 mutable 单项诊断，不是冻结 native-controls 门，也没有独立 raw audit；不能将其记为 Task8 acceptance。
+
+离线 saved auditor 已补 trace/attempt/IRQ 关联：prefix 的 events/status/ticks/hash 与 `session/online_final_trace.json` 对照；每个 PASS expectation 要引用自身必需的 attempt refs；source→delivery→take→ISR 和 fetch boundary 按同一 case、目标地址/边界标签闭合；Observer ID 与直接 Runner tick ID 分开索引，CPU target epoch 与 DMA source epoch 分别验证。断言构建器也拒绝非 protocol PASS 的空 raw rows/references 和未闭合引用；protocol-checker 的空引用是预期例外，要求 `findings=[]` 及正 observation count。该阶段初次验证曾记录 saved auditor **49 passed**、assertion-evidence **22 passed**、consumer **147 passed／211.73s**；上述均早于本节开头的 follow-up，不能视为这轮修复后的最终结果。
+
+早期独立复审曾列出四项 Important：语义重投影、fetch source-sequence 身份、Observer→Runner 反向唯一性和 consumer filtered owner-row 认证。取指序号与反向唯一性已有回归并通过独立复审；consumer 修复后的完整模块和复审也已通过。CPU configuration 与四字 word-transfer 投影现在都会从保存的 Runner rows 重建；四字 projector latest-delta 复审待回。IRQ/ISR、cross-component PASS 语义尚未从 Runner rows 和合同独立重建。protocol checker 也没有随 F6 session 安装，默认空 receipt findings 不足以证明 Runner 未报 protocol violation；无法闭合 checker scope 时必须拒绝其 PASS。当前没有完整真实 saved archive 端到端审计，不能把 68 项 verifier 接线回归视作 saved acceptance。
+
+下一步先完成四字 projector 的独立专项复审并保持修复候选源哈希稳定；随后补 IRQ/ISR、cross-component 重投影并闭合 protocol-checker scope。再保存完整 success/expected-error attempt 并执行独立 raw audit。之后才能重生成并复核 source-bound D3 proof、准备 Freeze16，再对同一 immutable archive 串行运行 software、两项 D3 refusal、native-controls 并做 raw audit。RFuzz 与 Task8 接受状态未变。
+
+六颗 CPU（Ibex、CVA6、CV32E40P、BOOM、CVW、VexiiRiscv）已有分开的 bounded CPU-programmed DMA 实测；四个 IP 系列（OpenTitan、PULP、ZipCPU、Caliptra）已有协议专用路径。当前没有 6×4 CPU/IP 联合矩阵、任意同协议 IP 自动接入或可覆盖所有协议的通用 F6 执行验收；BOOM coherent TileLink/DMA、P6、P7-E、P8 的 5×性能目标及系统总验收仍开放。详细边界见[六 CPU/四 IP 状态审计](../reports/dma-six-cpu-four-ip-status-20261022.md)。
+
+六 CPU/四 IP 状态：Ibex、CVA6、CV32E40P、BOOM、CVW、VexiiRiscv 各有分开的 bounded CPU-programmed DMA 实测；OpenTitan、PULP、ZipCPU、Caliptra 各有协议专用 bounded DMA 路径。它们未形成一轮 6×4 联合矩阵、任意同协议自动接入或完整通用 F6；BOOM 的 coherent TileLink/DMA/P6 边界、P6、P7-E、P8 的 5×性能目标和系统总验收仍开放。见[六 CPU/四 IP 状态审计](../reports/dma-six-cpu-four-ip-status-20261022.md)。
+
+## 2026-10-25 历史检查点：Freeze14 软件/D3 通过，native-controls 暴露过期 D3 快照
+
+Freeze14 的 software attempt13 已通过独立原始审计：**1177 passed、11 个预期 native skip、10 subtests、exit 0**；四个先前遗漏的 session/DMA 回归模块均在冻结 argv 和 JUnit 中。unsupported-IRQ 与 wrong-route 两项 D3 refusal 也按预期拒绝并通过原始审计。native-controls attempt13 **保留为 FAIL（9/9 failed）**：九个节点都在 `_source_backed_runtime_inputs()` 对比 source-backed `compile_paths()` 前置校验时遇到 `prepared F6 D3 differs from source-backed recompilation`，没有进入 runtime、native build 或 RFuzz。独立审计确认 Freeze14 输入/输出映射、22,915 项 source map、terminal/JUnit/stdout 哈希闭合，进程 reaped 且无 timeout；失败原因是夹具过期，不将此门记为实现性 native 失败或通过。原始证据和独立审计见 [native-controls attempt13](../reports/evidence/compiled-f6-cpu-programmed-ram-20261024/native-controls-attempt13)。
+
+根因已复现并独立核查：Freeze14 固件在成功/错误 ISR 分支新增 `mip.MEIP` 轮询后，D3 所含 ISR image 从 80 bytes 变为 112 bytes；`base/compiled_paths.json` 与 `renamed/compiled_paths.json` 仍保存旧的 80-byte image。两份 D3 快照现已通过生产 `load_path_compile_request()` + `compile_paths()` 重生成并完成 canonical 比较和 D2/D3 support 重验；base 与 renamed 的 `generated/**` D2 文件哈希保持不变，Freeze14 两份 D3 refusal proof、控制矩阵未改写。刷新记录：[D3 refresh receipt](../reports/evidence/compiled-f6-cpu-programmed-ram-20261024/fixture-refresh-attempt14/refresh-receipt.json)。准备清单及 refusal evidence index 已重新绑定，新准备清单 SHA-256 为 `d5789a43…3041`。下一步是 Freeze15、独立 freeze review，然后对同一冻结串行重跑 software、两项 D3 refusal、native-controls。
+
+F6 Task8 的 native acceptance 尚未完成。六 CPU/四 IP 的 6×4 联合矩阵、任意同协议接入、BOOM 条件边界、P6/P7-E/P8 和系统总验收仍开放；这些较大目标不会由本轮软件/D3 门结果替代。
+
+## 2026-10-25 最新进度：Freeze13 attempt12 覆盖不全，补入 session 回归后准备 Freeze14
+
+Freeze13（archive SHA `a6451e50389797ef3febba3ad39169fa4040ef540a16ec45067d3c2b7e964e27`）通过独立冻结审查。软件 attempt12 的原始运行证据闭合：pytest **1,117 passed、11 个预期 native skip、5 subtests、exit 0**（1,242.20 秒）；supervisor 记录进程 reaped、无 timeout，22,915 项输入/source/origin/unavailable 映射及 output map 均 unchanged。独立 raw review 确认记录与 JUnit/stdout 一致，但发现冻结软件命令漏选本次受影响的 `tests/scenario/test_session_runtime_paths.py` 和 `tests/scenario/test_online_session_partial_replay.py`。Task8 计划要求冻结软件门覆盖受影响的 session 回归，因此 attempt12 保留为“执行证据完整、覆盖不全”，**不作为完整 software gate 接受**。证据见 [attempt12](../reports/evidence/compiled-f6-cpu-programmed-ram-20261024/software-attempt12) 和 [independent raw review](../../.superpowers/sdd/compiled-f6-20261024/tasks/task-8-software.md)。
+
+复核 Task6 GREEN 清单后，冻结覆盖还需包含两项 DMA replay 回归。四个遗漏模块以 Freeze13 source-map 完全相同的相关 production/test 文件哈希补跑，**59 passed、5 subtests、exit 0**；原始命令、输出、前后源码 pin 保存在 [targeted session/DMA regressions](../reports/evidence/compiled-f6-cpu-programmed-ram-20261024/session-dma-targeted-attempt12)。生产命令生成器现已将两个 session 和两个 DMA 模块纳入 software mode，并新增精确命令选择回归（gate supervisor 模块 **39 passed**）。因此 Freeze13 剩余模式不继续作为 Task8 的验收链；unsupported-IRQ D3 attempt12 已按预期拒绝并通过 saved audit，但仍是 Freeze13 下的历史证据。Freeze14 会重新绑定修正后的命令、source map 与文档，独立审查通过后再串行运行软件门、两项 D3 和 native-controls。
+
+Freeze12 native-controls attempt11 仍是历史 **FAIL（4/9 passed）**，保持不变。新的 F6 实现候选仍未获得 native-controls 完整验收；RFuzz 未运行。六 CPU/四 IP 系列未完成 6×4 联合矩阵或普适同协议接入；BOOM 条件边界、P6/P7-E/P8 与系统总验收仍开放。
+
+六 CPU 与四 IP 系列仍只有逐项固定 profile/实例证据，未完成 6×4 联合矩阵或普适同协议自动接入。BOOM 仍有明确 profile/RTL/toolchain 条件边界；P6 持久 harness/逐边来源/closed-loop 四命中、P7 I5 专项负例、P8 的 5× 性能门（历史值 1.37×）及系统总验收仍开放。
+
+## 2026-10-25 前一检查点：F6 Task 8 IRQ 来源修复
+
+Freeze10 的软件门与两项 D3 拒绝门已通过独立 raw audit；native-controls attempt9 保留为 **FAIL（4 passed、5 failed）**。当时的 IRQ alias/source-key 修复已纳入 Freeze11 并通过冻结软件门与拒绝门。历史诊断发现 F6 观察器按逻辑 RTL 名 `o_interrupt` 查 raw sample，而生成 artifact 将该物理出口映射为 wrapper runtime alias；修复按执行合同唯一解析获准的 physical export，并把来源 key 绑定到原始 DMA edge 的 tick/reset epoch。attempt9 不改写为通过。
+
+## 2026-10-24 当前主线：已批准的 compiled F6 四字 DMA＋IRQ/ISR
+
+用户已书面批准[F6规格](../superpowers/specs/2026-10-24-compiled-f6-cpu-programmed-ram-design.md)，独立设计复审PASS。八任务实施计划已完成并经独立规格/质量复核。Task2稀疏固件73 passed、Task3 sealed DMA ERR 75 passed/2个明确真实RTL门跳过，均独立Spec/Quality PASS。Task1 admission/compiler最终186 passed/3 subtests，独立Spec Compliance与Quality PASS；它复用纯`_render_admitted_runtime`精确比对真实CPU `runtime_sv`和`physical_exports`，拒绝自重算散列后的`rvfi_pc_rdata/rvfi_pc_wdata`串线并保留canonical正例。此前185 passed/3 subtests为缺少该拒绝用例的旧基线。非精确JSON容器、控制窗口与memory aperture冲突、`rvfi_trap/mode/halt`出口也已有闭合校验。旧Caliptra runtime-path失败已证明是任务前存在的`compiled_f6_dma_handoff` reader与F2 `execution_contract`字段兼容缺口；保留为 concern，Task1未改旧reader。Task4按真实Ibex源码实现take→首条ISR retirement→固定MRET→紧随有效退休的source-verified恢复PC；修复后最终四模块回归154 passed/31 subtests/exit0，365个host-source hashes稳定，独立Spec Compliance与Quality均PASS。其证据只限source-backed软件，不授真实native MRET、跨case连续运行、RFuzz或全系统能力。MRET自身IRQ retirement serial为0；原始`pc_wdata`不作为返回目标。Task5候选`e4e6a8d0…b1fb78`因同字缺失提交掩盖错误写响应被独立拒绝；`f649e4d5…c20d07a`和`d9f3c220…b25bca`也分别因cross/configuration/IRQ及IRQ输入样本在缺失依赖时掩盖已观测矛盾被拒绝。最新候选`3f011771…e1387539`先独立收集并校验逐字、配置、cross和IRQ相关原始边（包括值/上下文/epoch/owner/窗口/expiry/duplicate），focused matrix 27 passed，完整两模块行为门153 passed；精确八模块主套件449 passed/exit0（336.75秒），Task3四模块兼容套件75 passed/2个明确native skip/exit0（3.64秒）。540项源码/测试映射before=between=after稳定。独立复审确认两个缺陷：source_output_key匹配但binding错误且tick窗口外的事件192未进入inventory、五行全部误passed；window start类型异常会抛TypeError。3f011不接受。新候选e4db499b…cc1512按source identity纳入相关样本，并在时间比较前闭合window bound类型；两模块行为161 passed，精确八模块457 passed/exit0（359.88秒），Task3兼容75 passed/2个明确native skip/exit0（3.65秒），540项映射before=between=after稳定。独立Spec Compliance与Quality复审均PASS；报告SHA bf23eaef58f9661c629c98990f1bb2f0340555428e9cadd80575d21ee38d2e0e，198项manifest SHA fdc7bc2e968ef9ccf608c080df581815a13013a9a896544bd3d872d6f897146a，8个候选文件与540项映射均核对一致。Task5仅在软件/synthetic范围接受，不授native、持久多case、fresh或RFuzz能力。Task6 runtime软件门现已通过，但Task6整体验收仍开放；本轮未运行native/build/RFuzz/remote，P7 native验收未完成，D3通用F6仍unsupported，Task7 软件切片已通过并独立接受（见下文）；Task6 整体、Task8 原生门与系统验收仍开放。实施状态保存在`.superpowers/sdd/compiled-f6-20261024/state.json`。
+
+**Task6 当前进度（2026-10-24；runtime 软件门通过，整体未验收）：** 精确 12 模块计划命令加 scheduler-subclass 消费者门结果为 **560 passed、2 subtests passed、exit 0，597.27s**；37 个源码/测试 source pins 的 before/after map 稳定，独立最终审查为 clean-with-notes，37 pins 全匹配。完整 argv/stdout/exit/maps：[`task6-12-plus-scheduler-final-candidate`](../../.superpowers/sdd/compiled-f6-20261024/tasks/task-6-evidence/task6-12-plus-scheduler-final-candidate)。最新独立 runtime 模块门 **47 passed/118.52s**，两文件 map 稳定：[`runtime-full-final-candidate`](../../.superpowers/sdd/compiled-f6-20261024/tasks/task-6-evidence/runtime-full-final-candidate)。schema25 终态投影已有真实 `ScenarioSession.encode_plan()` producer 正例；schema25 可识别为 terminal plan，但拒绝把它宣称为 `full`/`failed_prefix_full`，这些完成声明要求 schema24：[`runtime-schema25-projector-green-attempt1`](../../.superpowers/sdd/compiled-f6-20261024/tasks/task-6-evidence/runtime-schema25-projector-green-attempt1)。构造/两次 submit/finish/fresh replay fixture 使用真实 runtime/admission/binding 与 session API，但替换 scheduler steps、case execution、DMA scope transition 和 Task5 inventory/evidence，因此仅证明 orchestration；scheduler-subclass Task5 gate 真实覆盖 sealed `step_local`、`MemoryService.read` issuer callback 与五项 evidence join，但传输仍是 synthetic。两者都不证明真实 RTL/native DMA/IRQ/ISR 数据流。case snapshot digest 与快照同处可变 private `_f6_case_freezes`；可拦公开 attempt 或单边 snapshot 篡改，不抵御持有 runtime 引用者同步改数据和 digest。此轮没有运行 native/build/RFuzz/remote，P7 native acceptance 尚未完成；Task6整体及Task7–8仍开放。完整边界与历史收据见[Task6 实施报告](../../.superpowers/sdd/compiled-f6-20261024/tasks/task-6.md)。
+
+**Task7 软件切片已独立接受（2026-10-24；native／系统仍开放）：** 显式 `compiled-f6-rfuzz` registry、raw8 四操作数字段 decoder／executor、文件入口、两份独立 typed 材料、原始／fresh／build／receipt joins 及首次字节 pins 已接通；marker 与 IRQ delivery 使用显式 `--f6-execution`／`--f6-deliveries` 文件输入，compose 闭集不变。D1 如实声明 WBDMAC native IRQ 形态；D2 只有注册 provider opt-in 才发行 linked sidecar，F6 loader 精确重建并校验，默认 loader 仍拒绝 route-bearing 执行。反馈已修复为失败／partial 全零且只在 certified receipt 归档后累计命中，provider lease 的所有拒绝／异常清理也已闭合。最终精确 **21 模块软件门 1033 passed、5 subtests passed、exit 0，1080.72s**；**954 项 before／after／current source pins 相同**，独立终审接受。完整 argv／stdout／exit／maps 见 [`green-final`](../../.superpowers/sdd/compiled-f6-20261024/tasks/task-7-evidence/green-final.json)，实现／TDD／历史中断候选与证据界限见 [Task7 报告](../../.superpowers/sdd/compiled-f6-20261024/tasks/task-7.md)。source-backed driver 的 runtime／bundle 边界仍为 synthetic；没有运行 F6 native build／session、真实 RFuzz 搜索或 remote，本轮不证明真实 DMA／IRQ／ISR 数据流、搜索多样性或收益，`useful_search_benefit_claimed=false`，diversity／cost／rates 为 null。Task6 整体、Task8 原生门及系统验收继续开放；旧 CLI/API 中 F2/F4-only 的说明留作文档 NOTE，未改冻结源码。
+
+**Task8 门控准备初始状态（2026-10-24；以下为首次冻结前记录）：** 控制矩阵仍为 draft，已绑定11个精确pytest节点。unsupported-IRQ 与 wrong-route 两份 source-backed D3 guard proof 已按当时源码重生成，哈希分别为 `d69fbf77…594c3` 与 `17f44161…48f87`；真实 D1–D3 拒绝输出均为 path_compilation 精确拒绝，session/fresh 标为 `absent`，constructor/native process 计数为0，且 saved auditor 返回 `status=ok`。两次完整 run-summary、refusal 和 auditor 收据已留存于[Task8 拒绝证据索引](../../.superpowers/sdd/compiled-f6-20261024/tasks/task-8-evidence/refusal-d3/evidence-index.json)。driver 在 D3 拒绝后为已请求的 F6 session/fresh 写入具名 absence；显式 `--skip-session` 仍为 `not_requested`。回归：saved-auditor/helper/native-default-opt-out **12 passed、11 native nodes 按设计跳过**；F6 contract **60 passed**；gate supervisor **37 passed**；D3 状态合同 **5 passed**；`py_compile` 通过。独立复核纠正了状态合同：D3 refusal downstream 必须由 producer 记为 `absent`，auditor 保持严格校验。expected-error selector 已按生产三字段修正；native pytest 由 supervisor 持有共享锁并在启动前建证据目录，post-child auditor复核来源字节和 symlink maps。两份 proof 已纳入 draft matrix 和 prepared-input manifest。Task8报告：[saved auditor](../../.superpowers/sdd/compiled-f6-20261024/tasks/task-8-software.md)，[gate supervisor](../../.superpowers/sdd/compiled-f6-20261024/tasks/task-8-gate-supervisor.md)。F6整体验收、六 CPU/四 IP 总目标、P6/P7-E/P8仍开放。
+
+**Task8 历史状态（Freeze06；保留其时点门结果）：** Frozen software attempt6 为 **1089 passed、11 个预期 native opt-in skip、5 subtests、1100 JUnit cases、exit 0**，独立 raw review PASS，输入/source/origin/unavailable/output maps 稳定。Native-controls attempt6 保留为 **4 passed、5 failed、exit 1**，进程 reaped/no-timeout，Ibex CPU 与 ZipCPU WBDMAC Verilator build receipts 已保存，未运行 RFuzz。独立 raw audit 为 `PASS_WITH_GATE_FAILURE`（仅证据闭合），SHA `0c75734d…7df1b4`；五个 copied-observation controls 均在 ISR 后 successor instruction response 校验处失败。根因是 Runner 将原生 response producer event 写入 journal 后清空 `cpu_events`，而 issuer 错误要求 pinned row 仍在 live list。已修复为按原始回调 pin、同执行 receipt 顺序/tick 和 canonical bytes 校验；正常 drain 后允许使用 pin，可见行必须是唯一原对象，篡改/重复/替换仍拒绝。4 个 drain 正负例通过；完整 ISR/runtime 回归 **156 passed／202.82s**，独立静态审查无 Critical/Important，`py_compile` 与 scoped diff check 通过。attempt6 不重新标 PASS；下一步是 freeze07、独立冻结审查、软件门与 raw review，然后重跑 native-controls。详情和原始证据见[Task8软件报告](../../.superpowers/sdd/compiled-f6-20261024/tasks/task-8-software.md)及[attempt6 raw review](../reports/evidence/compiled-f6-cpu-programmed-ram-20261024/native-controls-attempt6/invocation/independent-raw-review.json)。F6 整体验收、P6/P7-E/P8 与六 CPU／四 IP aggregate 仍 OPEN。
+
+**Task8 历史进度（Freeze07–09 时点；当前状态见本文档顶部）：** Freeze07 软件门 **1093 passed、11 个预期 native opt-in skip、5 subtests、1104 JUnit cases、exit 0**，独立 raw audit PASS；Native-controls attempt7 仍为 **4 passed、5 failed、exit 1**，独立 raw audit `PASS_WITH_GATE_FAILURE`（仅确认失败证据闭合），receipt SHA `db3f0c6f…ce413e2`。根因是 CPU 在 tick 148 发出已认证的下一 slot `0x11100` pending fetch 后，固定 4096 轮继续推进至 tick 164，OBI 等待预算先耗尽，随后 DMA STEP 才报 `scenario is not running`。现已加入 F6 专用的 advance 边界早停提示：要求当前 IRQ delivery 仍在作用域内、16 tick IRQ 含 expiry 样本完整、DMA 结清、当前取指请求 transaction key 与 CPU testcase/component/epoch/channel 一致且物理 PRE handshake 命中预期 next-fetch（预期 ERR 则是当前 island），并已出现终止标记与 sealed ISR return。谓词只决定停止时机；Task5 完整 consumer/boundary validator 仍是验收权威，不新增 CPU 语义消费声明。通用 session 计划只导出已完成的 advance 前缀，并保持旧无回调调用形态。Task8 相关整组回归 **428 passed、3 subtests／469.31s**；最后调整后定点回归 **27 passed、3 subtests／28.46s**。Freeze08 独立复核因两份 D3 refusal proof 把 `compiled_f6.py` pin 在旧 SHA 而判 **FAIL**（receipt `36c4290c…d12f4b9a`）；未从该候选执行 gate。其后两条生产 D1–D3 refusal 路径以 constructor/session sentinels 检查均在 `path_compilation` 精确拒绝，constructor/native-session sentinel calls 均为0。Proof SHA 分别为 `e87640af…ae3e177`、`028a60f8…621433`；共享 guard map SHA `1630e717…8873380`。Freeze09 因 evidence-index 中 matrix SHA 滞后而未执行；索引随后修正并进入 Freeze10。该阶段 attempt7、Freeze08、Freeze09 均保留为历史失败，RFuzz 未运行。F6 整体验收、P6/P7-E/P8 与六 CPU／四 IP aggregate 仍开放。详见[Task8 软件报告](../../.superpowers/sdd/compiled-f6-20261024/tasks/task-8-software.md)、[Freeze08 review receipt](../../.superpowers/sdd/compiled-f6-20261024/freeze-20261025-08/freeze-review.json)与[attempt7 raw review](../reports/evidence/compiled-f6-cpu-programmed-ram-20261024/native-controls-attempt7/invocation/independent-raw-review.json)。
+
+## 2026-10-24 统一 F2 RFuzz：十门独立接受，限定实现验收完成
+
+**最新状态：第三冻结十门和最终文档闭环全部独立PASS，F2有界交付完整收口。** 软件498 passed/5精确native skip/22 subtests；五项原生控制全部passed，三组正常F2、改名、两项拒绝及F4 Timer/SPI兼容均接受。F2完整fresh分别631/631/4355/631events；F4各2certified/full1306与8950events，反馈均0。两份计划与参考文档已同步，累计53行动项/651范围内链接经[独立文档审计](../reports/evidence/compiled-f2-rfuzz-entry-20261023/audits/final-documentation-closure.md)核实。[最终十门表](../reports/compiled-f2-rfuzz-entry-20261023.md)为权威入口。F6已按批准规格推进至Task8门控准备；Task1–7软件切片按各自范围通过，F6 native/整体验收仍未开始。六 CPU/四 IP 总目标与P6/P7-E/P8仍开放。
+
+以下保留各候选按发生顺序的过程状态和失败记录；其中“正在运行／待审计”等措辞属于该历史截点，最新状态以上段及十门表为准。
+
+- 已实现显式 F2 统一入口、合法地址 seed、整组候选预检、独立执行器、六项逐例证据反馈、严格 receipt／raw8／projected4／原始与 fresh 关联，以及 typed 能力报告。F4 接口保留。
+- 已补齐实际 live finalizer 的 F2 schema／运行路径／指令来源校验，并将真实写出时的字节承诺保留在运行上下文；首次 pin 前同时核对同次 seed／manifest／plan／trace，后续格式漂移也拒绝。
+- 开发证据分别保存：执行器修复22 passed、receipt 顺序修复18 passed、实际 source-backed finalizer 材料20 passed、审计器42 passed。入口43项、后续真实保存验证4变体和 projection 修复3项是不同运行，不能相加为一次验收。
+- 已实现五项 opt-in 原生控制，默认收集5／跳过5；监督器、改名／拒绝声明和独立审计器复审修复已收口。最终审计器专项51 passed，监督器准备专项3 passed，独立复审 PASS。
+- 第一候选冻结21257项输入，source-map SHA `7a35d75ac6945bf0a1bc9234a0693470ed2e8694cb1fc4fd854523fc4022ece1`。`software-attempt1` 与 `f2-timer-attempt1` 已进入实际执行，独立冻结归档审计 PASS。Timer 门已 exit0／reaped、248.16s、输入／来源／输出不变：4条 receipt 中1 certified、3 input_invalid，反馈分别为六项命中与全零；fresh full631 events 匹配，build join complete。独立保存材料脚本审计通过（66输出 pins），进一步原始证据复审进行中。CV32E20＋Timer 门也已 exit0／reaped、230.75s，完整631-event fresh、脚本审计通过，原始证据复审中；SPI 门也已 exit0／reaped、274.95s、full4355-event fresh／脚本审计通过，原始证据复审中；改名 Timer 门因夹具错误修改物理端点而提前拒绝，未接受；夹具已修复并通过真实 D2/D3 准备专项。软件 attempt1 测试436 passed／9 skipped／22 subtests，但4项额外 Rust smoke 跳过触发 skip_policy_ok=false，不计接受；attempt2 保持源码、开启 Rust smoke 后已跑323项，但因新发现的工具／夹具缺陷需打开修改窗口，受控 SIGINT：exit2／reaped、530.98s、输入未变，不接受。四项 Rust smoke 已单独启用并4 passed。
+- 两项负例实际 CLI 均按预期拒绝，但第一冻结监督器误将前端临时目录纳入静态输入，最终采集失败、缺监督终态，不接受。修改窗口补齐目录遍历／失败终态保存及显式 Rust opt-in；审计器相对路径及来源／不可用链接映射校验55 passed。监督器修复28项通过，覆盖实际工作区全部521个已声明且存在的原生源文件，以及13个单独记录的不可用链接；最终复审 PASS。第二冻结21867项输入、13项不可用别名元数据，source-map SHA `b5aad3763feb7f25d2f60423dc9b4084c81741d825cab16aea06196cfe0125db`。
+- 第二冻结 `software-attempt3` 已终态：**473 passed／5 skipped／22 subtests passed**，pytest exit0、子进程 reaped、未超时，843.91s；5项跳过恰为 opt-in 原生节点，Rust smoke 已实际执行。两项拒绝 attempt2 均以实际 CLI exit1 命中预期，分别为 `component-render-refused`／`harness_set` 与 `duplicate-port-binding`／`declaration_review`，且未构造原生运行；保存审计脚本均 status=ok。三门的21867项字节／来源／不可用链接／输出映射与归档均经独立人工复审 PASS，可接受为当前冻结的软件和精确拒绝门。`native-suite-attempt1` 也已终态：**5 passed／0 skipped**，exit0／reaped、1030.29s；包含同一原始 runtime 的双合法记录、原子错误第二地址、9记录不裁剪拒绝、suffix4 等价和明确标注的复制观察 missing-store 故障。其独立原始证据复审也已 PASS，核实121项外部输出、97项初始control pin、19项生成输入pin、16个原生进程回执及全部五类raw控制；missing-store明确是复制观察注入，不是自然RTL故障。
+- 第一候选三个真实门的原始证据独立复审均 PASS，原始归档和失败／中断尝试保留；不将这些旧候选结果直接接受后续修改后的输入映射。第二冻结改名 Timer real-client attempt2 已 exit0／reaped、258.24s，1 certified／3 input_invalid，full fresh631 events、两条typed断言、完整build/process关联及66项保存pin通过；独立原始证据复审 PASS，确认逻辑 `core_probe`／`target_probe` 改名但物理 `processor.*`／`timer.bus` ABI不变。本门只证明该已登记合同的名称无关调度，不继承原实例私有层次证明。Ibex Timer F2 attempt2 也已 exit0／reaped、245.37s，1certified／3invalid、original/fresh各631events、两条typed断言、66pins及独立raw审计PASS。CV32E20 Timer attempt2 已 exit0／reaped、245.68s，1certified／3invalid、original/fresh各631events、保存审计66pins及独立raw审计PASS；其CPU error角色真实存在并观测为0，区别于无该pin的SPI。当前正串行执行F2 SPI；之后为两项F4兼容门。
+- 第二冻结F2 SPI attempt2 已 exit0／reaped、286.32s，1certified／3invalid，original/fresh各4355events、full匹配、两条typed断言、66项保存pin及独立raw审计PASS；CV32E40P CPU error保持None／不可观测，APB PSLVERR0单独实测。F4 Timer兼容attempt1 已exit0／reaped、417.01s、2/2certified、original/fresh各1306events/full匹配，21867项输入不变，独立raw审计PASS；其两例反馈向量实际全零。F4 SPI兼容attempt1正在执行。
+- 最终新代理源码复审确认唯一Important/P2：执行异常只被序列化进失败证据，统一入口随后收到新的`compiled-F2-failed-attempt`异常，原始异常对象及export附加诊断丢失；finish先失败再遇部分导出错误也可能替换primary。根用source-backed软件夹具和实际`CompiledF2Runtime._finish`分支已复现（无原生执行）。F4 SPI现也已exit0／reaped、495.70s、2/2certified、original/fresh各8950events/full匹配，21867项闭包不变，独立raw审计PASS。第二冻结十门全部终态且分别独立PASS；限定修复窗口已打开，正补RED/GREEN及独立复审，新候选将按新字节验收，整片仍OPEN。
+- P2首轮聚焦RED→GREEN：修复前26 failed／14 passed，修复后40 passed／36.62s，扩大六模块134 passed／2 subtests／102.57s。独立复审确认主异常身份／顺序、部分写出和tuple等已修，并要求保留次级异常自身的notes（transport R优先于带partial-export P诊断的finish F等路径）。新`notes-promotion/`已记录RED6失败和去重RED1失败，随后74 passed／2 subtests／37.22s；生产仅再加四行notes转移，首轮13个已审证据文件不变，独立复审中。两项guard3属于首轮源码，最终字节稳定后仍需重建凭据与冻结，尚未声称新原生验收通过。
+- notes补充独立Spec／Quality PASS，唯一P2已按最终源码hash关闭；guard4两项工具exit0／CLI exit1、无运行时构造／空cache、861／862项source maps前后及当前均匹配，声明已更新。第三冻结21916项输入、13项不可用别名，source-map SHA `329f3e2f1cd4bddd5ad22bbaa0e5749c22f1a595eeb84f7b88a3def8393f4f7c`，archive SHA `a4a4ef1aee5c6d1a071ce4f4b7ab7d2d86cdb2f95707ecb0b7cdcfc5b0cc3ec1`；独立冻结审计PASS，核实28模块、521声明源文件和全部工具／来源／guard关联。已启动完整software-attempt4与native-suite-attempt2，终态尚待，原生仅一个重型worker。
+- 第三冻结两项refusal-attempt3已终态：actual/expected CLI exit1、reaped且未超时，分别38.99s／27.46s，21916项输入／来源／不可用链接／输出不变；保存审计statusok（6／5pins）及独立全量证据复审PASS。软件门已超过71%，native-suite已有前三项测试结果，均尚无整套终态。下一F6四字RAM→RAM＋真实IRQ/ISR独立规格草案已形成，正在设计审阅，未实施且不影响F2冻结闭包。
+- software-attempt4已完整终态并独立审计PASS：498 passed／5精确native skip／22 subtests，exit0／reaped、931.92s，28模块、四项Rust smoke、25项primary-error控制及F4相关软件实际执行，21916项闭包／归档／输出全部匹配。native-suite-attempt2也已exit0／reaped、1089.17s、5 passed／0 skipped、闭包不变，独立raw审计中。当前单重型worker运行F2 Ibex Timer attempt3；随后串行CVE2 Timer／SPI／改名3和两项F4兼容2。
+- native-suite2独立raw审计现已PASS：五项控制、121项外部输出、97项初始control pin、19项生成pin、双份1262-event正例及16个不同原生进程exit0／reaped核实。F2 Ibex Timer3已exit0／reaped、252.27s，1certified／3input_invalid、fresh full匹配，保存审计66pins通过，独立raw审计中。单重型worker已转入CVE2 Timer3；其余SPI／改名3和F4 Timer／SPI2仍待执行。
+- F2 Timer3独立raw审计PASS：原始/fresh各631events，真实读/APB响应/CPU返回/XOR依赖RAM写、两条typed断言及四个独立原生进程均核实。CVE2 Timer3已exit0/reaped、240.11s、21916项闭包不变，保存审计exit0，独立raw审计中；当前运行SPI3，随后改名3和F4两门2。F6新规格独立设计复审PASS，已发起用户书面审阅，尚未实施。
+- CVE2 Timer3独立raw审计PASS；SPI3已exit0/reaped、298.01s、1certified/3input_invalid、full4355events、保存审计exit0，raw独立审计中。当前运行改名3，F4 Timer/SPI2仍待，准确最新状态见[当前十门表](../reports/compiled-f2-rfuzz-entry-20261023.md)。通用 F6 DMA、全面同协议接入与 P6/P7-E/P8／系统验收仍开放。
+
+## 2026-10-23 当前源码 F2/F4 验收补充（最终八门独立审计通过）
+
+- **共享审计模块：** F2/F4 共用构建回执、进程身份与诊断逻辑；专项 **31 passed**，独立 Spec/Quality PASS。
+- **F2 失败路径与来源顺序：** 已修复失败用例断言漏记、功能取指顺序不足、replay 吞掉审计导出错误，以及用无关 idle 样本判定读样本缺失的问题。最终专项 **45 passed**，独立复审 Spec/Quality PASS，无剩余 P1/P2。
+- **typed 断言与能力报告：** 已接入独立用例证据校验、完整来源绑定、严格类型身份及其他路径拒绝原因；专项 **90 passed**，独立复审通过。该报告不额外授予能力等级。
+- **文件执行入口与保存输出：** 已集成断言／证据／能力报告保存和字节校验，构造失败保留可用诊断，报告导出失败保留原始错误。相关专项 **41 passed**，独立 Spec/Quality PASS；另一个明确隔离的原始错误保护控制，旧实现 **1 failed**、当前实现 **1 passed**。以上是分别运行的专项结果，不能相加当作一次完整验收。
+- **整片复审追加修复：** 发现 fresh 保存文档未与同次运行材料绑定，及格式变化可使初始字节哈希失配；已补初始字节 pin 和最终复核。24 项替换／正常双 replay 控制通过，独立整片复审最终 Spec/Quality PASS，无开放 P1/P2。此前 84 项入口回归运行期间仍有修改，不计最终冻结验收。
+- **冻结门状态：** 前两轮软件门主动中断，均不计通过。第三轮完整终态为 **974 passed、31 skipped、4 failed、53 subtests passed**，exit1／reaped／未超时，1188.10s，2098 项输入不变；四失败全部位于新增的 F4 layout/replay 兼容测试，隔离加载 HEAD 原始 F4 runtime 也得到相同四失败，已确认既有测试夹具失配；仅补测试夹具，14 项专项和9 项相关审计通过，新增错误回执／启动身份拒绝控制，独立复审 Spec/Quality PASS；生产未改。第三轮归档及实际 53 模块命令已有独立核验。已重新冻结：`f4-timer-attempt2` exit0／reaped／170.51s，2/2 certified、fresh full 538 events、build join complete，2098 输入未变，独立原始证据审计发现 F4 RFuzz 未保存 fresh raw events，暂不接受完整 raw 审计；正在补保存／同次字节 pin。`f4-spi-attempt2` 和 `software-attempt4` 均已受控中止并保存终态（分别 exit-2／139.70s 与 exit2／308.22s，均 reaped、2098 输入未变），不计通过。软件与 Timer 的 2098 项初始摘要完全一致，其余 F2、改名和拒绝门仍待执行。隔离 HEAD 后续复检有 setup errors，不计通过。
+- **fresh raw 修复后新冻结：** F4 raw 保存／7 文档同次及初始字节 pin／摘要哈希引用的联合四文件已独立 Spec/Quality PASS。专项 24 passed，相关组合 33 passed，driver 控制通过；它们不替代最终门。`software-attempt5`（53 模块）已 exit0／reaped、1263.87s，**1001 passed、31 skipped、53 subtests passed**，2098 输入未变，独立终态／归档审计 PASS；`f4-timer-attempt3` 已 exit0／reaped，153.54s、2098 输入未变、2/2 certified、fresh full 538 events，实际 fresh raw 538 条已保存、18 摘要哈希匹配、四个原生子进程 exit0，独立完整 raw 审计 PASS（原始和 fresh 各 538 事件重算及取指／APB／RAM、构建／进程身份全部核实）。`f4-spi-attempt3` 已 exit0／reaped、176.06s、2/2 certified、fresh full／raw 2806 events，四子进程 exit0，独立完整 raw 审计 PASS；CPU 为无 error pin 的已声明形态，不授予错误响应观测。首个 F2 Timer/Ibex attempt2 已 exit0／reaped、233.66s、1/1 certified、fresh full 匹配、四子进程 exit0，两条 typed 断言通过、31 saved hashes 匹配，独立完整 raw 审计 PASS（原始／fresh 各 631 事件与版本、断言、链路核实）；额外 F2 CV32E20＋Timer attempt2 已 exit0／reaped、219.44s、1/1 certified、fresh full／两条断言／31 hash 通过，独立完整 raw 审计 PASS（实际 error pin 可观测），F2 SPI attempt2 已 exit0／reaped、263.26s，独立完整 raw 审计 PASS（原始／fresh 各 4355 事件），无 CPU error pin，不授予错误观测。改名门已 exit0／reaped，实际 compute_unit7／target_unit9，独立审计 PASS，不继承原实例 hierarchy proof；错误地址门 actual／expected exit2，在 D2/D3 后、运行时构造前拒绝，独立审计 PASS。最终八门共用同一份2098项冻结输入，全部终态且独立审计 PASS；接受有界 F2 文件入口及 F4 兼容切片，统一 F2 RFuzz 和系统验收仍开放。
+- **下一实现接缝：** F2 尚未注册到统一 `auto_harness`／RFuzz，计划 Task5 不全面计完成；接着推进版本化 F6 可执行合同、真实 CPU 配置与多字来源链，以及其所需 AHB／AXI 事件消费。具体源码断点见 `.superpowers/sdd/next-system-gap-20261023.md`。本轮远程连接在跳板机超时，未进入目标机、未操作远程文件；本地冻结门继续。
+- [本次验收记录](../reports/f2-f4-current-acceptance-20261023.md)。下方历史 F2/Native 通过结论属于各自冻结版本，不证明当前修改后的源码。六 CPU／四 IP 的固定实例 DMA 证据已有交叉汇总；全面同协议接入、P6/P7-E/P8 与系统总验收仍开放。
+
+## 2026-10-23 Native Task5 本地三分支门 + F2 真实读响应门
+
+- **Native exact-source completion Task5 本地真实门通过：** `d8d88c7` 修复 refusal 的 truthful terminal cleanup；`docs/reports/evidence/native-completion-task5-local-20261023/` 的 `summary.json.gz` 显示 positive／controlled-response／native-source-refusal 三支全部 passed，四个真实进程每支均 rc0，refusal 的 original/fresh 检查与 full replay 均通过。源码已在 `9573e7c` 整合，独立审计在 `docs/reports/native-task5-local-independent-audit-20261023.md`。边界：本地门，**没有**远程 Stage2 上传/claim/controller/independent auditor、source-tree/tool closure 或 executable identity；proof scope 仍仅 `native_instruction_bus_transfer_completed`，不关闭 P6/P7/P8。
+- **F2 CPU-load/IP-read-response 真实 Timer/SPI 门通过：** `a54289b` + `91a8037`；Timer `TIMER0_CTRL` 与 SPI `SPICMD` 各一候选，真实 CPU LW→IP PRDATA→`XOR 0x5a5`→依赖 RAM store；四个原生进程 exit0/reaped，fresh `matches=true/full`，`compiled_F2_build_join.v1` complete，prerequisite 为真实 `ip_register_version`（非 RAM version），MMIO 边为 CPU→IP request / IP→CPU return。证据：[compiled-f2-native-gate-20261023](../reports/compiled-f2-native-gate-20261023.md)。边界：单候选、PRDATA 为 reset-zero、无变异多样性/吞吐、无 F4 native 重跑、无 F1/F3/F5/F6 或 P6/P7/P8 完成。
+- **CVW/Vexii 独立审计：** 36 行核验中定量字段与哈希全部匹配；已修正“two independent processes”“whole-document equality”两处措辞，并记录 gate exit/selection 未保存等缺口。审计：[cvw-vexi-independent-audit-20261023](../reports/cvw-vexi-independent-audit-20261023.md)。
+- **远程工作集：** 已把当前项目使用目录复制到 `/root/fanzehui/myfuzz/`（约20G，旧 `/root/fanzehui/myfuzz-20260927-legacy` 保留，原 `system-20261016` 未改）。
+
+## 2026-10-23 F2 设计与实现记录（已由真实门结果更新）
+
+- [F2 规格](../superpowers/specs/2026-10-23-compiled-f2-read-response-design.md)已获用户继续批准并实施；合同、读指令、真实版本与响应核验、断言结果、文件执行入口已有实现。设计阶段“待审／未实现”的状态已被上方真实门结果取代。
+- Timer／SPI 已有限定真实 original/fresh 门及 clean-HEAD 补跑，见[F2 原生报告](../reports/compiled-f2-native-gate-20261023.md)；早期工作树运行、失败尝试与后续源码闭合补跑分别保留，不合并为一次运行。
+- 当前边界仍是稳定全字寄存器、单候选和 reset-zero PRDATA。F4 当前源码原生兼容重跑、renamed-instance 原生控制、完整冻结验收及系统 P6/P7-E/P8 门仍需分别核对；不将 F2 单路径通过写成全面通用接入完成。
+
+## 2026-10-22 D2 构建输出与进程身份关联：限定切片验收完成
+
+- 已按[规格](../superpowers/specs/2026-10-22-compiled-f4-built-identity-design.md)和[计划](../superpowers/plans/2026-10-22-compiled-f4-built-identity.md)完成稳定 build receipt、manifest 冻结前准备、重复校验、live `/proc/<pid>/exe`／READY 核验，以及 D2/build/output/process 的运行级关联；fresh 独立准备并严格比较完整前缀。
+- 最终源码独立审查 Spec/Quality PASS；最终冻结软件门 **611 passed、30 skipped、53 subtests passed**，exit0／reaped／未超时，2059 项输入前后一致，独立终态审计通过。30 项跳过均为明确的 timer-only registered source 原因，不计作能力验证。前两轮失败尝试和修复证据保留。
+- Timer／SPI 原生门各 **2/2 certified**，完整 first/fresh 分别匹配 **538／2806 events**，八个进程均 reaped／exit0，两份独立证据审计通过。最终软件仅改动一个测试夹具，生产代码、配置、脚本及 native 构建输入与这两组证据一致；SPI 使用自己的记录 wrapper。详见[验收报告](../reports/compiled-f4-built-identity-20261022.md)。
+- 下一功能缺口是 D3 已声明的其他路径尚无通用 D4 执行器；建议接入 F2 CPU-load/IP-read-response，并绑定真实断言结果和完整 fresh。P7-E/P6/P8、同协议全面接入与系统总验收仍开放。
+
+## 2026-10-22 Selected F4 运行时路径接入
+
+- [实施报告](../reports/compiled-f4-runtime-path-admission-20261022.md)：同次 D3 selected F4 图、合同、显式 instruction-image source 与真实 RAM region 已接入实际 `ScenarioSession`，在 `begin()` 前配置。decoder、case、session plan 与 fresh constructor 保留逻辑/runtime 路径及来源映射；普通指令格式保持兼容。
+- Task1/2 与 Task3 独立源码审查已通过；schema24/25 定时来源兼容性、保存证据逻辑来源/layout 和 selected-row 关联问题均经 RED 控制修复。最终冻结软件门 **399 passed、48 subtests passed**，2051 个 Python/config 输入前后一致，监督进程 reaped/exit0。新的 Timer 与 SPI sibling native 门均 exit0，各 2/2 certified；完整 first/fresh 分别匹配 538／2806 events、各 2 records，八个原生进程记录均 reaped/exit0。实际 session 为 `contract_preflight`；Timer 与 SPI 独立原始证据审计均通过。本次 selected-F4 切片的 Task4 与规格验收完成；P7-E、P6、P8 与系统目标仍开放。
+
+## 2026-10-22 P7 I5 当前源码补充门：CV32E20 + PULP Timer compiled-F4
+
+- 本地 RFuzz 正例 exit 0，5/5 条 `F4:ram.image` receipt certified；首轮和独立 fresh full replay 的 1,340-event／5-record 前缀匹配。CPU 与 Timer 的 original/fresh 四个进程均有独立 PID、nonce，reaped 且 exit 0。504 项源码摘要在保存的 13:39:13Z 审计截点逐项匹配；此后 selected-F4 runtime-path 接入已改变源码，旧门不证明新源码。独立只读证据审计核对了 receipt join、source lock、artifact/runtime 身份和 bundle manifest。
+- CV32E40P override 负例在 `/cpu/request` 以 `composition-profile-not-reviewed` 拒绝，CLI exit 1、session 未启动。保存的软件负例门 **231 passed、2 skipped**；日志没有保留 skip 项名称和原因。
+- 这是一个已登记 `TIMER0_CTRL` F4 路径的有界结果。该次保存的 online session 报告 `runtime_path_status=legacy_unchecked`，只有 F4 被执行投影支持；D2 harness binary/build identity 未与运行绑定，构建成本缺失，effective cases/s 与 certified chains/s 均为 0。F5/F6 仍 unsupported，P7-E、P6 和 P8 不因此关闭。详情见[I5候选汇总](../reports/p7-i5-candidate-20261018.md)、[独立证据与验收审计](../reports/P7_I5_ATTEMPT1_INDEPENDENT_AUDIT_20261022.md)及[原始证据](../reports/evidence/p7-i5-cv32e20-pulp-timer-20261022/attempt-1)。
+
+## 2026-10-22 PULP SPI SPICMD compiled-F4：限定 first/fresh 门通过
+
+- CV32E40P OBI 经现有 compiled-F4 executor 写读 PULP SPI `SPICMD@0x40001008`，并把读回值写入 RAM。Attempt5 四条记录都含 APB、live register version、CPU readback、native OBI store 与 RAM writer/version 连接；独立 fresh 四条证书及完整归一化前缀匹配。
+- 独立代码审阅与独立只读原始证据审计均 PASS；错误 `cv32e20` override 在 `/cpu/request` 拒绝。Attempt4 因缺少 typed RAM result hop 保留但不计接受。详细身份、摘要和证据见[报告](../reports/compiled-f4-cv32e40p-pulp-spi-spicmd-20261022.md)及[Attempt5](../reports/evidence/compiled-f4-cv32e40p-pulp-spi-spicmd-20261022/attempt-5)。
+- 该项是注册 PULP APB3 storage F4，不是 DMA/F6、串行 SPI、任意 APB3 或 6 CPU×4 IP 验收。P6/P7-E/P8 和系统总目标仍开放。
+
+## 2026-10-22 Reduced AXI 生产接入：Task1–5 限定观察门通过
+
+- 用户已批准[receipt/lifecycle 凭据＋journal 引用映射＋完整重投影消费者规格](../superpowers/specs/2026-10-22-reduced-axi-journal-crosswalk-design.md)；[五任务计划](../superpowers/plans/2026-10-22-reduced-axi-journal-crosswalk.md)的 source issuance、session/observer、consumer、Runner 和 first/fresh 门均已完成。Task1：148 passed／67 subtests；Task2：234 passed／96 subtests（排除2个native）；Task3：430 passed／96 subtests（排除2个native）；Task4：519 passed／96 subtests（排除2个native，28个输入不变），均按各自报告接受。
+- Task5 首个候选因三项R5问题被拒，修复版经独立 Spec PASS／Quality PASS。根与独立软件复跑各 **37 passed**。本地监督器 exit0，两个独立原生进程 PID33519/33621 均 exit0、reaped；每次55 PRE samples、408 global rows，first/fresh完整归一化视图相等。独立原始证据审计与357项声明构建输入/实际缓存归档审计通过。详见[专题报告](../reports/reduced-axi-journal-crosswalk-20261022.md)及[attempt1证据](../reports/evidence/reduced-axi-journal-crosswalk-20261022/native-attempt1)。
+- 能力仍限于该生成式 Reduced AXI CPU/RAM 的 `observation_only`。终态保留一个 instruction-read pending；记录完整不代表协议请求全部排空，也不证明退休、语义消费、DMA/ISR 或通用接入。完整六 CPU／四 IP、P6/P7-E/P8 与系统级验收仍开放。
+
+
+## 2026-10-22 AHB-Lite target protocol evidence：原生 first/fresh 门通过
+
+- generated singular target trace 已接入 Runner 协议证据与 L1 coverage；Runner 是唯一 raw sample/projection producer。历史样本五模块软件门 **77 passed、67 subtests passed**，保留此前 OBI fixture 失败与来源修复证据。
+- 新原生 attempt2 **1 passed／13.47 秒**，实际 worker exit0。first/fresh 各 242 journal events、8 唯一边界证书（6 read／2 write），完整 action/journal/report/identity 相等；四个独立原生进程全部 exit0，报告 pending=0。warm_all 通过回收旧进程并启动新进程实现，累计 tick 与 reset epoch 分别验证。
+- [实际回执](../reports/evidence/live-ahb-target-protocol-evidence-20261022/native-attempt2/verification.json)保存 361 个声明构建输入、3 个 verifier 文件、生成 SV/CPP、缓存身份与原生 binary；完整工具链闭包未证明。attempt1 因验收脚本对合法混合 schema journal 直接读取 kind 而失败，保留未改写；最小修正及真实保存样本上的复现已记录。
+- 独立原始证据审计重算全部 PRE 引脚关联、epoch/barrier、完整 first/fresh 与进程终态；独立输入审计核对 364 归档成员及 binary，均无不匹配。
+- 范围仍为 protocol_boundary_only。当前 wrapper hold/error 绑低，正向 wait/error、in-flight reset cancellation 仍 OPEN；不授 CPU/DMA 来源、消费或退休能力。详见[报告](../reports/live-ahb-target-protocol-evidence-20261022.md)。P6/P7/P8、通用同协议接入与六 CPU／四 IP 总门仍 OPEN。
+
+## 2026-10-22 Reduced AXI observer raw reference 生命周期：跨 drain 软件回归通过
+
+- Runner 会原地清空与 Vexii Reduced AXI observer 共享的事件列表；原 `len(events)+1` 在跨 drain pending 时可能复用引用编号。现改为 observer 生命周期单调计数，scope/reset 清状态不重置编号，与声明的 `observer_stream_local_record_index` 一致。
+- 当前专项 **38 passed**；隔离进程仅恢复旧编号表达式时，新增 **10 项按预期失败**。真实 Runner/EventJournal 在逐样本原地 clear、交错 journal IDs 下覆盖 AR/R、AW-before-W、W-before-AW、same-edge、reset 取消及 orphan refusal；六份 SHA-pinned 历史样本的最终完整 observer 前缀与无 drain 重投影相等。独立源码审阅无 actionable findings。
+- [日志、事后源码摘要与审阅](../reports/evidence/reduced-axi-reference-lifecycle-20261022/software-attempt1/verification.json)已保存。这份软件切片自身没有新建 native session；后续已由[Task5原生first/fresh门](../reports/reduced-axi-journal-crosswalk-20261022.md)使用该 observer 生命周期基础。通用同协议接入、整体 CPU/IP/P6/P7/P8 验收仍开放，详见[切片报告](../reports/reduced-axi-reference-lifecycle-20261022.md)。
+
+## 2026-10-22 六 CPU／四 IP DMA 状态交叉审计
+
+- 六颗 CPU 各有独立冻结输入下的有界 CPU-programmed DMA 原生结果；Ibex 与 CV32E40P 有本轮 DMA IRQ/ISR 链，CVW/Vexii/CVA6/BOOM 的 2026-10-22 RAM cell 没有 ISR。四个 IP 系列为 OpenTitan、PULP、ZipCPU、Caliptra，各有固定实例的 DMA 路径证据。
+- 这些证据不是当前共享 HEAD 的一次联合运行，也不代表 6×4 组合矩阵、物理桥/共享 SRAM、任意 F6 或自动同协议接入。逐项路径及剩余边界见[交叉审计报告](../reports/dma-six-cpu-four-ip-status-20261022.md)。整体 P6/P7-E/P8 和六 CPU／四 IP 验收仍 OPEN。
+
+## 2026-10-22 CVA6 CPU-programmed DMA RAM：本地有界原生门通过
+
+- 64 位 AXI 与实际 0f/f0 lane、单字 AR／独立 AW/B 检查已实现，CVA6 选择逐 SW FENCE，原 CVW/Vexii 镜像保持。CPU/DMA 预编译实际 exit0，未计入 native 验收。
+- 原生 attempt1 实际 exit0／164.85 秒。正例 first/fresh 各 1350steps＋1quiesce、6014events、CPU675/DMA695ticks；错误 key 各 1138steps＋1quiesce、4829events、CPU569/DMA589ticks。两分支完整前缀分别一致，正例 DMA 四读四写，负例零 master 事务；八个 DUT exit0、pending／Router 队列清空。1130 个归档文件逐成员匹配；独立原生审计 PASS，无 Critical／Important／Minor 发现。
+- [CVA6 本次报告和实际进程终态](../reports/cva6-dma-ram-20261022.md)。BOOM bounded uncached shared-memory DMA cell 现已通过独立审计，详见[BOOM 报告](../reports/boom-dma-ram-20261022.md)；这不代表 coherent DMA 或通用 TileLink 能力。整体六 CPU／四 IP 与 P6/P7/P8 仍 OPEN。
+
+## 2026-10-22 BOOM uncached shared-memory DMA：有界原生门通过
+
+- Positive/stale-key 两分支 first/fresh 完整动作重放一致。positive 每次 515 轮＋quiesce、CPU/DMA ticks 515/535、四读四写、marker 1；stale-key 每次 376 轮＋quiesce、ticks 376/396、零 DMA master effect、marker `0xffffffff`。12 个子进程均 exit 0，所有 pending 清零。
+- 独立 raw-evidence 审计重算 A/D、MemoryService、Wishbone 与 RAM writer/version joins；独立归档审计核验 1,777 个成员与冻结 map 一致。外部工具 executable bytes 未 pin；范围不含 coherent C/E DMA、B/probe、物理桥、IRQ/ISR、通用 F6 或 P6/P7/P8。
+- [报告及证据入口](../reports/boom-dma-ram-20261022.md)。
+
+
+### 2026-10-22 CVA6 CPU-programmed DMA RAM independent audit
+- Independent raw-evidence audit `.superpowers/sdd/cva6-dma-native-audit-20261022.md`: no Critical/Important/Minor findings. Full AR/R and AW/W/B, keys, lanes, writer/version, scheduled delivery, Wishbone response, result order, distinct fresh identities/processes, all exits, archive/current inputs verified.
+- Tar member byte sum is 24,306,493; all 1,130 member hashes and archive SHA `745d9a...` match the executed freeze.
+
+## 2026-10-22 Vexii CPU-programmed DMA RAM：本地有界原生门通过
+
+- attempt3实际exit0／52.51秒：正例first/fresh各354steps＋1quiesce、1927events、CPU177/DMA201ticks；真实CPU写源和配置，DMA四读四写，CPU回读marker1。错误key各260steps＋1quiesce、1343events、CPU130/DMA150ticks，零DMA master事务，CPU保存FFFFFFFF marker。
+- 两组完整action/event/native sample前缀分别一致；实际AXI分离AW/W与R/B按完整key和完成时序关联状态／数据／marker，MMIO队列接纳和delivery关联调度DMAstep。八个DUT退出0，pending与Router队列清空；896个执行输入字节归档已逐成员核验，独立证据审计PASS。
+- 保留attempt1（地址超出真实PMA）和attempt2（验收脚本tuple/list误拒绝）；修正分别只改布局、两处序列比较，CPU RTL/profile和4000轮上界未改。旧CVW镜像经通用固件提取后仍与原执行归档逐字节一致。
+- [报告与证据](../reports/vexii-dma-ram-20261022.md)。固定cacheless32 reduced-AXI＋Wishbone DMA的事务级RAM组合；IRQ/ISR、外设目标、物理桥/SRAM、通用D4/F6、P6/P7/P8与六CPU／四IP总门仍OPEN。CVA6 固定组合 DMA 已有真实四字 RAM 证据；BOOM uncached shared-memory DMA bounded cell 已完成 first/fresh 原生门和独立证据审计，边界见[BOOM 报告](../reports/boom-dma-ram-20261022.md)。
+
+## 2026-10-22 CVW CPU-programmed DMA RAM：本地有界原生门通过
+
+- attempt1 实际 exit 0／139.83 秒：正例与错误 key 分支各有完整独立 fresh。正例每次 618 steps、2652 Runner events，真实 CPU 写四个 source words 和四次 DMA 配置，DMA 四读四写，CPU 回读四字并写 marker=1；错误 key 每次 588 steps、2608 events，无 DMA master 事务，目标为零，CPU marker=0xffffffff。
+- 全部八个原生进程 exit 0；四次运行均 CPU/DMA pending=0。门内检查实际 CPU 请求、控制 STB/ACK、DMA master response、完整 TransactionKey 和 RAM writer/version，以及完整规范化 fresh 前缀。1113 个实际输入文件的字节归档已逐项核验。独立保存证据审计 PASS。
+- [报告与原始证据](../reports/cvw-dma-ram-20261022.md)已更新。该固定事务级 RAM 组合没有 IRQ 输入、物理 bridge/SRAM、全局时钟或通用 D4/F6；六 CPU／四 IP、P6/P7/P8 保持 OPEN。
+
+## 2026-10-22 Native source-completion software integration
+
+- Native exact-source Tasks 1–4 已从专用 feature worktree 整合到当前共享工作区；保留原有 DMA `session_runtime.py` 改动。聚焦 source-completion/identity/campaign 门 **96 passed、2 skipped、46 subtests**；DMA-bound replay 回归 **42 passed、3 subtests**。独立代码整合审查未发现 blocker。
+- Generated native receipt parser 现在仅在 artifact 明确 opt-in completion observation 时要求 PRE/POST 样本具备固定六个 native tap 名称和精确位宽的整数值；旧 native、非 native 与 ERROR 回执维持兼容。聚焦 parser/session/native-runtime 门 **29 passed、48 subtests**；HARNESS V2 identity 回归 **6 passed**。没有 native build 或真实 DUT run。
+- P7-D1 为 ZipCPU AXI UART RX IRQ 增加了窄范围 source oracle：仅接受精确 pinned source/root/top 与物理 alias，通过 `axiluart.v` 到 `ufifo.v` 的实例、状态输出拼接 bit 0、FIFO 写入/清空状态推导 `active_high`；反向声明报告 conflict，缺失/变化的源锥报告 unsupported。组合 gap 保留 `_worst_status` 优先级。声明核对测试 **19 passed**；另一个本地真实 ZipCPU AXI UART RTL test 观察到 IRQ `0→1→0`，**1 passed／17.11s**。这只证明 UART IRQ 电平及 FIFO 清空行为，不证明 CPU 接受 IRQ 或执行 ISR。
+- 修复 DMA-bound payload codec 只接受到 schema 21 的缺口；schema 22/23 envelope round-trip 与解包后 native replay-policy gate 的软件覆盖 **4 passed**。这只证明保存/读取组合兼容，不证明 DMA + native completion 的真实会话。
+- Task 5 evidence auditor 已改为显式 identity manifest＋外部 SHA；复读逐项重核固定 hash，拒绝非规范路径、工作区外 heavy lock、旧分支摘要错配，并逐项检查清单中的 source/tool 文件。它把共同 64 位 `gate_run_id` 串联到 intent/plan/claim/launch/start/end/post、三分支结果和 summary；同时钉住分支及 summary 哈希。auditor focused suites **37 passed、3 skipped、21 subtests**，独立复审无 blocker；与 gate CLI identity、gate-check 和 D1 声明测试的合并门 **63 passed、3 skipped、32 subtests**。Gate CLI 现要求 `--gate-run-id`，每个分支记录 run ID、固定 branch 名与 gate PID，summary 记录同 ID/PID。报告明确 `source_tree_closure_verified=false`、`external_tool_bytes_verified=false`、`gate_executable_identity_verified=false`。controller 尚未产出/传入这些字段，也未写分支/summary 终态哈希收据，因此真实运行仍 fail closed。没有执行 Task 5 real-process gate、RTL 或远端操作，source-completion 仍 OPEN。
+- [r11 controller 准备计划](../superpowers/plans/2026-10-22-native-completion-r11-controller.md)已补本地可执行软件验收：修复 `.` 空路径、数字 `0/0.0` 替代 `false`、`plan.intent` / `post.gate_end` 等嵌套副本的类型混淆；controller 在 claim 前调用纯 `plan_identity_check`。真实 dummy child、互斥 claim、FIFO/文件增长、完整摘要重封负例及真实 PGID 后代存活/回收均有软件覆盖。最终九文件 **266 passed、3 skipped、32 subtests passed／3.64s**；[命令/PID/退出码/输入快照](../reports/evidence/native-completion-r11/software-20261022-attempt2/verification.json)与[原始日志](../reports/evidence/native-completion-r11/software-20261022-attempt2/pytest.log)已保存。Stage 1 清单 SHA-256 为 `a944ef09f414642541854d36955a81b906f213b4705b2e09cc96372de7f84059`，两位独立精确摘要复核均接受该版本，回执已更新。旧已审包及被拒候选均保留在 history。
+- R11 Task 4 仍为部分软件覆盖：admission 测试只验证真实纯函数及源码调用顺序，没有执行完整 Stage 2 `execute`；三项 opt-in native 测试跳过。Stage 2 尚无源码快照、远端上传、claim、真实 gate 或 gate evidence；最后已知 SSH 结果为 `192.168.5.70:22 No route to host`，本轮没有重试远程访问。见 [r11 preparation report](../reports/native-exact-source-completion-r11-preparation-20261022.md)；Task 5/source completion 与整体系统仍 OPEN。
+- 进度报告：[P7-D1 ZipCPU IRQ 极性](../reports/p7-d1-zipcpu-irq-polarity-20261022.md)、[native exact-source completion](../reports/native-exact-source-completion-20261018.md)。完成边界仍是 native instruction-bus transfer completed，不表示 decode、retirement、CPU 语义消费、外设数据消费或反馈。
+
+## 2026-10-22 P7-E CV32E40P 保存工件审计
+
+- 独立核验确认保存的九个 summary 文档哈希、200 条 complete/admitted receipt、13 次普通反馈交换及 75,080-event 历史 fresh prefix 完整性。它们只支持历史工件完整性，不构成正式 P7-E 通过：计划 §10 已撤回旧运行结论，因为 D4 未消费同一次调用的精确 D2/D3 对象，也未执行 D3 编译的 sources、constraints、seeds、paths 与 assertions。
+- [审计报告](../reports/p7e-cv32e40p-independent-audit-20261021.md)经独立复审通过。正式 P7-E 仍 OPEN；没有重新运行 CLI、RTL 或 fresh gate。
+
+## 2026-10-21 Ibex → ZipCPU DMA → Caliptra SHA256 → Ibex ISR：本地有界门通过
+
+- Ibex RVFI profile 的真实 OBI 写入 ZipCPU `wbdmac` 源地址 `0x22000`、目标 `0x40002010`、长度 `1` 和 keyed start。DMA 读取 RAM 中的单字 `5`，再经 D4 route provider 写入真实 Caliptra SHA256 `CTRL@0x10=5`；`abc` 填充块由 host 在 Runner schedule 前通过 AHB 装载，不是 DMA 数据。
+- 修复 fresh replay 缺少 schedule 心跳的问题后，模块软件门为 **17 passed、2 skipped**；正例/fresh attempt15 **1 passed／98.59s**。first 与 fresh 各 175 轮、525 个固定 `dma/cpu/sha` steps，心跳各 19 个检查点，单次 D4 bind。独立审计确认终轮 marker `1`、525 steps、六个原生进程均 exit 0，typed semantic projection 相同。DMA 完成 IRQ 经固定 16 CPU-tick pulse 到 Ibex，tick 53 实际 take；ISR 将 `mcause=0x8000000b`、状态、SHA256(`abc`) 八字摘要与 marker 写入 RAM。
+- 真实 `CTRL+4` 负例 attempt3 **1 passed／46.15s**：Wishbone word address `0x10000805`（byte address `0x40002014`）在 D4 route matcher 被拒绝；provider/AHB receipt/effect/command 增量为 0、AHB tick `111→111`、无 IRQ event，结果 RAM（含 success marker）全 0。独立审计确认 `rejected_transaction` 单列为 source sequence 2；typed evidence transaction list 只含已完成 RAM read sequence 1。failure stream 使用通用 `uncertain_effect` 标签，但 `uncertain_transactions=[]` 且下游观测增量为零；不是 AHB bus error。该负例没有 fresh replay。
+- 详细数值、profile/artifact 身份、命令与证据见[本地切片报告](../reports/ibex-caliptra-sha-dma-isr-20261021.md)、[attempt15 正例/fresh 证据](../reports/evidence/ibex-caliptra-sha-dma-isr-20261021/native-positive-20261021-attempt15)和[attempt3 wrong-offset 证据](../reports/evidence/ibex-caliptra-sha-dma-isr-20261021/native-negative-20261021-attempt3/wrong-offset-refusal.json.gz)。
+- 这是固定本地组合的一字 transaction-level 链路；host AHB 预装输入块，独立生成 session 通过 provider 交付。它不证明物理 Wishbone↔AHB bridge、物理共享 SRAM、全局 SoC clock、通用 F6、多字 SHA 或持续 fuzz。静态 D3 F6 仍 `unsupported`；remote validation、P7-E、整体 P6/P7/P8 与六 CPU／四 IP 验收仍 OPEN。
+
+## 2026-10-21 CV32E40P → ZipCPU DMA → PULP GPIO → CV32E40P ISR：本地有界门通过
+
+- CV32E40P profile 的真实 OBI 写入 ZipCPU wbdmac source 0x22000、PULP GPIO PADOUT 0x4000100c、长度 1 和 keyed start。DMA 从共享 PersistentMemory 读出 0x5aa55aa5 并写 PADOUT；D4 对同一 prepared graph 单次绑定。D3 声明 ROM 0x10000/0x8000、RAM 0x20000/0x20000，F6 仍 unsupported 且没有 runtime path identity 或 DMA transfer edge。
+- positive/fresh attempt5 首次通过 (**1 passed／65.33s**)，之后 attempt8 加强 ISR 覆盖并再次通过 (**1 passed／69.28s**)。最终 first/fresh 各 103 轮、309 steps、2,863 Runner events；CPU OBI 的 status/PADOUT/source 三笔 ISR 读分别以 source sequence 5/8/10 关联真实 receipt 与 consumed response，完整字节使能均为 15；source read 关联 CPU memory-service receipt。DMA 两条 transaction key、PADOUT APB request/effect/response、IRQ source/input/ack、直接 trap fetch 0x10200 和 ISR RAM stores 均通过 typed joins。CV32 irq_ack_o=1、irq_id_o=11；两份结果均为 **[0x8000000b,0,0x5aa55aa5,0x5aa55aa5,1]**。fresh 使用不同进程与 execution IDs，normalized semantic comparison equal；三个子进程各自 exit 0。attempt7 首次新增断言的原生运行因测试侧 tuple/list 比较错误退出 1，已保留且不计通过。
+- strengthened focused software gate **5 passed／54.96s**；新增同组件 profile-fingerprint 漂移负例：D3 仍识别 `cv32e40p`，D4 以 `dma-binding-template-mismatch`、`/route_links/1/endpoint_link/target` 在 native 启动前拒绝，进程均未启动且 CPU tick 为 0。
+- wrong-offset attempt6 **1 passed／32.44s**：真实 Wishbone 请求访问 0x40001010、携带 0x5aa55aa5，D4 在 provider 前拒绝；provider/APB/IRQ 均无活动，GPIO probe 和五个 RAM result words 保持 0。拒绝记录为 harness_failure.status=uncertain_effect、uncertain_transactions=[]，终止时 CPU 有 1 个 pending response、没有 pending target request；不声称事务全部 drain，也不声称 RTL bus error。heartbeat 的 component_event_counts.cpu=0 是 cpu_events 集合的计数边界，另有 53 个 CPU bus steps 和 53 个 local ticks。
+- 逐项证据核对、profile/artifact identities、精确命令与边界见[CV32E40P DMA 切片报告](../reports/cv32e40p-zipcpu-pulp-dma-isr-20261021.md)；attempt1–8 均保留在[独立 evidence 目录](../reports/evidence/cv32e40p-zipcpu-pulp-dma-isr-20261021)。本地 fixed profile/target、单字 transaction-level provider delivery，不表示物理 Wishbone↔APB3 bridge、物理共享 SRAM、CPU retirement、通用 F6、remote validation、P6/P7-E/P8 或六 CPU／四 IP 总目标完成。
+
+## 2026-10-21 P7 post-live F6 runtime path：bounded native gate 通过
+
+- `compiled_f6_runtime_path.v1` 的 Task 3 本地软件实现与只读代码审查 **APPROVED**；补齐 Task 2 的 D3 多 mover 歧义拒绝、多 target route mismatch、独立操作与 aperture 内地址漂移、双 binder detached 拒绝、兼容入口共享 builder 回归并完成独立复核后，最终六文件 gate 为 **201 passed、0 skipped／378.04s**。新增项只修改测试文件，未改生产实现。
+- 本地 opt-in native gate **1 passed／73.87s**，证据在[独立 attempt 目录](../reports/evidence/p7-f6-runtime-path-caliptra-20261021/task3-local-attempt1)，独立只读证据审计 **APPROVED**。同次门包含 first positive、独立 `CTRL+4` refusal、fresh positive；fresh 没有再次执行拒绝分支。`route.ram-read`→`(0,0)` 与 `route.caliptra-ctrl`→`(2,0)` 分别按 typed transaction key 关联 RAM value `5`、Caliptra `CTRL=5` 和 SHA256(`abc`)。见[详细报告](../reports/p7-f6-runtime-path-caliptra-20261021.md)和[实施计划](../superpowers/plans/2026-10-21-p7-compiled-f6-runtime-path.md)。
+- 远程只读预检中 `jumpserver` 可连，但内层 `root@192.168.5.70` 返回 **exit 255 / `No route to host`**；没有 target 命令执行或远程修改。本次有界门改在本机隔离 cache/evidence 下运行，未触碰旧证据。
+- 本地确定性 [transfer package](../../.superpowers/sdd/task3-overlay-prep-20261021) 为 979 files／10 declared directories、**4,798,776 bytes**，SHA256 `0120498b86c85bff214e82c9b3de6828a48493886458fd39edde18fce8c06d16`；独立离线复审确认 989 个 tar members 路径安全、85 个 pinned third-party 文件完整、所有 hash/size/mode 与 manifest 匹配。它不含 `.git`；远程 base-project 与 Git pin/object 检查仍待目标机网络恢复。
+- 静态 D3 F6 仍 `unsupported`（`dma-route-live-topology-binding-required`），runtime identity 为 null，无静态 DMA transfer rule/edge 或 runtime DMA route；结果只限一字 Caliptra RAM→`CTRL=5`。不证明物理桥、CPU 编程/消费/退休、IRQ/ISR、多字或任意 F6、P7-E；P6/P7/P8 与六 CPU／四 IP 总目标仍开放。
+
+## 2026-10-21 P7-D4 Caliptra AHB-Lite protocol-neutral route consumption
+
+- Caliptra SHA256 AHB-Lite 已作为第三个 native target protocol 消费既有 `DmaMasterRouteAdmission`。fixture 使用 generated Ibex CPU owner、linked ZipCPU DMA artifact 与同一 `PersistentMemory`，D2/D3/live RAM aperture 均为 `0x10000/0x20000`；D4 对同一 prepared graph 单次绑定，credential tier 为 `topology_bound`。
+- 根工作区最终复跑 `PYTHONPATH=src pytest -q tests/scenario/test_caliptra_sha256_dma_paths.py tests/scenario/test_dma_route_admission.py tests/integration/test_p7b_p7c_dma_route_intent.py` 为 **41 passed／285.41s**；其后 native gate **1 passed／92.11s**。正例 `(0,0)` RAM read 与 `(2,0)` Caliptra `CTRL@0x10` 写分别按 typed transaction key 关联 MemoryService、Caliptra policy completion、AHB provider receipt/effect 与各自的 native Wishbone response。fresh execution IDs 不同，规范化记录相等，SHA256(`abc`) 正确。
+- 窗口内 `CTRL+4` 原生请求携带值 `5`，在 D4 matcher 以 `DMA route match does not exactly match the selected route` 拒绝；policy 留在 `expect_write`，只保留 RAM read match/completion，拒绝事务键无 RAM write/commit，provider receipt 为 0，AHB ticks 保持 68。证据见[报告](../reports/p7-d4-caliptra-protocol-neutral-dma-route-consumption-20261021.md)和[独立证据目录](../reports/evidence/p7-d4-caliptra-generic-route-consumption-20261021)；独立实现审查无发现。
+- 此切片只证明一字 transaction-level D4 路由组合，不证明物理 Wishbone↔AHB bridge、CPU 编程/消费/退休、多字 DMA、任意 AHB 或 F6/P7-E；P6/P7/P8 与六 CPU／四 IP 总目标仍开放。
+
+## 2026-10-21 P7-C F6 compiled result → Caliptra D4 handoff
+
+- Caliptra D3 的完整 `compiled_paths.v1` 现随静态 DMA declaration 一起进入 D4 单次 topology bind；closed handoff validator 复核完整 compiler graph schema、route/binding digest、F6 `reason.missing` 一致性，并拒绝静态 DMA transfer rule/edge 与 runtime DMA route。Caliptra、PULP、ZipCPU D4 均按 `operation` 选择读写 route，不依赖 contract tuple 顺序。
+- 最终软件门 **109 passed、4 skipped／30.32s**；补入 canonical `dependency_edge_graph.v2` 兼容正例后的回归 **26 passed／0.39s**。使用独立且自包含证据缓存重跑的 Caliptra native/fresh/refusal 门 **1 passed／78.60s**。fresh 从保存的 compile request 重新编译并重建 D4 bind；原/fresh 规范化证据一致。
+- 正例 route `(0,0)` RAM read `0x10100` 和 `(2,0)` Caliptra `CTRL` write `0x40002010` 各自带 typed transaction identity。错地址 `CTRL+4` 在 provider 前拒绝，provider events 与 rejected-key memory write/commit 均为空，AHB ticks 不变。报告与 compile request、原始编译输入、正例/fresh/refusal 证据见 [P7 F6 handoff 报告](../reports/p7-f6-compiled-dma-handoff-20261021.md) 和 [证据目录](../reports/evidence/p7-f6-compiled-dma-handoff-20261021)。
+- 这个 handoff 只证明 D4 消费 exact P7-C 静态拒绝结果；F6 仍 `unsupported`，编译图没有 DMA runtime route。它不证明物理 Wishbone↔AHB bridge、CPU 编程/退休、完成 IRQ/ISR、任意 F6 或 P7-E；P6/P7/P8 和六 CPU／四 IP 总目标仍开放。
+
+## 2026-10-21 P7-D4 protocol-neutral route admission：PULP APB3 + ZipCPU Wishbone
+
+- 新增 `DmaMasterRouteAdmission`，把 exact D4-bound route lookup、完整 `DmaMasterRouteMatch` 字段复核、transaction-key match 记录和 response-key 关联抽成协议无关层。PULP `PulpGpioD4RouteAdmission` 公开入口保持兼容并转用共享实现；APB3 PADOUT 与 Wishbone TXREG 语义仍由各自 beat policy/provider 执行。
+- ZipCPU native fixture 已加入 generated CPU artifact、linked DMA endpoint links、与真实 RAM 完全一致的 D2/D3 aperture，并在每个 positive/refusal/fresh run 中对同一 prepared graph 单次 bind。ZipCPU native gate **1 passed／63.42s**；positive/fresh 都有 `(0,0)` read 和 `(2,0)` write route matches，TXREG 解出 `0x41`，fresh normalized comparison 相等；窗口内 `UART_BASE+8` 在 route matcher 处被拒绝，仅留 read match、provider receipt 0、tick 与串口输出不变。
+- PULP 迁移后的完整 native 文件 **2 passed／76.86s**；PADOUT 正例/fresh 相等，`PADOUT+4` 在 provider/APB 前拒绝。协议无关单测＋target-policy refusal＋typed path＋D2/D3/D4 软件门 **68 passed**。报告与证据：[本切片报告](../reports/p7-d4-protocol-neutral-dma-route-consumption-20261021.md)、[ZipCPU evidence](../reports/evidence/p7-d4-zipcpu-native-route-consumption-20261021)、[PULP regression evidence](../reports/evidence/p7-d4-pulp-generic-route-admission-20261021)。
+- 这只证明受限的单字 transaction-level route consumption，不证明物理 Wishbone↔APB bridge、CPU 编程/消费/退休、通用任意目标、F6、P7-E 或总目标完成；六 CPU／四 IP 与 P6/P7/P8 仍开放。
+
+## 2026-10-21 P7-D4 PULP GPIO native route consumption
+
+- 新增纯路径准备入口，旧 compile 包装器继续只 bind 一次并安装原单字 admission。原生 fixture 由真实生成 CPU artifact 持有与 DMA 共享的同一 `PersistentMemory`，DMA 使用 linked artifact；D2/D3 RAM aperture 与 live RAM 精确一致。
+- 每个 native run 都将同一 `PreparedRuntimePathContract` 交给 D4 并 bind 一次。PULP 的 composite admission（后在顶部记录中抽取为协议无关 gate）在 RAM/target dispatch 前逐 beat 做 D4 route lookup，再委托原单字读响应→PADOUT 写数据检查。
+- 本地原生门 **2 passed／116.38s**：read edge `(0,0)` 的事务键只 join 到一条 RAM read 和同键零错误 read response；write edge `(2,0)` 用不同事务键 join 到 PULP provider/APB3 PADOUT effect 与同键零错误 write response。source `0x10100 = 0x5aa55aa5` 写入 `PADOUT@0x4000100c`。独立 fresh normalized compare 相等；bind count 为 1 且 `same_prepared_object=true`。
+- 错偏移 `0x40001010` 被 D4 route lookup 拒绝；先前 RAM read 已允许，错误写入没有 route match、provider/APB 活动或 PADOUT 改变。联合软件门 **236 passed、61 subtests／343.76s**。报告与原始证据见[P7-D4 PULP native route consumption](../reports/p7-d4-pulp-native-route-consumption-20261021.md)与[证据目录](../reports/evidence/p7-d4-pulp-native-route-consumption-20261021)；独立只读复审未发现具体问题。
+- 结论只覆盖交易级的分进程 Wishbone DMA＋PULP APB3 组合，不声称物理总线桥、CPU 编程/退休、多字传输、F6 或 P7-E。P6/P7/P8 与六 CPU／四 IP 总目标仍开放。
+
+## 2026-10-20 P7-D4 Caliptra SHA256 AHB-Lite target admission
+
+- D4 binder 新增 exact generated `GeneratedAhbLiteRegisterSession` 正例：`caliptra_sha256` / `ahb_lite_register_observe`、适配的 `sha256.bus` AHB-Lite v1 endpoint 与 `target.ahb-lite` v1 `full-word-single`。路由仅接受 4 KiB window 内 `CTRL@0x10 = 5` 的 write-only full-word 写，byte enable 为 15。
+- D4 复用同一个 prepared typed graph 对象并仅 bind 一次；provider 方法（含 MRO owner、callable、code object）、身份和稳定配置会在 topology guard 中复核。静态/provider/template 拒绝在 bind 前发生；live window 不匹配仍交给原 prepared binder 拒绝。artifact request 将 endpoint policy 保存在 plan tuning，当前 executor document 不提供 `protocol_templates`，binder 因此从精确 artifact request 与 endpoint/profile 重算并比对 D2 binding。
+- D2/D3 route/template rows 不变，F6 仍 `unsupported`，两份编译图均无 `DMA_MASTER_TRANSFER` edge。focused Caliptra software gate **14 passed／37.42s**；复审修复后的联合门 **200 passed、30 subtests passed／255.53s**。py_compile 与 scoped trailing-whitespace scan 通过。
+- 本 slice 未运行 native/build/remote。单独的[Caliptra native DMA 报告](../reports/caliptra-ahb-dma-target-20261020.md)不与 D4 凭据合并；D4 不证明 SHA digest、物理 Wishbone↔AHB bridge、CPU 消费/退休、IRQ、通用 AHB 或 F6。完整范围见[本报告](../reports/p7-d4-caliptra-ahb-admission-20261020.md)、[设计](../superpowers/specs/2026-10-20-p7-d4-caliptra-ahb-admission-design.md)和[计划](../superpowers/plans/2026-10-20-p7-d4-caliptra-ahb-admission.md)。P6/P7/P8 与六 CPU／四 IP 总目标仍开放。
+
+## 2026-10-20 P7-D4 ZipCPU UART Wishbone TXREG target admission
+
+- D4 binder 新增一个受限 Wishbone target 正例：exact `GeneratedWishboneUartSession`、生成的 `zipcpu_uart` / `wishbone_uart` artifact、已适配 `uart.bus` Wishbone classic、D2 `target.wishbone` v1 `word-addressed-registered-ack`。provider 校验拒绝实例 identity/mechanics method shadow，消费现有 `_validate_provider_identity`，并限定 TXREG offset 12、full-word byte enable 15 与 `range(0,256)`。
+- 新增 `prepare_zipcpu_uart_dma_runtime_paths(...)`，只构造已有 RAM-read / DMA-write / TXREG typed graph，不提前 bind Runner 或安装运行时 admission；D4 复用同一 `PreparedRuntimePathContract` 对象进行唯一一次 live bind。现有 `compile_zipcpu_uart_dma_runtime_paths(...)` 默认 bind/install 行为保持不变。
+- 负例覆盖身份漂移、七类 provider method shadow（含 `_dma_exact_document`）、derived session、错误 artifact/profile、非 Wishbone/未适配 endpoint、错误 template、read/offset/byte-enable/value/subwindow policy，以及变更 live target window。绑定后的 topology guard 检查 provider 方法与 canonical identity，method/identity drift 均会拒绝 credential。static/provider/template 拒绝发生在 bind 前；live window 仍由 prepared binder 拒绝。focused ZipCPU 组 **37 passed**；联合 D4/topology/replay 门 **186 passed、30 subtests passed／206.37s**。
+- D2/D3 route/template rows 原样保留，F6 仍 `unsupported`，静态 D2/D3 dependency graph 与 runtime path contract 均无 DMA transfer edge。没有运行 native/build/remote gate。单独的 ZipCPU UART native DMA 报告仍是既有证据，不能与此 topology-bound 软件凭据合并；本切片不证明物理 Wishbone bridge、CPU DMA 配置/消费/退休、RX 到 RAM、多字或通用 Wishbone onboarding。详见[报告](../reports/p7-d4-zipcpu-uart-wishbone-admission-20261020.md)、[设计](../superpowers/specs/2026-10-20-p7-d4-zipcpu-uart-wishbone-admission-design.md)与[计划](../superpowers/plans/2026-10-20-p7-d4-zipcpu-uart-wishbone-admission.md)。
+
+## 2026-10-20 P7-D4 PULP GPIO/APB3 PADOUT target admission
+
+- D4 binder 已新增第二个 peripheral target 正例：精确生成的 `pulp_gpio_causal_local`、经适配的 APB3 `gpio.bus`、D2 `target.apb3` v1 `full-word`，只允许 full-word 写 `PADOUT` offset 12。producer seal 校验 exact `GeneratedPulpGpioSession`，并拒绝实例 provider 方法遮蔽；现有 `PreparedRuntimePathContract.bind` 继续核对 live target window 与 typed route。
+- 正例复用原 prepared graph 对象并只 bind 一次；route index 直接复用同一个对象，没有反序列化第二张图。prepared selections/resolved caches 及嵌套查找表为只读映射，复用前还会重算并核对 graph/path/source 缓存；伪造缓存 source ID 会被拒绝。D2/D3 route/template 行不变，F6 仍 `unsupported`，编译图无 DMA transfer edge。D4 凭据每次查询前重验 live topology 和 provider seal；精确匹配 RAM read/PADOUT write，错 offset/value 与绑定后 provider shadow 均拒绝。查询不替代 accepted request/effect/response join。完整联合门 **209 passed、61 subtests passed／250.50s**。详见[PULP GPIO/APB3 D4 报告](../reports/p7-d4-pulp-gpio-apb3-admission-20261020.md)。
+- 本 slice 没有重跑 native/build/remote 门。此前 PULP 单字 native DMA 证据仍独立记录于[PULP DMA target 报告](../reports/pulp-apb3-dma-target-20261020.md)，不表示物理 Wishbone↔APB bridge、CPU 消费/退休、多字/通用 DMA 或 F6 完成。其余 target providers 与 P6/P7/P8、六 CPU／四 IP 整体目标仍开放。
+
+## 2026-10-20 P7-D4-B Task 4/5 保存回放与 D2/D3 集成软件门完成
+
+- 新增 `bind_dma_intent_topology(...)`，把显式静态 route→typed edge 声明、D4-A 实际生成 master link、目标 artifact 和现有 Runner 拓扑绑定。每个参与组件的 Runner key 都与真实 `artifact.plan.request.instance_id` 精确比较；新 guard 在后续 topology validation 中重复检查 artifact/session/link 身份。
+- 仅在完成全量 preflight 后调用原 `PreparedRuntimePathContract.bind` 一次；guard 作为非序列化运行时状态并入原 callback。runtime compilation document 保持既有 v2 bytes。新 credential 的 `topology_bound` 只表示软件拓扑绑定。
+- 定向软件门独立复审后由根代理重跑：`PYTHONPATH=src python3 -m pytest -q tests/scenario/test_dma_intent_topology_binding.py tests/scenario/test_runtime_path_contract.py`，**104 passed、30 subtests passed／7.67s**；独立审查无 Critical/Important/Minor 发现。
+- D4-B Task 4 现有 versioned outer envelope 路径覆盖 bound payload 精确字节、外层身份、内层声明/凭据、factory 前拒绝、fresh Runner 重绑，以及旧格式兼容；普通未绑定运行保持原身份字节。
+- Task 5 从真实 D2 生成 route/binding rows，经 D3 编译后绑定到已有 OTI UART read + CPU RAM write typed graph。断言 route/binding、prepared 文档、runtime contract 摘要不变；实际 bind 收到的就是预先构建的 `PreparedRuntimePathContract` 对象，没有新建 topology graph。P7-C F6 仍 unsupported（`dma-route-live-topology-binding-required`），编译图无 DMA transfer edge。
+- 复审之前先移除了屏蔽 `from_document` 的测试 mock，真实构造器 spy 抓到一次 graph 重建 RED；实现改为让内存 declaration 留住已验证对象，并在复用前对比完整 canonical embedded bytes。另加不匹配对象拒绝用例。独立复审无 Critical/Important 问题；软件总门最终为 **166 passed、30 subtests passed／44.02s**，无 native/remote 测试。
+- 在 Task 4/5 完成报告编写时，已验证的目标正例只有新生成 OpenTitan UART；该段属于当时状态。后续 PULP GPIO/APB3 与 ZipCPU UART/Wishbone D4 admission 见本页顶部记录及各自报告。旧 UART、PULP SPI、Caliptra 的其他目标路径仍须各自取得 generation-issued link 与精确接入，不隐式迁移。
+- 没有执行 native/build/transport/DMA transaction，也没有 CPU DMA 配置、数据传输效果、完成 IRQ/ISR、native fresh replay 或 F6 执行证明。Task 4/5 仅完成软件保存回放和 topology-bound credential；P6/P7/P8、六 CPU／四 IP 总目标继续开放。详见[报告](../reports/p7-dma-intent-topology-binding-20261020.md)、[规格](../superpowers/specs/2026-10-20-p7-dma-intent-topology-binding-design.md)与[计划](../superpowers/plans/2026-10-20-p7-dma-intent-topology-binding.md)。
+
+## 2026-10-20 P7-B/P7-C 静态 DMA route intent v2 软件链通过
+
+- P7-B 支持 route-bearing `harness_compose.v2`，严格 preflight 后输出 `harness_set.v2`／`wiring_contract.v2`；P7-C 严格读取 `wiring_contract.v2` 与 `path_wiring.v2`，验证 master 与 `transfer` feature 的 endpoint 完全一致，保留 route/binding 摘要穿过 request supplement merge。旧 v1 生成 bytes 有固定 digest，v1 D2→D3 链 **7 passed／73.30s**。
+- 新增 D2→D3 软件集成 **1 passed／12.75s**：真实 Ibex、ZipCPU wbdmac、PULP GPIO profile 生成 route wiring，D3 合并 memory supplement 后 route/static-binding digest 不变。ZipCPU transfer capability 是**测试专用 sidecar**，不代表已认证的 shipped sidecar 或真实运行能力。编译出的 F6 仍 `unsupported`（`dma-route-live-topology-binding-required`），无 `DMA_MASTER_TRANSFER` runtime edge。
+- 编译路径回归 **49 passed、3 subtests／36.53s**；静态 route model **22 passed、227 subtests**；D2 harness-set **29 passed／135.64s**。下游 route reader／artifact/capability **44 passed**，auto-harness **33 passed**。`harness_set.v2`／`wiring_contract.v2` 目前由不支持路由语义的 artifact、capability 与 auto-harness readers 明确 route-specific refusal。
+- 这是静态声明编译，不授 CPU DMA 配置、完成 IRQ/ISR、CPU 消费或 F6 执行。后续 software topology binding 与保存/replay envelope 已完成，但 native route transaction 与 P7 仍开放；P6/P7/P8、六 CPU／四 IP 总目标仍开放。完整范围见[报告](../reports/p7-d2-d3-static-dma-route-intents-20261020.md)、[规格](../superpowers/specs/2026-10-20-p7-d2-d3-dma-route-intents-design.md)和[计划](../superpowers/plans/2026-10-20-p7-d2-d3-dma-route-intents.md)。
+
+## 2026-10-20 P7-D4-A DMA artifact endpoint-link 凭据
+
+- 新增 opt-in 的 `dma_artifact_endpoint_links.v1`：从 renderer 实际解析的 Wishbone DMA master→`mwb` backend role assignments 采集完整 endpoint/role facts，并在普通 driver 渲染后绑定最终 artifact、SV、C++ 与六字段模板身份。普通 artifact document 不加字段；旧 artifact 不能靠 endpoint ID 补签。定向门本轮独立重跑 **26 passed／2.41s**，task review Approved。
+- 仅注册单 master Wishbone DMA issuer。该凭据只证明生成 artifact 的 endpoint/role 映射；不证明 Runner/live target、CPU DMA 配置、runtime route、beat/effect/IRQ 或 replay。没有 native/build。
+- D4-B Tasks 2–5 现均有软件实现和审查记录；历史 `read_master`/`write_master` 仍不会自动映射，且 F6 仍 unsupported。见[Task 2 报告](../reports/p7-dma-intent-declaration-20261020.md)、[Task 3–5 报告](../reports/p7-dma-intent-topology-binding-20261020.md)、[规格](../superpowers/specs/2026-10-20-p7-dma-intent-topology-binding-design.md)与[计划](../superpowers/plans/2026-10-20-p7-dma-intent-topology-binding.md)。
+
+## 2026-10-20 P7-D4-B 静态 intent 到 typed edge 声明层
+
+- 新增冻结、规范化的 detached PreparedDmaIntentBinding，要求 PathWiring 静态 route intents 与已选 typed DMA_MASTER_TRANSFER / dma_master_route edges 完整一对一对应。边由显式 rule/prerequisite indices 选择；不按名称、策略、地址、顺序或 first-master 猜配。
+- 精确比较支持的 aperture、permission、offset、byte-enable、accepted-values、RAM resource 或 peripheral window。tuple 值保序，range 的 start/stop/step 均参与比较；严格 reader 在归一化前拒绝 tuple 数组与非 dict mapping。窄软件门本轮独立重跑 **45 passed／0.35s**，复审 Approved。
+- 这份报告记录静态声明层的边界：它本身不校验 D4-A link、不 bind Runner，也不执行 DMA。后续 Task 3–5 已在独立实现中完成软件 topology bind、保存/replay 与 D2/D3 集成；F6 仍 unsupported。见[最新 Task 3–5 报告](../reports/p7-dma-intent-topology-binding-20261020.md)、[设计](../superpowers/specs/2026-10-20-p7-dma-intent-topology-binding-design.md)与[计划](../superpowers/plans/2026-10-20-p7-dma-intent-topology-binding.md)。
+- 该报告记录 Task 2 完成时的静态声明范围。后续 Task 3–5 已完成 software topology binding 与保存/replay；没有 native DMA transaction，F6 仍 unsupported。见[Task 3–5 报告](../reports/p7-dma-intent-topology-binding-20261020.md)、[设计](../superpowers/specs/2026-10-20-p7-dma-intent-topology-binding-design.md)与[计划](../superpowers/plans/2026-10-20-p7-dma-intent-topology-binding.md)。
+
+## 2026-10-20 Ibex→ZipCPU DMA→PULP GPIO→Ibex ISR 本地真实闭环
+
+- Ibex 通过真实 OBI 写入 ZipCPU `wbdmac` 的 source/destination/length/start；DMA 从 host `PersistentMemory` 读出 `0x5aa55aa5`，再通过 keyed PULP provider 写入 PADOUT `0x4000100c`。实际 PADOUT/status/source 的 ISR 退休读、DMA 完成 IRQ、Ibex 外部 IRQ take 与 ISR RAM 结果均在 native receipts 中检查。
+- 正向与 fresh 重放使用同一保存调度（300 步/100 轮），两边各 3,031 Runner events，typed full-prefix compare 相等；执行 UUID 与 PID 均不同，CPU/DMA/GPIO 进程 rc 全为 0。PULP provider/APB 的 request、effect、response 与 DMA transaction key/access ID 精确相连。
+- `PADOUT+4` 负例采到真实 Wishbone 写请求后，在 provider 前拒绝：provider=0、target/APB side effect=0、`gpio_out=0`。定向软件门 **116 passed、2 skipped**；当前 native gate **2 passed／80.84s**。完整数值、路径 digest、命令及 SHA 在[报告](../reports/ibex-zipcpu-dma-pulp-gpio-isr-20261020.md)和[证据目录](../reports/evidence/ibex-zipcpu-dma-pulp-gpio-isr-20261020)；获批切片规格与实现计划见[设计](../superpowers/specs/2026-10-20-ibex-pulp-gpio-dma-isr-design.md)/[计划](../superpowers/plans/2026-10-20-ibex-pulp-gpio-dma-isr.md)。
+- 这是固定 Ibex/wbdmac/PULP 实例的本地单字 transaction-level 链路：RAM 是 host 服务，DMA→GPIO 是 provider delivery。编译拓扑本身仍标 `runtime_causality_verified=false`、`resource_versions_verified=false`。不声称物理 Wishbone↔APB bridge、实体共享 SRAM、多字/持续 fuzz、remote PULP、Caliptra payload、generic F6 或六 CPU/四 IP/P6/P7/P8 总体验收；这些仍 OPEN。
+
+## 2026-10-20 Compiled F4：CV32E40P OBI + PULP Timer APB3 sibling 归档 native 门通过
+
+- 已把 `compiled_F4_execution_binding.v1` 接入 bounded F4 executor。绑定包含 D3 编译文档/F4 路径、CPU OBI/error policy、候选 layout、生产者/窗口/断言，以及 CPU 和 IP 六类生成文件（wrapper、runtime、driver、ABI、artifact、source verification）的独立字节 SHA；每次 stability check 重建绑定，checker、certificates 和 fresh prefix 记录同一 binding digest。APB proof scope 按 producer row 与寄存器名生成。
+- 新 sibling 用 CV32E40P + 已登记的 PULP `TIMER0_CTRL` APB3 full-word 合同。`compiled-f4-rfuzz` 在未请求 runtime family 时运行：exit 0、0 absences/refusals、4/4 certified，RFuzz client rc=0；主/fresh DUT 均 reaped rc=0 且 process identity 不同。完整 fresh prefix **1,072 events、4 records，`matches=true`**。
+- 归档 native 回执使用 F4 binding `a2577e08…f844d7`、compiled document `69085f22…96e0d`、candidate layout `931640d4…` 和 proof scope `selected_F4_image_consumption_native_OBI_route_native_APB_generic_apb_storage_abi_live_TIMER0_CTRL`；该次 run 记录 478 个 Python 源文件，4/4 certified，1,072 events 的 full fresh prefix 匹配。此源码闭包对应当时运行快照；其后工作树又有变动，不代表当前源码与原生门完全同一。当前定向软件门 **83 passed／54.94s**，含近似 profile 名与错误 APB template 同时出现时的 pre-native refusal；没有重跑 native。完整命令、SHA 和源码时点见[报告](../reports/p7-f4-cv32e40p-apb3-sibling-20261020.md)及[证据目录](../reports/evidence/p7-f4-cv32e40p-apb3-sibling-current-20261020)。旧 `final` 归档仍保留且不作为此 binding 的证据。
+- 该结果只证明第二个 OBI CPU 实例复用一个已有 timer APB3 源合同；不代表任意 APB3 寄存器语义，也不关闭 P7 D1–D4/E、P6/P8、DMA F6、四个 IP 系列或六颗 CPU 的整体目标。
+
+## 2026-10-20 ZipCPU UART TXREG DMA 目标端：本地门与独立审计通过
+
+- 新增 ZipCPU `wbdmac` 从 `PersistentMemory` 读取一个 word，并通过 keyed Wishbone provider 写入 `wbuart` TXREG `0x4000300c`。attempt3 native gate **1 passed in 43.38s**：源字 `0x41` 原样到达 TXREG，并由实际 TX pin 解码为 8N1 `0x41`；native request/adapter ACK/串口效果通过同一事务 key 和 access ID 关联。fresh execution 身份不同，规范化后 descriptor 相等。
+- 未选目标 `0x40003010` 的真实 DMA Wishbone 请求被宿主 route admission 拒绝；raw pre-backend、tick、typed key 均保存，provider 调用数为 0，UART tick 与串口输出不变。这不是 DMA 收到 bus error response，也不声称此前没有 RAM read。独立证据审计通过，哈希与回执位于[attempt3 证据](../reports/evidence/zipcpu-uart-dma-20261020-local-attempt3)，实现范围见[报告](../reports/zipcpu-uart-dma-target-20261020.md)。Scoped provider/trace/route regression **65 passed**。
+- 仅证明单字本地 transaction-level 路径；`runtime_causality_verified` 和 `resource_versions_verified` 仍为 false。无物理 Wishbone bridge、CPU 消费/退休、UART RXREG→RAM、任意 Wishbone DMA、多字、远程门或 P6/P7/P8/六 CPU 整体完成声明。attempt1/2 的启动前失败分别保留。
+
+## 2026-10-20 Caliptra SHA256 AHB-Lite DMA 目标端：本地门通过
+
+- 新增 ZipCPU `wbdmac` RAM word → Caliptra AHB-Lite `CTRL=5` 单字 route。最终 attempt7 原生门 **1 passed in 46.50s**；真实读到 `0x00010100→5`、写到 `0x40002010`，AHB request/data-response tick 66/67，Caliptra STATUS 与 SHA-256(`abc`) known-answer 摘要相符，独立 fresh descriptor 在 execution 身份正规化后相等。
+- 未选地址负例保存了真实 Wishbone `0x40002014` write、`dat_w=5`、完整 `pre_backend`、tick 与 typed key；直接 provider 方法调用数为 0，AHB ticks 未变。原始证据与离线 audit 在[attempt7 目录](../reports/evidence/caliptra-ahb-dma-20261020-local-attempt7)，实现边界见[报告](../reports/caliptra-ahb-dma-target-20261020.md)。Provider effect 只证明 AHB write data-phase completion；本次散列成功由 STATUS/digest 后置检查证明。route compiler 字段 `runtime_causality_verified` 与 `resource_versions_verified` 仍为 false。
+- Provider/path 软件回归 **25 passed in 0.24s**。attempt5/6 的脚本失败均保留；attempt7 为修复后新运行。仅此有界本地路径通过；物理 Wishbone-to-AHB bridge、CPU 消费/退休、通用 AHB、多字 DMA、远程 gate 与 P6/P7/P8/六 CPU 整体验收均未证明。
+
+## 2026-10-20 PULP APB3 GPIO DMA 目标端：本地正向/fresh 与 native refusal 通过
+
+- 新增通用 `dma_master_target_access.v1` provider dispatch，并实现 PULP GPIO PADOUT `0x0c` 的 keyed 全字写。DMA read、write、target request/access/response/effect 的事务 key 完整连接；target witness 的 access identity 必须一致。新 route graph 绑定真实运行中的 DMA session、`PersistentMemory`/`MemoryService`、唯一 target window 和 PULP observation profile。地址化 decoder v4 增量保留 v1–v3 历史读写及混合模板重放。
+- 本地 opt-in Verilator 门为 **2 passed in 46.25s**：单字 `0x00010100 → 0x4000100c` 正向写和 fresh replay 正规化后完全一致；route admission 还拒绝了真实 Wishbone 未选地址 `0x40001010`，provider 调用数为 0，APB access/request/response 均为 0，拒绝后的 `gpio_out` 原生采样为 0。独立 key/value/phase 核验与 hashes 在[本地 attempt6 证据](../reports/evidence/pulp-apb3-dma-20261020-local-attempt6/independent-audit.json)。Scoped regression 为 **334 passed、1 skipped、168 subtests passed**；独立代码审查无 Blocker/Important。
+- 能力只到本地 `declared`、`topology_bound`、`runtime_observed`、`replay_verified`，对应这一条单字 transaction-level session 组合。RAM 是 host `PersistentMemory` 服务；这不是物理 Wishbone-to-APB bridge，也不证明 CPU 消费/退休。partial byte enable 只在 provider API 边界拒绝；receipt 若在 target callback 已执行后被改坏，不声称可撤销 target side effect。
+- 远程门仍 OPEN：按 [agent.md](../../agent.md) 仅能在 `/root/fanzehui/**` 操作；本轮 `jumpserver` 连接在 `166.111.80.238:2249` 超时，未连接目标机或写远程文件。完整实现/身份/限制见[报告](../reports/pulp-apb3-dma-target-20261020.md)。本 slice 不关闭 P7 F6、P6/P7/P8，也不代表六颗 CPU 或其余 DMA providers 完成。
+
+## 2026-10-19 DMA Master Route v2 首个消费者已通过真实 S4 门
+
+- 已实现共享版本化 DMA route contract，并迁移 OpenTitan UART RX FIFO → ZipCPU `wbdmac` → RAM S4。详见[实现与实测报告](../reports/dma-master-route-contract-20261019.md)；获批设计仍见[规格](../superpowers/specs/2026-10-19-dma-master-route-contract-design.md)和[计划](../superpowers/plans/2026-10-19-dma-master-route-contract-implementation.md)。
+- scoped 本地门 **264 passed、5 skipped、61 subtests passed**；远程新身份 S4 + controlled illegal target + independent fresh-prefix 为 **1 passed in 1188.92s**。通过的 native gate 完成 request/target/response joins 与 typed-prefix 检查；其后保存用例一致性审计 exit 0，并完成 28 个文件 SHA 校验。新 route contract/graph/index/topology digest、三次成功 word transfer、两条错误/no-side-effect case 和四个 prefix digest 均已归档。
+- 本轮能力分别达到 `declared`、`topology_bound`、`runtime_observed`、`replay_verified`，但范围只覆盖 OpenTitan UART RX→RAM 首个 route consumer。PULP、ZipCPU UART、Caliptra DMA provider adapter 仍开放；P7 F6 仍 `unsupported`（`dma-master-route-undeclared`）；P6/P7/P8 与六颗 CPU 整体适配仍未完成。没有据此声称持续 DMA fuzz、P8 5×、全局 cycle timing、CPU decode/retirement。
+- attempt1 的 pytest 使用默认 `/tmp/pytest-of-root`（临时目录未访问/清理）；attempt2/3 的 replay 比较失败均保留。attempt2 的 `pytest.exit=1` 与失败摘要中的 `command_exit_code=2` 不一致，报告按两个原始收据分别记录。
+
+## 2026-10-19 P6 Attempt10 r10 状态：冻结包已复核并上传，gate 未启动
+
+- r9 controller 在创建 claim 前失败：`read_regular()` 返回 bytes，调用处先 `.decode("utf-8")` 转成 str，`strict_json()` 又按 bytes 解码，触发 `AttributeError: 'str' object has no attribute 'decode'`。只读检查确认没有创建 claim、preflight/controller receipt、launch intent、gate start/process/end、日志或证据输出。
+- r10 Stage1 digest `ed7f53aa183e06a2341770805ddf1eecdc8d5a6e6ac22a7692096047e477f84b` 与 Stage2 digest `2fb5f718368042fac5e665184f8966269badff7a17903036d86f8db9fb2f1646` 均分别通过两名独立静态 reviewer 的 exact-digest ACCEPT。远端 11 个 r10 静态文件经字节、SHA、大小、模式、root 所有权和单链接复核；两名独立 post-upload reviewer 均 ACCEPT。11 个 r9 前序文件哈希未变，runtime receipt/evidence 路径仍不存在。
+- gate 尚未启动：冻结 controller 在创建 claim 前会读取并哈希 `/usr/bin/python3.12`、`/usr/bin/git`、`/usr/bin/perl`，与 [agent.md](../../agent.md) 的远程文件操作限于 `/root/fanzehui/**` 冲突。只读可执行文件名盘点（排除只读原 system 树）未找到这三项的目录内副本；答复前不启动，也不改 r10。详见[Attempt10 r10 中间报告](../reports/p6-attempt10-r10-controller-repair-20261019.md)。
+- P6/P7/P8 均未因本次冻结包准备而验收或升级；P6 仍 OPEN。此阶段没有执行 controller、gate、runner、auditor、项目模块或测试。
+
+## 2026-10-19 P6 CPU 消费信号源码盘点
+
+- Attempt10 使用的 PicoRV32 profile 导出了 `trace_valid/data` 物理观察口，但 `ENABLE_TRACE=0` 且现有 gate checker 不消费它们；不能据此声称 CPU 消费或退休。更强 RVFI 接口受 `RISCV_FORMAL` 编译条件保护，当前 build `defines=[]` 且 wrapper 未导出。
+- 这只是基于 pinned RTL/profile/生成产物的源码盘点；未更改生产代码、未运行测试/模型/远程 gate。已记录在[CPU 消费信号盘点](../reports/native-cpu-consumer-inventory-20261019.md)及[Native source-completion feedback 设计](../superpowers/specs/2026-10-19-native-source-completion-feedback-design.md)。Task5 真实 gate 仍须先完成；consumer edge 当前保持 unsupported。
+
+## 2026-10-19 Native source-completion Attempt6 状态（历史并行任务）
+
+- 最近一次该任务实际 gate 为 attempt5-v2：PID `238584`，rc `1`，失败于 `native-comparison-completion-source-join`。Task5 未验收，能力不升级，P6/P7 未关闭。
+- Auditor candidate8 SHA `281807c1d93bf9f64afa60dc87c376805adcc0e9a8cf28a0483e2187c9be848c` 已通过两名 reviewer 独立静态 ACCEPT；Frozen run-plan v12 SHA `bc6747eb5fdd5c3eee15af6239b2dd9b040b385f5b093182521c7bc87b5ffcfb` 已写入远端并核对字节一致。历史范围见[attempt2–5 失败记录与 attempt6 frozen plan](../reports/native-exact-source-completion-20261018.md)。
+- 下一阶段反馈契约已有[独立设计规格](../superpowers/specs/2026-10-19-native-source-completion-feedback-design.md)：completion 只证明总线传输；须有独立真实 consumer event 才可能计 P6 feedback。规格待审阅，不是实现计划或验收结果。
+
+## 2026-10-18 最新：P8 S1c 标量运行完成并通过保存字节审计
+
+- [本轮实测与审计报告](../reports/p8-s1c-scalar-measurement-attempt1-independent-20261018.md)：远端一次标量运行记录 completed/exit0；本地只读保存字节审计 exit0，状态 `partial_scope_verified_open_checks_remain`。四个输入 `[0x5a,0x00,0xa5,0xa5]` 完成，29,636 events、4 cases、4,776 条逻辑计划命令；saved wall 213.607s（含构建/启动/收尾）。
+- 只确认本次有界运行和保存事件/链路结构：没有 fresh/失败重放、独立原 DUT exit、wire command/ACK/byte、steady-state-only 或 native-only CPU 指标。project/cache 主体字节未归档，FIFO origin 仍 unknown。批处理 Task1、5× 和 P8 整体验收仍 OPEN；未重跑模型或新增/运行测试。
+
+## 2026-10-18 CPU/IP 与 native 来源门状态更正
+
+- BOOM 已有派生 `BoomTile` profile/RTL、direct coherent CPU/RAM，以及分开的持久 GPIO A/D 和 coherent C/E 真实门；证据边界见[BOOM 适配状态](../reports/boom-adaptation-status-20261018.md)。GPIO A/D 和 C/E 缓存流来自不同运行，不能合并成一次 CPU/IP 的 A/C/D/E 覆盖。generic TileLink adapter、完整跨通道检查、B-probe、DMA 与 P6 整行仍开放。
+- [Native host 输入绑定门](../reports/native-source-binding-directed-independent-20261018.md)已真实运行并独立审计通过；它只证明 host 绑定及相应传输观察，不证明输入来源被 CPU 消费、指令退休或反馈闭环。
+
+## 2026-10-18：native host 输入绑定真实门已独立审计通过
+
+- [真实门与独立审计](../reports/native-source-binding-directed-independent-20261018.md)：新冻结 `d5ce57a…`，父2795948/门2801008均exit0，8个DUT均实际退出0；独立审计62467 exit0。
+- 正向CPU/IP/CPU原始与fresh各3249事件、47次native完成、2条host绑定；受控原始与fresh各1394事件、21次完成、1条host绑定。总6条host绑定，完整fresh、逐raw重建和真实响应XOR1检出通过。归档格式及局部service索引的两次审计拒绝均保留，未重跑模型或覆盖旧证据。
+- 此门仅验收host指令输入绑定和分别重建的native传输观察。来源到CPU完成的消费认证、退休、四反馈、通用campaign及P6/P7/P8整体验收仍OPEN。
+- [P8完整复制计划独立审计](../reports/p8-full-project-plan-independent-20261018.md)通过：28,302文件/3,242目录。首次实际复制失败记录仍保留；第二次复制映射、测量及保存字节审计见顶部 P8 S1c 报告。P8 5×门仍未关闭。
+
+## 2026-10-18 远端 root 输入阶段记录（标量实测前）
+
+以下条目保留输入准备完成时的状态；之后的复制与标量运行结果见顶部 P8 S1c 报告。
+
+- [远端 root 输入独立审计](../reports/p8-root-remote-input-independent-20261018.md)已通过：冻结 HEAD `269717b`，10347 文件/524 目录，传输、实际解包、远端双次映射及进程终态证据已关联。此为 root 输入，尚未组装三组件完整项目或运行 DMA 标量测量。
+- [四输入转换与输出独立审计](../reports/p8-four-input-adapters-independent-20261018.md)已完成：ZipCPU 补采链绑定修复，实际转换 exit0；root/ZipCPU/OpenTitan/Ibex 分别10347/376/13878/3701文件，2/93条组件链接保留真实Git对象与原始链接字节。仅输入资格；在此准备阶段结束时，11份规划输入已实际上传 exit0、完整远端计划正在执行，项目复制及DMA标量测量尚未执行；之后状态见顶部 S1c 报告。
+- `9b5e190` [native 来源绑定 opt-in](../reports/native-source-binding-optin-source-20261018.md)接入实际 service 返回、SourceAdmission 和 host 输入事件，并通过源码复核；HARNESS v2 为70路径。[下一运行门输入](../reports/native-source-binding-next-gate-inputs-20261018.md)及12文件覆盖包独立审查通过，新副本复制与审计通过；其后的真实门及独立审计已完成，见顶部[门报告](../reports/native-source-binding-directed-independent-20261018.md)。来源到 CPU 完成的消费认证仍未实现。
+- [首次部署失败](../reports/native-source-binding-deployment-attempt1-failure-20261018.md)已保留：缺顶层 `overlay/` 归档条目，在复制前被严格校验拒绝；新归档补齐目录并独立复核后，第二次[实际复制及独立审计](../reports/native-source-binding-preparation-independent-20261018.md)通过，8892文件/601目录/70路径；复制父2687677/子2687977 exit0、保存数据审计57995 exit0。该条记录的是准备阶段；后续真实门及独立审计已完成，见顶部[native 来源绑定报告](../reports/native-source-binding-directed-independent-20261018.md)。
+- 该阶段的新事件仅声明 host 指令输入绑定；来源四字节到 CPU 实际完成握手的认证仍未实现。旧冻结门不验证当时新增源码；之后的新冻结门只覆盖报告中点名的 host binding 与 transport observation。P6/P7/P8 与 DMA 5×目标仍 OPEN。
+
+## 2026-10-18 P8 三组件源码准备独立审计通过（复制前阶段记录）
+
+- [ZipCPU](../reports/p8-zipcpu-metadata-attempt2-independent-20261018.md)：394对象、368路径、2链接，1198个Git子命令均0；首次采集漏`.rev`的审计失败保留，补采精确绑定原映射后audit2通过。
+- [OpenTitan](../reports/p8-opentitan-metadata-attempt2-independent-20261018.md)：第二轮父463069 exit0、485个Git子命令均0；14732对象/13870路径，新副本重建原缺65项并独立逐字节关联，saved audit exit0。首轮完整工作树拒绝保留。
+- [Ibex](../reports/p8-ibex-metadata-attempt1-independent-20261018.md)：父650898 exit0、155个Git子命令均0；4040对象/3693路径，新副本重建原缺59项并独立逐字节关联，saved audit exit0。两个原工作树均未修写。
+- `583436c` 完整项目 typed 复制工具的源码复核及 root 输入准备均为此前阶段证据；后续实际 copy map 与标量测量见顶部报告。fresh、完整字节重散列及 5× 仍开放。
+
+## 2026-10-18 native 来源连接第一步（源码增量）
+
+- `9e0666f` [实际指令接受凭据](../reports/native-instruction-acceptance-source-increment-20261018.md)：保留多word真实写入，返回全部byte/version/writer及memory身份；closure-issued身份验证、reset撤销，拒绝替换原方法与override重放旧凭据。两项独立源码审查问题已修复并复核。
+- `44ce100` [closed typed binding seam](../reports/native-source-binding-closed-seam-source-20261018.md)及成功service result传播已独立源码复核，未安装执行hook/optin，不能mint live binding。
+- 未运行测试/导入/模型；尚未实际绑定SourceAdmission、native完成、case/path或反馈。下方真实门绑定旧冻结`68f81b6`，不验证这次新源码；来源认证和P6/P7/P8仍OPEN。
+
+## 2026-10-18 native 实际完成握手门及独立审计通过
+
+- [第二轮真实门与独立审计](../reports/native-completion-directed-independent-20261018.md)：冻结`68f81b6`，parent3454454/gate3469032均exit0，8个真实DUT均reaped/exit0且PID/nonce各异，source/file/directory/tools前后不变。
+- 正向同CPU/GPIO进程连续CPU/IP/CPU三例，A/B→RAM/GPIO为62/0→62、62/167→153、62/167→153。原/fresh各3247事件，47次实际native PRE valid&&ready完成（30 instruction、17 data）；受控原/fresh各1393事件、21完成（14＋7），真实target62仅交付为63，三处关系不符被检出。
+- 独立标准库审计actual exit0：逐raw重建全部事务及response T→native completion PRE T+1，完整前缀仅规范化声明的真实nonce，保留原始raw；工具和复制闭包也独立复算。首轮规划拒绝仍保留，不重标为通过。
+- 关闭的是有界真实native传输观察及完整warm fresh；未授来源四字节认证、退休/IRQ、独立APB相位、四反馈、持续RFuzz、cold-cache门或P6整行。P6/P7/P8仍OPEN。
+
+## 2026-10-18 native 新观测首轮实际拒绝与修复
+
+- [独立准备审计](../reports/native-completion-preparation-independent-20261018.md)：新副本8891文件/601目录、1111完整src/scripts及69显式host路径精确相符，旧基线未变。
+- [首轮实际失败及独立归档](../reports/native-completion-attempt1-failure-independent-20261018.md)：parent3107064/gate3130216均exit1，四Git子命令exit0，source/tools前后不变；规划器以protocol unsupported拒绝，cache/positive均空，无DUT模型/case/fresh通过，frontend elaboration可能发生。
+- `68f81b6` [准入源码修复](../reports/native-observation-planner-admission-fix-20261018.md)：仅在显式raw V2路径接入单native endpoint及严格typed contract；独立源码复核通过。第二轮独立输入仅覆盖plan.py一项，新目录准备推进中，未重用首轮失败目录。
+- 本节为首轮历史状态；第二轮实际门及独立审计已通过，见顶部。来源精确连接、四类反馈和P6/P7/P8仍保持OPEN。
+
+## 2026-10-18 native 完成观测接入（源码增量，未实测）
+
+- `34f01e3` 修复 CPU 完成握手前的 pending/排空、reset 取消、abort 终止及 close 清理；[独立源码复核](../reports/native-bus-observer-independent-source-review-20261018.md)关闭原 Important。
+- `db83d60` [显式观测开关](../reports/native-online-completion-optin-20261018.md)接通 CPU 的 V2 PRE/POST 被动抽头，默认保持旧路径。`1f0f6d4` 将实际 native 模块加入 HARNESS v2 显式源码身份。
+- `cb28a70` [执行器提交解码器失败收尾](../reports/native-executor-commit-failure-source-20261018.md)：实际提交之后的 commit 异常或拒绝会终止 guarded session，防止直接重提；源码复核未发现新增 Important。
+- `29048b3`＋`ae13270` 已实现 [guarded fresh 构造与异常清理](../reports/native-guarded-fresh-cleanup-20261018.md)，独立源码复核关闭清理缺口。`b7c8087`＋`16e9b12` [窄类型身份比较](../reports/native-replay-identity-source-20261018.md)保留原始 nonce，先重算两侧 raw hash，再比较完整规范化副本；HARNESS v2 显式69路径。
+- `9b04f8d` [实际门 CLI 开关](../reports/native-completion-gate-cli-source-20261018.md)使正向、controlled 与 factory fresh 一致选择观测模式。
+- 本组仅源码/静态检查，未运行新测试或模型；旧冻结实际门不能验证新源码。raw 观测独立指标/负例、packet 持久文档与 max_cases 绑定、失败序列化、四字节来源精确连接、新冻结实际门及四类反馈仍开放；P6/P7/P8 保持 OPEN。
+
+## 2026-10-18 P7 I5 第二轮独立终态（历史记录）
+
+[P7 I5 attempt2 独立终态审计](../reports/P7_I5_ATTEMPT2_INDEPENDENT_AUDIT_20261018.md)（审计提交`c3d65db`）：N1–N8 共20项负例实际执行全部通过（2/1/1/5/2/1/2/6，零失败/错误/跳过）；CVE2＋PULP timer 真实 RFuzz 2 certified，536 events/2 records 的完整 fresh 匹配，receipt SHA join通过。父控制器exit0，source/tool/client及文件/目录冻结前后一致。fresh DUT明确reaped/exit0；原始DUT已无进程，该历史运行缺独立exit rc回执。2026-10-22当前源码补充运行的original/fresh进程回执见本页顶部及[I5补充报告](../reports/p7-i5-candidate-20261018.md)。P6/P7/P8整体保持OPEN。
+
+## 2026-10-18 P6 native 有界持久门通过（最新）
+
+- [真实门汇总](../reports/p6-native-persistent-directed-20261018.md)：第三次gate PID4046776实际exit0，同CPU/GPIO进程连续3例、双侧源、真实后端响应、RAM/GPIO结果与受控响应扰动检出；正向2,246事件、受控982事件的完整fresh分别精确相同，8个DUT均terminal0。两份独立原始数据审计通过。
+- 只关闭行5固定实例的有界持久定向门；来源仍有unknown/transport_candidates_only、RAM observation_only；native未采样mem_ready，response consumed仅adapter/backend握手，无独立APB相位证据，不授退休/IRQ/闭环证书/四类反馈或RFuzz campaign。P6/P7/P8整体保持开放。
+- P7第二份工作集已完成准备、真实验收及独立审计，详见顶部I5第二轮终态；原始DUT独立exit rc回执缺口保留。
+
+## 2026-10-18 P6 native 两轮历史启动前失败
+
+- [两轮原始失败与独立归档](../reports/evidence/p6-native-online-attempts-20261018/README.md)：首轮工具share扫描范围不匹配，未启动gate；第二轮gate PID3893459实际exit1，缺少host身份文件`scripts/record_scenario.py`，positive cases/processes均为空，controlled/fresh未进入。不是RTL失败，也不构成原生通过；工厂可能已前端查询。
+- 第二轮4个Git元数据检查、前后完整file+directory layout和工具检查通过；8,777文件/599目录freeze不变。旧source/失败记录保留；后续完整scripts副本与第三次真实门已完成，见顶部最新结果，不授P6/P7/P8整阶段完成。
+
+
+## 2026-10-18 I5 首轮前置失败与工具查询历史记录
+
+- **历史准备阶段（已由顶部第二轮终态更新）：** 601964f v2 保留空目录，root 实际新建独立 operation；复制同一进程继续中，未启动第二次负例/RTL门。见[活动记录](../reports/evidence/p7-i5-attempt2-preparation-20261018/operation.json)。
+
+- **工具元数据查询实际通过：**9个版本/身份查询子进程均exit0，source/tools unchanged；不属于frontend/build/test/native。
+- **I5 attempt1在N1前失败：** before/after Git status均exit128，Ibex `.git/refs`空目录在file-only复制/传输中遗漏；negative_results为空。独立归档两份15,333文件map相同，不能据此证明目录结构完整。
+- [完整终态与原始证据](../reports/p7-i5-remote-independent-preparation-20261018.md)：44个remote记录文件及本地control已归档；外层I5 exit1为root报告，归档无独立父进程exit回执。旧attempt保留；此为首轮归档时状态；601964f目录修复后的第二轮已完成真实门及独立审计，见顶部。P7 I5和整体P6/P7/P8仍开放。
+
+
+## 2026-10-18 后续执行状态与证据口径
+
+- **独立远程源码副本已实际校验：** [准备终态](../reports/p7-i5-remote-independent-preparation-20261018.md)，15,333文件/798,103,129字节，完整文件内容/模式映射一致；新operation不覆盖旧工作集。后续工具元数据查询已通过，但独立重跑在Git前置检查失败；当时N1–N8/新CPU+IP门尚未开始；第二轮已完成，见顶部最新终态。
+- **P6 native持久在线源码增量：** f30c524接通实际PADOUT读回+PADIN联合计算，52de02c补齐实际packet边界和排空守卫；独立98d137f关闭源码问题。没有新的真实运行、P6整行或四类反馈授予。
+
+
+- 历史源码阶段：P7 I5 N3 专项真实生成路径拒绝用例已提交 `1194b32`；随后已在第二轮冻结快照执行通过，见顶部终态。验收采集脚本已至8af55a3，独立源码复审75bcf56关闭fresh结构检查中项；该脚本后来已在第二轮执行并审计；仍不授整体P7完成。
+- [CVW directed D4 会话](../reports/cvw-directed-session-20261018.md)与[Vexii 固定 CPU/IP/IRQ](../reports/vexiiriscv-cpu-ip-irq-20261018.md)已有真实门；二者均不等于在线 campaign。下文旧“会话未装配／IRQ未做”属于历史状态。
+- 独立审计对 P8 S3 的结论是“产物内容通过，进程退出不可验证”，不能据此声称已记录完整 pytest 通过。
+- P8 S1c 的 1.3699×是 UART tick 减少比，搜索墙钟72.352s→58.919s约1.228×，有效搜索时间52.233s→41.105s约1.271×；5×性能目标仍未达到。
+- P6 共享持久会话／RuntimePathContract／closed-loop 机制已有代码，部分协议provider接入与整行实测验收仍开放。CV32 启动前拒绝不适用的闭环生产者（74119a6），独立源码审查d158a82无阻塞项，未执行测试。BOOM保留历史资产，当前工具链/运行可用性按具体快照核验。
+- P8 标量传输耗时脚本 `91eb4652…` 已按审阅版本运行一次，并完成 [saved-byte partial-scope audit](../reports/p8-s1c-scalar-measurement-attempt1-independent-20261018.md)。[新远程工作集核对](../reports/remote-myfuzz-readiness-20261018.md)记录当时的脏快照及旧环境路径；本次证据只适用于归档所绑定的 269717b 项目副本。
+
+## 2026-10-18 P7 I3/I4 与 P8 S2/S3/S4 真实门（当前源码）
+
+- **P7 I3（PULP timer generic APB storage F4）通过：** `report.json status=completed`，3 条记录 `0x55/0xaa/0x12345678` 连续 certified，commit `0→85→170→305419896`；探针 `hierarchy_verified=true`/`native_verified=true`（proof `a889c6eb…`）；fresh `matches=true`/`verification_scope=full`。证据：`docs/reports/evidence/p7-i3-timer-f4-20261017/outputs/timer-ade3fe6/`。
+- **P7 I4（CV32E20 + PULP timer，compiled RFuzz）通过：** `status=complete`、client rc0、4 tests/4 certified、receipt join ok、`Coverage-guided searched=3`、`RTL operational=3`、fresh `matches=true/full`。证据：`runs/p7-i4-real-ade3fe6/`。
+- **P8 S2（单 boot 三方向多字）通过：** 3 个多字用例，RX→RAM/RAM→RAM/RAM→TX，accepted UART FIFO authority，`1 passed in 465.88s`；fresh cases/plan/ticks/identities 全等、execution ids 新。证据：`docs/reports/evidence/dma-s2-real-ade3fe6/`。
+- **P8 S3（真实 error ISR）产物内容通过、进程退出未验证：** 2 valid + 2 invalid；实测 status `0x40000000`（bit30=1）、真实 environment_error_receipt、无目标交付/目的 commit、真实 CPU take/ISR；fresh 全等。证据：`docs/reports/evidence/dma-s3-real-ade3fe6/`。
+- **P8 S4（来源认证 + typed prefix replay）通过：** `1 passed in 529.76s`；每例 accepted `uart_fifo_retention/read_consumption`，DMA pop 带 `dma_master`；typed prefix 比较 plan/events/ticks/cases。证据：`docs/reports/evidence/dma-prefix-s4-real-9cbc323/`。
+- **汇总与本轮边界：** 见 [P7/P8 real-gate record](../reports/p7-p8-real-gates-20261018.md)。P6 原五行表行2–5仍是固定实例 `fresh_genomes`，另有行5持久定向子门但尚未关闭整行；P7 I5负例组与独立复核已完成有界审计，原始DUT独立exit rc回执缺口保留；P8 S1c此前的tick比为1.37×、wall/search比低于5×，单独标量基线不构成性能提升或5×证明。CVW/Vexii/BOOM 已有各自固定或定向运行证据，但 generic 接入、在线搜索与完整阶段验收仍有缺口。**P6/P7/P8 整体仍未宣布通过。**
+
+## 2026-10-17 P6 固定实例 campaign 完成（附边界）/ P7 I2 / P8 S1
+
+- **P6 五行固定实例 campaign 已完成当前源码真实 RTL 证据：** 行1 CV32E40P `online_cases` 200 例（audit 10）；行2 CVA6 18/18、`effective=1323.83`、1226 例/406 链（audit 10）；行3 AXIL 18/18、`effective=2123.20`、714 例/300 链（audit 10）；行4 Wishbone 18/18、`effective=3767.47`、1615 例/871 链（audit 21/2）；行5 native 18/18、`effective=2862.57`、1711 例/1141 链（audit 24/2，saved-run 9/9）。非 Ibex+非 GPIO 受控错误五进程门 **1 passed/127.97s**，control 静默、fault `uart_rxdata_source_mismatch`、两条 full replay。汇总见[P6 验收记录](../reports/p6-fixed-instance-campaign-acceptance-20261017.md)，campaign 归档见 `docs/reports/evidence/p6-campaigns-20261017/`。**边界：行2–5 均为 `fresh_genomes`（每例新 harness），非单一持久会话；`legacy_unchecked`、closed_loop/path_switch disabled。若按字面要求持久 harness/RuntimePathContract/四类命中，行2–5 仍未满足。**
+- **P7 I0–I2 已提交并通过真实门：** `a1850a0`（driver stage/命名拒绝、D3→ownership 编译）＋ `7e08913` 证据；`test_generated_dual_runtime_loaded_real.py` **2 passed/94.56s**，fresh `matches=true/full`、4021 events、8 receipts 无违约。P7 I3–I5 未做，D4 CLI 仍结构性关闭。
+- **P8 S1a/S1b/S1c 已提交并通过真实门：** S1a/S1b `349106f`＋`743acc7`；连续门 **1 passed/173.26s**，guided **1 passed, 1 skipped/237.00s**，uniform **1 passed/105.07s**，三份离线审计 ok。S1c `c00642c`＋`b721a9d`＋`f9fc9b0` 只抽稀 ISR 轮询 UART：连续门 **1 passed/133.85s**（UART ticks 4790→3496、轮询 UART 步 1294→4、墙钟 −22.7%），搜索 effective 52.23→41.11、墙钟 −18.6%；**5× 未达到（实测 1.37×）**，剩余 3496 tick 是真实波形/空闲边距，5× 需后续多 tick harness 命令（改 build 身份），报告已如实标注。边界：S2–S4 未做，`fifo_origin=unknown`、无来源认证/统一 normalizer/前缀 replay。
+
+## 2026-10-17 三个并行源码增量（CVW 域 / APB A2 主机 / F4 D1）
+
+以下三项均为**源码/纯软件增量**，分别绑定自己的提交；原生/层次/复位波形、D2/D3、持续搜索与 P6/P7/P8 仍未验收。汇总与边界见[三代理源码增量报告](../reports/three-agent-source-increments-20261017.md)。
+
+- **CVW manager-domain 修正已完成源码闭合（`87bef94`＋`782b091`）：** profile 新增 observation 端点 `cpu.manager_domain`（`manager_ready=HREADY`、`bus_reset_n=HRESETn`），observer v3 只用实测 PRE、bus-reset assert→release 才建立前缀，外部 `HREADYEXT` 与实测 `HREADY` 分离；保存 16 边沿的旧解释仍在 edge11 复现 `ahb_address_hold`（raw=11），新域为 16 raw／仅 edge11 接受 `0xc0000000`／completed0／pending `0xc0000000`／prefix=false。`tests/scenario/test_ahb_manager_domain.py` 36 passed，聚焦回归 160 passed＋2 subtests；根代理独立重放脚本结果一致。**未做新 profile 的原生/elaboration 验证，不宣称原生门通过；旧 16 边沿只是 saved-data software projection（旧 profile `c60ddb…`→新 `a04865…`）。** 代理两次误跑 Verilator-gated 用例（`test_cvw_ahb_runtime_generation.py` 与 `test_ahb_lite_session.py`），结果不作证据、缓存已删，已在报告中披露；`test_cvw_ahb_runtime_generation.py` 中直接 STEP 的既存 stale 用例仍未修。
+- **APB A2 启动页主机消费已完成源码闭合（`4c0a62c`＋`d4594e3`）：** 只有精确 A2 文档进入 `_expected_ready` 分支；`begin_case` 在真实 READY 后、任何 setup/STEP/ACCESS/SOURCE/BIND 前按序取回全部零 tick 页，真实 wire sequence/ACK、逐页 contract/probe 校验、raw receipt 保留；14 种丢失/畸形页故障全部 poison+abort+reap 且不重试；`validate_startup_handoff` 只要求持久 storage/reset 连续，readback 变化合法；C issuer 增加独立 `last_wire_sequence` 的 startup-retrieval phase，零 tick READ 清空旧 token，handoff 前拒绝 issue/consume。A2 focused **250 passed／59 skipped**，AHB/build **147 passed**，session/GPIO **41 passed＋15 subtests**，GPIO/native-reset evidence **135 passed**；根代理复跑 8 文件子集 232 passed／16 skipped。**未执行真实 native startup 门；C native-positive 路径仍未执行，C issuer 需 owner 复审；`grants_reset_prerequisite=false` 等全部保留。**
+- **通用 F4 D1 封闭生产者选择已落地（`cd4154a`）：** 新增两行 code-owned selector（GPIO causal／generic APB storage），session/issuer/consumer 由代码命名并 import-time pin；GPIO 旧构造行为不变；generic timer 仅在 registered source contract＋D3 声明＋生成 observation 契约同时匹配时选中，runtime 在构造前以 `compiled-F4-generic-commit-consumer-unsupported` 拒绝，capability 仍 `execution_supported=0`。selector **29 passed**，`tests/integration -k compiled_f4` **60 passed／1 skipped**（原生门未执行），timer 声明 5 passed，execfiles 32 passed。**D2 generic commit/raw join、D3 公开入口/CLI、真实 timer 链与任何原生证据均未完成。**
+
+## 最新终态补记（2026-10-17）
+
+- **连续 UART RX DMA attempt6 已通过真实门禁：** 1 passed／277.19 秒，native 与 worker exit0；前置软件门 65 passed／70.42 秒。单次 boot 四字节、JSON 往返后的完整 fresh 前缀及 source-bound 失败 fresh 重放均通过。见[报告与原始归档](../reports/dma-continuous-runner-20261017.md)。后文 attempt4/5 是历史失败状态，不是当前运行状态；能力仍是 bounded_historical_chain，FIFO 来源 unknown。
+- **F4 错误响应边界已有真实增量：** 最初 Icarus adapter 跳过和 CV32 filelist 预启动失败保留；filelist 修复后，实际生成式 CV32 首取指接受后注入 backend ERR，模型命中指定 fatal 并非零退出，控制/源检查/审计 exit0。同一适配器与 testbench 的显式 Verilator 门另为 1 passed／8.03 秒。见[原始证据与范围](../reports/obi-no-error-fail-stop-20261017.md)。[Ibex 三例连续数据流与两次完整 fresh 门](../reports/compiled-f4-ibex-current-20261017.md)现已实际 exit0，六个原生进程均 reaped/exit0；根代理独立复核三份各7,351条保存事件及全前缀相同。[CV32 同等连续门](../reports/compiled-f4-cv32-current-20261017.md)也已实际 exit0，根代理独立复核三份各7,351条完整事件及候选切片一致，20个无物理 error pin 的错误字段保持 null。
+- **BOOM IRQ：** 历史实际 build/probe0、最终化1保留；[独立元数据恢复](../reports/boom-irq-metadata-recovery-20261017.md)现已实际 exit0，2,564 源文件与84原构建文件前后及副本审计通过，原二进制未变。未重新编译或执行模型；真实 IRQ 验收门源码70fdbcb已完成因果顺序与物理来源修复，独立43项纯软件控制通过；[attempt1实际入口](../reports/boom-irq-native-attempt1-20261017.md)现已终态exit1，工厂的bound producer声明不一致，发生在原生会话启动前，CPU/GPIO命令与采样均0。失败已归档，source/artifact/tools前后未变；[最小工厂修复后的新元数据恢复](../reports/boom-irq-factory-metadata-recovery-20261017.md)已实际exit0且根代理独立审计通过，二进制未变。[IRQ第二次真实运行](../reports/boom-irq-native-attempt2-20261017.md)因全局步数核算拒绝的原始证据保留；共享总额度修复后的[第三次实际门](../reports/boom-irq-native-attempt3-20261017.md)已终态exit0，完整fresh与抑制负例通过。根代理独立审计403文件及全部首轮/fresh文档，9个模型进程均reaped0；只授该固定IRQ诊断链。
+- **CPU 事件：** reduced AXI 观察器已有冻结软件证据；[CVA6 full AXI 观察器](../reports/CPU_FULL_AXI_OBSERVER_20261017.md)冻结 `893d255`，99 passed＋3 subtests；独立审查的异常后停止、effects 标记与 post 新 offer 保持三项均修复。后续[窄 CPU/RAM 原生门](../reports/cva6-full-axi-native-20261017.md)已实际 exit0：两进程各650组真实样本、826条观察记录、2923条 Runner 事件全前缀匹配，原始样本离线逐条复投影一致。仅授有界观察，不授源权威或退休认证。
+
+- **AHB CPU 事件源码：** [CVW/AHB 观察器](../reports/CVW_AHB_CPU_OBSERVER_20261017.md)8dd8ead＋预算修复da4605f，独立52项纯软件控制及审查93a7bda通过。只做观察；原轨迹启动首地址缺失。后续startup捕获与真实v2 admission修复be0a21e已独立103项软件控制通过；[AHB目标严格身份](../reports/AHB_REGISTER_TARGET_IDENTITY_20261017.md)998c89c已独立21项控制及既有APB38项回归通过。[新13tap/startup首轮真实门](../reports/CVW_AHB_NATIVE_ATTEMPT1_FAILURE_20261017.md)已执行并在启动观察阶段 exit1，尚无普通 CPU STEP；原始16边沿与两份构建缓存已归档。已定位观察合同误把外部 HREADYEXT 当全局 HREADY、外部 reset 当实际总线 HRESETn，属于边界投影错误；[域修正设计](../reports/CVW_AHB_MANAGER_DOMAIN_CORRECTION_DESIGN_20261017.md)及保存轨迹回归已建立；源码修正已于本轮闭合（`87bef94`＋`782b091`，见顶部新节），新实际门待完成。不能升级历史prefix_unknown。
+- **Runner 跨缓冲清空：** full AXI 引用编号修复944a888采用全生命周期记录计数，113项纯软件控制与独立审查aaf4134通过；保存的两份 CVA6 实际826记录离线重放逐条不变。
+
+- **同协议新 IP 基础：** [generic APB严格身份和被动trace/writer诊断](../reports/generic-apb-session-identity-20261017.md)已补齐服务身份降级拒绝、规范wrapper/runtime/端口重投影；独立82项纯软件控制通过，审查41ce86e关闭假tap中项。无组件名字分支。精确源码存储合同、被动探针、封闭生产者以及寄存器版本跟踪已完成源码增量；版本跟踪 tick/tick-base 审查问题已修复（053ff9c），独立复审关闭中项，受保护软件检查253 passed／50显式跳过。启动采样生成已审查，真实启动页的主机会话消费已完成源码增量（`4c0a62c`＋`d4594e3`，见顶部新节），真实 native startup 门仍未执行。新IP编译F4已完成 D1 封闭生产者选择（`cd4154a`，见顶部新节）；实际版本令牌、D2/D3 与复位波形门仍未完成。
+
+- **真正不同的新IP声明：** [PULP timer的CTRL0 F4声明](../reports/timer-f4-declarations-20261017.md)使用既有generic APB模板，D3导出4字节单word候选，无假引脚或默认写入；独立5项纯软件控制通过。源码存储合同已由51项纯软件检查及独立审查通过；只登记精确源码的CTRL0 reset/write/hold与地址别名，内部层次仍待真实验证。被动探针、生产者和版本跟踪源码已接入并分别审查；启动页主机消费与generic F4正在推进，内部层次、实际reset/storage/version以及CPU→timer连续门仍待真实验证。
+
+以上分别绑定冻结源码，**整个系统及 P6/P7/P8 保持未验收**。
+
+## 2026-10-17 后续实际增量
+
+以下证据分别绑定自己的冻结源码，不代表当前 HEAD 已完成联合验收；P6、P7、P8 保持未验收。
+
+- **BOOM 生成式 CPU/RAM（该独立入口的范围）：** [受源锁约束的入口](../../configs/cpus/boom/README.md)在两个新进程得到相同的598-cycle轨迹，14次AcquireBlock与14次GrantAck排空；fence后目标行响应从`0x123`替换为`0x122`，CPU随后保存`0x122`。此项单独仍未接通用Router；后续持久Runner/Router→GPIO与coherent补充门见下文及[当前适配状态](../reports/boom-adaptation-status-20261018.md)。
+- **第四系列真实 CPU 链：** [CVW→Caliptra SHA256→RAM](../reports/cvw-caliptra-cpu-chain-20261017.md)的最终门为 3 passed／100.00 秒。32 位 CPU 在一对持续进程计算 `abc`、`abd`，84 条实际寄存器事务与 CPU、Router、AHB 物理采样关联，fresh 轨迹一致；错误窗口和实际 CPU 字节写被拒绝。IRQ、持续搜索与认证前缀仍未覆盖。
+- **真实寄存器前置状态：** [GPIOEN live authority](../reports/gpioen-live-register-version-20261017.md)已实现源锁、原生进程／epoch／命令连续性与一次消费 token；保存日志为 4 passed／125.46 秒。它只支持精确的 GPIOEN 来源合同；尚不能独立授予编译 F4 端到端能力。
+- **标准 Runner 的 UART RX DMA 链：** [最终冻结门](../reports/dma-uart-rx-standard-runner-20261017.md)为 1 passed／80.79 秒；串行 `0x5A` 经实际 FIFO、DMA 读取、RAM 写入和 CPU ISR，两个 fresh 的 4,836 事件／1,097 步前缀一致。预算已包含 CPU→DMA→UART 间接时钟；持续搜索和认证前缀仍未验收。
+- **编译 F4 定向实际门：** [冻结 Ibex 门](../reports/compiled-f4-ibex-verification-20261017.md)的三例均认证，两次完整 fresh 重放匹配，真实入口 exit0。它绑定实际首取指、逐跳消费、私有输入与 live GPIOEN 版本；仍是定向实验范围，不授搜索、任意新 IP 或完整 D4。独立 native 证据复核进行中。
+
+### 后续代码接入与最新运行状态
+
+- BOOM 持久会话、标准 Runner 工厂与真实 GPIO 排队路由已在冻结提交 `8a3fed3` 完成真实门禁：[证据入口](../../configs/cpus/boom/evidence/persistent-runtime-20261017/README.md)。重新构建的持久驱动在两次 fresh 各产生 20,597 条完整事件且规范化前缀相等；实际 GPIO 读值 53 被交付为 52 后，CPU 保存 52 并写失败标志；抑制响应使 CPU 等待。build、gate、旧独立入口回归各自 exit=0。该 GPIO 程序仅出现 A/D；[同一新持久驱动的缓存 RAM 补充门](../../configs/cpus/boom/evidence/persistent-coherent-20261017/README.md)现已 exit0：两个 fresh 各 599 边沿、A21/C80/D164/E14，原始边沿与总线前缀完全相等，CPU 结果及 dirty backing RAM 均为 0x123。根代理独立重算 16 文件清单、两份全前缀和 scope 运行流一致；B/probe、IRQ 仍未覆盖。coherent 消费者对已保存真实 A/C/D/E 日志及软件拒绝边界的验证见[报告](../reports/coherent-events-verification-20261017.md)，不授原生来源权威。
+- DMA RX 已新增一次启动、多例不复位的 [continuous runtime](../../src/myfuzz/integration/dma_uart_rx_runtime.py)：固定 CPU 程序轮询 FIFO 状态、重装 DMA，ISR 保存实际字节并递增完成计数；记录完整批次并提供 fresh replay。实际运行暴露启动先后顺序及全前缀重复拷贝问题，均已修复；当前 `9eeff26` 软件聚焦门 60 passed，保持原 300 秒预算的实际 attempt4 已终态退出 1（218.49 秒）：四字节 0x5a/0/0xa5/0xa5 的单 boot 原执行完成全部逐例检查，但 fresh 全前缀比较失败，后续 host-bound 负例尚未执行。前置软件门 60 passed／71.07 秒。[原始失败包](../reports/evidence/dma-continuous-20261017/attempt4-prefix-fresh-mismatch.manifest.json)已保存；根代理正在原冻结源码上采集真实 replay 差异，不放宽比较或预算。此前预算失败保留，不计作连续数据流通过，不授持续搜索或 P8 验收。
+- 编译 F4 新增 [Ibex 声明式配置](../../configs/scenarios/compiled-f4-obi-apb-ibex/README.md)和 [公开文件入口](../../scripts/run_compiled_dataflow.py)，消费显式 capability、环境／归属补充声明及 8 字节候选记录。旧 CV32 fixture 因缺少实际原生错误信号而被当前 executor 拒绝；历史通过结果不能验证新 Ibex 配置。当前软件门 40 passed／1 skipped；真实初始化暴露的 immutable profile 私有复制问题已修复于 `bdeee0b`。第三次实际入口现已终态 exit0：三例均认证，两次 fresh 全前缀匹配，总 795.37 秒；实际执行例吞吐约 0.0146 例/秒，不能据此宣称搜索性能达标。不授覆盖引导搜索或完整 D4。
+
+- 同协议候选布局模块 `fd0f49a` 已按 D3 分配独立 source 位段，检查 mask/range/alignment 空域、限制总 source 与位数，26 项软件检查通过且独立复核无高/中问题。它尚未接生产 submit；当前真实 F4 仍执行旧八字节合同。无 error pin 合法 variant 的[设计与待验门](../reports/compiled-f4-no-error-variant-design-20261017.md)已明确，尚未实现。
+
+下文保留较早切片的边界；“尚未”以其对应报告的冻结版本解释。
+
+2026-10-17 六 CPU／四外设系列阶段记录：Ibex、CVA6、CV32E40P 已有各自生成式 CPU/外设真实链；CVW→PULP GPIO 已有双向定向真实链；VexiiRiscv 的受限双 AXI profile/session、CPU/IP 与 IRQ 门也已通过对应固定实例运行。BOOM 当时通过显式派生依赖生成真实 Verilog，并完成 coherent CPU/RAM 直接运行；“通用 runtime 与 CPU/IP 仍待接入”属于该时点的历史状态，现由[BOOM 状态报告](../reports/boom-adaptation-status-20261018.md)更新。Caliptra SHA256（AHB-Lite）已在两个新进程各完成91次寄存器访问，`abc`／`abd` 摘要正确，见[报告](../reports/caliptra-sha256-ahb-target-20261017.md)。OpenTitan、PULP、ZipCPU 与 Caliptra 的范围仍按各自冻结报告判定。
+
+F6 已有[Ibex＋ZipCPU wbdmac RAM→RAM 定向真实闭环](../reports/ibex-zipcpu-dma-irq-isr-directed-20261017.md)：CPU 自写四个源字并经真实 OBI 配置 DMA，DMA 四读四写持久 RAM，原生完成脉冲经声明的 pending-level latch 到真实 CPU IRQ，ISR 保存状态、目的值与分支成功标记；两个新进程完整规范化轨迹一致。又有[RAM→真实 OpenTitan UART TX FIFO 定向链](../reports/ibex-zipcpu-dma-uart-fifo-directed-20261017.md)：CPU 写源值 `0xA5` 并配置 DMA，DMA 实际 RAM 读取及 UART WDATA 写入使串行端捕获 `0xA5`，原生 IRQ 触发 Ibex ISR；修正版真实门 3 passed，含非法地址和超宽 WDATA 两个环境 ERR 对照。另有[真实 UART RX FIFO→RAM 定向链](../reports/ibex-zipcpu-dma-uart-rx-fifo-directed-20261017.md)：串行输入 `0x5A` 经物理 RX FIFO、DMA 原生读取和 RAM 写入，由 Ibex ISR 读回；远程真实门 2 passed／278.74 秒，两次 fresh 完整规范化轨迹一致，非法源偏移由环境 ERR 拒绝且不弹出 FIFO。修正后的 DMA session 又通过 TX 回归 3 passed／287.64 秒。三条链仍为有界 host 事务调度，缺持续搜索、通用来源链和认证前缀 replay，P8 保持未验收。P7 D2/D3 声明与产物链已有边界明确的 F4 executor：2026-10-20 用 CV32E40P OBI＋PULP timer APB3 在无 runtime family 情况下完成 4 个 certified case 与完整 fresh 重放。初次门后发现全量源码闭包已有一处漂移，保留旧证据并以当前树重跑；current-source binding 为 `a2577e08…f844d7`，478 个源文件闭包零差异，1,072 events 的 full fresh prefix 匹配（见[报告与当前证据](../reports/p7-f4-cv32e40p-apb3-sibling-20261020.md)）。该门只证明已登记 timer 合同，不等于所有 D3 路径均有 D4 runtime、P7-E 自动新 CPU/IP 端到端验收或 P7 整体完成；P6/P7/P8 仍开放。AHB-Lite 通用协议事件、checker、coverage 投影已实现；真实 Caliptra 保存的物理采样经过离线通用证据消费者复核，每个进程签发 91 条事务证书，篡改响应负例拒绝；在线 Runner/coverage 仍未接入。
+
+P7 新增[严格产物消费与拒绝报告](../reports/p7-d4-bounded-artifact-execution-20261017.md)：本地隔离真实 CV32E40P＋双 GPIO 使用本轮加载的三个 D2 artifact 跑连续 8 例，fresh 全量重放 4,021 个事件匹配；默认 D3 运行门因未声明的来源/绑定生产者及语义映射而拒绝，CLI 不再静默重建默认 artifact。此为显式 `loaded_artifacts` 子集，不授予 D3 自动运行或 P7 整阶段。通用 OBI [事件/检查器合成门](../reports/obi-protocol-events-20261017.md)之后，Ibex 生成式 runtime 已增加[两端点原始 OBI 被动 tap 真实门](../reports/ibex-raw-obi-protocol-20261017.md)：两次 fresh CPU/RAM 定向运行各由 100 个原始边沿样本认证 52 条事务，checker 零违约，末端 2 个请求仍在飞。[Runner 双端点接入](../reports/runner-obi-trace-set-20261017.md)又对其中保存的真实原始样本离线产出 52 条认证及数据端读写基础覆盖；该复投影不是当前源码的新 RTL 运行。后续[同次真实运行关联](../reports/evidence/cpu-ip-join-20261017/README.md)已把原始 OBI grant/response、adapter beat、Router 实际交付和 GPIO 原生 APB 关联为两条有界事务，最终真实门 1 passed／60.64 秒；响应数据/error、事务键、grant、目标采样和重复事件变异均被拒绝。它只授历史协议交付关联，存储版本、前置条件与功能语义标志均为 false，在线反馈仍未完成。Caliptra 已保存的真实 AHB 物理样本还通过离线通用基础覆盖消费者复核：两进程各 57 次读、34 次写、91 次成功响应，fresh 覆盖快照一致；在线 Runner 指导仍待接入。
+
+P7 [执行可行性复核](../reports/p7-d3-execution-feasibility-20261017.md)把 D3 的四条声明可执行路径逐条检查为当前 runtime 执行不支持：F1 缺 CV32E40P 认证退休观察；F4 编译源 GPIOEN `0x40001004` 与固定 decoder 候选 PADOUT `0x4000100c` 不同，真实 GPIOEN 写仅为启动阶段，不是候选输入；当时寄存器窗口 4096 字节对齐与访问地址 `+4` 的语义尚未拆分。CLI 现在输出机器可读的 `execution_projection.v1.json` 后拒绝完整 D3 运行；原 D2-only 八例真实门和 fresh 重放仍通过，P7 未验收。
+
+[后续寄存器源合同](../reports/p7-register-source-access-20261017.md)已明确把窗口 4096 字节对齐与 GPIOEN `+4` 的 4 字节访问对齐拆开，并对 CPU 数据端、目标、地址、操作、字节使能、保留位及伪读响应做严格候选校验；原来的对齐歧义已消除。GPIOEN 仍未接入实际候选 writer、寄存器版本证据和 checker，D3 执行继续拒绝；本地隔离真实八例与 fresh 重放再次通过。
+
+DMA 又已接入[标准 ScenarioRunner](../reports/dma-standard-runner-20261017.md)：普通 `step()` 驱动 CPU 配置和 DMA RAM→RAM、原生 IRQ 与真实 ISR，1,682 事件的完整 256 步前缀在第二组新进程逐事件一致，暖复位后 tick 连续；最终真实门 1 passed／54.07 秒。此入口当前只接 RAM master 目标；UART FIFO、持续搜索与通用认证前缀接入仍开放。
+
+其后[精确编译寄存器 writer](../reports/p7-d3-directed-register-writer-20261017.md)已使真实 CV32E40P 在 GPIOEN `0x40001004` 分别执行候选 `0x55`／`0xaa`，并关联原生 APB 写入、读回和 CPU 保存 RAM；两个完整 fresh 重放匹配。隔离真实门 8 passed／132.21 秒，按实例显式观察模式为 CPU=false、两 GPIO=true。它仍是定向 writer，尚未认证 `ip_register_version` 前置状态和编译断言 checker，完整 D3 继续拒绝。
+
+2026-10-13 **P6 行 3（AXI4-Lite）通用 IP 事件层增量：通用协议事件层新增第四种协议 `axi4-lite`、目标端模板契约 11→12、真实 `zipcpu_axiluart` 规划实测通过、并在真实 RTL 上投影出零违约的通用事务。** 范围是[P6 逐协议行适配清单](../superpowers/plans/2026-10-13-p6-per-protocol-row-checklist.md)的行 3；**该行结论仍为"未通过"**（缺口清单见该清单）。
+
+- **通用事件层（软件层）：** `scenario/ip_protocol_events.py` 新增 `_consume_axi4_lite`，投影 19 个从机侧角色（`awvalid awready awaddr awprot wvalid wready wdata wstrb bvalid bready bresp arvalid arready araddr arprot rvalid rready rdata rresp`），此前该层只有 `tl-ul`／`apb3`／`wishbone`。语义要点：请求由 **VALID 触发**（不由握手完成触发）；AW 与 W 可任意先后、写只被接纳一次；响应载荷与所应答的传输做**字段连接**；等待只在"该边沿没有推进"时计数（前置快照法）；**超时只施加于请求相位（AR/AW/W）**，已被接纳后的 B/R 等待只报观测；非 OKAY 响应码按测量值上报并另报 `protocol_error`；reset 切 epoch 取消所有在飞通道组。`scenario/ip_protocol_checker.py` 新增 `axi4lite_*` 违约检查（停滞期间载荷不得变化、VALID 未 READY 不得撤销、响应必须跟随自己被接纳的请求、单笔未完成、被保持的**请求**通道超预算）；**被保持的响应（B/R 迟迟不来）只作观测、不作违约**（AXI4-Lite 未给从机响应延迟设上限）。
+- **模板契约 11 → 12：** `local_harness/template_contracts.py` 新增 `target.axi4-lite` / `single-outstanding-error-codes`（仓库存量清单的**有意扩增**）；它是**从机侧**契约，与既有 CPU 侧 `cpu.axi4-lite` / `no-response-code` **不同**（从机驱动 `bresp`/`rresp`，CPU 侧契约不含该端口）。
+- **规划实测：** 新增 `local_harness/axi4lite_register_template.py`，`plan.py` 的 v2 白名单接受 `('axi4-lite','1')`；用真实 profile `configs/peripherals/zipcpu_axiluart/component_profile.json` 规划**实测通过**（19 个角色的方向/宽度与 RTL 顶端口一致：`awaddr/araddr` 4 位、`wdata/rdata` 32 位、`wstrb` 4 位、`bresp/rresp` 2 位）。
+- **真实 IP 暴露通用 trace：** `local_harness/runtime_renderer.py` 的 `axi4_lite_uart` 分支新增被动 `base_protocol_trace`（19 个 `trace_*` 端口，`channel='ip_protocol_trace'`）；`scenario/runner.py` 的两处 `kind_protocol` 映射新增 `'axi4_lite_uart': 'axi4-lite'`；`backend_ports` 19 → **38**（19 个驱动角色＋19 个被动抽头），`physical_exports` 仍为 **8**（抽头不参与输入所有权，这是**有意**的）。
+- **真实 RTL 正向证据：** 在 pinned `zipcpu_axiluart` harness 上写 SETUP(offset 0, value 25) 与 TX(offset 12, value 0x41)，从真实 RTL tick 样本投影出 `transaction_request`×2、`transaction_accept`×2、`transaction_response`×2、`transaction_timeout`×**0**，**零违约**；两次写完成的载荷携带**实测**地址与数据 `[(0,25,0,'write'),(12,0x41,0,'write')]`，且 TX 那个写的 `wdata` 与 RTL 自己解出的串口字节 `0x41` 一致。测试 `tests/integration/test_axil_uart_generic_events_real.py`（7 项）；本轮新增测试共 **32 项**（`tests/scenario/test_ip_protocol_events_axi4_lite.py` 12、`tests/scenario/test_ip_protocol_checker_axi4_lite.py` 13、集成 7）。
+- **仍未做（不得读作"已实现完整系统"或"已验收通过"）：** ①**CPU→AXI4-Lite→真实 IP 的端到端组合目前仍走 IP 专属的 `RegisterTarget`（路由器抽象）路径，尚未改走通用事件路径**；②**通用寄存器观测会话（`axi4lite_register_observe` 这一类 kind）尚未实现**——需要 beat→AXI4-Lite 的 RTL adapter 与一条新的 `ACCESS_AXIL_REG` 驱动命令；③**双向数据链的 RX 方向（引脚→RDATA→CPU 读回）在通用事件路径上尚未验收**；④**多例持久会话未做**（受控错误负例后由另一增量在 CV32E40P＋OpenTitan UART 上完成，见下）。**关于 Verilator：** 上述真实 RTL 数字**确实来自本轮的真实编译与运行**（pinned `zipcpu_axiluart` harness，786 个 tick 采样，`tests/integration/test_axil_uart_generic_events_real.py` 可复跑），**不是**遗留证据。早前版本的这段文字误写为"本轮未跑任何 Verilator 编译"，那是**只做文档同步的子代理对自身范围的声明**，被误置到全局结论里，已更正。本轮**未**运行 pytest 全量（只跑了定向回归）。
+
+2026-10-13 ★★★ **Task5 native 验收闭合：两门禁终态 PASS、独立 audit 双双 exit 0、正向 `ordinary_register_reset_default_certificate.v1` 产出并在 fresh replay 下复现。** cold（证书工具）generation **exit 0**、`status=complete`、377.646 秒、峰值 1,358,082,048／上限 3,429,535,744 字节、`dut_finding=false`；fresh **exit 0**、423.831 秒、`matches=True`、`first_difference=None`、五项断言相等且证书**逐字节同一**（`evidence_id=482723a6…`，经两次 generation＋一次 fresh 复现）。warm（记录式 resume／拒绝证据）generation **exit 3**（门禁拒绝裁决）、454.563 秒、0 证书、无掩盖的 `affecting_write_in_reset_interval`；fresh exit 0、408.213 秒、`matches=True`。独立 audit：cold **`passed_positive_certificate_and_fresh_replay`**（12,052 事件、1 证书、285 pins）、warm **`passed_terminal_refusal_and_fresh_replay`**（12,784 事件、0 证书），两者均重算身份/产物哈希、经 `_verified_register_bundle` 重建 bundle、活体校验三份通道文档、检查 lifecycle/epoch/命令游标连续性、重编译全部原始请求、校验 cache 构建，并交叉核对证书的 `evidence_id` 重哈希、seal↔reset-lifecycle、`read_access_ref`↔case-2 ordinary 记录、`ram_commit_ref`↔case-2 commit、`coverage_cursor`↔重算账本哈希。冻结身份（22/22 pins drift 0）：verifier `f04ec508…`、native_reset_evidence `feec776a…`、session_runtime `d49ea5cf…`、replay `37d308be…`、CLI `78fd8614…`。
+
+**证书关键字段（cold gpio_a）：** `proof_scope=observed_source_bound_reset_default_readback`、`reset_value=0`／`observed_reset_value=0`、**四项 grants 全 False**、`read_access_ref.observed_readback=0`、`coverage_cursor.command_count=105`（ordinals 155→259／sequences 1→105）、`reset_seal={barrier 6996, target_epoch 1, logical_process 2, cpu_source_epoch 1, runner_command_epoch 1, memory_generation 1}`、`ram_commit_ref={byte_offset 8, be 15, cells all 0}`；`readback_allowance={scope:observed_readback_only, irq_semantics_granted:false, class:source_reviewed_disjoint_state_write, permitted_command_ordinals:[177,181,185], permitted_registers:[PADDIR,GPIOEN,PADOUT], permitted_offsets:[0,4,12], inten_writer_source_lines:[217,234], irq_output_gate_source_line:138}`。gap 现已诚实：cold headline 仅 `[{gpio_b, affecting_write_in_reset_interval}]`（gpio_a 因出证而不在列表中），`interval_refusals` 逐 interval 发布（两 target epoch0 为 `missing_actual_reset_barrier_binding`，gpio_b epoch1 为 `affecting_write_in_reset_interval`）。
+
+**bundle 卫生修复（脚本侧，`exist_ok=False` 未动）：** `check.py` 在认证保存前把已存在的 `bundle/` 轮换为 `bundle-superseded-<UTC>` 并记入 `bundle-rotation.json` 与 `summary.bundle_rotation`；已证生效。`attempt-5-…save-blocked-by-stale-bundle` 记录为**保存阶段失败**、其前驱已签发同一证书，不得读作证书失败。
+
+**仍欠（后续会话）：** ①`LOCAL_HARNESS_RUNTIME.md` 运行能力表与阶段状态需据此更新（Task5 native 验收范围）；②因 verifier SHA 由 `4c90712e…` 变为 `f04ec508…`，**Task3b 的独立复核已失效、须在新 SHA 上重做**，Task 4/5/6 清单与两门禁 pins 亦须重指（`downstream-stale-pins.json` 记录 86 个产物）；③Task6 minimal-bootstrap 选取分支仍未接通；④P6/P7/P8（多协议复用、自动接入、F6 DMA）继续开放。Task3c（规则范围放宽＋gap 掩盖修复）已实现、冻结并通过独立对抗式复核 **ACCEPT-WITH-NOTES（无 Blocker）**；Task2c（增量验证）已冻结并经复核。cold generation `status=complete`、378.877 秒、`reset_default_verified: True`；证书 `proof_scope=observed_source_bound_reset_default_readback`、四项 grants 全 False、`read_access_ref.observed_readback=0`、`coverage_cursor.command_count=105`（与 Task3c 投影及门禁代理独立重算逐项一致）、`ram_commit_ref` 落盘 0、`reset_seal` barrier 6996/epoch1/cold、`readback_allowance` 带 `scope=observed_readback_only` 与 **`irq_semantics_granted=False`**、`permitted_command_ordinals=[177,181,185]`（恰为被宽恕的 3 条 bootstrap 写）。**Fix 2 生效：** `state.interval_refusals` 已逐 interval 发布，`gaps` headline 现为真实的 `affecting_write_in_reset_interval`（gpio_b），不再是掩盖值；**gpio_a 不在拒绝列表中（已出证）**。
+
+**本轮两个关键更正：** ①Root 上一轮把观察到一段时间未变动的 `native_reset_evidence.py = 4c8edce9…` 误当作"已冻结身份"并放行门禁，**该判断错误**——Task2c 从未声明冻结；门禁代理的纪律只花了 14.031 秒即在安装期失败（`ValueError: not enough values to unpack (expected 6, got 0)`，空元组哨兵 `_CONTENTS[self]=()` 与 `:292` 六项解包不匹配），**分类为"未跑完"、由当时的生产代码所致，非 DUT finding、非预算停止**，cold 全部 attempt 保留。**流程教训：宣布冻结前必须先在候选字节上跑通安装自测；"一段时间未变动"不等于冻结。** ②该缺陷在 Root 复核时已不复现：当前 SHA 为 `3a90d5a3…`，`_CONTENTS[self]` 已改为 `None` 哨兵并走 `revision=None` 分支，Root 实跑其自测得 **1 failed / 81 passed**，唯一失败是**真实 RED**——`tests/scenario/test_native_reset_evidence.py:844` 的 `assert 430 <= 12`（十次未变 validate 在 26 条缓存 fact 上执行 430 次昂贵逐 fact 腿，增量守卫必须有界）。
+
+**Task2c 的诚实缩围（值得记录）：** 其门禁规模测量（1106 facts／4,003,223 规范化字节）显示冻结 `_validate` 约 25.85 ms/次；"记忆化解码文档"对已提交前缀腿有效（11.42→1.50 ms，7.6×），而 **journal tie 不可约简**（14.43→14.42 ms，1.00×）——因为检出活动 journal 事件的**原地变更**必须读取该事件内容；唯一廉价的 `sha256(declared)`（1.4 ms）恰是有漏洞的类计数捷径。故最终设计为：内容派生的 `_revision`（折叠已提交记录＋保留的失败尝试行＋journal 长度）**只门控已提交前缀重建**，而 **live journal tie 每次调用全量严格运行、不依赖 `_count`**；实现方明说这是**部分收益**。
+
+**后续（须在新会话继续）：** Task2c 明确发送 "FROZEN"＋两个最终 SHA、且候选字节通过约 10 秒安装自测后，才可放行：`repin.py` 重指 19＋3 pins → 复核 22/22 drift 0 → **cold generation → cold fresh → warm generation → warm fresh**（`native_gate_budget.v3` 600 秒、单 worker、RSS 不变）→ 先取 **cold 逐字实测原因与真实读回**，再由 Root 作**规则范围决策** → 两门禁终态 PASS 后才做独立完整 JSON audit。角色固定：**cold＝证书工具，warm＝记录式 resume／拒绝证据**。仍待授权（合并为一次范围化重开）：**规则放宽**（允许与 INTEN 无共享状态的命令；RTL 依据已核实——`r_gpio_inten` 仅 `:217` 异步复位与 `:234` 自身 APB 写两个写入者，其余皆读）与 **gap 掩盖缺陷修复**（冻结 verifier `:513/:514/:523/:530`，pre-reset interval 以 `setdefault` 抢占并丢弃真正的 barriered 原因，致真实原因在产物中完全不存在；建议改为发布逐 interval 原因，诊断投影、fail-closed 不变）。
+
+- **native 门禁首次跑完整流程（预 Task2c 身份 `409af86e…`）。** 在 `native_gate_budget.v3`（600 秒）下 warm generation 完成 bootstrap→两个 case→reset→183 步 resume→post-reset case→`finish_export`→认证保存，`python_atexit` 于 442.06 秒，`worker.exit=3`（断言失败而非预算终止）、`dut_finding=false`、峰值 1,354,801,152 字节。**warm fresh 通过：exit 0、489.641 秒、`matches=True`、event_count 12,784 相等、`first_difference=None`**，`register_reset_default` 等全部 wrapper 与 semantic 一致——**拒绝文档在 fresh replay 下逐项复现**。
+- **正例失败的精确原因（经两次自我纠正后的正确分层）。** `reset_default_readbacks = {before: 2147483648, after: 2147483648}`、无证书、状态 scope 为拒绝式。真实原因**不是**"复位未投递"（该假设已撤回：渲染确实为 `assign dut_p_1 = ~reset` 且 `.HRESETn(dut_p_1)`，`driver_reset` 8/8 tick，`driver.cpp` 输出 0→1→0 真实脉冲；且新进程的 Verilated 实例按构造即处于复位值）。**真实原因为 `incomplete_command_in_reset_interval`，两种 policy 下的直接阻塞都是规则拒绝 bootstrap 的源码已知"无关写"**：gpio_a 首个 offender 为 **ord177/seq23 `ACCESS_GPIO write offset=0 value=255`**（PADDIR）判为 `unrelated_write`，gpio_b 为 **ord161/seq9 `offset=4 value=257`**（GPIOEN）；gpio_a 共 4 个 offender（另 ord181/185 无关写，**ord220 为重放的 INTEN `affecting_write`**），gpio_b 共 3 个。**故原因是分层的：无关写是两 policy 的共同阻塞；重放的 `affecting_write` 只是 warm 特有的第二层**——即 **cold 才是证书工具**（cold 清空指令槽，只有 bootstrap 重放且 resume 停在 `instruction_start`，读可观察到 0），**warm 只能作为"记录式 resume＋拒绝"证据**。
+- **规则放宽的 RTL 依据已由 Root 独立核实（决定下一步）。** `apb_gpio.sv`（`1e271914…`）中 `r_gpio_inten` **仅有两个写入者**：`:217` 异步低有效复位（清零）与 `:234` 其自身 APB 写路径；其余均为读（`:138`、`:260`、`:595`、`:605`）。**因此对 PADDIR/PADOUT/GPIOEN 的任何写都不可能改变 INTEN 的值**，候选解法（源码审查后允许"与 INTEN 无共享状态"的命令）有真实 RTL 支撑。**边界：** `r_gpio_en` 在 `:138` 门控 IRQ 输出，故它可影响"中断是否触发"但不能改变 INTEN 的值；放宽须限定在被观察读回范围内。**Root 明确不预先授权**，待 cold 的逐字实测原因到手后一并裁定。
+- **gap 掩盖缺陷（独立真实缺陷，已记录未授权修复）。** 冻结的 `register_reset_default_verifier.py`（`4c90712e…`）`:513` 逐 target、`:514` 按插入序收集 interval、**`:523 setdefault('missing_actual_reset_barrier_binding')` 先命中 pre-reset（barrier 为 None）interval**、**`:530 setdefault(reason)` 丢弃真正的 barriered 原因**。后果：已发布 gaps 指向错误原因，真实原因在产物中完全不存在，并把一轮调查引向并不存在的"复位投递"问题。建议修法为发布逐 interval 原因（诊断投影，fail-closed 不变）；**与规则范围决策合并为一次范围化重开**，不单独授权。
+- **Task4b（地址空间＋信封解包）已完成并获独立复核 ACCEPT-WITH-NOTES（无 Blocker、无 Important）。** 新 SHA：`session_runtime.py` `d49ea5cf…`、测试 `8b15bc5e…`（21→27 项）。复核者独立执行探针确认包含判定 `:946-948` 与旧 `:916-918` **逐字节相同（未放宽）**、无 off-by-one、40+ 畸形信封全被拒且零异常、23/23 依赖 drift 0。**门禁代理在两个缺陷修复前先报出第二个缺陷（信封），该做法正确。**
+- **Task2c（增量验证性能修复）进行中、未冻结。** 目标为冻结 `_validate` 的另一半重复（Task2b 已消除资格认证那一半）：实测门禁规模为 **1106 条缓存 fact／约 1.80 MB fact 文档／549 条命令**，逐 fact 的两条 JSON 腿（前缀重建 14.0 ms、journal tie 23.3 ms）主导，`dumps`+`loads` 约占其中 86%。已定设计：模块私有 `_revision(...)` 以 SHA-256 折叠**这些腿实际读取的全部内容**（含经 runner 自身 `_event_ref_by_id` 读回的活动 journal 事件与长度），**以内容派生指标解决 `event_journal.py` 只有 `_count`、无滚动摘要的漏洞**——已缓存事件的原地变更会改变该指标从而强制全量通过，无需改动 `event_journal.py` 接口。自报冻结约 40–60 分钟，并承诺在冻结、进入收据阶段**之前**回报两个最终 SHA。
+- **执行计划（锁定）：** Task2c 冻结 → 重指 19＋3 pins 并复核 22/22 drift 0 → **cold generation → cold fresh → warm generation → warm fresh**（`native_gate_budget.v3` 600 秒、单 worker、RSS 不变）→ **先取 cold 逐字实测原因与真实读回，再由 Root 作规则范围决策** → 两门禁均终态 PASS 后才做独立完整 JSON audit。角色固定：**cold＝证书工具，warm＝记录式 resume／拒绝证据**。
+- **已完成的软件半程及其复核状态：** Task3b（正向证书机制）、Task4、Task5（可信 assembly/file selector）、Task6（D2 minimal bootstrap 与 PADIN/INTSTATUS 拒绝守卫）四项软件半程均已完成并各获独立复核 ACCEPT-WITH-NOTES。**但因 Task2b 与 Task4b 先后改动 `native_reset_evidence.py` 与 `session_runtime.py`，Task3b/4/5/6 的收据与清单仍 pin 旧 SHA，其独立复核须在新 SHA 上重做**（Task2b 复核 I2 已要求显式声明此项）。
+- **Task6 遗留交接：** `ibex_pulp_register_replay._verify_bootstrap_plan` 的 minimal-bootstrap 选取分支与 `ibex_pulp_online.py:674` 硬编码 shipped bootstrap 尚未接通，故 minimal bootstrap 目前**已声明且可达性已验证但不可被运行选取**。
+
+2026-10-13 native 门禁阶段：Task2b 记忆化修复已生效，Task4 地址空间缺陷已定位并获授权重开。**仍无任何正向 `ordinary_register_reset_default_certificate.v1` 证据。**
+
+- **Task2b（用户授权的 Task2 范围化重开）：完成并通过独立复核 ACCEPT-WITH-NOTES（无阻断）。** 起因：冻结的 Task2 在**每次** `validate()` 内对每个 target 重跑昂贵的 native build 资格认证（`local_build_identity`→`build._prepare`→`_prepared_if_current`→`_validate_cache`→`_host_sources`），实测每次 `advance_initial` 触发 19 次 `validate()`×2 target＝**38 次重认证**，约 **68×** 于禁用路径（2.53 秒 vs 0.036 秒/组件步）；而完整门禁需约 430 组件步（≈18 分钟），计划第 25／235 行却把 native 门禁预算硬编码为 **180 秒**，故**任何已启用门禁都不可能通过**。修法：新增模块私有 `_QUALIFICATIONS` 并纳入实例 registry 元组、`_validate` 所有权比较与 `_IMPORT_REGISTRIES` 的**四路身份 pin**；`_native_build_qualified(name, life)` 以 `(target, 已提交 lifecycle_ordinal, 记录的 build_inputs_sha256)` 记忆化；`_drain` 提交 `kind=='lifecycle'` 时**显式驱逐**该 target 条目。实测 5 次 validate 重认证 **10→0**（1.664→0.014 秒，118×）、advance 形状重放 **38→0**（6.370→0.059 秒，**108×**），`_validate` 执行次数仍为 19（未改调用结构）。SHA：`native_reset_evidence.py` `180bd069…b2f3` → **`409af86efa09ac2efa5fc577c3fab3e8dabf0e4bd5dd4938ef006683a502f133`**；测试 `5f6539ff…e3a` → `f93c181c228e5fe531f2a31a1b25c2aaad0ad1d45fb3dd0912374358c211f945`。回归：81／25／132／21 全 exit 0。**诚实语义边界（授权范围内）：** 在同一个未变的已提交 lifecycle 内，首次资格认证之后的 build 字节漂移不再在后续 validate 上重检；但在**每个 lifecycle 提交边界**仍重算并拒绝，证据永久 incomplete，故 interval 无法铸出。复核者另证：同进程伪造 memo 被限定于该边界内，**错误 digest 的伪造键仍被拒**。收据见 [Task2b 清单](../../runs/stage2-e2-native-reset-task2b-memoization-20261012/task2b-source-manifest.json)与[独立复核](../../runs/stage2-e2-native-reset-task2b-independent-review-20261012/task2b-independent-review.md)。
+- **native 门禁：Task2b 效果已在真实门禁中确认，但被冻结 Task4 的地址空间缺陷拦在 reset 之前。** 159 个 bootstrap 步由修复前的 2.53 秒/步降至 **0.19 秒/步（28.66 秒完成）**，两门禁都跑完 bootstrap 与两个 case（write `0x80000000` 已验证、reset 前 read 已验证 `0x80000000`）。warm generation 166.165 秒／峰值 705,069,056 字节；cold generation 168.933 秒／峰值 705,122,304 字节；均 `status=command_failed`、`dut_finding=false`、预算与 RSS 上限**未放宽**。**三态分类：既非正向证书、亦非 verifier 拒绝/缺口文档，而是"在 reset 前被冻结生产代码拒绝"**；独立 audit 未执行（须两门禁终态 PASS），fresh 两阶段因无认证 bundle 不可达。
+- **缺陷（Root 已逐行复核，属真实生产缺陷，非门禁脚本问题）：** `session_runtime.py` 的 `_register_reset_default_selected_spans` 用 `request['result_address']`（**绝对**地址 65540）构造 span，而 `_register_reset_default_selected_commit` 以 commit 文档的 `byte_offset`（**内存相对** 4）做包含判定，`65540 <= 4` 为假 ⇒ **该 READ 自己写入的结果字节被误判为 unselected** ⇒ 守卫置 incomplete（`unselected_commit`）⇒ `session.reset()`（`:1370` → `:1004`）抛 `register-reset-default-unselected-commit`。门禁代理用直接调用冻结方法的对照实验证成：同一 commit、同一方法，**声明 span → selected False；解析器构 span → selected True**（[复现](../../runs/stage2-e2-register-reset-default-warm-20261012-v1/attempt-3-task2b-unselected-commit-refusal/selected-span-reproduction.json)）。**覆盖缺口：** Task4 现有唯一触及该路径的测试是反例（`tests/scenario/test_register_reset_default_session.py:556`），**无任何正例**，故软件复核未能拦住。**Root 更正自己的误判：** 上一轮我据 grep 零命中断定"门禁脚本漏调用 configure"是错误的——通道经冻结的 Task5 可信安装器在 `ibex_pulp_register_replay.py:140-145` 正确配置；`session_runtime.py:935-938` 在 `binding is None` 时提前返回，而异常在 `:1004`，该状态不可达，故 binding 必然存在。教训已记录：不得以 grep 的存在性代替对真实调用链的追踪。**用户裁定：重开 Task4 修正地址空间比较**（用与 `byte_offset` 同源的 `PersistentMemory.resolve_span` 构造内存相对 span，或等价地把 `byte_offset` 反推为绝对地址），并**补上缺失的正例测试**与边界反例（两侧恰好越界、不同 memory_id、generation 不匹配、非 CPU 组件、bootstrap/无关写仍不选）。Task4b 实现进行中。
+- **已完成的软件半程及其复核状态：** Task3b（正向证书机制，132 passed）、Task4（Session opt-in 闭包，241 passed 全回归 + 结构性 default-off 证明）、Task5（可信 assembly/file selector，66 passed＋34 subtests 默认关闭回归）、Task6（D2 minimal bootstrap 与 PADIN/INTSTATUS 拒绝守卫，15 passed）四项均已完成软件半程并各获独立复核 ACCEPT-WITH-NOTES。**但因 Task2b 与 Task4b 先后改动 `native_reset_evidence.py` 与 `session_runtime.py`，Task3b/4/5/6 的收据与清单仍 pin 旧 SHA，其独立复核须在新 SHA 上重做**（这也是 Task2b 复核 I2 要求显式声明的一项）。
+- **Task6 遗留交接：** `ibex_pulp_register_replay._verify_bootstrap_plan` 的 minimal-bootstrap 选取分支与 `ibex_pulp_online.py:674` 硬编码 shipped bootstrap 尚未接通，故 minimal bootstrap 目前**已声明且可达性已验证但不可被运行选取**。
+
+2026-10-12 ordinary native reset-default 推进（Task3b／Task4／Task5 软件半程封存；Task6 进行中）。按[专题计划](../superpowers/plans/2026-10-12-stage2-ordinary-native-reset-default.md)逐 Task 推进，当前状态与证据如下。**以下均为软件证据，`native_execution=false`／`build_execution=false`，尚无任何正向 reset-default 证书；native warm/cold 门禁尚未准备或执行。**
+
+- **Task3b（正向证书机制，范围化重开）已冻结封存。** 冻结的 Task3 原为拒绝式实现——`report()` 恒返回空证书、`proof_scope` 钉定 `source_bound_reset_default_refusal_only`——导致 Task5 所需的正向证书无实现路径，故按 Root 裁定范围化重开，补齐 `ordinary_register_reset_default_certificate.v1` 签发与校验，**不改变冻结拒绝语义**。verifier `4c90712e90db87a15bd0071769b51c3a8c7f9608a4420366bb9eff6692e76296`（原 `2294854660…b255f`）、tests `2354492ac83351ba0a383f02a971aac4531bc7e4efac41178bc84d4cc8f60ee1`（原 `7b6527f0…3e090`）；其余 10 项 Task3 基线输入经 Root 重算**字节相同**。证据：聚焦 33 passed／99 deselected／18.65 秒、Task3 全套 **132 passed／27.98 秒**（原 99 项拒绝式测试以字节相同 AST 保留，49 个冻结函数 0 缺失 0 修改）、Task2 三模块兼容 **92 passed／55.46 秒**。RED 在 trap 恢复冻结字节后单次串行取得（exit 1／11.27 秒，`AttributeError: '_certificate_for_interval'`），同 run 控制断言先通过，属真缺失 API。Root 复核：`configuration.proof_scope` 现恒为 `observed_source_bound_reset_default_readback`，拒绝值移至 `state.proof_scope`；`report()` 从 `NativeResetEvidence.completed_intervals()` 取区间并据此签发，故软件 fixture 下恒空、只有真实 native 证据才可能出正向证书。**未证明：** 活 `report()` 签发正向证书未被执行，归 native 门禁。收据见 [Task3b 运行目录](../../runs/stage2-e2-native-reset-task3b-certificate-20261012/task3b-final-source-manifest.json)。
+- **Task4（Session opt-in 闭包与 fresh 重构）软件半程封存。** `configure_register_reset_default(*, max_records=256, max_commands=4096)` 与 `register_reset_default_document()`，begin 前原子安装、无半消费者/半 provider。缺失 API RED exit 1／9.26 秒；聚焦 21 passed／84.07 秒；**五文件全回归 exit 0、241 passed／487.67 秒**，运行期间全 `src/tests` 哈希 before==after==now。默认关闭布局以**环境无关的结构等价**证明：递归骨架 pre/post 均 280875 字节、digest 均 `57d719dc263d8be9284d12a030be927ad8885a4e10eb04cf729460046597d656`，schema 仍 16／17、各层 key 集合不变、无新增/删除/改名键、`register_programs` 下无新 sub-row；Root 独立实跑 `-k default_off` 3 passed／36.17 秒、`-k optional_subrow_presence` 1 passed／25.41 秒。原始 digest 对比仅作带环境限定的补充观察（本次会话 `supervisor_available()=False` 导致 `_direct_elaboration` 且 `modules=()`），明确标注既非通过亦非回归。**未证明：** joined begin/reset/advance/resume、`finish_export`、正向 fresh replay 与正向证书均属 native 门禁范围，未伪造任何 eligibility/token/fact/certificate。
+- **Task5（可信 assembly/file selector）软件半程封存。** 新增封闭 `register_reset_default={max_records,max_commands}`、条件源码闭包联合分支、可信 file selector 与 CLI 接线；`--require-register-reset-default` 为**只能更多拒绝**的 demand 标志，无调用方供值路径。真 RED exit 1、3 failed／6.05 秒（`TypeError: make_register_assembly() got an unexpected keyword argument 'register_reset_default'`），首轮 setup 错误单独归档不计为 RED。GREEN：新建测试 Root 独立实跑 **37 passed／137.05 秒**；`green-combined-resume` 45 passed／159.40 秒；`green-resume-alone` 8 passed／24.87 秒；默认关闭 selector 回归 **66 passed＋34 subtests／634.44 秒 exit 0**（此前 0 字节与 3 字节的无效捕获已降级标注为 not evidence）。结构不变量经 Root 独立实测：默认关闭 **16 键／闭包 38 行／零 native-reset 模块**，启用后 **19 键／闭包 282 行**且 `register_reset_default_verifier.py` 仅在启用时进入；源码 manifest 仅封存自有 3 文件，另 16 项他方依赖按名+SHA 引用，Root 重算 **drift 0**。安装顺序按 Root 裁定改为 Task3 verifier **先于**可选 `RegisterProgramVerifier`（冻结 Task3 构造函数要求 `runner._register_program_verifier is None`），计划 L227 的行文顺序被拒绝且有通过性负例。**未证明：** 无正向证书；已启用的 selector 读写路径须由 native 门禁端到端证明。
+- **Task6（剩余 reset 义务）进行中。** 两项只读审计已完成：[minimal-bootstrap 可行性](../../runs/stage2-e2-native-reset-task6-bootstrap-audit-20261012/bootstrap-audit.md)证明计划该 bullet **按字面不可满足**（零 DIR/OUT/GPIOEN/B.INTEN 写可达 online missing slot，但 ISR 副作用不可观察：`apb_gpio.sv:138` 使中断恒 0、`:199` 冻结 pad 同步器），Root 遂裁定采 **D2**——bootstrap 不写任何被禁 GPIO 字，B arming 移入 reset-default 读之后的记录式真实路径，并把主张改写为"固定 ISR 字节保持存在，且在记录式 arming 后被执行"；[PADIN/INTSTATUS 源码语义](../../runs/stage2-e2-native-reset-task6-padin-intstatus-audit-20261012/padin-intstatus-audit.md)裁定 PADIN 与 INTSTATUS 均 **NEEDS-ADDITIONAL-SAMPLING**（INTSTATUS 在现行约束下 NOT-SUPPORTABLE：读取即条件清除，碰撞时清除被跳过并 OR 保留，表征需同 HCLK 边沿观察而计划禁止为此启用 routed causal probe），**两者保持现行拒绝**，不得放宽 `_READ_EFFECTS`／`_WRITE_EFFECTS`／`CLEARING_SIDE_EFFECTS`；并发现真实 RED 缺口——verifier 套件对两寄存器**零引用**，即今日的拒绝未被测试覆盖。实现代理正在补齐。
+- **独立复核：** Task4 与 Task5 的精确 SHA 对抗式复核已并行启动，输出分别落 `runs/stage2-e2-native-reset-task4-independent-review-20261012/` 与 `runs/stage2-e2-native-reset-task5-independent-review-20261012/`。**在复核通过前，Task4／Task5 均不视为已接受。**
+
+冻结基线：Task1（3 文件）、Task2（2 文件）、Task3b（2 文件）与 profile/sidecar/RTL/probe 在并发编辑下经 Root 多轮重算保持完好；仅各 owner 自有文件按其裁定被修改。native warm/cold 门禁因源码闭包含 `session_runtime.py`、`register_program_runtime.py`、`ibex_pulp_dual_source.py`，须待 Task5／Task6 双方冻结后串行准备与执行。
+
+---
+
+以下为历史记录。Task3 软件范围已闭合（拒绝式，无正向证书）：精确候选 verifier SHA `229485466093033be9f96c38bfc8dfbd757c92daf7ca93912577964b04fb255f`、tests SHA `7b6527f0530869cb0c497517f06d927d5e59e668a1376ae053413630dbd3e090` 通过 Task3 99/99 与 Task2 兼容 92/92，两份独立精确 SHA 复核放行该 refusal-only 范围；收据与 12 文件源码归档见 [Task3 运行目录](../../runs/stage2-e2-native-reset-task3-software-20261012/path-mro-final-task3-receipt.json)。该段随后由上方 Task3b 范围化重开取代。
+
+2026-10-12 Task3 software-only refusal step accepted at the frozen Path-MRO candidate after independent exact-SHA security and source-contract reviews. Full Task3 regression: 99 passed / 18.04s; Task2 three-module compatibility: 92 passed / 52.79s. Verifier SHA 229485466093033be9f96c38bfc8dfbd757c92daf7ca93912577964b04fb255f; tests SHA 7b6527f0530869cb0c497517f06d927d5e59e668a1376ae053413630dbd3e090. Receipts and 12-file source archive are under runs/stage2-e2-native-reset-task3-software-20261012/path-mro-final-*. No native/build or positive certificate.
+
+支持边界：拒绝标准类属性改写，并假定加载中的 Python 代码对象完整；不覆盖直接改写 function.__code__、显式 type.__setattr__、同进程任意私有 Runner slot 改写，或 pathlib 内部对象/module helper 改写。Task3 只证明 source-rule/refusal 软件路径；不授 native reset certificate、functional 或 verified L2。原 Stage2 D5/D6/D8、完整 E1/E2 与 E3–I 继续开放。
+以下按时间记录的旧状态仅作过程证据；其中 Task3 仍在进行或未接受的表述已由本文件顶部与最终执行检查点更新，不代表当前状态。
+
+Task3继续中，尚未最终接受。首轮缺API RED为7 failed／9.58秒；后续偏移分类、reset_local、命令形状、sidecar evidence_ref、预构造方法表、source常量/loaders/serializer/resolver、保存规则/来源闭集均有独立RED并保留。此前43-pass候选（13.12秒，`sealed-source-refusal-green.stdout`）仍未接受；实现方随后新增target identity/window/register-name RED（3 failed）与authority consumer/rule projection RED（2 failed），两份输出保留在Task3 run目录，正按精确target及私有projection修复。当前没有冻结源码或最终receipt/manifest，独立精确SHA复审尚未完成。profile仅声明INTEN offset/access/plain-RW，没有reset_value；sidecar字段及钉定RTL异步reset均为0，任何报告都须保留`profile_reset_value=None`。Task3只做source-rule conformance与fail-closed software refusal，不注入native eligibility/private facts/tokens/intervals/certificates，不运行native/build。
+
+Task2软件核心已通过独立精确SHA终审，允许进入Task3受限软件实现。最终三模块回归92 passed／54.18秒，六源SHA前后稳定，`git diff --check`通过；独立复审核实此前全部Task2阻断均已关闭。收据：[92-pass回归](../../runs/stage2-e2-native-reset-task2-software-20261012/lexical-accessor-final-green-receipt.json)，字节manifest：[源码pins](../../runs/stage2-e2-native-reset-task2-software-20261012/final-source-lexical-accessor-manifest.json)，终审：[Task2 PASS报告](../../runs/stage2-e2-native-reset-task2-software-20261012/final-review-lexical-accessor-candidate.md)。Task1保持冻结；Task3仅做source-rule conformance与fail-closed refusal软件测试，不伪造native eligibility、private facts/tokens、intervals或certificates。成功Runner begin/reset barrier和native qualification仍未验证。
+
+并行终审追加发现：词法wrapper仍调用动态读取 `_NATIVE_RESET_RUNNER_TABLE_ACCESSOR` 和 `_native_reset_runner_method_table` 的原始安装体；同步伪造 accessor/tuple 并替换 Runner method，可能把篡改表重新采纳为基线。v2最终字节三模块回归已完成90 passed／53.28秒，六源前后SHA一致且diff --check通过；收据为[lexical-runner-entry-final-v2](../../runs/stage2-e2-native-reset-task2-software-20261012/lexical-runner-entry-final-v2-green-receipt.json)，manifest为[final-source-lexical-runner-entry](../../runs/stage2-e2-native-reset-task2-software-20261012/final-source-lexical-runner-entry-manifest.json)。但独立终审发现Runner method-table accessor/tuple可同步替换并让篡改方法作为新基线，90-pass候选不接受；继续Task2 RED→GREEN，Task3/native门禁不启动。
+
+2026-10-12 追加进展：独立复审进一步确认同步替换Runner preconstruction checker/expected tuple，再替换NRE constructor/method table，可使issuer注册后才失败；有效RED应同时断言所有observer issuer为空、Runner evidence仍为空、failed_install仍为False。实现代理已复现组合RED并落地Runner install词法wrapper，聚焦回归运行中；首次导入顺序的隔离验证及新候选完整回归、精确SHA复审待完成。Task2仍未接受，Task3和native门禁不启动。
+
+2026-10-12 Native reset-default 最新：Task2预构造器anchor候选三模块完整回归87 passed／44.85秒，聚焦5 passed；真实RED证明旧路径会留下issuer。精确SHA终审发现Runner的pre-construction check函数别名与guard tuple可同步替换，再配合NRE构造器和方法表替换绕过检查并在issuer注册后才失败。87-pass候选不接受，新一轮Task2 RED→GREEN修复中。候选SHA为collector 180bd069ff3daeb7c03b78f24d114f5fcd7e15ee74b8dbe5240420b17ca0b2f3、Runner c3362d9bbb6e102f92ad84a2241b0b78f880f70d43572f302869b2bf469be352、tests 8ceacac772747fa63602dcadbe4ae5c5e4c0212ef9d4bb26c8b8a3eb462ce9e7；六源前后SHA及git diff --check已独立核对。详见[执行检查点](../reports/stage2-e2-native-reset-default-root-execution-20261012.md)、[87-pass收据](../../runs/stage2-e2-native-reset-task2-software-20261012/preconstruction-anchor-final-green-receipt.json)、[独立复审记录](../../runs/stage2-e2-native-reset-task2-software-20261012/final-review-preconstruction-anchor-candidate.md)、[新RED收据](../../runs/stage2-e2-native-reset-task2-software-20261012/preconstruction-anchor-red-receipt.json)及[Task3准备审计](../../runs/stage2-e2-native-reset-task2-software-20261012/task3-ready-audit.md)。Task3实现需等Task2终审清楚。未运行native；Runner成功全域reset和native eligibility仍未验证。
+
+2026-10-12 native reset-default：Task1 helper/code pins、global fact ordinal、guard-dispatch alias与end_case cleanup边界均有RED→GREEN；两个Task1文件26项通过，六文件兼容回归59 passed＋15 subtests。独立终审核对五个当前源码／测试SHA且无scoped blocker，Task1现已冻结；Task2真实provider RED证明缺少Runner install API。用户多次要求继续处理，按保守延续方案推进：保持Task1冻结，在软件侧完成Task2核心，再把完整成功Runner barrier和native eligibility留给监督native gate。第二次独立复核确认`ScenarioRunner.begin_test()`无条件调用真实`prepare_local()`，后者会build并覆盖软件worker；`reset_all()`要求Runner真实运行。Task2首个精确SHA候选40项软件回归通过，但终审发现barrier外`reset_local()`可被公开snapshot drain后愈合为complete，且部分helper／registry／reader／hash／dispatch身份在install时动态捕获；计划复核还确认Runner缺少Task3 reset-default verifier的actual memory commit pre-ack消费hook。该40项结果和SHA降为历史候选。新增10项真实RED（barrier外reset＋9种安装前别名替换）已由修复候选聚焦回归10 passed／9.83秒；actual CPU→MemoryService→commit pre-ack hook真实2 RED→2 GREEN，未伪造token。修正只写探针语义断言后的完整三模块回归68 passed／34.53秒，receipt及字节manifest均记录exit 0和前后SHA稳定；但随后独立精确SHA复审发现安装前替换baseline-checker可绕过其他身份pin、journal consumer append回调异常缺少Runner/evidence uncertain处理，并指出authority配置与消费者注册次序需固定，故68-pass候选暂不接受。旧66/2失败receipt保留；新一轮RED→GREEN修复中，无native gate。详见[根执行检查点](../reports/stage2-e2-native-reset-default-root-execution-20261012.md)、[Task1回归收据](../../runs/stage2-e2-native-reset-observation-root-final-compat-20261012/receipt.json)、[当前68-pass历史收据](../../runs/stage2-e2-native-reset-task2-software-20261012/unbound-reset-import-commit-final-v2-green-receipt.json)、[第二轮复审记录](../../runs/stage2-e2-native-reset-task2-software-20261012/final-review-v2-candidate-20261012.md)、[Task3契约审计](../../runs/stage2-e2-native-reset-task2-software-20261012/task3-contract-audit.md)。
+
+Task2 baseline accessor 负例真实RED（1 failed／9.06秒）证明安装前替换`_native_reset_runner_method_table`未被拒；首个修复候选完成40项软件回归（Task2 core 30＋ordinary Runner 10）exit0／34.24秒，前后SHA稳定，见`runs/stage2-e2-native-reset-task2-software-20261012/baseline-accessor-final-green-receipt.json`。终审发现barrier外target reset可被snapshot愈合、helper／registry／reader／hash／dispatch别名在install时动态捕获；另经计划复核确认Runner虽预留`_register_reset_default_verifier`字段和preflight读取，actual commit drain尚未在acknowledge前分派给此consumer或为它stage token。上述40项候选SHA为collector `4d9082ba35b36e48d7c5ff494863151b0a4f68548a9cf559bf4f9b810951f70a`、Runner `34eb008220304dc8ff7f239f94677b8e9a53a48166a7c66bc9d35af1d4753cb5`、tests `ebce06ab4d4b2f058b71a965e0fef4fac9f054ad505506014b00dcc3631de99f`，仅作为旧候选历史pin。后续修复候选新增外部reset与安装前替换拒绝、实际commit pre-ack消费hook，完整三模块回归68 passed／34.53秒；但独立复审又发现checker自身可被安装前替换，journal append中的下游consumer异常不降级Runner/evidence，并要求明确authority建立及consumer注册顺序。当前候选不接受，新一轮RED→GREEN修复中。成功Runner begin/global-reset域转换、native eligibility及native build检查性能未验证；没有运行native。
+
+2026-10-12 zero／fullmask实际门禁当前状态：generation50928已终态exit0／complete，152.13179933300125秒、workers1、峰2,590,924,800 bytes低于3,251,445,760限额。实际14cases／20确认关联／9RAM／28,995events，4alias＋9READ＋1plain共14证书、gaps=[]；实际B.INTEN写读0及13条native IRQ quiet snapshots为0，zero操作不变／full SET为ffffffff／full CLR为0。60总APB与完整cached currentinputs待独立产物audit。semantic SHA `7f1ea66fd9c05f9592ed49be66c7bf03e2f519b91ad35c9d6c5242b6730664c1`，identity SHA `974ffd0d7967cdb04cdee6e4acc03f47834cf93e362258347dcb04687097ad18`；见[实际摘要](../../runs/stage2-e2-register-alias-mask-verifier-20261012-v1/summary.json)与[资源记录](../../runs/stage2-e2-register-alias-mask-verifier-20261012-v1/resource.json)。fresh85373已终态exit0／complete：166.55756382399704秒、workers1、峰2,641,014,784 bytes低于3,242,532,864限额，完整fresh比对通过；独立最终产物audit已PASS：283pins／9产物／14exact重编译／28,995events／20关联／60APB／9RAM／14封存access／14证书、13 IRQ quiet snapshots及CPU／GPIO B各1,152条raw采样零值核对；完整fresh／resources／3个current cache／source一致。zero/fullmask scoped native包已审计通过，完整Stage2及native reset／权限矩阵仍未完成。原非zero/fullmask四括号audit通过保持历史；完整Stage2及actual reset／权限／width／mask／effects矩阵仍未完成。
+
+2026-10-12 alias实际门禁当前状态：generation74397已终态exit0／complete，164.01385019000736秒、workers1、峰2,355,449,856 bytes低于3,176,628,224限额。12cases／18确认关联／8RAM／25,237events，4alias＋8READ证书、gaps=[]；semantic SHA `e744874aa3c1660c455f081713c9c77d406734156db92717a1136911420d1ae0`、identity SHA `8019be229437fb9b1784f7a0d6cca2d1aa8705246374fb7ed486fe62262c6c81`。见[实际摘要](../../runs/stage2-e2-register-alias-verifier-20261012-v1/summary.json)与[资源记录](../../runs/stage2-e2-register-alias-verifier-20261012-v1/resource.json)。fresh11283已终态exit0／complete：153.30511558598664秒、workers1、峰2,359,955,456 bytes低于3,156,848,640限额，完整fresh比对通过；generation与fresh各自独立180秒预算。独立最终产物审计已终态exit0／PASS：283项pins／9认证产物／12exact重编译／25,237events／12封存access／8READ＋4alias证书／18关联／8RAM／54总APB；资源与阶段顺序、plan SHA、journal及全部fresh报告比对通过。四括号scoped包已审计，完整Stage2仍未完成。源码／脚本继续冻结，历史产物保留；最终037软件2 passed／165.70秒仍仅软件证据。完整Stage2未完成，zero／fullmask及actual reset／权限／mask／width／effects矩阵保留后续要求。
+
+2026-10-12 最新工作：alias v3 production 声明已迁移并按实际 RTL SHA/行号审查，composition114项＋2subtests通过。Live alias rule 首版7项通过，最终源码加入严格endpoint scope及saved alias闭合校验，当前verifier SHA637f713c387c989bd0d3342fbead34842dc08b292e80dad8dae2196b82317994。实际SET/CLR saved comparison先2RED，补纯校验后24项通过（48.62s）；最终live、生产保存/fresh、完整genericcomponent私有链与独立边界仍在执行，未运行alias native gate。下述v5 gate属于alias源码/data修改前的历史冻结证明，不代表当前alias版本已native通过。完整Stage2、E1/E2与reset/permission等完整范围保持开放。
+
+
+2026-10-12 当前检查点：v5实际 generation 已终态 exit0／resource complete，单worker 178.410330162秒，峰2,626,240,512 bytes低于3,125,706,752限额；原14 cases与完整ordinary／verifier验证范围保持。production fresh CLI串行重试已终态exit0／complete，167.28877223400923秒、available5,320,716,288 bytes、峰2,667,540,480 bytes低于3,173,232,640限额，workers1；完整semantic／event count／ordinary／verifier／preflight比对通过。见[fresh结果](../../runs/stage2-e2-register-verifier-cli-20261012-v5/fresh-cli-verification.json)。独立最终产物审计已通过（exit0）：9认证产物／283项当前源码pins／29,985events／14次exact重编译／13证书／21封存access／28关联／6RAM，fresh全部wrappers及preflight完全相等，两阶段resource均complete；见[独立审计](../../runs/stage2-e2-register-verifier-cli-20261012-v5/independent-audit.json)。本轮scoped verifier／保存／fresh包已闭合，完整Stage2仍未完成；下一包按declarative generic关系推进SET／CLR alias行为及非空saved-file回放，不授aggregate L2或functional。首轮与大JSON只读审计重叠导致RSS budget_terminated，return124／7.965711960秒的失败证据保留于[首轮归档](../../runs/stage2-e2-register-verifier-cli-20261012-v5/fresh-attempt-1-rss-budget-terminated)，预算策略未提高；generation与fresh各用独立180秒预算，不是combined180通过。见[实际摘要](../../runs/stage2-e2-register-verifier-cli-20261012-v5/summary.json)及[资源记录](../../runs/stage2-e2-register-verifier-cli-20261012-v5/resource.json)。当前build SHA `06334fedf08cacd861806362dc216026af3b426cd80be2ceb10929ff2197056c`、integration SHA `7fe28b291fd2f2164db5edcaffd6ad7b8c0a5a6a52d43d82f87cc974c8583774`已核对；旧v4完整保存但wall_timeout证据保持历史。D5／D6／D8、完整E1／E2及E3–I继续未完成。
+
+2026-10-12 最新执行：窄READ及scoped verifier软件边界已验证；v2真实14case/28确认关联/6RAM/29985events通过（140.50秒），production可信file freshCLI独立通过（133.80秒），完整state/semantic匹配，A/B各148declared/142effective/0verified、L1。首次factory固定READ16失败已补RED修复并保留产物，最终独立audit通过 findings=[]。下一包Session verifier opt-in已有8缺API RED＋1defaultoff GREEN，生产未实现；完整Stage2/E1/E2继续。详见[执行报告](../reports/stage2-e2-register-verifier-execution-20261012.md)。
+
+
+初期执行记录（后续v2结果见上）：2026-10-12 寄存器行为 verifier／窄字段实际CPU READ 执行中：三子代理并行，Root completed-access封存4RED→31GREEN，actualreadback/reset/mask/permission/effects与exactfield能力继续，未授storage/functional/aggregateL2，未运行本轮新DUT。见[执行报告](../reports/stage2-e2-register-verifier-execution-20261012.md)。
+
+2026-10-12 production ordinary APB Session／assembly／可信file fresh CLI已实现并验证：真实10case新增18关联，加bootstrap6条共24完整snapshot，22387事件；分阶段freshCLI exit0，原组合180秒超时保留。默认38/40、启用278项闭包，全部grantsFalse，原Stage2/E1/E2仍继续。见[执行报告](../reports/stage2-e2-ordinary-access-production-replay-20261012.md)。原 Stage2／E1／E2继续。
+
+2026-10-12 ordinary APB Runner association 软件包已实现并独立复核：实际 CPU closure／请求与响应绑定、私有 parsed sample digest／callback confirmation、命令前解码和容量检查、raw/base 独立 journal 引用及 reset 缺口处理。最终覆盖212个不重复软件测试／34子测试：联合211pass／1旧fixture失败，最终Runner模块10pass补证，生产SHA无漂移；详情见[执行报告](../reports/stage2-e2-ordinary-access-association-20261012.md)。未运行新DUT门禁，生产Session/assembly/fresh回放和行为verifier继续执行，E1/E2及完整Stage2仍未完成。
+
+2026-10-12 ordinary APB receipt 第一软件包已实现并独立复核：默认关闭的目标端实际 command／APB 边界 receipt 与 Router 真实事务交接；根十模块 **166 passed／34 subtests（128.51 秒）**，独立19项与容量／身份2项通过。typed identity、tick基址错位、同epoch新进程ID覆盖、容量漂移及合法read sourcewdata拒绝均有RED→GREEN；callback确认交付与同步返回分开，失败不重执行。仅 target command observation，不授 storage／verified／functional。未运行新RTL，Runner raw/base journal关联、生产opt-in replay接线与行为verifier仍待继续，E1/E2及完整计划保持未完成。 见[本轮实现与验证报告](../reports/stage2-e2-ordinary-access-receipts-20261012.md)。此前实际gate仅证明各自冻结版本。
+
+
+2026-10-12 最新增量：production capability preflight 与可信文件回放接线已通过实际门禁（单worker exit0）。最低L1启动，GPIO A/B各148 declared／78 effective／0 verified，10cases／54APB／2RAM／22339events与fresh CLI报告完整一致；46源码pins／40生产闭包，154.998309826秒，峰2,472,001,536 bytes低于3,291,369,472限额。独立产物audit已通过：46／40源码闭包、9认证产物、10重编译、18CPU交付、54APB、2RAM与cache279／279／348输入一致。见[独立审计](../../runs/stage2-e2-register-capability-cli-20261012/independent-audit.json)。代码与软件范围见[本轮报告](../reports/stage2-e2-register-capability-preflight-20261012.md)，[实际摘要](../../runs/stage2-e2-register-capability-cli-20261012/summary.json)。E1／E2仍未完成，剩余可信分操作verifier与实际reset／权限／mask／width／已支持副作用行为。下列旧CLI／audit结果保留其冻结版本身份。
+
+上一冻结版本结果（未启用capability preflight）：2026-10-12 E2可信保存文件CLI门禁执行通过（exit 0）：10 cases（8次窄字段显式CPU RMW＋2次DIR／OUT full-word READ）、54条实际APB边界、2次read→RAM认证commit；保存plan为schema16，production `replay-register-programs` 从fresh实际factory／before-begin adapter重编译原requests，完整22,339events matches，semantic SHA `0ddbd7be8c0a956d2997957bf0c064fce4036f2ef4de0df576a98115af4feb08`。verification scopes为 `register_program_reconstruction`、`register_program_admission`、`online_complete_prefix`；identity SHA `d2a480c0a9e889930782de5e79f083fe4d2bc595f01d1845ca883c6cab9f9277`。44项冻结source pins包含38项生产selector闭包，单worker complete137.546529879秒，峰2,442,502,144 bytes，RSSlimit3,231,547,392 bytes。根软件105 passed／26subtests（136.20秒），另2项保存投影positive通过（9.85秒）；独立软件35 passed／24subtests，selector完整16 passed／24subtests（63.45秒）。独立产物audit已通过：44项源码pins／38项production selector闭包／9项authenticated artifacts、10次当前上下文重编译／18次CPU MMIO交付／54条raw APB边界／2次RAM commit／22,339events及3个cache binary的278／278／347项冻结输入核对一致。E1仍为14寄存器／72字段declared范围；E1／E2完整阶段checkbox保持未完成，schema17已实现并软件验证；真实注入fault门禁不是原计划新增验收前提。原计划剩余为capability等级证据与实际reset／权限／mask／width及已支持副作用行为验证，不授functional、verified L2、RFuzz或BFM。旧四字段／helper／runtime门禁按各自冻结版本保留，不能证明本轮改动。 见 [新门禁摘要](../../runs/stage2-e2-register-file-cli-20261012/summary.json)及[E2报告](../reports/stage2-e2-gpio-cpu-register-progress-20261011.md)。 见 [独立audit](../../runs/stage2-e2-register-file-cli-20261012/independent-audit.json)。
+
+新生产接口为 `make_register_assembly()`、`make_register_factory()`、`make_register_runtime_factory()`、`save_ibex_pulp_register_bundle()` 与 `replay_ibex_pulp_register_files()`。Session在declare slots后、begin前安装实际adapter；schema16保存正常register前缀，schema17保存真实uncertain attempt的phase／case_index与nullable Session failure，均包含原requests／完整配置及actual gate_state。可信闭集ordinary GPIO assembly固定native observation／memory commit／installed persistent gate，checker=None；默认关闭时38项源码闭包（启用preflight时40项）、artifact SHA、trace事件语义、plan／manifest／terminal state先验证，fresh执行只重编译原requests，不以saved paths／bytes／regions恢复授权。
+
+历史检查点（按当时冻结源码；本轮结果见上）：2026-10-12 E2 schema16／17与可信文件入口生产接线已冻结：runtime失败phase／actualcase索引／256字符请求上界／uncertain停止Session命令；Session保存完整manifest与actual gate_state，fresh仅从原request重编译，不用saved bytes注册；closed assembly与production replay-register-programs CLI已接。嵌套闭集、totalattempt容量、Unicode canonical、38项selector源码闭包、trace语义及fresh plan SHA检查已补RED→GREEN。根最终五模块105 passed／26subtests（136.20秒），另窄字段RMW／READ保存投影2项通过；独立35 passed／24subtests，selector16 passed／24subtests，新Session19 passed。此前联合200pass／29subtests＋旧空字典fixture失败已记录并修正test-only，不放宽production。新runs/stage2-e2-register-file-cli-20261012监督器已启动，singleworker180秒，尚待实际终态及独立audit；不预授RTL／CLI或完整E2通过。
+
+2026-10-12 E2保存接线新检查点：runtime phase／实际case索引、prebegin enrollment和短期提交许可8项RED→GREEN，request文本上界与接纳不确定后停止Session其他命令7项RED→GREEN；runtime模块52 passed（11.42秒）。Session schema16／17与fresh重编译基础7项已通过，后续失败前缀／总attempt容量／嵌套闭集负例仍检查；可信selector15项软件检查，source closure补authority分发及raw协议三个依赖，新CLI门禁已准备但未执行。上一轮actual adapter门禁仅历史冻结版本，本轮不预授RTL、file-selector或完整E2通过。
+
+2026-10-12 E2保存重放接线执行中：已复现5项失败边界RED并补runtime attempt phase／实际case_index，42 passed（10.61秒）；另3项constructor enrollment／提交token测试RED，Session安装hook与schema16／17、fresh request重编译、可信assembly／CLI由子代理并行实现。当前生产SHA已变化，上一轮10case真实adapter／RMW门禁仅证明其冻结版本；本轮尚无新RTL或file-selector验收，不授E2完成。
+
+下一执行点：保存／schema16／17／可信CLI接线已实现，实际schema16门禁与独立audit已通过；按[最新next-steps](../reports/stage2-e2-register-replay-next-steps-20261012.md)四项继续：capability preflight与minimum等级已交付；继续code-owned分操作verifier／证书绑定、真实reset／权限／mask／width及副作用行为、declared／effective／verified矩阵与L2 minimum判定。schema17注入fault不是原计划新增验收前提。
+
+2026-10-12 最新：E1 GPIO 数据声明覆盖14寄存器／72字段，E2 actual-context `RegisterProgramRuntime` API 与显式CPU RMW已落地。本轮真实门禁执行通过：10 cases（8次窄字段显式RMW＋2次DIR／OUT full-word READ），54条实际APB边界、2次read→RAM认证commit；每次RMW用实际CPU读值核对保留位及新值，同寄存器后续读值与前次写值一致。fresh factory在begin前重装adapter、从当前实际waiting slot重算原始requests并exact核对manifest；完整22,339events、runtime snapshot与plan均matches，semantic SHA `0ddbd7be8c0a956d2997957bf0c064fce4036f2ef4de0df576a98115af4feb08`。36项当前source pins严格冻结核对通过，含72字段sidecar SHA `f9b4837c6ca06b97a0ceb76f134ed7591538ab6d9c3e94c7839fc8ab63b7459b`。singleworker complete72.416334056秒，峰1,619,726,336 bytes，RSSlimit2,815,479,808 bytes。根六模块181 passed（12.54秒）；独立产物审查通过：36源码 pins、10次当前上下文重编译、18次CPU MMIO交付、54条APB原始引用、2次RAM commit、22,339事件摘要及3个cache binary／276、345、276项冻结输入一致；fresh state文件独立相等，fresh plan／全trace由冻结worker断言核对（未另存fresh全trace）。scope=`installed_context_adapter_explicit_cpu_rmw_and_fresh_request_recompilation`；保存context／bytes不作运行授权，不含RFuzz／BFM／可信CLI selector，不授L2 verified或functional，完整Session schema／selector接入仍待完成。旧4字段／helper门禁按各自冻结pins保留为历史证据，不能证明本轮源码。E1／E2、D8／D5／D6及完整E–I仍未完成。 见 [实际门禁摘要](../../runs/stage2-e2-register-runtime-rmw-20261012/summary.json)。 [E2报告](../reports/stage2-e2-gpio-cpu-register-progress-20261011.md)。
+
+2026-10-12当前推进：E1 GPIO sidecar14寄存器72字段已独立源码核对，新增18项RED→GREEN、五模块108 passed／2subtests。E2显式CPU RMW已补36字节LW→AND→OR→SW，完整plain RW字段和双向窗口权限预检，默认窄字段仍拒；AND／OR操作身份误标SB的P2已用3RED修复。11模块337 passed（1.48秒）。actual-context adapter由子代理继续实现，运行前配置／槽／reset／半接纳边界独立审查；本轮新真实门禁尚未执行，完整schema／selector／能力证据仍未完成。旧sidecar门禁保留历史pins。见 [E2报告](../reports/stage2-e2-gpio-cpu-register-progress-20261011.md)及[E1源码核对](../reports/stage2-e1-gpio-register-source-audit-20261011.md)。
+
+2026-10-12续接：D8独立 `--classified-feedback` 门禁执行通过，candidate探索关闭，实际RFuzz3/3 complete；可信CLI fresh完整6,443events matches，semantic SHA `76d867f9a8cc5aee7da2fa1a80c3b921e2fb7833d07a42601333d33739da995e`，范围包含 `classified_case_feedback`／`classified_terminal_state`且无candidate scoring声明。三回执candidate disabled、novelty／energy均0，legacy覆盖单列；实际base GPIO A／B request／accept／response各3／4，verified0、functional unknown。27项当前source pins；singleworker complete76.752490482秒、峰545,849,344 bytes、RSSlimit3,038,162,944 bytes。root冻结九模块最终227 passed（93.18秒）；D8独立产物audit通过：27项源码／13项产物摘要、6443事件、21个APB原始引用、逐例及终态base覆盖重算和3个binary／冻结输入均一致。该组合未安装RAM／IRQ provider，6项positive检查仅软件另列；不授实际verified正例、functional或L2矩阵。D8及E1／E2、D5／D6和完整E–I仍未完成。见 [新摘要](../../runs/stage2-d8-independent-feedback-cli-20261011/summary.json)及[D8报告](../reports/stage2-d8-candidate-exploration-progress-20261011.md)。下方保留历史源码记录。
+
+2026-10-12续接：E2 helper新实际定向门禁执行通过，12个连续CPU cases全部使用当前实际router／RAM regions／waiting slot参数重新编译保存声明，并仅接纳helper返回fresh source；36条本例APB边界、6次read→RAM认证commit，fresh Session API完整25,201events matches，semantic SHA `3321aa564f841837b26ee3fa5e09500c721d0623b4ce0c30d65137d97253d3c4`，25项当前source pins。singleworker complete54.221435622秒、峰509,140,992 bytes、RSSlimit3,181,293,568 bytes；独立产物audit通过：25source pins／12program／25,201events／36APB／6RAM及3binary的276／345／276项冻结输入核对一致。scope为 `current_context_program_recompilation_and_directed_cpu_session_replay`，保存声明不作运行授权；生产actual-context adapter／可信CLI selector仍未实现，不授L2 verified或functional。旧r2仅为原冻结源码历史证据，pins未改；目录沿用20261011准备名称，不重命名。D8独立分类实际结果见顶部最新记录；E1／E2、D8／D5／D6及E–I保持未完成。见 [新门禁摘要](../../runs/stage2-e2-gpio-program-verification-20261011/summary.json)及[E2报告](../reports/stage2-e2-gpio-cpu-register-progress-20261011.md)。
+
+E2保存程序核对入口已增加：`verify_register_program_document()` 仅用调用方当前显式上下文重新编译，完整canonical JSON核对保存产物，saved source／regions／plan／hash均不作为编译输入；bool与int明确区分，返回fresh程序且不授live authority。16项RED→GREEN，七模块121 passed／4 subtests（10.31秒），独立58 passed（0.35秒）。新helper尚未接生产adapter或可信CLI selector；compiler SHA已变化，旧r2实际门禁仍为其冻结源码历史证据。D8独立基础／分类反馈开关正在实现，尚未验收。见 [E2执行报告](../reports/stage2-e2-gpio-cpu-register-progress-20261011.md)。
+
+E2 GPIO寄存器CPU编译首步已接线：`register_program.py` 将实际profile＋真实sidecar的字段计划编译为 `OnlineInstruction`，闭集full-word SW／LW，读值可由CPU真实SW存入声明RAM窗口；产物仅declared，不授live authority。首版支持PADDIR／PADOUT／SET／CLR四字段，普通窄字段无RMW时拒绝；实际sidecar的DIR／OUT副作用仍是none，额外 `write_drives_*` 声明的READ兼容缺口已用2项RED修复，不能误称实际sidecar此前被拒。最终根六模块105 passed／4 subtests（9.93秒），代理三模块74 passed／2 subtests（0.35秒），最终独立compiler复核58 passed（0.33秒）。真实12例定向门禁首轮已执行case0 PADDIR写及3条APB边界、无protocol violation，但监督脚本错误要求receipt.status为complete；实际Session正常逐例返回running，finish后才complete。首轮case0／source pins及command_failed42.196秒、峰507,129,856 bytes原始记录保留，此为脚本断言失败，不是RTL bug。仅修正脚本后的新 [r2门禁摘要](../../runs/stage2-e2-gpio-cpu-register-20261011-r2/summary.json)执行通过，生产源码未改：12个连续定向CPU cases完成full32 DIR／OUT／SET／CLR访问，36条本例APB边界、6次真实read→RAM authenticated commits；fresh Session API完整25,201events matches、schema4、25source pins，semantic SHA `3321aa564f841837b26ee3fa5e09500c721d0623b4ce0c30d65137d97253d3c4`。资源singleworker complete48.963999秒、峰508,014,592 bytes、上限3,224,297,472 bytes；独立产物复核通过。实际指令仅用scratch x1／x2，保持输出低8位不变避免触发IRQ；不含BFM／RFuzz／verified CLI selector，不授L2等级或functional能力，也不授整个E2完成。E1／E2、D8／D5／D6及E–I保持未完成。见 [E2执行进度](../reports/stage2-e2-gpio-cpu-register-progress-20261011.md)。下方为各轮历史源码进度。
+
+D8精确反馈分类已接生产并修复ledger伪记录P2：记录锚定实际provider certificate，旧输出谓词单列legacy，无功能provider明确unknown。冻结八模块178 passed（79.02秒）、独立80 passed。新实际RFuzz3/3complete，可信fresh replay6443events matches，三回执分类一致、33context／noveltyenergy1，资源singleworker75.71秒峰551055360，25source pins；独立产物复核通过。此实测无RAM／IRQprovider，verified0，不授正例或功能完成。E1真实GPIO sidecar首四字段声明16项通过，联合51＋2subtests、独立16；无自动授级，实际L2待E2。分类独立开关及功能provider接入仍待推进，D8／D5／D6、E–I保持未完成。见 [执行进度](../reports/stage2-d8-candidate-exploration-progress-20261011.md)。
+
+D8 native GPIO 协议观察软件接线已完成：显式 v2 raw pre/post 政策增加八个被动 APB taps，严格按实际 plan／structural ABI／backend ports／runtime wiring 校验 trace，Runner 通过真实 native validator 后接入协议 projector／checker。CPU 保持 physical-only，默认 v1 保持原路径；GPIO raw receipt 深拷贝缺口已用5项 RED→GREEN 修复。冻结源码集成回归203 passed（107.51秒），renderer45 passed、Runner相关62 passed、独立复核30 passed。新 [r2实际门禁](../../runs/stage2-d8-native-apb-cli-20261011-r2/summary.json)执行通过：实际RFuzz 3/3 complete、可信CLI fresh replay完整6,443events匹配；GPIO A request／accept／response各3、B各4，33条context records，novelty1／energy1；singleworker complete76.145718秒、峰547,876,864 bytes、RSS上限3,367,346,176 bytes，22source pins。独立产物复核通过；范围仅native GPIO APB，CPU仍physical-only，完整功能反馈未完成；首轮监督脚本因 `str` 误替换在RTL前失败，原始记录保留。D8、D5／D6及E–I保持未完成。见 [D8执行进度](../reports/stage2-d8-candidate-exploration-progress-20261011.md)。下方记录属于各自历史源码。
+
+D8 协议基础覆盖与 coverage_context 已接入生产候选反馈：actual v2 protocol projector／checker配置在case命令前冻结核对，多实例上下文带component／instance／feature身份，只由base consumer的新观察产生，保持候选预算与拒绝授权。三模块110 passed、独立110 passed；十七模块最终375 passed／1 deselected／207 subtests（78.51秒）。新真实物理context门禁实际RFuzz 3/3 complete，15条context candidate、novelty／energy1，可信CLI重放完整6422events相等；singleworker complete69.25秒、峰549,531,648 bytes，20source SHA／13artifact核对。generic协议只有软件raw→真实Runner投影／fresh replay；native Ibex／GPIO尚无bus protocol trace，不授真实协议或完整功能验收。下一步真实协议观察与完整Stage2功能反馈，D8及D5／D6、E–I保持原未完成范围。见 [D8执行进度](../reports/stage2-d8-candidate-exploration-progress-20261011.md)及[门禁摘要](../../runs/stage2-d8-coverage-context-cli-20261011/summary.json)。下方为各自冻结源码的历史进度。
+
+D8 可信候选计分重放 CLI 已接入并通过真实短门禁：`replay-candidates` 先验证闭集 assembly 与固定本地组合，fresh executor 从 raw 重算选择、weights、逐例计分和终态，不载入保存 scores。GPIO v2 身份重建丢 tuning 的拒绝缺口及两处 cleanup 覆盖原异常已修复；最终六模块137 passed／55 subtests（49.87秒）。新 r2 实际 RFuzz CLI 3/3 complete，可信 replay CLI 的6,422事件完整匹配，novelty1／energy1；单worker complete70.81秒、峰526,372,864 bytes，十四source SHA／十三artifact与压缩语义已核对，首轮失败保留。下一步 protocol／coverage_context 与完整Stage2功能反馈，D8及D5／D6、E–I原未完成范围保持。见 [D8执行进度](../reports/stage2-d8-candidate-exploration-progress-20261011.md)及[门禁摘要](../../runs/stage2-d8-candidate-selector-cli-20261011-r2/summary.json)。下方记录属于各自历史源码版本。
+
+D8 已补实际出口别名与显式子切片，online builder在候选开关开启时选择native v2观察；关闭时保留旧路径。profile映射漂移及stateful checker身份问题均有负例修复，十四模块296 passed／1 deselected／207 subtests（63.35秒）。当前源码资源监督run CLI实际RFuzz 3/3 complete，fresh RTL从raw重算选择／weights／候选计分，6,422事件完整trace匹配，novelty1／energy1，单worker complete61.46秒、峰528,175,104 bytes；十二source SHA、生产bundle、fresh状态及逐例预算已核对。首轮和r2／r3脚本失败保留。尚缺可信scoring replay CLI selector、protocol／coverage_context与完整Stage2功能反馈，D8及D5／D6、E–I保持未完成。见 [D8执行进度](../reports/stage2-d8-candidate-exploration-progress-20261011.md)。
+
+D8 原生 v2 观察已接入 planner／renderer／factory／Runner：显式 `physical_observations=True`，闭集 raw pre/post 政策、实际 exports 摘要、CPU stream 校验，默认仍 v1；失败缓存及 kind 篡改旁路两处 P2 已补 RED 修复。29项新增检查，十一模块189 passed／1 skipped／1 deselected／138 subtests（48.17秒），独立软件36 passed。修复后 actual CPU／GPIO 各两个fresh进程、6步含reset，raw各12条／base12及64条全匹配；单worker complete34.18秒、峰470,245,376 bytes，六source SHA及原始摘要已核对。范围仅native receipts→base投影，不含生产journal／candidate计分／RFuzz；下一步port alias／切片、online builder和可信CLI重放，D8及D5／D6、E–I未完成项保持。见 [D8执行进度](../reports/stage2-d8-candidate-exploration-progress-20261011.md)。
+
+D8 CPU raw STEP样本出口已补：默认关闭、explicit identity、实际receipt深拷贝／lifetime ticks／FIFO256、容量command前拒绝；begin/reset拒绝丢样本RED已修复。新增13项，九模块115 passed／1 skipped／31 subtests（39.07秒），独立软件22 passed／1 skipped。资源监督actualCPU两个fresh进程各8step/reset/3step、11rawsamples全匹配、无MMIO，complete24.82秒峰469MB；四source SHA／样本／identity／资源已独立核对，首轮空Router脚本失败保留。仅CPU raw出口，不含候选计分／RFuzz／v2 projector／整链；下一步actual观察声明、port／alias／切片和完整入口，D8不勾选。见 [D8执行进度](../reports/stage2-d8-candidate-exploration-progress-20261011.md)。
+
+D8 实际观察缺口已构造审计：三个Ibex／GPIO组件均v1且无base/raw schema，CPU无tick-sample drain、GPIO已有drain；八个物理节点exact export match均0。已保存三组件无进程证明与六项源码SHA并核对；没有RTL。下一步补实际physical port／alias／切片及原始观察契约，不能仅放宽kind或改schema标签。见 [审计产物](../../runs/stage2-d8-observation-audit-20261011/audit.json)及[D8执行进度](../reports/stage2-d8-candidate-exploration-progress-20261011.md)，D8保持未完成。
+
+D8 run CLI／assembly opt-in已接入：默认关闭、显式开关＋有界case容量、类型／容量在factory前拒绝；启用时actual executor预检移到begin／bootstrap前，预检计分丢弃、warmup后新建返回executor。实际渲染Ibex旧组合缺匹配v2观察出口，在begin前拒绝、无进程／evidence输出；这不是实际候选DUT成功。warmup后构造失败cleanup RED已修复。新增10项，十一模块192 passed／76 subtests（27.01秒），独立复核38 passed（5.26秒），无新RTL／RFuzz。下一步升级实际组合观察契约、可信replay selector／CLI与完整反馈／真实门禁；D8保持未勾选。见 [D8执行进度](../reports/stage2-d8-candidate-exploration-progress-20261011.md)。
+
+D8 fresh 候选计分重放已完成软件接线：可信的新 executor 从 raw inputs 重新选择实际 source、发现候选并重算逐例 novelty／energy／weights／分类反馈，完整 plan／trace／终态须匹配；不载入保存计分状态。actual Session checker 被 cached manifest 掩盖的 P2 及 bool→int 类型漏检已用 RED 修复；reset 遗漏例间 barrier 的生产缺口已修复，默认／启用均检查旧 pending 链在下一例命令前清除。新增21项 replay＋4项 reset，十六模块284 passed／4 skipped／9 subtests（2.57秒），只读复核最终69 passed／2 subtests（1.74秒），无新RTL／实际RFuzz客户端。下一步实际 selector／CLI opt-in、protocol与完整功能反馈及资源监督下真实运行／重放；D8及D5／D6保持未勾选。见 [D8执行进度](../reports/stage2-d8-candidate-exploration-progress-20261011.md)。
+
+D8 生产 executor／保存配置接线已推进：默认关闭，从 actual prepared paths／ownership／Binding／route 与 v2 physical projector 自动预检并映射合法 sources；逐例发现／去重／预算直接进入 decode_candidate 权重，两source实际选择边界已由软件门禁证明。cached projector 漂移与保存配置 bool/int 等价漏检已补 RED 修复，容量预命令拒绝；分类反馈及配置／六项源码 SHA 进入 live receipt／report／run identity。新增21项，十二模块220 passed／4 skipped／9 subtests（1.49秒），只读复核修复后48 passed／2 subtests，无新RTL／真实RFuzz客户端。仅物理关系软件接线与配置一致性验证，CLI／fresh scoring replay／protocol与完整功能反馈／实际RTL仍待完成，D8及D5／D6不勾选。见 [D8执行进度](../reports/stage2-d8-candidate-exploration-progress-20261011.md)。
+
+会话任务再次核对（2026-10-11）：已读取本地 Codex session 元数据及用户消息，确认前一主会话 `01a1211e-944a-7de3-ac2b-65b6c1132bc9` 位于本目录，末条用户指令为“继续处理”；随后主会话 `01a126a2-f830-7d83-ad4c-ed52f6d78c14` 延续第二阶段声明式 CPU／IP 适配计划及进度文档维护。`01a126b1-6d32-7ef3-a450-e24be120b1bc` 是该主会话的只读复核子会话，不能按时间排序误认成前一主对话。当时查找停点为 D8 独立预算层；当前续接点以顶部最新进度和 D8 报告为准，早期 D5 停点为历史状态。会话查找本身不新增实现／验收完成项。
+
+D8 预算层首步已实现：默认关闭、每case最多1 novelty／energy、非候选新增能量至少10才加1；session永久去重，case幂等／改内容拒绝，饱和不虚报能量，配置SHA及返回值detached。新增22项、五模块最终121 passed（0.40秒），只读复核独立82 passed（0.15秒）无重要问题，无新RTL。仅独立预算层，尚未接actual合法性预检、生产executor／CLI／replay identity与分类反馈，D8未勾选；下一步按报告完成生产接线，D5／D6和后续E–I仍未完成。见 [D8执行进度](../reports/stage2-d8-candidate-exploration-progress-20261011.md)。
+
+D7 八类依赖负例按软件范围验收通过：补齐跨三协议重传、晚到同ID冲突及 response-before-accept 共13项。十二模块最终333 passed（0.94秒），独立复核171 passed（0.52秒），无重要缺口；已勾选D7软件门禁，未运行新RTL，不授实际DUT或其他active provider验收。D5／D6仍未完成；D8候选通道当前独立发现、尚未接入生产排序，下一步默认关闭／合法目标／每case上限／10%能量／replay identity与分类反馈。见 [D7验收矩阵](../reports/stage2-d7-negative-gate-20261011.md)。
+
+D6 GPIO register／sync 通用 reset barrier 失效已补齐：四项 RED 复现旧资源跨 barrier 续证，原生 reset 双重确认 P1 也已修复；新增17项、九模块231 passed（1.25秒），只读复核独立97 passed（0.56秒）无重要残留。warm／cold barrier标签的两组原生GPIO RTL各50events新进程重建完全匹配，reset后历史保留、原生epoch1到达后才新增证书，资源singleworker complete10.33秒／峰值427,962,368 bytes；保存journal软件reload匹配。独立产物复核通过：源／271项build inputs、实际reset及历史／epoch证书一致。产物 runs/stage2-d6-gpio-reset-rtl-20261011；两组执行相同native reset，不证明Runner策略差异或CPU／RFuzz／verified文件重放，也不授其他active资格。D5／D6未完成。见 [D6进度](../reports/stage2-d6-authority-lifecycle-progress-20261011.md)。
+
+D6 统一生命周期查询首步已加入：Runner 分开返回历史数量与当前 RAM／显式 instruction-slot 资格，逐次实际重算，不接受保存证书或缓存 answer；其他 active provider 缺失时明确 unknown。启动半安装和 consumer 漂移崩溃已补 RED 修复，19 项定向通过；七模块最终兼容回归 120 passed（45.24 秒），只读复核独立 46 passed（1.05 秒），无新增重要问题。未运行新 RTL；其他 provider 及后续门禁仍待继续，D5／D6 未完成。见 [D6 查询与生命周期进度](../reports/stage2-d6-authority-lifecycle-progress-20261011.md)。
+
+D6 warm／cold reset的verified文件重放已实际通过：schema14保存结果槽STORE→LOAD非空binding和after_cases=2的reset，生产identity／selector／文件入口新建RTL分别完整匹配1,455／1,587events；4条history证书原文保留、reset后active RAM为0。两套7项artifact身份经独立复核通过；单worker资源complete64.78／44.62秒、峰值509,915,136／249,176,064 bytes。产物 runs/stage2-d6-reset-verified-rtl-20261011，明确固定admission且未执行RFuzz客户端；通用provider生命周期及后续真实门禁仍待继续，D5／D6未完成。
+
+D6 authority内部登记漂移已补负例修复：固定实例仍不能阻止服务登记删除、ledger替换或额外组件加入；两类authority共6项实际callback负例均RED旧writer误授。现固定启动登记快照并精确核对组件／service／ledger／memory／region IDs，漂移永久失效，恢复登记和reset不续授权。三模块64 passed（45.74秒），只读复核独立16 passed（12.60秒）、无新增重要问题，无新RTL，D5／D6未完成。见 [D6进度](../reports/stage2-d6-authority-lifecycle-progress-20261011.md)。
+
+D6 authority 漂移失效已修复：两类实际 authority 实例替换负例均复现旧 RAM 误授，tracker 现固定 commit/read 实例，RAM／slot／报告统一检查，观察冲突后永久失效，恢复实例或reset不续授权，历史证书保留。新增5项含物理cell未变的writer淘汰检查，联合软件93 passed（51.66秒），只读复核通过：独立58 passed（46.27秒），无新增重要问题，无新RTL。上轮reset复核通过（独立28 passed／2 subtests）；D5／D6仍未完成。见 [D6 lifecycle进度](../reports/stage2-d6-authority-lifecycle-progress-20261011.md)。
+
+D6 reset 保存／replay 缺口已补：Session.reset仅在已提交case边界记录warm/cold操作，schema14／15保存有序after_cases时间线；直接Runner未记录reset或部分失败拒绝生成可重放计划。replay逐case按序执行reset，失败结束组件且不掩盖原异常。10项新增软件检查，联合41 passed／5 subtests（5.32秒）。实际warm/cold schema14 fresh RTL replay完整1,455／1,587events均匹配，历史4条证书保留、旧active失效；资源单workercomplete41.70／20.70秒、峰值507,273,216／178,741,248 bytes。只读复核通过：独立28 passed／2 subtests，reset时间线及产物一致，产物 runs/stage2-d6-reset-replay-rtl-20261011；淘汰／冲突及其他provider通用lifecycle仍待继续，D5／D6未完成。
+
+D6 实际 warm_all／cold_all reset 失效验证通过：真实 STORE→LOAD 的4条历史字节证书原文保留，reset后旧RAM binding及instruction slots均失效，Session命令前拒绝，事件／ticks／cases不增加；观察保存历史不能恢复active。两次单worker19.09／18.72秒、峰值178,855,936／178,343,936 bytes、resource complete；21项伴随软件检查通过。产物 runs/stage2-d6-reset-rtl-20261011，只读复核通过：实际reset、generation、历史证书及trace摘要一致。online plan尚不编码reset，本轮不声称reset replay；通用淘汰／冲突生命周期仍待继续，D5／D6不勾选。
+
+D6 实际覆盖写失效短链通过：真实 RTL 两次相同值 STORE，RAM byte0 value0、version [0,4]→[0,6]；预先绑定旧版本的 LOAD 在真实 Session.submit_case 前置检查中拒绝，事件／tick／case 数均不增加，保存声明不变。两个历史 commit 仍保留，1,468 events fresh RTL replay 匹配；单 worker20.74秒、峰值178,348,032 bytes、resource complete。只读复核通过：实际两次 STORE 的 commit 摘要、版本和值一致；拒绝尝试未入 replay plan，产物 runs/stage2-d6-ram-overwrite-rtl-20261011；尚未证明 reset／淘汰／冲突的全部真实在线组合和通用 lifecycle，D5／D6 不勾选。
+
+D5 结果槽动态绑定的 verified 文件 replay 已实际通过：固定生产 admission 的 STORE→LOAD，schema 12 两例、第二例非空 binding，生产保存函数生成 7 项 artifact 的身份 envelope；生产文件入口校验并重选可信 factory，新建 RTL 的完整 1,454 events matches true。单 worker 44.94 秒、峰值 RSS 250,613,760 bytes，资源 complete；只读复核通过：生产 verifier／selector、7 项摘要和 STORE 绑定一致。run_config 明确 client_executed=false，不将此固定链宣称为 RFuzz 客户端运行。产物 runs/stage2-d5-trusted-binding-bundle-20261011；D5／D6 仍未完成，后续须补失效场景及通用 lifecycle。
+
+D5 完整 CLI／RFuzz 与 verified bundle 文件 replay 已实际运行：3 inputs complete、schema 12 三例、1,763 events，生产文件入口 fresh RTL matches true，11 项 artifact 的 online identity 已校验。单 worker run 18.65 秒／峰值 RSS 179,130,368 bytes，replay 23.45 秒／202,215,424 bytes，均资源 complete。三例 dynamic_binding 均为空，故不授动态 RAM binding 文件 replay 验收；前轮固定路径结果槽 binding 尚需同一 verified 文件链补验。产物 runs/stage2-d5-trusted-rfuzz-20261011，只读复核通过：生产 verifier／selector、11 项摘要及 semantic hash 一致；D5／D6 保持未完成。
+
+D5 结果槽可信绑定真实 RTL 短链通过：固定生产 decoder→executor admission→Session→decoder commit，实际 STORE 后 LOAD 生成非空 dynamic_binding，schema 12 保存两例；新建 RTL 完整 1,454 events replay 匹配，trace 正确导出为事件数组。单 worker 19.35 秒、峰值 RSS 179,445,760 bytes，资源回执 complete；只读产物复核通过：plan／semantic hash、连续事件及实际 STORE lane 绑定一致。此前自适应 executor 将输入切换至 GPIO，binding 断言失败，产物保留。当前不覆盖完整 RFuzz 自适应运行或 verified bundle 文件入口 replay，D5／D6 未完成。见 [replay 进度](../reports/stage2-d5-live-memory-replay-progress-20261011.md)。
+
+D5 首次可信模式真实 RTL 短会话已运行：生产 runtime 提交两个固定 CPU 输入，新建 RTL replay 完整 1,478 events 匹配，2 cases complete，schema 12；单 worker 38.35 秒、峰值进程树 RSS 508,370,944 bytes，预算回执 complete。核对发现输入选择 GPIO MMIO 窗口，两个 dynamic_binding 均为空，不能作为动态 RAM binding 验收；辅助 trace.json 导出将事件序列错误编码为字符串，不能作为可重载证据，内存中的 replay 比较仍已实际执行。原始 worker／plan／result／资源回执保留于 runs/stage2-d5-trusted-rtl-20261011；下一步正确选择 RESULT_ADDRESS 窗口、修正 trace 导出并重跑，D5／D6 未完成。
+
+D5 生产 CLI opt-in 已接通：Ibex run 新增默认关闭的 `--persistent-memory-prerequisites`，仅显式启用时转发 runtime；缺 `--memory-commit` 在构建／输出创建前拒绝。新增 3 项 CLI 软件检查，RED 缺参数后修复，联合旧 native IRQ／profile／可信 replay 检查 26 passed／7 subtests（14.80 秒），只读复核独立 3 passed、无重要问题。已定位既有 `run_budgeted_process` 单 worker／进程树 RSS 监督入口；未新增 RTL，下一步在该监督下验收真实在线保存／replay，D5／D6 未完成。
+
+D5 失败边界补验：真实 Session 的 source_admission 在实际 instruction memory 写入后失败时，schema 13 保留命令前 admission 与完整 terminal_failure。replay 注册拒绝后的清理异常原先覆盖实际拒绝原因，已用 RED 负例复现并修复为保留原异常、附加清理失败信息。最新联合软件回归 72 passed／5 subtests（5.08 秒），只读复核独立 10 passed、无新增重要问题；未运行新 RTL。生产 runtime 已有可信 opt-in，现有 run CLI 尚未暴露该选项；真实在线验收仍待继续，D5／D6 未完成。
+
+D5 Session 保存与逐例 replay 已接入工作区：schema 12／13 在 case 命令前保存原始动作和完整 admission；replay 启动前校验声明格式，逐例用新 Runner 的实际 witness 重新注册并核对，注册拒绝会结束会话。复核发现的 factory provenance 启动冲突、缺 runtime_paths 的 provenance 配置及拒绝后部分安装问题已补负例修复；最新联合软件回归 63 passed／3 subtests（5.13 秒）。修复后的只读复核独立 36 passed、无新增重要问题，未新增 RTL／fresh DUT replay；D5／D6 保持未完成。见 [replay 进度](../reports/stage2-d5-live-memory-replay-progress-20261011.md)。
+
+会话任务查找（2026-10-11）：用户要求确认本目录上一个 Codex 对话的任务，并提醒维护进度执行文档。已核对本文件的会话衔接记录：任务是继续执行 `2026-10-09-stage2-declarative-cpu-ip-adaptation.md`，同时维护进度与验收记录；当前停留在 D5 可信 RAM 前置条件、Session 保存及逐例 replay 衔接。工作区存在尚未收尾的 Session／replay 修改和 provenance 启动原子性负例，须继续验证并更新对应报告；本次查找不增加完成项，D5／D6 保持未完成。
+
+D5 新增 gate 层每例声明保存／重算 API：保存策略前原始动作与预期 admission／support／binding，fresh gate 必须以当前 actual authority 重新注册并精确比较整份决策，旧保存记录不授证。新增 5 项真实 factory／callback 检查，联合回归 46 passed（19.57 秒），只读复核独立 5 passed、无重要误授路径。Session plan schema 与 replay 逐例调用仍待连接，D5 未勾选。见 [replay 进度](../reports/stage2-d5-live-memory-replay-progress-20261011.md)。
+
+D5 saved factory 配置已衔接 replay 入口：重新核对 verified manifest bytes，完整核对 contract／slot／动态策略／实际读写 authority，再显式转发 opt-in；旧无 gate 保持关闭，变化或不完整配置拒绝。新增 10 项，定向含旧模式 12 passed（10.90 秒），只读复核通过；扩大回归 37 passed／3 subtests（25.60 秒），无新 RTL。plan 保存动作与逐例 replay 注册、binding 重算尚待完成，D5 未勾选。见 [保存与 replay 进度](../reports/stage2-d5-live-memory-replay-progress-20261011.md)。
+
+D5 factory 动态 admission 已衔接：结果槽 load 按既有静态规则绑定当前实际 STORE 字节后再检查 instruction slots；缺 witness 不注册动作，等值覆盖即时拒绝。策略入启动身份，executor 决策保存 dynamic_binding。新增两项实际 factory／host callback 检查，联合软件回归 96 passed（41.14 秒），只读复核独立 28 passed、未发现重要缺陷，无新 RTL。保存 plan／verified bundle 重选配置与 replay 逐例注册、重算仍待完成，D5 未勾选。见 [动态绑定进度](../reports/stage2-d5-live-memory-binding-progress-20261011.md)。
+
+D5 可信动态 RAM binder 已加入工作区：复用不可变 binding／payload 校验，STORE provenance 仅从实际 token 认证且当前 cell 匹配的 tracker 重算，不从 receipt 标签取得；声明受实际 region／offset／缓存预算限制。新增 10 项检查，首轮扩大 99 passed，复核发现的 claim version／action_id P2 已补负例修复，最新联合 75 passed（0.43 秒），修复只读复核独立 75 passed，无新增重要问题。factory admission 的动态结果槽策略及 replay 尚待衔接，D5 未完成。见 [可信动态绑定进度](../reports/stage2-d5-live-memory-binding-progress-20261011.md)。
+
+D5 辅助 instruction 注册已加入工作区：固定 NOP 以 fixed／空 payload 动作登记，完整 fragment 独立核对，复用实际 slot 与 generation 检查；executor 在 require_case 前注册并记录 support_actions。实际 memory 定向 4 passed，真实 decoder／factory 绑定链及兼容回归 83 passed（45.64 秒），只读复核 6 passed、无重要问题；完整在线 execution、动态 RAM binding 和 replay 仍待验收，D5 未勾选。见 [slot／factory 进度](../reports/stage2-d5-live-slot-policy-progress-20261011.md)。
+
+D5 factory opt-in 已加入工作区：实际 CPU readback／Runner authority／可信 slot+RAM gate 每个 Runner 独立，在线入口使用实际 decoder contract identity，默认关闭；不完整组合在渲染前拒绝。factory 初次定向 5 passed；联合回归 66 passed（41.71 秒），只读复核通过（独立 6 passed）。完整在线辅助指令注册、动态 RAM binding 与 replay 尚待衔接，D5／D6 未完成。见 [slot／factory 进度](../reports/stage2-d5-live-slot-policy-progress-20261011.md)。
+
+D5 slot generation 修复（2026-10-11）：已用实际 memory 的 materialize→cold_reset 负例复现旧授权恢复，并将新 reservation 的 witness 绑定注册时实际 generation；重复注册不能刷新旧 reservation。当前 generation 改变时立即拒绝，消费 reset 后明确注册可重新授权。slot 模块现有 10 项检查；本轮联合回归 183 passed／15 subtests（20.69 秒），未运行新 RTL。在线 factory 的生产 opt-in、完整在线流程及 D6 通用生命周期仍待完成；只读复核确认 P1 已解决，独立回归 39 passed，未发现新增重要问题；D5／D6 未勾选。
+
+会话恢复检查（2026-10-11）：上一轮继续实施 D5 的可信 RAM／instruction-slot 策略组合与在线启动 gate 选择。该轮兼容回归已收尾：261 passed、21 subtests passed（22.17 秒），未运行新 RTL。只读复核发现尚未修复的 P1：实际 memory cold_reset 推进 generation、journal barrier 尚未消费时，旧 slot reservation 可重新满足前置条件。下一步先补跨 generation 负例并修复，再完成 factory opt-in 与完整在线衔接；D5／D6 保持未完成。本次仅查找任务、收取已有检查结果并维护进度记录。
+
+D5 可信 RAM 前置状态已接入 Runner／Session：只查询实际 token 认证且仍匹配当前 cell 的 writer，保存 receipt 不授证，主源和辅助指令均在命令前检查。新增 21 项、兼容回归 324 passed／25 subtests（9.07 秒）；只读复核发现的后安装 gate 旁路已修复。D5 未勾选，下一步在线 factory／默认 slot gate 策略衔接及 D6 通用生命周期。见 [可信 RAM 前置状态报告](../reports/stage2-d5-live-memory-prerequisites-progress-20261011.md)。
+
+D5 IRQ Runner 入口已接通软件生产路径：完整 journal 同步消费，源／目标／精确 binding 预检、provider 与预算进入启动身份；新增 12 项检查、联合定向 115 passed，兼容回归 272 passed／4 subtests（12.75 秒），只读复核通过。实测 delivery／acceptance／精确 serial retirement 仍仅历史范围。RAM／IRQ 两类 Runner 入口现已具备，可信 RAM 前置状态现已衔接；在线 factory／slot gate 组合及 D6 通用生命周期仍待完成，D5 保持未勾选。见 [IRQ Runner 报告](../reports/stage2-d5-irq-runner-progress-20261011.md)。
+
+D5 RAM 历史消费者已接通 Runner 的实际 callback drain 和完整 journal（默认关闭），复用现有 UART authorities、保留旧消费者、私有 token 不入日志，配置进入启动身份。新增 14 项 Runner 检查通过，最终兼容回归 201 passed／4 subtests（7.88 秒）；只读复核发现并修复第三方消费者延迟退休导致重复分发的问题。IRQ Runner 入口现已衔接，可信 RAM 前置状态现已接入，在线 factory／slot gate 组合及 D6 通用生命周期仍待完成，D5 未勾选。见 [Runner 衔接报告](../reports/stage2-d5-memory-runner-progress-20261011.md)。
+
+D5 生产分发接口已准备：实际 write/read authority 支持启动注册的有界一次性消费者视图，历史 RAM 消费者可独立领取，避免抢走旧 UART 凭据或重复实际读写。新增 12 项检查，联合回归 91 passed，只读复核通过。RAM Runner 连接和运行身份现已衔接；IRQ Runner 现已衔接，可信 RAM prerequisite 现已接入，在线 factory／slot gate 组合和 D6 通用生命周期仍待完成，D5 未勾选。见 [凭据分发进度](../reports/stage2-d5-authority-distribution-progress-20261011.md)。
+
+D5 IRQ 已接入三个独立历史范围：实测 delivery／native acceptance／精确 serial retirement；新增 24 项检查，联合定向 36 passed、最终兼容回归 297 passed。reset_barrier 续证缺陷和同 receipt 的 serial 冲突已补负例并修复；未知 IRQ 原因仍 unknown，不授 active prerequisite。Runner 历史分发入口现已衔接，可信 RAM 前置状态现已接入，在线组合及通用生命周期仍待完成。见 [D5 IRQ 报告](../reports/stage2-d5-irq-evidence-progress-20261011.md)。
+
+D5 第二步已接入实际 host RAM writer→read snapshot 的 D1 历史字节证据及统一 ingest，28 项定向、305 项兼容回归及 18 项子检查通过。只消费同一实际服务的一次性 authority token，不凭 accepted 标签认证，也不授 CPU 退休、来源或 active prerequisite。IRQ 历史范围与 RAM Runner 分发现已衔接，IRQ Runner 现已衔接，可信 RAM 前置状态现已接入，在线组合与 D6 通用生命周期仍未完成。见 [D5 RAM 证据衔接报告](../reports/stage2-d5-memory-evidence-progress-20261011.md)。
+
+D5 实施中：已补 RAM commit prerequisite 的整份 byte-enable／span／版本校验，拒绝未启用、越界、重复、缺失或版本冲突的 lane，避免异常快照留下部分 witness。18 项新增软件检查通过，最新软件回归 110 passed／7 subtests，首版兼容回归 145 passed／7 subtests；D5 尚未完成，read snapshot 与 IRQ 历史范围已衔接，可信 RAM 前置状态现已接入，在线组合与通用 active 生命周期仍待完成。见 [D5 首步报告](../reports/stage2-d5-ram-witness-progress-20261011.md)。
+
+本次 D4 扩大兼容回归：515 passed、218 subtests passed（100.64 秒）；80 项 D4 定向检查加 B2 预检共 99 passed。仅软件消费者／冻结 trace 复算，未新增 RTL 运行。
+
+D4 已按软件范围完成：统一 ingest 接入 L2 逐位版本／L3 原生内部消费，未知功能保持 unknown；实际访问路径和 scope 经核对后接入既有 profile／sidecar 的 VerifiedCapabilitySnapshot，SET／CLR 不授 direct-write，内部消费不授 completion。派生事件保留原始引用、规则和范围，缺公共 base 投影明确报缺口。下一项 D5 RAM／IRQ 精确证明范围；生产调度、E3 插件输出、D6 active witness 及真实 DUT 门禁未完成。见 [D4 衔接报告](../reports/stage2-d4-capability-events-20261011.md)和[版本／消费报告](../reports/stage2-d4-register-progress-20261011.md)。
+
+更新：2026-10-11。本文是仓库当前实施状态的入口；**想先了解"这套系统长什么样、怎么验证的"，读[系统说明](../SYSTEM_OVERVIEW.md)**。阶段定义和验收条件以[主实施计划](../superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md)为准。本文只记录已验证范围，早期报告保留其写作时的源码和运行身份。
+
+会话衔接（2026-10-11）：本目录上一个主 Codex 对话 `01a1211e-944a-7de3-ac2b-65b6c1132bc9` 的任务是按[第二阶段执行计划](../superpowers/plans/2026-10-09-stage2-declarative-cpu-ip-adaptation.md)实施，并维护相关进度文档；最后一条用户指令为“继续处理”。本会话延续该计划，以下状态以验收报告为准；会话查找本身不增加实现或验收完成项，后续实施状态见下文。
+
+D3 已按软件范围完成：通用显式 binding 的 raw producer→精确交付→实际 input sample，以及 APB3／TL-UL／Wishbone request→accept→response 已复用既有逐边／来源消费者和 C3/C5 认证；协议证书进入 D1 台账，仅授历史协议边界 scope。联合定向 97 passed，兼容回归 378 passed、218 subtests passed；只读复核通过。D4 已完成软件范围，下一项 D5 RAM／IRQ 精确证明范围；D6 active 生命周期和真实 CPU/IP／HMAC 门禁仍未完成。见 [D3 协议证据报告](../reports/stage2-d3-protocol-evidence-20261011.md)和[绑定报告](../reports/stage2-d3-binding-progress-20261011.md)。
+
+D2 已完成有限特征、有界窗口的基础事件／覆盖候选发现；最终回归 190 passed、218 subtests passed。候选只供探索建议；D3 已新增独立的基础精确认证，候选生产接入及调度能量仍待 D8。见 [D2 验收报告](../reports/stage2-d2-bounded-candidates-20261011.md)。
+
+D1 已完成三类依赖记录的不可变 API、分类报告及保存重载；27 项定向测试；与 D2 合并的 190 项兼容回归通过。格式合法不代表运行证明，不授 prerequisite；D3 协议消费者已接入分类台账，active witness 仍待 D6。见 [D1 记录契约报告](../reports/stage2-d1-evidence-categories-20261011.md)。
+
+C7 新增无功能消费者导入、新旧 case 精确请求／交付／采样关联和基础覆盖不变检查；79 项测试、67 项子检查通过。同步修复 direct elaboration 的 Git 源锁漏检。证明范围及失败记录见 [C7 验收报告](../reports/stage2-c7-plugin-free-fixtures-20261011.md)。真实 DUT／功能矩阵仍待验收。
+
+第二阶段按[声明式 CPU／IP 适配计划](../superpowers/plans/2026-10-09-stage2-declarative-cpu-ip-adaptation.md)执行：M0 基线、B1–B6 与 C1–C7 已完成，M1 软件门禁通过，D1–D4 已完成（软件范围），下一项 D5 RAM／IRQ 精确证明范围。A1 起点身份与 A3 的 [20 个功能组合＋HMAC 基础行](../STAGE2_ACCEPTANCE_MATRIX.md)已登记；首步 replay 日志及配对验收伪通过已修复，资源监督和共享缓存已接入首步入口。B2 提供 declared／effective／verified 与逐操作矩阵、最低等级拒绝及 profile/sidecar 身份绑定；B3 补齐必需端口、clock/reset、窗口 aperture 和逐位 ownership；B4 提供受字段权限/mask/副作用约束的 L2 register action planner，以及自述观察需求的 L3 v2 contract 和运行预检；B5 确认 local harness v2 按请求版本和协议契约选择通用寄存器观察 executor，不按 GPIO/UART/SPI 等标签选择，旧专用探针路径保留；B6 覆盖无功能契约、最低等级不足、未知协议、bound 输入、缺失端口和 `DONE` 寄存器名不授予 completion 的拒绝／降级负例。C1–C2 在新生成的 APB3/TL-UL/Wishbone v2 通用 artifact raw-event 出口加入 `ip_base_event.v1` 端口采样／变化投影，并保留原始 `local_tick_sample`；C3 加入声明式协议 trace 和请求、接纳、响应、错误、等待、重复、取消及超时事件，TL-UL 保留 A/D source 身份，APB3／Wishbone 显式保留无原生事务 ID 的缺口；C4 按 profile/runtime name 采集任意名称的物理输入与输出，记录实际采样、变化、显式绑定交付及 reset epoch，并只在目标同 epoch 的实测 pre-edge 输入匹配交付值时生成 `input_sample`；C5 加入共用协议 Checker，校验握手、stall 稳定性、响应关联、TL-UL mask/opcode、至多一次交付和等待预算，并让 Runner 记录违规且将运行标为失败；C6 新增无功能插件依赖的有界基础覆盖消费者，按游标增量统计协议操作、响应、接纳后延迟、精确物理切片变化和声明目标位，并输出独立 `base_coverage` 快照。C7 fixtures 已通过软件验收，详见新增 C7 报告。仍没有 Stage 2 CPU/IP 生产运行器或 DUT 结果。[B2 报告](../reports/stage2-b2-capability-levels-20261010.md)、[B3 报告](../reports/stage2-b3-interface-preflight-20261010.md)、[B4 报告](../reports/stage2-b4-level-semantics-20261010.md)、[B5 报告](../reports/stage2-b5-executor-selection-20261010.md)、[B6 报告](../reports/stage2-b6-negative-contracts-20261010.md)、[C1–C2 报告](../reports/stage2-c1-base-events-20261010.md)、[C3 报告](../reports/stage2-c3-protocol-base-events-20261010.md)、[C4 报告](../reports/stage2-c4-input-sampling-20261010.md)、[C5 报告](../reports/stage2-c5-protocol-checker-20261010.md)、[C6 报告](../reports/stage2-c6-base-coverage-20261010.md)记录范围。第一次真实 Ibex 短门禁因内存预算不足被拒绝；随后 retry1 完成 3/3 legacy case 和 fresh replay（5,586 events），但未认证完整依赖链，也没有给 Stage 2 组合授级。L1–L3、新 CPU 与 HMAC 门禁仍未验收。下文第一阶段结论按其原始证据身份保留。
+
+## 阶段状态
+
+| 阶段 | 状态 | 目前的实际范围与下一道门槛 |
+|---|---|---|
+| P0 代码与文档入口 | 完成 | 当前、共享、历史文件的导航已整理；不表示 RTL 能力提升。 |
+| P1 命令入口与运行身份 | 完成 | 统一 CLI、能力查询、标准及在线运行身份和既定 replay 范围已验收。 |
+| P2 路径与真实数据流 | **完成（按声明范围）** | GPIO 原生消费、UART RX/FIFO/路由读取、原生 external IRQ taken 有真实证据；受控 ISR 入口、UART RDATA→退休 `lw`、寄存器版本 seed、实际 `sw` 的 rs2 读取、受限 host RAM 低字节 writer 及后续退休 `lw` 读回通过各自冻结源码门禁。本轮补齐：**通用逐边来源**（真实 run 9/9 声明边 certified，含 A→B 数据绑定的目标侧消费跳）、**持久状态逐边来源**（追加 RAM 字节版本与 GPIO 寄存器位版本两条边，叠加后 **11/11 certified**）、**六个声明破坏变体的零进程预检负例**、**提前 IRQ 未被接受仍写入 trace**（2 个实例）、**同 graph 不同 edge identity 的 replay 双向拒绝**，以及[P2 阶段验收门禁](../reports/current-dataflow-p2-stage-acceptance-20261007.md) exit 0。边界：无"不同 edge identity"的真实 run 对（该条为 API 级真实门禁）、`memory_read.writer_event_ids` 仍无整数写事件 id（引用形式为写事务键 repr）、消费跳依赖目标侧观测字段。 |
+| P3 目标动作与长会话 | **完成（按声明范围）** | 固定连续场景、受限在线源、RFuzz 多例共用 Runner、UART 低字节跨逻辑例读回与完整前缀 replay；`source_action.v1` 已接入在线 executor 并在任何 RTL 命令前查询先决条件（Ibex 取指槽策略默认生效）。本轮补齐：[正向 RAM 跨例消费](../reports/current-dataflow-p3-ram-cross-case-real-20261007.md)（真实 40/40，`ram_byte_version.evidence_ref` 精确等于前例 `memory_write_commit`）、byte-enable lane 选择性（20 次部分字节使能写 / 9 次未使能 lane 检查 / 0 误采纳、232 lane 跨例匹配）、[IP→CPU→IP 跨例链](../reports/current-dataflow-p3-ip-cross-case-20261007.md)（3 条，gap=1），并由 [P3 阶段验收套件](../reports/current-dataflow-p3-stage-acceptance-20261007.md) **exit 0**（7 项关键验收各由至少一个声明 run 证明）。边界：无单 run 全项、finding 为注入校准、RTL 分块等价半项恒 null。 |
+| P4–P6 反馈、故障与多协议 | P4、P5 已完成（按声明范围）；P6 未验收 | **P5 已完成（按声明范围）：**整阶段入口 `p5_acceptance_suite.v1` 联合判定关键项 **6/6 成立、exit 0、unmet=[]、no_proving_run=[]** —— 三类断言分节＋fail-closed 普查、受控故障真实捕获＋**新进程复现**（复现根 `fault_document_sha256` 与最小重放逐字节一致、`statuses={complete:2,dut_violation:1}`）、正常对照静默（5 个干净对照，唯一带 finding 的对照就是故障运行自身）、启动前身份拒绝＋完整前缀、十分钟 600.362953 秒／368 例／27 条认证链＝0.044973 链/s／**自然 finding 0 如实记零**＋fresh replay `matches=true`、同预算连续 vs 逐例冷启动 16.08×（链/s 等价如实记“不可测”）。证据与边界见[P5 阶段验收报告](../reports/current-dataflow-p5-stage-acceptance-20261008.md)；边界：**非单 run 通过**（`heterogeneous_uart` 单跑 0/6 被完整报告）、旧 P5 验收运行的 UART 链证书为 0；后续独立 UART 证书与新运行自身路由见证见下文、无自然 RTL 缺陷（finding 全为注入校准）、故障质量/灵敏度未验收、链终点不含 ISR→GPIO A 回流、冷组聚合报告无 `session_status`、p95 尾部（`interaction_ingest` 114.8 ms、`rtl_submit` 2.28 s）仅记录未消除。P4 已完成（按声明范围）：路径先选与候选身份、九类合法操作子（XORI/移位/序列编辑插入删除/初始 RAM/路径切换/环境源/持久状态/MMIO 字节写）各有真实门禁，37 码 + 真实 7 类拒绝，反馈与 CPU 侧内部分支覆盖（含 `first_seen` 台账、CPU 12/64 点亮、0 死计数器、profile 路径门禁 8/8 可判定），slot 不可变性全扫描 36,985 slot immutable，算子收益与臂等价同预算对照，整阶段入口 8/8 成立——边界见[阶段验收报告](../reports/current-dataflow-p4-stage-acceptance-20261008.md)（F4/SPI 属 P6、本预算算子无收益、CPU 8 点阈值属搜索质量）。P4 已有路径先选、F4/F5 目标身份、在线决策记录、**37 个版本化拒绝码**、真实 7 类拒绝＋1 类不确定回执、`SLLI/SRLI/SRAI` 合法操作子与真实退休门禁、闭环能量接入 live 的 A/B 证据、**声明式路径切换算子接入 live（同 seed A/B＋2,400 例长枝逐例复算，0 拒绝的窗口边界已实测）与 slot 不可变性只读门禁**。P5 已有严格认证链/s（31 秒 8 条＝0.255807；十分钟 368 例 27 条＝0.044973）、68 条 IRQ serial 精确证书、同预算配对对照（墙钟约 1/16）、受控故障真实捕获＋新进程复现、全分项 p50/p95 与完整 fresh replay。后续边界：同条件故障质量对照、UART 十分钟长会话与跨例持久状态、P6 真实复用门禁；已完成的逐边来源、冷组部分 replay 与 UART 新运行见下文。 |
+| P7 自动接入同协议组件 | 未完成 | 仍需新 CPU/IP 的自动生成、路径编译、持续搜索与重放验收。 |
+| P8 真实 DMA 流 | 未验收，RAM→RAM、RAM→UART TX FIFO、UART RX FIFO→RAM 定向闭环已实测 | Ibex 配置真实 wbdmac，实际 DMA master 完成 RAM 与单字 FIFO 双方向传输，并由原生 IRQ 触发真实 CPU ISR。仍缺持续搜索、通用来源链、认证前缀 replay 和多字 FIFO 行为。 |
+
+**按第一步 P1～P5 的完整阶段验收，当前通过 5/5，即 100%，完成到 P5（按声明范围）；第一步框架（Ibex＋双 PULP GPIO＋一种异构外设的持续搜索、断言与 replay）已整阶段验收，P6 多协议固定实例复用尚未验收。** P5 的完成绑定其[阶段验收报告](../reports/current-dataflow-p5-stage-acceptance-20261008.md)所列证据与边界：入口 `p5_acceptance_suite.v1` 六项关键项全部有 measured 且 met 的证明运行（联合 exit 0），且该完成**明确不主张**：旧 P5 联合验收运行上的 UART 完整链证书/路由见证（当时为 0；后续独立证据见下文）、自然 RTL 缺陷（如实记 0）、故障灵敏度对照、ISR→GPIO A 回流链终点、单 run 全项。P4 的完成绑定其[阶段验收报告](../reports/current-dataflow-p4-stage-acceptance-20261008.md)所列证据与边界：入口 `p4_acceptance_suite.v1` 关键项 8/8 成立，F4/SPI 实例与异构外设、故障灵敏度、链终点回流等属 P5/P6 范围。 P0 是入口整理前置项，不计入第一步五个能力阶段；P2 与 P3 的完成各绑定其[阶段验收报告](../reports/current-dataflow-p2-stage-acceptance-20261007.md)（[P3](../reports/current-dataflow-p3-stage-acceptance-20261007.md)）所列源码与边界，P4/P5 的局部代码和历史真实证据不能替代各自整阶段验收。该百分比是验收阶段数，不表示代码行数或研发工作量。
+
+## 本轮证据
+
+P2 的**持久状态逐边来源**缺口已用实测补齐：[在线契约追加两条 `persistent_state` 边](../reports/current-dataflow-p2-persistent-state-edges-20261007.md)（rule 15 `cpu.online_instruction → online.cpu.persistent_ram_byte`、rule 16 `online.gpio_a.isr_padout → online.gpio_a.persistent_register_bit`；既有 15 条 rule/9 条边逐字段不变）。真实 trace 上扩展为 **11 certified / 0 incomplete / 0 unknown**（11 条边）：RAM 边按写侧 `version=[generation,seq]`＋`byte_enable` 覆盖与读侧每 lane `versions/writer_kinds` 的**精确引用**连接（引用形式为写记录自身事务键的规范 repr，不是占位串）；寄存器边按位行 `version`/`observation_event_id` **全等**连接。仍缺的字段（`memory_read.writer_event_ids` 从无整数写事件 id、该 run 无 `commit_id`、`memory_initialization` 无跨度）全部在 **host 写入器侧**，不需要新增 RTL 探针。P2 阶段级汇总见[P2 阶段验收](../reports/current-dataflow-p2-stage-acceptance-20261007.md)（门禁 exit 0）。
+
+P3 的**正向 RAM 跨例消费**已在真实 RTL 上打通：[结果槽读窗口与 `--memory-commit` 两个 enabler](../reports/current-dataflow-p3-ram-cross-case-real-20261007.md)（默认关闭、既有身份逐字节不变）之后，40/40 complete 的运行中 `policy_matched=1`、`dynamic_binding{requests:1, bound:1, unbound:0, refused:0}`；被绑定 case 的 `ram_byte_version` 先决条件 `evidence_ref` **精确等于**更早真实 `memory_write_commit`（event 17567，`memory_id="ram"`、`byte_offset=0`、`writer_kind="STORE"`、cell 值 `[1,1,0,0]`）的 `commit_id`，`evaluation.satisfied=true`。绑定只证明"读之前该已提交版本被见证并 pin 住"，Load 的返回值语义仍由既有读/退休证据承担。P3 跨例链现状：`CPU_TO_IP_TO_CPU` 有跨例证据（600 秒 6 条、p4 5 条，`case_gap` 全为 1），`IP_TO_CPU_TO_IP` **cross_case=0**（首缺口 `pin8_injection`），正在补定向配置。
+
+P5 的异构外设侧取得真实进展并暴露一条真实限制：[Ibex＋OpenTitan UART 多例门禁](../reports/current-dataflow-p5-uart-heterogeneous-gate-20261007.md)先是 3 例即因 `unsupported UART register write` 升级为 `uncertain_effect` 停机；定位后确认接纳前判定拿**整字**与 WDATA 的 8 位声明字段比较，而 session 真实语义是只写被使能 lane（P4 已归档 `be=1` 真实串口字节）。修复为 `enabled_write_mask(be)` + `written_value = value & mask`，运行时与门禁共用同一谓词（486 组网格等价），complete 例由 2 升至 **6/7**（含 `rv32i:SLLI`、`rv32i:LUI+ADDI+LUI+SB` TX 字节写与 3 例 UART RX 外部源），完整 fresh replay 一致。第 7 例仍因**"RX 波形进行中的 TL-UL 访问不支持"**（能力表既有记载）以 `uncertain_effect` 停机——异构长会话因此仍有界，本报告不声称 P5 整阶段通过。**该阻塞随后已解锁**：[UART 波形接纳门禁](../reports/current-dataflow-p5-uart-waveform-admission-20261008.md)把"RX 波形进行中的 TL-UL 访问"从**运行中停机**改为**接纳前的声明式拒绝**（`UartWaveformAdmissionGate` + 新的 `transport_idle` 先决条件，只读 `register_access_conflict`，同一 horizon 与既有 `_access` 守卫一致），同 seed／同预算下由 7 例（1 次 `uncertain_effect` 停机）变为 **60 例、57 complete、3 例 `input_invalid`（`uart_rx_waveform_conflict`，各带 `uart-waveform-idle:*` 证据）、0 停机**，CPU 侧 24 例与 UART RX 36 例在同一会话内都被真实使用、54/60 例命中目标、fresh replay 一致；底层波形互斥仍不支持，只是不再崩溃。
+
+**P5 阶段验收已授予（按声明范围）：** [P5 阶段验收报告](../reports/current-dataflow-p5-stage-acceptance-20261008.md)。入口 `scripts/run_p5_acceptance_suite.py`（`p5_acceptance_suite.v1`，只读串起已保存运行与产物，从不渲染 harness、从不启动 RTL）在 7 个声明运行（chain_acceptance／long_search／paired_continuous／paired_cold_start／fault_calibration＋复现根／fault_family／heterogeneous_uart）上**联合判定关键项 6/6 成立、exit 0、unmet=[]、no_proving_run=[]**：①三类断言分节且异常记录 fail-closed 普查（报告引擎 sha256 必须等于当前 `assertion_classes` 模块）；②受控故障真实捕获＋**新进程复现**（`compare_run` 复现根 `reproduction_summary.json` 的 `fault_document_sha256` 与最小重放逐字节一致、`statuses={complete:2,dut_violation:1}`）；③正常对照静默（4 个干净对照：chain_acceptance／fault_family／long_search／paired_continuous；套件列出唯一携带 finding 的对照就是故障运行自身）；④完整前缀保存＋启动前身份拒绝（并存的真实拒绝证据是冷组 24 例 decode-space 漂移拒绝，发生在任何 RTL 启动之前）；⑤十分钟 600.362953 有效秒／368 例／27 条认证链＝0.044973 链/s（跨例 6）／**自然 finding 0 如实记零**／`report_binding=true`／fresh replay `matches=true`；⑥同预算连续 vs 逐例冷启动 16.08×，且**链/s 等价如实记 `measurable=false` 并给原因**，不编造比值。同轮 `scripts/report_p5_arm_metrics.py`（`p5_arm_metrics.v1`）把清单 12 个效率分组逐项落地到三个真实臂，并修掉一处真实分类缺陷（`input_invalid` 未进无效集，导致 UART 臂的无效/超时比例算不出——现在为 **0.05**＝3/60，600 秒臂为 **0.0**＝0/368）。边界（P5 完成**不主张**这些）：非单 run 通过（`heterogeneous_uart` 单跑 0/6 被完整报告而非丢弃）、UART 侧真实路由见证 `source_target_transactions=null` 与完整链证书仍为 0（57/57 fuzz 源接纳无证书）、无自然 RTL 缺陷、故障质量/灵敏度对照未做、链终点不含 ISR→GPIO A 回流（`cpu_retired_transaction_target_delivery.registered_origins=[]`）、冷组聚合报告无 `session_status`（只有 `execution_status`）、p95 尾部（`interaction_ingest` 114.8 ms、`rtl_submit` 2.28 s）仅记录未消除、336/368 与 54/60 例 `interaction_deferred`。
+
+**P5 验收后的两条真实收尾（2026-10-08）：** ①**UART 链路证书不再是 0**：[只读 UART 链生产者](../reports/current-dataflow-p5-uart-chain-certificates-20261008.md) 新增 `runtime_uart_chain_certificate.v1`（16 跳声明 DAG，含实测新增的 `uart_source_frame_end`；32 项测试 RED 11 failed/21 passed→GREEN 32 passed，`test_chain_certificates.py` 50 passed 无回归），对 274,782,641 字节／76,332 事件的单片 trace 全量流式扫描得 `candidates_total=37`、**`certified=7`／`incomplete=30`**（首缺跳直方图 `{uart_source_frame_begin: 30}`）、`refusals_total=0`（诚实 0：全 trace 读完且无 join 键矛盾）、两跑逐字节相同、`semantic_sha256_verified=true`；它**不主张** IRQ→CPU 因果（只按 take 的 `source_output_key` 定义把该帧 entry 列为队首归因，无法归因记 unresolved 绝不猜）、不主张 polling（30 条 incomplete 的端点/跨例/polling 三项写 `null`+原因）、每证书 7 条 `not_proof_of`，`cross_case=true` 只在源与端点 case 确实不同时给出。②**UART 真实路由见证已有运行自证**：[实时门禁](../reports/current-dataflow-p5-uart-routing-witness-20261008.md) 用同 cache／同 seed `20261007`／同预算跑出新会话 `runs/p5-uart-routing-gate-20261008-online`——60 例（**57 complete ＋ 3 `input_invalid`**，与旧运行逐状态一致）、79.934 有效秒、**fresh replay `matches=true`**，且 `report.json` **首次自带** `source_target_transactions`（`online_source_target_transactions.v1`：`cases_with_register_access=7`／`register_accesses=7`／`target_consumption_witnesses=73`／`matched=21`／`unmatched=52`／`cases_without_any_witness=37`／`event_slices_unavailable=3`），门禁决策日志 `{count:24, admitted:21, refused:3, omitted:0}`（3 条拒绝仍带 `uart-waveform-idle:1832/4456/6296`）。只读交叉核对脚本对该运行独立推导出 77／21，差异**逐 case 定位**为脚本扫全 trace 多算 bootstrap 例 `uart-fixed-warmup` 的 4 条**未 join** 保留类见证（记录器只覆盖已提交搜索例），两侧 `matched=21`／`register_accesses=7` 完全一致——这是作用域差异，不是错误计数，两处口径都已写明。该路由表还经过**独立子代理对抗式复核**（自解析 receipts、自流式读 274 MB trace、自实现 join 与 RV32I 解码）：29 条 claim 中 27 条一致、0 条无法核对、2 条不一致——其中一条是**出货代码真缺陷**：`uart_waveform_gate.fragment_mmio_accesses` 对**存储**也按 I-type 取立即数，把 rs2 折进地址并丢掉 `imm[4:0]`，于是把真实的 `SB @ 0x4000001c`（UART TXDATA）记成 `0x40000002`；本轮已按 TDD 修复（新增回归用例，先回退修复得 RED `1 failed, 6 passed`，恢复后 `7 passed`）并重新生成见证 JSON（`086ed820…`→`006a5a52…`），对本运行的 21 采纳／3 拒绝判定无影响（两种读法都在声明窗口内），但非页对齐窗口或别的 rs2 会改变判定，故属必须修的真缺陷；另一条是报告叙述错误（"6/7 读出值等于注入字节"实为 **7/7**），已更正并写明"值为 0 的相等不构成消费证据，join 才是"。P5 仍如实保留的边界：异构外设的**十分钟**长会话未做、UART 侧跨例持久状态未做、故障灵敏度对照未做、链终点不含 ISR→GPIO A 回流、p95 尾部仅记录未消除。
+
+P2 的"通用逐边来源"缺口已有实测交付：[按契约声明边统计的 `runtime_edge_provenance.v1`](../reports/current-dataflow-p2-edge-provenance-20261007.md) 在三条真实 run 上给出 **9/9 声明边 certified / 0 incomplete / 0 unknown**（6 条 `mmio_route` 按 `source_transaction` 六字段全等 + aperture 判定；3 条 `direct_binding`：两条 IRQ 按精确 `source_event_id`、A→B 数据绑定按目标侧观测的 `origin.delivery_event_id` 引用 delivery 且 driver 值 == delivery 值 == 目标测量窗切片**三方相等**）；叠加追加的两条 `persistent_state` 边后为 **11 certified / 0 incomplete / 0 unknown**。同轮 P2 真实负例门禁以六个声明变换变体证明"拒绝先于任何 harness 渲染与进程启动"（探针计数全 0，含 `cut_binding`／`drop_irq_binding`／`wrong_mmio_base`／`wrong_target_window`／`edge_identity_swap`／`producer_drift`），并给出同 graph 不同 edge identity 的 replay 双向拒绝。
+
+P3 的"门禁已接线但无策略"缺口已闭合：`InstructionSlotReservationGate`（`instruction_slot_unmaterialized`，按例惰性登记该 action 自声明的 1–2 个字，上界 `(0x2fe00-0x11000)/4 = 31616`）默认接入 Ibex 在线运行时；真实运行 `runs/p3-slot-policy-20261007-online`（32/32 complete）中 `report.json` 记 `enforce=true`、`gate.schema_version=instruction_slot_reservation_gate.v1`、`counters`：bound_actions 12／queries 64／reservations 26／refusals 0，tracker `slot_count=26`、`materialized_count=26`、`bounds.max_slots=31616`，32 条回执全部带 `source_action`，并有回执给出精确 `matched_evidence_refs=['online-instruction-slot.v1:0x00011010']`。跨例最强形态是"第 N 例物化的槽位在第 M 例任何 RTL 命令之前被拒"；在线指令源没有 RAM 字节效果，故**没有**正向 RAM 跨例消费（如实记录）。
+
+同轮[在线身份解码空间闭包](../reports/README.md)修复了"bundle 身份不承载解码源"的真实缺陷：新增 `decode_space` 身份成员（12 个 decode 源，指纹 `2736e47b…`），旧 bundle 缺条目记 `unknown` 且继续可用，仅双方都有且不一致才拒绝并列出漂移文件。
+
+P4 的合法操作子扩展到 RV32I 移位立即数并完成[真实退休门禁](../reports/current-dataflow-p4-shift-operators-real-20261007.md)：`SLLI`/`SRLI`/`SRAI` 编码逐位金标准、新增 `field.bad_shamt` 与 `isa.reserved_imm_bit`（拒绝码 35→**37**，目录摘要 `86d03337…`），退休匹配器新增移位解码与结果校验。120 秒真实运行 83/83 complete，自然变异命中 **7 条移位（SRAI 3／SLLI 2／SRLI 2）全部 `matcher=accepted`、`writer_kinds=['INSTRUCTION_SOURCE']`、`source_refs` 指向该例 admission**；其中 `online-70` 的 SRLI 带非零操作数（`0x10801000 >> 2 == 0x04200400`），在真实运行中验证了值语义。
+
+P4 的闭环反馈已接入 live 选源并做[同 seed 真实 A/B 对照](../reports/current-dataflow-p4-closed-loop-live-ab-20261007.md)：开关 ON 的运行在 `report.json` 记 `closed_loop_enabled=true`、累计消费 33 张真实链证书、结算 **7 条闭环命中**（OFF 为 0），选源分布由 OFF 的 CPU 39.0%／GPIO 61.0% 变为 ON 的 CPU 51.4%／GPIO 48.6%，逐例选源序列自第 2 例起分叉。两枝 raw 输入随反馈分叉，故这是**搜索过程对照**而非逐例因果证明（单例因果见同前缀反馈因果报告）；ON 在相同 60 秒预算内完成 35 例对 OFF 的 41 例，闭环证书消费有真实开销，不声称吞吐提升。
+
+P5 的"三类断言分开报告"缺口由只读门禁补齐（[断言分类报告](../reports/current-dataflow-p5-assertion-classes-20261007.md)，`p5_assertion_classes.v1`，18 项软件测试）：一次只读流式扫描分别产出**协议 checker**、**跨组件来源/顺序**、**CPU/IP 行为**三类计数，并把"生成/声明约束"与"检查期望"分开；真实 run 上分别为 0/24、22（6 个 `not_a_runtime_edge` + 16 张不完整链证书）、118/1308 条记录，另一个 run 的 CPU/IP 层无记录时写 `null`+原因而不是 0。异常记录做 fail-closed 普查（140/140、42/42、24/24 全部可回查），未分类记录一律 exit 2；同时暴露一处真实词表分歧：写侧状态是 `input_invalid`，而冻结的 `acceptance_metrics.INVALID_STATUSES` 写的是 `invalid_input`（已记录为限制，未静默丢弃）。P5 的冷组逐例 replay 也已在**冻结源码**的同源 bundle 上取得结果（[冷组逐例 replay](../reports/current-dataflow-p5-cold-group-replay-20261008.md)）：连续枝 24 例 replay 一致，冷组 15 个可复现例**逐例各起独立 RTL 进程 replay 全部一致（15/15）**；其余 9 例不是独立缺陷——第 15 例是 `source_action_not_constructible` 预 RTL 拒绝例（回执 `effective_genome_sha256=null`），冷组用同一 raw 重放时新解码器能产出候选，故`decode_reproduces_saved_case=false`，其后前缀链按设计不可复现、工具 fail-closed 不发布 plan，配对对照器因 24≠15 拒绝出结论。
+
+P5 的故障**质量**对照已由只读工具补齐（[同条件故障质量对照](../reports/current-dataflow-p5-fault-quality-comparison-20261007.md)，`p5_fault_quality.v1`，27 项软件测试）：9/9 变体 `detected=9 boundary_ok=9 reproducibility_ok=9`，锚点事件逐字段数据流差异 0、故障 trace 保留原值且注入值不出现、9/9 的最小重放摘要与该变体文档 canonical 摘要一致；工具同时**显式暴露同条件降级**——8 个 PULP 变体的控制运行（更早保存）与故障会话 `topology_sha256` 相同而 `graph_sha256` 不同、运行时路径声明 78 个字段与 6 个 source 文件不同，case `online-2` 窗口掩码后仍有 80 个事件不同（372 身份摘要叶 + 67 内容叶全在 event 5826），故"同条件"只到 case_id／事件 ID／tick／原值／锚点逐字段一层。边界：不重放最小配置（新进程复现仍由既有单变体门禁证明）、单点见证不构成灵敏度或覆盖率结论。
+
+P4 本轮把最后几项缺口补齐并跑出真实结果：(a) **`first_seen`**（[写侧与真实台账](../reports/current-dataflow-p4-first-seen-real-20261008.md)）用仿真器已有的每测试计数器回读写出 `soc_coverage_first_seen.v1`，真实运行 300 秒／54,157 次 RTL 测试／点亮 30/128，报告 `first_seen.available=true points=30 earliest=bit:21@event:1`，独立交叉复核 exit 0（台账命中集合 == 计数器非零集合、每条目命名自己的点、`readbacks == actual_rtl_execution.tests`），旧产物仍 `available=false`+原因而绝不写 0；(b) **CPU 侧门禁可判定化**已在真实 profile 路径运行上落地：`--min-cpu-points 1` 下 **8/8 判据全部通过、exit 0**（RVFI opcode 窗口 `[228,239]`、覆盖身份 `verified` 24/128、`unelaborated-bound=0`、elaboration 探针与模型摘要一致），`--min-cpu-points 8` 只因 CPU 点亮 6/64 <8 而 FAIL——**映射问题已解决且可判定，8 点阈值下的失败是搜索质量不足**，门禁自己把两类分开报告；(c) **slot 不可变性全扫描**（[9/9 immutable](../reports/current-dataflow-p4-slot-immutability-sweep-20261008.md)）覆盖 10 个运行共 36,985 个 slot、0 violated／0 insufficient，并点名 `runs/p4-cpu-side-coverage-20261008-online` 因既无 manifest 也无事件 trace 记 `unavailable`（不并入 immutable）；(d) **臂等价判定**（[arm_equivalence.v1](../reports/current-dataflow-p5-arm-equivalence-20261008.md)）对 5 对真实臂给出逐字段等价/不等价/未知，没有一对 `claimed=true`，且明确只回答字段等价、不回答搜索质量。整阶段验收入口 `scripts/run_p4_acceptance_suite.py` 经 48 项 hermetic 测试加固（修掉 11 处判据缺陷，含真空判真与陈旧产物误判）后仍报关键项 6/6 成立、exit 0。
+
+P4 新增**整阶段验收入口** `scripts/run_p4_acceptance_suite.py`（`p4_acceptance_suite.v1`）：只读串起已交付的各个门禁（序列编辑两枝、路径切换、初始 RAM、覆盖身份与 CPU 侧门禁、算子收益对照、slot 不可变性、拒绝码回执扫描），逐项给出 `measured`/`met`/证据与退出码语义（0=全部关键项测得且成立、2=关键项缺失或不成立、1=入口本身失败），**未测得的项绝不算通过**；当前树上报 **关键项 6/6 成立、exit 0**，其中 CPU 侧门禁 verdict 以非关键 `partial` 记录并注明原因。P4 的 `first_seen` 缺口也已从写侧补齐（并行子代理）：soc_* 仿真器本就每测试回读整条计数器向量，现在把它记成有界、身份绑定的 `soc_coverage_first_seen.v1` 台账（声明进两种 provenance 形态，报告 CLI 先按运行自己的 plan 逐位 join 再交给 shipped 检查器），**不需要改 Rust 客户端、harness 或协议**；旧产物仍是 `available=false`+原因而不是伪造 0（39 项测试，RED 33 失败→GREEN 39 通过）。P4 的"通用计算→外设消费证书"也落地了（`computed_consumer_certificate.v1`，12 类声明式见证登记表、43 项测试）：只有全部跳都按精确身份 join 才发证书，否则点名首个缺失跳/身份；8 个冻结运行只读复算 **192 认证／528 拒绝／0 unknown**（`gpio_register_commit` 178、`gpio_apb_access` 4、`uart_tick_observation_access` 8、`uart_serial_observation` 2，含 event 28002 字节 `0x0c`），`spi_transfer`/`timer_tick` 在全部产物中无事件故记 `absent_from_artifact`；每条记录带 `proof_scope`/`not_proof_of`（不证寄存器堆 token、设备内部 FIFO 溯源、跨指令依赖与消费逻辑正确性）。CPU 侧门禁的可判定化路线也已从源码+只读复算证明：profile 路径的 checker profile 激活 bit 16（`RVFI.ORDER`）→ 12 位 `rvfi_opcode_coverage_o`、计数器区间 `[228,239]`，正是 `cpu-stimulus` 前置读的键（11 个已保存 profile 运行一致），驱动脚本 `scripts/run_p4_cpu_side_profile_campaign.py`（21 项测试、`--check-only` 预检）已就绪；legacy 路径渲染无任何 `rvfi_*` 端口，故只能作为"需改渲染器"的备选而不采纳。
+
+P4 的"指令插入/删除"不再是软件门禁：[序列编辑真实门禁](../reports/current-dataflow-p4-sequence-edit-real-gate-plan-20261008.md) 用 shipped `--initial-ram-record` 把 8 字节 raw 作为**首例**直投客户端（`seed.bin` → `--seed-input` → Rust `fuzz_one(identity)`），两枝各 8/8 complete 且**六项判据全部 proven**：insert 枝 raw `00000007c00200fc` 解出 12 字节 `b72300c093c3c37f93832300`（`LUI+XORI+ADDI`）、delete 枝 raw `00000011a10100aa` 解出 4 字节 `b71300a0`（`LUI`），片段逐字出现在指令通道取指证据中，并以 `status=accepted`、`instruction_origin_status=typed_writer_refs`、`source_refs=[action_id]`、pc/insn 逐字相等**真实退休**；保留区走查通过，两枝 fresh replay `matches=true`。P4 的"算子收益同预算对照"也已补齐（[三对真实 A/B](../reports/current-dataflow-p4-operator-benefit-comparison-20261008.md)，13 项软件测试）：结论是本预算/seed/负载下**没有算子显示覆盖或完整链收益**——初始 RAM 是最强对照（96/96 raw 与逐例 status/coverage/genome/path 完全一致），路径切换只改变轨迹（共享前缀 1 例，目标位与链数不变），闭环能量确实改变逐例选源/覆盖（前缀内 23/35 `coverage_hex` 不同、三目标首中位 3/2/2→11/10/11）但证书更少（7 对 12 条、0.115 对 0.196 链/s，且同 60 秒例数更少）；边界：每臂单次运行、目标集饱和 4/4，`certified=0` 只表示链生产者未认证，不代表 DUT 未完成链。
+
+P5 的链终点边界已用精确身份审计澄清（[ISR 写回端点](../reports/current-dataflow-p5-isr-writeback-endpoint-20261008.md)，新证书 `isr_writeback_certificate.v1`，18 项测试）：**把该跳并进 `runtime_chain_certificate.v1` 目前不可行**——600 秒运行 0/27、验收运行 0/8 条链可扩展，`adjacency_fallbacks_used=0`；关键缺失身份是 `cpu_retired_transaction_target_delivery.registered_origins`/`registered_origin_status`（全部 `[]`/`unknown`），根因是 ISR 指令既不在唯一指令槽 `69632` 内也不在任何 `source_admission` 中，报告给出三种最小 harness 补记方案，并用合成 journal 测出"补上即可 join"（审计器不是被写成永远拒绝）。可精确 join 的部分已独立证书化：handler 写 PADOUT → A→B 绑定 → 第二次 CPU IRQ 输入，600 秒运行 3/68、验收运行 2/5 条完整（例：acceptance 5908→5925→5951/5953→trigger 6007→retire 6023→match 6024→delivery 6025→input 6027→observation 6058）；边界写明它不主张链成员资格、不主张 handler 入口归属，也不得被引用为链证书扩展。
+
+P4 的"CPU 侧内部分支覆盖恒为 0/64"已从根因走到**真实 RTL 修复验证**（[CPU 侧覆盖映射修复真实生效](../reports/current-dataflow-p4-cpu-side-branch-coverage-real-20261008.md)）：修复把观测配额改为只落在编译后模型真正 elaborate 的点上（编译→探针→同配额重规划→只重建一次 harness→缓存必须自证），真实 instrumented 单 cell（ibex-pulp/cpu_only、300 秒、59,753 个 RTL 测试、两次编译）实测 **CPU `elaborated-lit=12`/64、`unelaborated-bound=0`**（旧 28/28 运行是 64/64 死计数器），IP 侧 18/64，`report_rtl_branch_coverage.py` 判 `verified`（30/128）且 external binding 通过，elaboration 探针的排除集（696 点／65 实例／1716 候选位）、模型摘要与读回完整性全部通过；`scripts/run_p4_cpu_side_branch_gate.py` 8 条判据 **7 条通过**，唯一 FAIL 是 `cpu-stimulus` 前置（legacy 单 cell 路径不渲染 RVFI opcode 窗口，实测 `soc_top.sv` 无 `rvfi_*` 端口），故 verdict=**INCONCLUSIVE** 而非映射失败。顺带修掉一个必要前置：新运行的 provenance 用嵌套 `coverage` 形态，而覆盖报告/诊断工具只认旧的扁平键，导致任何新运行都无法通过覆盖身份校验——现统一到 `rtl_branch_coverage.coverage_attestation()`（新形态按运行自己的 plan 逐位重导并要求与暴露计数器一致，否则拒绝），旧 28 个运行仍按旧形态验证通过。
+
+P4 的"初始 RAM 数据"算子（清单里一直缺的那一项）已落地并有真实 RTL 证据：软件侧 26 项测试（默认关闭、地址与取值只在受信声明窗口/mask 内抽取、复用 shipped 拒绝码、并把采用结果作为**会话启动前的初始镜像**而不是会话内写内存）；真实门禁四步（OFF／ON／fresh replay／只读门禁）全部退出码 0——ON 枝在任何读取之前写入 `initial-ram-data.ram.6`（`0x100E6`=`0x94`，event 6 `initial_image`），真实 Ibex 首次读该四字节（event 774、lane 2、`c0d894d8`）的 lane 值就是 `0x94`、writer kind 为 `INITIAL_IMAGE`，`slot_immutability` 判 `immutable`、0 violated；抽取地址与取值可由运行自己的 `seed.bin` 复算，ON 枝 fresh replay 一致，OFF 枝不声明算子且默认模板等于 shipped 声明。边界：只覆盖这一个声明字节与这两个运行目录，不证明搜索收益，也不证明其它初始数据字节。
+
+P5 的异构外设阻塞项已解锁（[UART RX 波形互斥改为接纳前声明式拒绝](../reports/current-dataflow-p5-uart-waveform-admission-20261008.md)）：UART 会话新增只读查询 `register_access_conflict()`（与 `_access` 的守卫**同一谓词**，改为返回 tick 详情而不是抛错），新门 `UartWaveformAdmissionGate` 配合声明词汇 `transport_idle`，只对**片段自身字节里确实含 UART 窗口 LW/SW/SB** 的 CPU 候选在**任何 RTL 命令之前**拒绝（不消耗、不提交）。同一 seed/预算下，异构会话由修复前的 7 例（第 7 例 `uncertain_effect` 停机）变为 **60 例、57 complete、3 次声明式拒绝（全部 `uart_rx_waveform_conflict`，带 `uart-waveform-idle:<tick>` 证据）、0 停机**；CPU 指令源 24 例与 UART RX 外部源 36 例在同一会话内都被真实使用、54/60 命中至少一个目标位，fresh replay `matches=true`。同一运行上逐项口径已写明：**已证**多例不再停机、CPU/IP 双侧源使用、逐例覆盖反馈（22 种权重态、54/60 命中目标位）、断言 0 违规、身份齐全 + replay 一致、3 次声明式拒绝与可计算的无效/超时比例（57/3/0，并修掉 `input_invalid` 未分类的盲点）；**未证** UART 侧真实路由见证（`source_target_transactions=null`）、链证书（分析入口 `certified_chains.total=0`）、跨例持久状态与逐例交互反馈（54/60 `interaction_deferred`）。边界写明：底层互斥**仍不被支持**，本改动只把"提交后崩溃"变成"接纳前声明式拒绝"，不主张波形中访问已成为支持、也不主张长会话稳定性或覆盖等价；该改动触及在线解码空间，故旧 UART bundle 的 replay 会按设计被身份守卫拒绝（旧报告结论仍属其记录时的产物）。
+
+P5 的受控故障缺口从 **1/9 变体**扩到 **9/9 变体真实 RTL 校准**：[四类九变体真实捕获与独立复核](../reports/current-dataflow-p5-fault-family-real-9-variants-20261007.md) 先用[通用校准运行器与复核器](../reports/current-dataflow-p5-fault-family-calibration-20261007.md) 在保存事件上选出 9/9 见证窗口（`--select-only`，软件，6.4 秒），再为每个变体各跑一次**全新真实会话**：错 IRQ 2 个（`gpio_b_irq_source_mismatch`、`cpu_irq_pulse_input_mismatch`）、错 read data 3 个（含 UART 运行时的 `cpu_uart_rxdata_response_mismatch`）、重复提交 2 个、破坏绑定值 2 个；命中即停止接纳后续例（例数 1～3、有效秒 0.001～4.874）并各写 `minimal_replay.json`。只读、fail-closed 的独立复核器 `verify` 退出码 0、0 失败，并显式记录 8 条 `declaration_drift`（控制运行是更早保存的会话，其 `provenance.edge_candidates` 声明摘要不同），把“注入只改 checker 观测副本”限定在该字段之外逐字段成立。过程中修复复核器两处自身缺陷（声明漂移被误判为注入越界且诊断自相矛盾；未钉住的 tick 对被当成缺锚点）并加回归测试。边界：全部 finding 均为注入校准，不计自然缺陷；不构成检测灵敏度对照；`verify` 不重跑 RTL。
+
+P4 的合法路径切换算子已从解码器声明池接入**在线搜索主循环**并取得真实 RTL 逐例证据：解码器侧[声明池／请求／记录与 slot 不可变性软件门](../reports/current-dataflow-p4-path-switch-operators-20261007.md)（45 项通过；真实运行只读判定 p3 1716/1716、p4 1296/1296 slot `immutable`，CLI 用 0/1/2 区分通过／违反／证据不足），live 侧[同 seed 真实 A/B＋2,400 例长枝](../reports/current-dataflow-p4-path-switch-live-20261007.md)——`MYFUZZ_PATH_SWITCH` 默认关闭且只在在线解码路径读环境变量，开启后对照枝 46/96、长枝 1199/2400 例的**提交候选**被重定向到声明池内另一条声明路径（F4 `cpu_to_ip_to_cpu.closed_loop` ↔ F5 `ip_to_cpu_to_ip.closed_loop`），三枝 96/96、96/96、2400/2400 例的 `candidate_id` 与 `online_path_switch.v1` 摘要由该例自己的 raw＋记录权重＋声明池独立复算一致，report 运行态计数零不一致，两枝 fresh replay `matches=true`。边界：长枝指令预留余量 99,076 字节（≈24,769 例）故窗口内 0 次拒绝，真实声明下"请求已耗尽预留的目标"由软件门证 `budget.exhausted@switch.source_id`；两枝 raw 自第 2 例起分叉，故跨枝仅为搜索过程对照。
+
+P4 的"真实拒绝／不确定例"缺口已用[定向校准运行](../reports/current-dataflow-p4-rejection-calibration-real-20261007.md)补齐：受信声明驱动（收紧输入上界、预留耗尽、窗口权限/宽度/尺寸、构造后替换 ownership、预留越过在线 slot 区）在真实 RTL 会话中产生 14 条回执——**7 条 `input_invalid` 各带精确 `code`/`pointer`**（`decode.unbounded_input@input.raw`、`budget.exhausted@instruction.cursor`、`mmio.window_denied@mmio.operation`、`mmio.bad_width@mmio.width`、`mmio.no_aligned_address@mmio.windows`、`ownership.bound_input@source.port`、`ownership.fixed_input@source.port`）、6 条 complete、1 条 `uncertain_effect`（`rejection=null`）；全部拒绝发生在任何 RTL 命令之前，`verify` 独立复算 exit 0。35 码中其余分支在在线路径不可达，未授予证据。
+
+P5 的受控故障缺口已用[真实 RTL 校准与新进程复现](../reports/current-dataflow-p5-controlled-fault-real-20261007.md)补齐：从已保存 24 例运行中选出真实见证（case `online-2-…`、source_start 4610、observation 4609、tick 131），注入 `wrong_irq` 观测副本后真实会话第 3 例被 `gpio_b_irq_source_mismatch` 捕获并停止（2 complete + 1 `dut_violation`），从保存的最小重放输入 `minimal_replay.json`（sha256 `cd753d41…`）在**新进程**复现同一 case 身份与同一 finding；控制/故障两份 trace 的 `event_id=4609` 逐字段相同（`interrupt=1`、tick 131），证明只改写 checker 副本、原始 RTL trace 不变。该注入属校准，不计自然缺陷。
+
+[P5 十分钟全探针门禁](../reports/current-dataflow-p5-chain-600s-20261007.md)把严格完整链/s 升级到十分钟口径：真实 Ibex＋双 PULP GPIO 单会话 368/368 complete、600.362953 有效搜索秒，**27 条认证链（CPU→IP→CPU 20／IP→CPU→IP 7）＝0.044973 链/s**，跨例 6 条，341 条 incomplete 明确点名首个缺口（`instruction_fetch` 137／`pin8_injection` 184／`retired_target_delivery` 20）；570,196 事件、172 MB 压缩 trace，流式分析 55.19 秒 / 58.4 MB 峰值，独立缓存完整 fresh replay 一致。同一次运行上另由[IRQ serial 精确来源消费者](../reports/current-dataflow-p2-irq-serial-token-20261007.md)复算出 **68 条** `decision_serial == retirement_serial != 0` 证书（24 例短跑为 5 条），这是 P2 "退休缺硬件来源 token" 缺口的真实 RTL 证据。链证书现已把该 serial 作为 `cpu_irq_serial_token` 跳接入 IP 方向（17→18 跳，`require_serial_token` 可选强制），24 例真实产物上 5 条 IP 认证链的 serial 字段与独立复算逐字段相等。
+
+[P5 同预算配对对照](../reports/current-dataflow-p5-paired-continuous-cold-start-20261007.md)在同一冻结源码、seed 与 24 例输入下比较连续会话与逐例冷启动：9 项可比性先决条件全部满足，两组 24/24 complete、0 checker violation，`status`/`raw`/`genome`/`path`/`applied_sources`/`violations` 逐例 24/24 一致；墙钟 31.905 秒对 **512.881 秒（含 24×18.736 秒逐例初始化）＝约 16.08×**，但连续组逐例处理 p50 反而高约 0.24 秒，**节省来自免重复初始化**。`coverage_hex` 22/24、`local_ticks` 15/24 不同，故显式**不**声称输出等价。P5 受控故障族（4 类 9 变体、只扰动 checker 观测副本）与 P3 通用源动作契约（`source_action.v1`＋跨例 witness，已接 `ScenarioSession(prerequisite_gate=)`）见各自报告；二者均未跑真实 RTL 校准。
+
+受控 UART IRQ 入口与 RDATA→退休 `lw` 的[隔离源码快照真实门禁](../reports/current-dataflow-p2-controlled-entry-read-20261006.md)已完成：4/4 在线例，taken／受控入口／退休读取各 4 条 accepted，零容量屏障，48,323 事件及 local ticks 的完整 fresh replay 一致；独立语义 fixture 为 8 项、8 个删除／拒绝子检查通过。原工作区先前的 48,319 事件通过记录以及身份漂移失败均按各自源码版本保留。快照证据只证明有界 UART 子路径，不证明原工作区随后版本、通用 ISR、CPU 操作数传播或 P2 整体完成。
+
+此前[UART 寄存器版本 seed 报告](../reports/current-dataflow-p3-uart-operand-seed-20261006.md)绑定 48,319 事件的冻结运行：4/4 真实在线例，4 条 UART retired-read 和 4 条精确 `lw` 目标寄存器版本 seed。原始证据的独立重构与源码／build 身份审计通过；该目录另一次完整 fixture 执行（8 项、8 个负例子检查）及 fresh wire-prefix replay 通过。fixture 验证既有 UART 路径和完整重放，seed 语义由独立原始重构审计验证。该证书本身只授予目标寄存器版本的 UART 低 8 位来源，不授予后续寄存器复制、Store 写入或一般 ISR 来源。
+
+新的[UART `sw` 源寄存器读取报告](../reports/current-dataflow-p3-uart-operand-use-20261006.md)绑定 48,323 事件的另一份冻结运行：4/4 真实在线例，4 条精确旧 x3 版本被实际 `sw` 的 rs2 读取，零相关屏障。原始证据独立重构、源码／build 身份审计和 3 项新语义 fixture 通过；另 8 项完整 fixture 与 fresh wire-prefix/local-tick replay 通过。证书只说明低 8 位来源到该次操作数读取；整字 Store 来源、持久 RAM commit、后续读取和一般 ISR 均未证明。
+
+[host RAM 提交凭据生产者](../reports/current-dataflow-p3-memory-commit-producer-20261006.md)此前通过冻结源码软件门禁：整合 134 项、26 个子检查，独立 86 项、11 个子检查。它为实际 MemoryService 成功回调冻结完整交易键、地址、启用字节与版本，并在异常后保留 uncertain 且不重试；该旧报告本身未证明来源连接或后续 RAM 读取。
+
+新的[Store→host RAM 低字节真实门禁](../reports/current-dataflow-p3-store-real-gate-20261007.md)把前述 UART 来源、实际退休 `sw` 的 data 请求/响应和成功的 host MemoryService 回调连接到同一 writer 版本：独立源码快照 4/4 在线例、27,031 事件、2 条受限证书 accepted、零相关 incomplete/unknown，完整事件与 local ticks 的新进程 fresh replay 一致。证书不授予高 24 位、RTL RAM 或后续 Load 来源；主工作区之后的变更须按自身身份重验。
+
+后续[host RAM 低字节读回真实短门禁](../reports/current-dataflow-p3-host-ram-readback-real-gate-20261007.md)使用另一份冻结源码：4/4 在线例、27,068 事件、2 次实际 read 发行、1 条来源从 warmup UART 到第 3 例退休 `lw` 的受限证书 accepted，完整 fresh replay 一致，62 项聚焦测试通过。它证明固定受控 ISR 中一个跨逻辑例的建模 host RAM 低字节读回；不证明通用跨例操作、RTL RAM 或 P2/P3 整阶段完成。
+
+[当前代码时期的独立快照短回归](../reports/current-dataflow-p3-current-tree-readback-20261007.md)再次得到 4/4 complete、27,068 事件、2 条 Store→host RAM 低字节证书及 1 条后续退休 Load 读回证书，独立缓存完整 fresh replay 一致。并行编辑中的主工作树运行曾因源码身份漂移被 replay 预检拒绝，故只采用冻结快照结果；本门禁仍不提升 P3 阶段等级。
+
+[P3 长会话时长截止修复](../reports/current-dataflow-p3-live-duration-buffer-20261007.md)暴露原 180 秒预算会被一个多 slot RFuzz buffer 延长至 652.118 秒；该运行在 82 条 complete 回执后被中断并保存为 failed/uncertain，不计容量验收。逐 slot 截止测试先失败再通过；新冻结源码 `--seconds 12 --max-tests 800` 仅接纳 3/3 complete、36,669 事件，完整 fresh replay 一致。单例可略超时，真实越过 256 writer 的长会话仍待验收。
+
+该失败长跑的[读发行与容量复核](../reports/current-dataflow-p3-read-issuance-capacity-20261007.md)纠正了先前计数解释：3,370 条真实 `memory_read` 的完整事务键全部唯一；49,572 条 `memory_read_issuance` 仅有 41 个完整键，另外 49,531 条是退化后未消费 token 的重复 drain，不能当成真实读。首个屏障由 2,049 次 fetch 超出旧 2,048 槽容量引发，实际只有 236 个不同冻结版本。现在相同版本只占一槽，有界保留近期完整事务签名以识别 exact duplicate；退化时单次弃证并移除 read token，在线事件归档后释放 CPU/MemoryService 原始列表。review 冻结源码 4/4 UART RTL 短门禁及完整 fresh replay 一致；同快照又完成 600 秒、76/76 例、535,269 事件与完整 fresh replay：3,470 次真实 fetch、43 个唯一 read issuance、43 条 Store 和 42 条读回证书 accepted，零相关 incomplete。它跨过旧指令容量点，但只有 43 个 writer，真实跨越 256 writer 的长会话仍未验收。旧过滤试验已撤回。
+
+同一[P3 报告的后续 UART 列表释放门禁](../reports/current-dataflow-p3-read-issuance-capacity-20261007.md#uart-生产者列表释放独立快照与内存实测)使用与上述 600 秒运行分开的源码快照：EventJournal 成功归档及同步消费后释放 UART tick 原始列表，异常时不清空；本次没有改变失败同步消费的重试语义。87 项聚焦测试与 369 个 subtests 通过；新快照 4/4 真实 RTL 例、37,643 事件、3 条 Store 与 2 条读回证书 accepted，完整 fresh replay 一致。1000 条约 24 KB 合成事件的受控测量把 producer 列表保留量从 1000 条降至 0，`tracemalloc` 当前分配从 24.3 MB 降至约 28.6 KB；这不是长跑 RSS 结论，新版清理仍待长跑测量。
+
+[读回 writer 历史回收门禁](../reports/current-dataflow-p3-readback-history-20261007.md)用 300 次实际 MemoryService 写 callback 验证同地址旧版本可按证据回收，已发行及待退休的旧 read 版本不会被删，82 项组合测试通过。该报告的新源码还完成 4/4 UART RTL 短回归及完整 fresh replay；当时短跑没有触发 256 容量，后续真实 writer 容量证据见下段。
+
+[P3 定向真实 writer 容量门禁](../reports/current-dataflow-p3-directed-writer-capacity-20261007.md)在一个持续的 Ibex＋UART 会话中使 270 条在线 `sw` 经真实退休和 MemoryService 提交，连同 ISR 写入得到 271 个不同的受限低字节 writer 证书；第 257 条之后仍为 accepted，尾部缓存 15 条且零相关 incomplete。29,174 事件的独立缓存完整 fresh replay 一致。该次输入是定向的，当时尚未在第 257 条之后做退休 `lw` 读回；新门禁见下段。
+
+后续[P3 超 256 writer 后退休 `lw` 读回门禁](../reports/current-dataflow-p3-late-readback-capacity-20261007.md)在新冻结源码中完成 270 条在线 `sw` 及最后版本 `[0,282]` 后的实际 host RAM read、一次性发行、data response、RVFI 退休和受限读回证书；29,401 事件、271 个不同 accepted writer，独立缓存完整 fresh replay 一致。它仍只覆盖固定受控 ISR、建模 host RAM 低字节及定向输入，不代表通用 P3。
+
+[P4 路径先选与 flow 身份](../reports/current-dataflow-p4-online-path-selection-20261007.md)已接入在线决策，真实 Ibex＋双 GPIO 和 Ibex＋UART 工厂声明 F4/F5 主要目标；软件测试涵盖 v3 manifest、稳定路径身份与 replay。[Ibex＋双 GPIO 真实反馈短门禁](../reports/current-dataflow-p4-feedback-real-gate-20261007.md)完成 100/100 例、38,625 事件及完整 fresh replay；有来源见证的新边给 CPU/GPIO 源记 3/4 增益，并进入下一例权重。该短门禁不证明固定 raw 的真实因果改选、RTL 内部分支覆盖或 P4 整体完成。
+
+[P4 在线 XORI 合法变异](../reports/current-dataflow-p4-legal-mutation-20261007.md)新增一项可由 8 字节真实在线输入选择的 CPU 算术操作及寄存器/立即数变异，44 项定向软件检查通过；该报告写作时只有软件门禁，真实退休和 operator 身份见下文后续门禁。
+
+后续[P4 XORI 真实退休短门禁](../reports/current-dataflow-p4-xori-retirement-real-gate-20261007.md)在另一冻结源码中完成 25/25 例、31,651 事件及完整 fresh replay；3 条在线 XORI 与精确取指来源 action ID、真实 Ibex RVFI 退休和 XOR 结果逐项一致。再后的[候选身份真实短门禁](../reports/current-dataflow-p4-candidate-identity-real-gate-20261007.md)将路径、源与操作子身份写入在线回执，25/25 例、10,390 事件及完整 fresh replay 一致，25 个候选 ID 独立复算一致。更多合法变异及计算结果到外设的完整传播仍待实现。
+
+[P4 候选选择与接纳原因门禁](../reports/current-dataflow-p4-candidate-disposition-real-gate-20261007.md)又修正了提交前校验失败被误记为可能已提交的分类，并将选择原因及接纳／拒绝／不确定原因写入回执。39 项定向测试通过；另一冻结源码完成 25/25 例、10,390 事件及完整 fresh replay，14 次合法直接选源、11 次权重回退选源和 25 次确认提交均可独立复算。真实拒绝／不确定例、细粒度 ISA/profile 拒绝码和完整 P4 搜索仍未验收。
+
+[P4 同前缀反馈因果对照](../reports/current-dataflow-p4-feedback-causal-branch-20261007.md)重演旧 100 例运行的前 16 例，在相同真实 RTL 前缀与相同下一例 raw 下，仅扣除第 16 例实际交互增益：CPU/GPIO 权重从 19/24 变为 14/16，下一例实际消费从 CPU 指令源改为 GPIO pin8 源；两支 17 例完整 fresh RTL replay 均一致。所用下一例 raw 是为区分权重而构造，不能替代同预算独立 fuzz 对照或完整路径反馈验收。
+
+[P4 路径熵真实门禁](../reports/current-dataflow-p4-path-entropy-real-gate-20261007.md)修正固定 RFuzz 路径字节导致的模数选路偏置；冻结源码 1,000/1,000 例 complete、379,209 事件及完整 fresh replay，F4/F5 分别 491/509，CPU 指令和 GPIO pin8 均有实际消费。旧 600 秒回执的同权重投影仅用于定位偏置，不是同预算新旧覆盖对照；P4 整阶段未验收。
+
+随后[旧／新路径选择器同例数对照](../reports/current-dataflow-p4-path-selector-paired-1000-20261007.md)以相同源码基底、seed 和 1,000 例预算，仅替换路径取模语句：旧 F4/F5 为 745/255，新为 491/509；两组各自完整 fresh replay 一致、0 checker 错误。新组 IRQ taken 累计观测从 270 增至 346，但目标位仍同为 4、交互新特征仍同为 20；不能据此声称新增覆盖或完整链/s。反馈驱动输入仅 41 例同序 raw 相同，对照解释限于整个搜索过程。
+
+P3 在线重传补交回执的修复通过 27 项定向测试，但通用多 slot 长会话仍待完整验收。A2 增加了[静态 MMIO 窗口权限约束](../reports/current-dataflow-a2-mmio-permissions-20261006.md)，15 项相关测试通过；尚无其真实 RTL 门禁。[P5 性能剖析与优化](../reports/current-dataflow-p5-efficiency-profile-20261006.md)定位并减少了在线反馈重复深拷贝；同一真实事件集的 30,000 次查找中位耗时由 0.5794 秒降至 0.0826 秒。隔离快照完成 600.979 秒真实搜索、5,563/5,563 例 complete（9.257 例/秒），2,236,544 条事件的完整 fresh replay 一致。同一快照的逐例冷启动对照 30/30 complete，耗时 598.988 秒（0.0501 例/秒），30/30 源和路径一致；它证明重复初始化成本，不证明持续状态下的等价覆盖或故障发现能力。新的 UART 4 例、约 90 MB trace 测得证据终结 5.633 秒，其中 trace 写入 2.943 秒；不能外推到 GPIO 十分钟运行。P5 仍缺完整真实链/s、有效性和断言质量的同条件比较、p50/p95 全分项耗时及 GPIO 长跑终结成本验收。
+
+[P5 600 秒原始事件审计](../reports/current-dataflow-p5-chain-audit-20261007.md)复算了 4 个本地目标位的新颖率 0.00665581 位/秒；其后 IRQ、MMIO、Store 事件缺少与源 admission ID 可连接的来源凭据，严格完整真实链/秒在该运行中**无法确定**，不能写作零，也不能用 observed_path 数量代替。
+
+[P5 在线例分项计时短门禁](../reports/current-dataflow-p5-online-phase-timing-20261007.md)从独立源码快照完成 100/100 真实 GPIO 例及完整 fresh replay；每例 RTL submit p50 0.077347 秒、p95 0.111055 秒，反馈计分 p50 0.000204 秒、p95 0.005917 秒，证据终结 2.748 秒。它补上短跑的测量方法，不替代十分钟全分项和完整链门禁。
+
+[P5 pin8 来源到 GPIO B 实际消费子链证书](../reports/current-dataflow-p5-pin8-consumption-certificate-20261007.md)在带探针的既有 25 例／31,651 事件和 100 例／143,675 事件 trace 中分别复算出 13 和 14 张有界证书，连接 source admission、实际 GPIO tick、输入资源及 `input→sync0→sync1→padin_latch` 版本。旧 600 秒运行未启用所需探针；这只是物理输入子链，不能计作完整 IRQ→CPU→输出传播链/s。
+
+[P2/P5 pin8 到 GPIO B 原生 IRQ 子链证书](../reports/current-dataflow-p2-p5-pin8-native-irq-certificate-20261007.md)在相同的 25 例与 100 例带探针 trace 中各认证 5 条来源→实际输入／同步资源→native trigger→同 ID 高电平观测；10 项定向检查通过。CPU `irq_taken` 尚无可与 GPIO trigger 精确相等的身份字段，不能据事件相邻或数量相等把证书延伸到 CPU。
+
+后续[P2/P5 pin8 到 CPU IRQ 接受身份真实门禁](../reports/current-dataflow-p2-pin8-cpu-irq-identity-20261007.md)在独立冻结源码上完成 25/25 例、31,679 事件及完整 fresh replay；5 条证书将 pin8 来源、GPIO B 原生 trigger、声明的四 tick pulse、CPU 实际 IRQ 输入与同一步 `irq_taken_pre=1` 精确连接。它只到 CPU IRQ 接受，尚未连接 ISR、MMIO、Store 或 GPIO A 输出；上段旧 trace 的身份缺口保留为其原版本事实。
+
+[pin8 CPU IRQ 接受到 RVFI trap 退休的架构关联](../reports/current-dataflow-p2-pin8-trap-retirement-architectural-20261007.md)在上述已保存 trace 中另得到 5 条受限关联，要求单未决 IRQ、连续 RVFI order、`intr=1` 和固定 handler PC；它显式缺少退休事件上的硬件来源 token，不能升级为精确来源证书，也不能计入完整链/s。后续 MMIO、RAM 和 GPIO A 同源身份仍缺。
+
+[双 GPIO 原生 CPU IRQ 采样回执门禁](../reports/current-dataflow-p2-native-irq-sampled-receipt-20261007.md)新增显式 `--native-irq-receipts`，仅在 RVFI 模式启用；最终冻结源码 18/18 complete、24,508 事件，四次 pin8→CPU 接受均有同 tick 的真实 pre-edge sample、`take_key` 和命令回执，完整 fresh replay 一致。首条 `intr=1` RVFI 退休仍晚 5 个 CPU tick，`take_key` 仅是主机观测 ID，未贴到退休，P2 精确全链缺口仍在。
+
+在同一份已重放的 trace 上，[P2 原生回执约束的 trap 退休关联](../reports/current-dataflow-p2-pin8-native-trap-relation-20261007.md)进一步要求 IRQ take 到首次 `intr=1` 退休之间每个 CPU tick 的 sample、STEP_CPU 回执和命令序号连续，得到 4 条受限架构关联；独立审查后补上原生事件重复字段及外层执行/epoch 身份核对，52 项聚焦测试及 21 个 subtests 通过。该次是新增只读消费者的旧 trace 审计，没有新 RTL 运行；退休事件依然没有硬件来源 token，因此不能记精确全链或 P2 整阶段验收。
+
+后续[P2 trap 退休来源归属审计](../reports/current-dataflow-p2-native-trap-attribution-audit-20261007.md)补齐每个中间 native post notification 与实际 CPU STEP 输出、字段宽度及契约的一致性拒绝门禁；一条伪造通知在旧消费者中误通过的反例先失败后修复，54 项聚焦测试及 21 个 subtests 通过。原 24,508 事件 trace 只读重审仍为 4 条受限关联。Ibex RVFI 退休缺与 IRQ 决策同流水级推进的硬件来源 serial，本轮没有新 RTL 运行或精确来源证书。
+
+[P5 新的 600 秒分项计时门禁](../reports/current-dataflow-p5-streamed-600s-timing-20261007.md)在冻结源码中完成 6,276/6,276 例、2,112,036 事件的全量 fresh replay；有效搜索 600.105 秒、10.458 例/秒，逐例总处理 p50 0.075683 秒、p95 0.110623 秒。证据终结另耗 93.915 秒，其中 trace 写入 79.981 秒；fresh replay 另耗 695.10 秒。计时汇总门禁通过，但这次未启用完整传播链探针，完整真实链/s 与 Router/Scheduler 内部分项仍缺，P5 整阶段未验收。
+
+[P5 在线 submit 调用边界分解](../reports/current-dataflow-p5-command-roundtrip-split-20261007.md)在冻结源码 16/16 例与完整 fresh replay 中，将累计 1.454 秒 submit 分为 0.464 秒本地命令往返和 0.990 秒其余主机时间。命令往返包含 IPC、真实 RTL 与回执解析，不能解释为纯 RTL 求值；更细的当前源码短门禁见下段，长跑同条件比较仍待完成。
+
+[P5 Runner/Router/Scheduler 内部分项短门禁](../reports/current-dataflow-p5-runner-router-scheduler-timing-20261007.md)在独立冻结源码中完成 16/16 例、6,996 事件及完整 fresh replay。在线回执记录逐例嵌套计时：Scheduler 累计 1.006 秒、Runner step 1.004 秒、Router 排队交付 0.0058 秒；默认 GPIO 场景未调用同步 Router 事务。这些时间包含子调用，不能相加或解释为纯 RTL 时间；十分钟同条件对照和完整真实链/s 仍缺。
+
+新的[P5 十分钟 Runner/Router/Scheduler 分项与压缩终结门禁](../reports/current-dataflow-p5-runner-zlib-600s-20261007.md)在冻结源码中完成 6,272/6,272 例、有效搜索 600.067 秒、2,355,748 事件；每例外层与嵌套计时均完整，严格汇总门禁通过。压缩 trace 为 139,902,175 字节，证据终结 92.702 秒，其中 trace 写入 79.783 秒；输入哈希绑定的独立缓存完整 fresh replay 一致。10.452 例/有效搜索秒仅属于此默认 GPIO 负载，未做同条件 JSONL 或故障发现质量对照；本次未启用完整链探针，完整真实链/s 仍无法确定，P5 整阶段未验收。
+
+同一冻结源码的[P5 前十例逐例冷启动对照](../reports/current-dataflow-p5-same-snapshot-cold-start-20261007.md)重用精确 raw 与在线权重，10/10 例 complete、source/path 各 10/10 相同；十次重新建 runtime 累计 194.220 秒初始化，十例总处理 195.394 秒，原持续会话对应逐例处理累计 1.056 秒。该对照量化重复启动成本；两种会话的前置状态与完整成本边界不同，不能当作覆盖、传播链或故障质量等价对照。
+
+[P5 压缩终态写入有界优化](../reports/current-dataflow-p5-trace-write-efficiency-20261007.md)让内部写入器直接只读固定 journal 前缀，公开 snapshot 仍返回独立拷贝。相同已保存 trace 前 131,072 个事件的六次压缩输出与原前缀逐字节相同，规范语义摘要一致；配对中位写入耗时 4.038→1.973 秒，23 项聚焦测试通过。随后只替换该写入器的冻结快照完成 16/16 真实压缩在线例、6,996 事件及独立缓存完整 fresh replay。该前缀测量不外推为原 2,355,748 事件运行的终结或 replay 加速；十分钟新源码门禁仍缺。
+
+P4 静态 MMIO 约束现在可在受信窗口声明允许的写宽度，并在片段生成与变异选址时区分权限、宽度及对齐拒绝；50 项定向软件测试通过。其后仅 UART WDATA lane 0 的 `SB` 获得下述真实门禁，其他窗口与操作子仍待验收，P4 阶段状态不变。
+
+[P4 UART WDATA 低字节 `SB` 真实短门禁](../reports/current-dataflow-p4-sb-uart-byte-real-gate-20261007.md)补上上述单地址缺口：受信窗口只开放 `0x4000001c` 的 lane 0；独立冻结源码 9/9 在线例、63,830 事件，唯一 `SB` 的 Ibex RVFI 退休、同事务 `be=1` MMIO 投递和真实 UART 串口字节 `0x0c` 相符，完整 fresh replay 一致。首轮目标路由拒绝 `be=1` 的失败已保留；这只证明该 opt-in 地址和单候选，不提升 P4 整阶段等级。
+
+对同一冻结 trace 的[P4 CPU 计算到 UART 写入受限审计](../reports/current-dataflow-p4-computed-uart-store-audit-20261007.md)进一步核对连续 RVFI `LUI→ADDI→LUI→SB`、x2 的 `0x0c` 计算值和实际 rs2 读取、同键 MMIO 投递及 UART 发送计数变化；14 项含破坏链条的定向检查通过。它依赖架构退休与寄存器值的顺序关联，缺少硬件内部来源 token，不能推广为通用计算到 IP 的完整链证书。
+
+[P5 受控 IRQ 检查器校准](../reports/current-dataflow-p5-controlled-irq-fault-20261007.md)在独立冻结源码的真实 RTL 运行中使前 4 例 complete、第 5 例触发 `gpio_b_irq_source_mismatch` 并停止；只扰动交给 checker 的观测副本，原始 RTL trace 不变，新进程用同一故障配置重跑真实 RTL 且完整 replay 一致。这证明受控观测错误可报警和重放，不是自然 RTL 缺陷，也未补齐来源到 CPU 的完整链。
+
+新的[P5 首步端到端验收入口与严格完整链/s 门禁](../reports/current-dataflow-p5-chain-acceptance-20261007.md)补上 P5 长期缺失的量：新增有界增量的完整链证书生产者 `chain_certificates.py`（每条 `fuzz_source` admission 至多一张 `certified`/`incomplete` 证书）与单次流式分析入口 `scripts/run_first_step_acceptance.py`（`first_step_acceptance_report.v1`，无法确定的量写 null 并给原因）。带全部现有探针的真实 Ibex＋双 PULP GPIO 有界运行 24/24 complete、31.273544 有效搜索秒，得到 **8 条认证链（IP→CPU→IP 5、CPU→IP→CPU 3）＝0.255807 严格认证链/s**、跨例 1 条、16 条 incomplete（首个缺口 `instruction_fetch` 6／`pin8_injection` 10）、4/4 本地目标位、9 条唯一见证边、逐例 p50/p95 与 11.550 秒终结成本；独立缓存 fresh replay 一致。证书终点分别是 ISR 读 GPIO B `PADIN` 的退休与写 GPIO A 的退休交付，**不含** ISR 写 GPIO A 之后、A→B 回流与第二次中断；该 31 秒有界运行不是十分钟门禁。
+
+同轮[RVFI IRQ serial sideband 源码身份与构建输入门禁](../reports/current-dataflow-p2-rvfi-sideband-identity-20261007.md)把上一轮在建的被动 IRQ serial sideband 收口：重算 elaborated 内容哈希并重录 profile revision 与 contract 三钉，新增显式 sideband 身份与 closure 交叉核对，并修掉一个真实构建缺陷（sideband 未进 `authenticated_inputs` 导致 Verilator 找不到模块）；closure 内记录的 lint 命令重跑 exit 0，聚焦 224 项测试通过，上述真实运行以该新 wrapper 完成 24/24 例与完整 replay。host 侧尚未消费这两个 serial 端口，因此不授权"精确硬件来源 token"结论。
+
+P4 另有 35 个版本化拒绝码（`candidate_rejection.v1`，ISA／字段／片段／MMIO／解码／所有权／槽位／预算／路径分层，含失败指针与目录摘要），66 项定向测试与兼容性回归通过；live 回执尚未改用新 `decode_candidate()`/`commit_candidate()` 接口，P4 阶段状态不变。文档侧新增 `scripts/check_doc_links.py`：506 个 Markdown、827 条本地链接、零断链（含中文锚点跨文件链接），29 项测试。
+
+上一版已保存的[原生 IRQ 实际验收](../reports/current-dataflow-p2-uart-native-irq-20261006.md)证明 RX/FIFO 来源到 CPU external IRQ taken：4 项真实检查、7 个删除子检查和 48,378 条完整事件的 fresh replay 相等。它绑定旧源码身份，不自动证明本轮新增的受控入口或退休读取。
+
+## 文档与材料放在哪里
+
+| 需要查找 | 位置 | 用途 |
+|---|---|---|
+| 当前状态 | 本文 | 从这里进入计划、报告和原始证据。 |
+| 阶段任务与验收条件 | [主实施计划](../superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md) | P0–P8 的逐项范围与未完成门槛。 |
+| 已完成运行的解释 | [报告索引](../reports/README.md) | 按场景和功能找到报告，明确每份报告的适用范围。 |
+| 原始运行材料 | `runs/` | 保存的 plan、trace、manifest、回放与构建缓存；各报告指向具体目录。 |
+| 施工与审查日志 | [内部进度日志](../../.superpowers/sdd/progress.md) | 细粒度门禁、失败、修复与子任务交接；不作为对外阶段结论。 |
+| 可用组件与限制 | [真实 Harness 能力表](../LOCAL_HARNESS_RUNTIME.md) | 按组件、协议和实际验证等级查询。 |
+| 源码入口 | [代码组织](../CODE_ORGANIZATION.md) | Runner、local harness、RFuzz、证据及重放模块的位置。 |
+
+读取一项能力时，先看这里的阶段状态，再读相应报告的源码身份和门禁，最后查看报告链接的 `runs/` 与 `.superpowers/sdd/` 原始材料。旧运行只证明它自己的冻结源码版本。
+
+
+
+
+### Alias Task1 独立边界 RED→GREEN
+
+独立子代理新增 test_register_alias_capability_boundaries.py：5 个实际 profile 边界 RED（非 APB 协议、data_width16/64、read/write=False），10 个 typed drift/feature/provenance 边界先前 GREEN。Root 将 alias declaration 限制到实际 APB3、exact int32 data_width、read/write True，保留通用改名 profile。随后独立发现 typed relation bus_width=32.0 能凭 Python 数值相等绕过源文档 typed-contract 检查，plan/assessment 两个实际 RED；Root 增加 exact tuple、RegisterAliasRelation 类型及 exact int 检查。
+
+当前 alias 两文件及 legacy capability/GPIO/assessment 合计 103 passed、2 subtests passed（0.51s）。旧 unsupported-version 测试的 sentinel 从 v3 改为 v4，因为 v3 是本任务新增支持版本；该旧文件单独 16 passed/2 subtests（0.15s）。独立复核 pending，生产 GPIO 数据仍 v1，Task2/Task4 实际私有证据 fixture 编写中，尚无新 alias 证书或 native gate。
+
+Alias Task1 独立复核：52 passed（0.34s），七项实际 RED 均闭合，本 scoped parser 无剩余 P1/P2。Parser SHA d568fa1926af62896e3d186428d65f865eaf56b34f984eb09e9bf8a08a244b77；生产 sidecar 数据与实际 alias verifier/replay/native gate 尚未完成。
+
+
+### Alias Task1 生产声明迁移与额外地址边界（2026-10-12）
+
+独立声明边界追加10项：9 GREEN、1实际 RED（SET/CLR不同effects共享同一APB offset）。Root增加同endpoint source/source及source/other-destination物理地址冲突检查；10 passed（0.15s），共同PADOUT destination保持允许。真实GPIO v3数据测试在旧数据上实际1RED（schema.v1，0.15s），随后将sidecar迁移至v3，增加两条完整32位SET/CLR关系并复用被选字段来源ref；实际RTL SHA/revision/OR/AND_NOT和PADOUT read行都核对。调整legacy fixture只去除迁移后新增aliases字段，再测试v1/v2原contract；误删负例字段的测试编辑已修复，该中间2FAIL属于fixture错误而非production漏洞。
+
+六份composition测试最终114 passed、2 subtests passed（0.56s）；独立四份79 passed（0.50s），无剩余 scoped P1/P2。Parser SHA8d325472a1d55529fcdd407e0c658291d2fcd32c754d38fd8a4cb425e1f198e0，production sidecar SHA0cefc52e9300d9c0630642fa70ce7cce021035b218dfb64eea01045a618efc1d，RTL SHA1e271914da4d25c87acd12121dde60a6ed955033870fd7a6730b2c9bafcbcaef不变。生产声明/data范围已通过软件审查；仍无alias实际证书/native gate。
+
+Task2首次运行93279 setup ERROR（6.77s）：实际factory拒绝/tmp绝对profile路径，非有效行为RED。子代理正在修为configs内临时profile、仓库relative路径及finallycleanup，不放宽factory规则。Task4非空真实CPU/APB/RAM测试已写并等待同一冻结源下有效运行。原v5 gate保持历史冻结证据，不得用其旧源码pins声称当前alias改动已native认证。
+
+2026-10-12 alias Task4有效软件RED：真实GPIO v3 declaration已加载，SET／CLR非空CPU→Router→strict parsed target bracket两项均以 `unsupported_effect_rule` 缺alias certificate失败（2 failed／66.30秒）。此前3条完整raw/base关联、2次私有RAM commit与实际软件SET／CLR结果断言通过；认证writer／fresh调用在失败断言之后，本轮未执行，不能宣称保存或fresh已验证。live rule与pure saved validator仍实施中，待冻结后继续；完整Stage2保持未完成。见[fixture与RED证据](../reports/stage2-e2-alias-software-fixture-design-20261012.md)。
+
+
+### Alias Task2 live 首版与 genuine generic artifact
+
+Task2 actualCPU/APB/RAM有效RED73459 terminal1（35.17s）：完整beforeREAD+issuedRAM、aliasWRITE、afterREAD+issuedRAM后证书缺失，gap unsupported_effect_rule。子代理新增私有/pinned _alias_result，从当前typedrelationship和实际successful READ case receipt/issuedcommit选完整bracket；全target干扰write保守拒绝，actualepochs/generation/source sequence一致，single ordinary_register_alias_readback.v1，不授额外权限。中间19695已通过证书/result断言但测试误用VerifiedOperation.register（实际scope），修正fixture后78752七项109.64s全部通过；production endpoint一致性补强后将冻结，Root pure schema仍旧、尚未认可新alias保存证书。
+
+独立generic source artifact两项0.61s通过：实际/tmp Git checkout、真实源闭包、可信public source verifier/render API，fully renamed component/instance/register/endpoint；真实copied RTL字节变更被拒绝。最初adapter/header缺失属于fixture ERROR，复制实际文件修正，无facts stub、无RTL、无功能RED冒充。完整generic CPU私有证据链仍未关闭，子代理继续真实Runner构造。
+
+
+2026-10-12 permission前effect软件矩阵：实际当前factory／Session／CPU waiting／runtime私有对象的14项声明拒绝全部通过（14 passed／22.92秒），命令sequence／ticks／detached journal／gate／RAM与slot／ledger序列前后不变；不是PSLVERR硬件权限错误或完整native矩阵证明。首轮14 failed／20.59秒为fixture deepcopy EventLog底层BufferedRandom失败，未执行任何请求；test-only改为复制事件列表后通过，生产未改。完整Stage2／native reset／全部权限与字段行为仍继续。
+
+
+2026-10-12 reset-resume有效软件RED：真实GeneratedSession end／begin及READY／END子进程生命周期、实际CPU读取fixed bootstrap words／MMIO与deferred fetch后，Session warm reset成功，所有target epoch实际增加1／CPU waiting清空；随后公共 `advance_after_reset` 缺API产生1 failed／27.53秒。不是伪造PC／waiting／epoch或fixture错误。生产尚未修复；warm／cold＋真实LW／RAMSTORE重执行＋fresh原requests及前effect API guards测试已准备，待新源码冻结后运行。完整Stage2与native observable reset仍未完成。
+
+
+2026-10-12 recorded post-reset resume计划已review并批准执行：`docs/superpowers/plans/2026-10-12-stage2-recorded-post-reset-resume.md`，Task1 Session与Task2 integration schema接线并行实施；两个实际RED已终态，尚待GREEN。没有新增assemblyflag，未使用resume时旧schema16／17布局保留；实际warm／cold与认证saved-file fresh软件测试已准备，待双方源码冻结后运行，不预授native reset通过。
+
+
+2026-10-12 recorded reset-resume候选软件检查点：Session `d743b4b2…0af348a`／integration `bfbb72…9510bf` 下实际warm／cold Session两项＋认证saved-file fresh两项联合4 passed／308.04秒（exit0）。真实GeneratedSession READY／END进程生命周期与reset_local、CPU读取bootstrap及warm驻留LW／RAMSW重执行、实际waiting／epoch与原requests fresh全wrapper匹配均通过，生产未改。该结果只证明d743候选，不证明随后serializer／checker pin修复；已确认的dynamic serializer覆盖缺口仍有独立RED。schema19实际registration／appendedsubmission terminal两项已准备未运行，旧16／17与legacy回归亦待新源码冻结；不得宣称最终软件包或native reset验收完成。
+
+
+2026-10-12 recorded reset-resume最终软件检查点：Session `f7da03f4…c4bafa0`／integration `bfbb72…9510bf` 冻结后，实际schema19两terminal phases（真实warm reset／bootstrap resume后registration未追加case、session_submission已追加case，原requests自然同故障fresh）2 passed／135.56秒；实际warm／cold Session两项＋认证saved-file fresh两项4 passed／320.83秒，均exit0、没有fixture或生产修复。两次独立终态共6项实际软件测试，不合并耗时，d743候选4项308.04秒保留历史不能代表最后pin修复。旧16／17／legacy四模块回归由Root负责，未重复运行；本轮仍不是native reset门禁，完整Stage2与实际reset／权限／字段矩阵保持未完成。
+
+
+2026-10-12 recorded post-reset resume Task1／2 scoped软件包已通过：最终Session f7da03f4…c4bafa0、integration bfbb72…9510bf下实际schema19 terminal2 passed／135.56秒，schema18 warm／cold与认证file fresh4 passed／320.83秒；Root旧16／17／online reset／final export兼容四模块59 passed／300.98秒，独立34项通过。native warm generation1400已终态exit0／PASS：144.04320875299163秒，峰1,112,051,712 bytes低于3,103,797,248限额，available5,251,280,896、workers1／dutFindingFalse。实际2requests／9,391events／15关联／3条全部RAM（selected2）／6selectedAPB，initial159steps／resume183steps；semantic SHA `b90e6895f2f036ec03cde3a059231a94c72b1b21a79270dbfa410b86beb0b5b2`、identity SHA `afec5d21838c2756f2aceccb415b56f096eaad886ca12413494582bbd74a9766`，见[warm实际摘要](../../runs/stage2-e2-register-reset-resume-warm-20261012-v1/summary.json)。warm fresh64505已终态exit0／complete：126.435815431003秒、峰1,040,527,360 bytes低于3,105,226,752限额，available5,252,710,400／workers1／dutFalse；完整matches／9,391events／semantic／ordinary／verifier／preflight逐项一致。warm完整audit尚待worker释放，不预授最终验收。cold generation45096已终态exit0／complete：136.89256155700423秒，峰1,119,137,792 bytes低于3,142,094,848限额，available5,289,578,496／worker1／dutFalse；实际2READ／9,114events／14关联／2条全部RAM（selected2）／6selectedAPB，initial159／resume159steps。semantic SHA `34f235e3c711c79ae54378af886baa130e1c613821edd77f9e4062ba716a3b1e`、identity SHA `7de9ff4b411fe6a0bf78ae2d671c657a9b9f99135e6db91f8bfc92afaf99c68f`，见[cold实际摘要](../../runs/stage2-e2-register-reset-resume-cold-20261012-v1/summary.json)。cold fresh14369已终态exit0／complete：118.051542753994秒，峰1,041,219,584 bytes低于3,134,656,512限额，available5,282,140,160／workers1／DUTFalse；完整matches／9,114events／semantic／ordinary／verifier／preflight相等。warm／cold全部4次native generation／fresh均complete、各独立180秒预算；两门禁完整独立audit已终态PASS：warm282 currentpins／9产物／2exact重编译／9,391events／15关联／45APB／3RAM（selected2）／183resume，historical2／current1证书；cold同282pins／9产物／2exact，9,114events／14关联／42APB／2RAM／159resume。全部IRQ projections／plan SHA／journal／fresh wrappers／resources逐项核对、各阶段≤180秒；3个native build currentbinary及282／351／282输入核对通过。见[warm审计](../../runs/stage2-e2-register-reset-resume-warm-20261012-v1/independent-audit.json)、[cold审计](../../runs/stage2-e2-register-reset-resume-cold-20261012-v1/independent-audit.json)及[独立报告](../reports/stage2-e2-native-reset-resume-independent-audit-20261012.md)。recorded reset-resume scoped软件／native／fresh／fullaudit包已闭合；历史门禁pins保留f7da／bfbb，不改旧身份。源码冻结释放不表示整体完成：D5／D6／D8、完整E1／E2及E3–I、native瞬时reset defaults及全字段权限矩阵仍OPEN。f7da／bfbb源码冻结，没有竞争native或重型审计。见[warm准备](../../runs/stage2-e2-register-reset-resume-warm-20261012-v1/preparation.json)及[cold准备](../../runs/stage2-e2-register-reset-resume-cold-20261012-v1/preparation.json)，prepared source／script SHA逐项已核对。scope仅recorded reset-resume read consistency，bootstrap reset后重新配置GPIO，不能据此证明瞬时RTL reset defaults；完整Stage2、native observable reset默认值与权限字段矩阵仍未完成。
+
+
+2026-10-12 下一phase全窄字段矩阵：64个exact(register,field,lsb,width)已逐项列入[执行inventory](../reports/stage2-e2-register-field-matrix-execution-20261012.md)，历史native只覆盖4字段而非整bank；拟16个独立4field chunk，首chunk INTTYPE_LOW.pin0／pin1／pin14／pin15已由Root generation70951实际启动、尚无终态／未通过。额外word GPIOEN／INTEN／PADIN／条件read-clear、访问width／权限与瞬时reset defaults继续单列OPEN；这16chunks不是完整E2验收替代，D5／D6／D8、完整E1／E2及E3–I继续未完成。
+
+
+2026-10-12 field矩阵下一准备：chunk2 INTTYPE_LOW.pin2／pin3／pin4／pin5新目录已由renderer准备、尚未执行；chunk1状态仍以Root实际监督器终态／fresh／audit逐阶段验收，不因输出文件存在更新全矩阵计数。当前f7da／bfbb／verifier037源码不变，完整Stage2继续。
+
+
+2026-10-12 首field chunk generation70951已实际exit0／complete：133.03611893299967秒、workers1／DUTFalse，峰2,046,107,648 bytes低于3,134,181,376限额、available5,281,665,024；actual8cases／18,218events／18关联／36selectedAPB／4RAM／8证书（4RMW＋4READ）、gaps=[]。Root fresh65778正在独立180秒预算运行，54allAPB与完整audit待核实；4fields尚未最终验收，不计为整bank或全阶段通过。chunk2仍prepared未执行，f7da／bfbb／verifier037不变。
+
+
+2026-10-12 首field chunk fresh65778已exit0／PASS：117.5034022149921秒、peak1,849,569,280 bytes低于3,116,818,432限额、available5,264,302,080／worker1／DUTFalse，完整matches18,218events／semantic6150db…bd6／ordinary／verifier／preflight相等。generation与fresh均通过，独立audit正在执行、尚未最终验收。仅INTTYPE_LOW.pin0=1／pin1=2／pin14=3／pin15=1各一次合法RMW＋READ观察，不能宣称每field0..3穷举或fullwidth／reset boundary完成。chunk2尚未执行，完整Stage2仍OPEN。
+
+
+2026-10-12 首field chunk独立audit55320终态PASS：8exact／9产物／282pins／18关联／54APB／12selectedMMIO／36selectedAPB／4RAM／18,218events，current及historical各8证书／IRQ2,766samples0events／cache282／351／282 currentbinary与全部resources／fresh一致。exact LOW.pin0=1／pin1=2／pin14=3／pin15=1当前合法RMW＋READ valuepoints已验收；见[独立报告](../reports/stage2-e2-inttype-low-first-field-independent-audit-20261012.md)。不是全值或整bank通过，原Stage2继续OPEN。next chunk2 LOW.pin2／3／4／5已由Root generation86087实际启动，own empty cache／singleworker180／无重型audit竞争，尚未通过。
+
+
+2026-10-12 field下一准备：chunk3 LOW.pin6=3／pin7=1／pin8=2／pin9=3 pins6-9新目录由renderer准备，NOTEXECUTED。firstchunk四valuepoints已audit PASS；chunk2 generation86087仍运行，phase到export前但无实际resource终态，不能预授通过。f7da／bfbb／verifier037 source与282current pins一致，完整Stage2不缩减。
+
+
+2026-10-12 chunk2 generation86087已exit0／complete：132.4123047089961秒，peak2,046,140,416／limit3,134,119,936／available5,281,603,584／worker1／DUTFalse；actual8cases／18,227events／18关联／36selectedAPB／4RAM／8证书gaps=[]，仅LOW.pin2=2／pin3=3／pin4=1／pin5=2四valuepoints。fresh72553运行中、独立audit待完成，未计最终通过；chunk3准备完整仍未执行，不扩展为整bank／全部值或全阶段通过。
+
+
+2026-10-12 chunk2 fresh72553已exit0／complete：117.86604998000257秒，peak1,850,150,912 bytes低于3,119,108,096限额、available5,266,591,744／worker1／DUTFalse；matches18,227events／fc2b38…3502 semantic与全部wrappers一致。generation＋fresh均通过，独立fullaudit进行中、四valuepoints尚未最终验收；chunk3仍prepared_not_executed，当前源码不变，不授整bank／全值／完整Stage2。
+
+
+2026-10-12 chunk2 fullaudit16526已PASS：18,227events／18关联／54APB／8exact／9产物／282pins／4RMW＋4READ／12selectedMMIO／36selectedAPB／4RAM及全部IRQ／cache／fresh／resources一致，见[独立报告](../reports/stage2-e2-inttype-low-pins2-5-independent-audit-20261012.md)。前2chunks共8fields指定单valuepoint已验收，非全部值／整bank通过。chunk3 generation18307现实际运行，LOW6=3／7=1／8=2／9=3／own empty cache／singleworker180，尚未通过；其余13chunks提议，源码不变、完整Stage2继续OPEN。
+
+
+2026-10-12 next chunk4 LOW.pin10=1／pin11=2／pin12=3／pin13=1 pins10-13 v1目录由renderer准备，未执行。chunk3 generation18307仍运行，轻量phase为保存前、282currentpins一致但resource／summary尚无；accepted只为前2chunks8指定valuepoints，不猜终态或授整bank／全部值。
+
+
+2026-10-12 chunk3 generation18307已exit0／complete：132.3857018879935秒、peak2,046,533,632低于3,117,260,800限额、available5,264,744,448／workers1／DUTFalse，8cases／18,227events／18关联／36selectedAPB／4RAM／8证书gaps=[]；exact LOW6=3／7=1／8=2／9=3。fresh64101运行中、audit待完成，当前四valuepoints未最终验收；chunk4准备完整NOTEXECUTED，原全scope与源码保持。
+
+
+2026-10-12 chunk3 fresh64101已终态PASS：118.39475587400375秒、peak1,850,974,208 bytes低于3,117,637,632限额、available5,265,121,280／workers1／DUTFalse，full18,227events／1aef8e…59186 semantic／state／preflight一致。独立audit运行中，LOW6／7／8／9四valuepoints尚未最终验收，accepted仍前8points；chunk4prepared未执行，完整scope保持OPEN。
+
+
+2026-10-12 chunk3 fullaudit55905已终态PASS，exact LOW6=3／7=1／8=2／9=3 current合法valuepoints验收，见[独立报告](../reports/stage2-e2-inttype-low-pins6-9-independent-audit-20261012.md)。前3chunks共12points不是0..3穷举或整bank授级。chunk4 generation12344实际运行（LOW10=1／11=2／12=3／13=1，own empty cache／singleworker180），尚未通过；剩余12chunks提议，原scope与当前源码不变。
+
+
+2026-10-12 nextchunk5 A.INTTYPE_HIGH.pin16=1／pin17=2／pin30=3／pin31=2 HIGH新目录由renderer准备，NOTEXECUTED；pin31=2覆盖bus bit31单valuepoint，旧high16／31历史证据不能替代当前运行。accepted仍12LOW points，chunk4等待Root监督器实际终态；轻量pins282一致，未运行额外任务或授整bank。
+
+
+2026-10-12 chunk4 generation12344已exit0／complete：132.04403735398955秒、peak2,046,468,096 bytes低于3,120,099,328限额、available5,267,582,976／worker1／DUTFalse；8cases／18,227events／18关联／36selectedAPB／4RAM／8证书gaps=[]，exactLOW10=1／11=2／12=3／13=1。fresh78630运行中、audit待完成，四valuepoints未最终验收；HIGH新目录准备完毕尚未执行，accepted12LOW points及原全scope不变。
+
+
+2026-10-12 chunk4 LOW pins10–13 fresh78630已exit0／complete：119.3633515190013秒、peak1,847,529,472 bytes低于3,129,950,208限额、available5,277,433,856，完整fullmatch断言通过。generation与fresh均通过，独立audit刚GO、尚未最终验收；accepted仍12指定points，不能提前记16。chunk5 INTTYPE_HIGH准备未执行，原D5／D6／D8、完整E1／E2及E3–I、全值／权限／width／reset范围保持开放。
+
+
+2026-10-12 chunk4 fullaudit72392终态PASS，accepted current16个LOW exact单取值points，不是0..3穷举／整bank能力授级。HIGH chunk5 generation95236已实际启动、仍运行未通过，当前源码／脚本SHA／AST／tuple及actual PAD_NUM32 preflight一致；chunk6 HIGH18–21仅prepared未执行。完整Stage2及全值／权限／width／reset边界仍保持开放。
+
+
+2026-10-12 HIGH首组generation95236已exit0／complete：132.3070836919942秒、available5,243,768,832／peak2,046,111,744低于3,096,285,184限额／worker1／DUTFalse，8cases／18,218events／18关联。Root separatefresh59768已实际运行，尚无最终验收；accepted仍16LOW points，不借历史HIGH证明。chunk7 HIGH22–25 prepared未执行，完整Stage2继续OPEN。
+
+
+2026-10-12 HIGH首组fresh59768已exit0／complete：116.24226334200648秒、available5,239,918,592／peak1,848,770,560低于3,092,434,944限额／worker1／DUTFalse；完整trace／count／semantic／ordinary／verifier／preflight断言通过。fullaudit已GO但尚未验收，accepted仍16LOW points，不提前计20或授整bank／全部值能力。
+
+
+2026-10-12 HIGH首组fullaudit45969已终态PASS：18,218events／8current与8historical证书／identity、semantic及完整generation／fresh一致；accepted current20 exactpoints（16LOW＋4HIGH），非全值穷举。chunk6 HIGH18–21 generation50635实际运行、尚未通过，same singleworker180／own empty cache／source冻结；chunk8 HIGH26–29仅prepared未执行。原Stage2所有开放范围不缩减。
+
+
+2026-10-12 chunk6 HIGH18–21 generation50635已exit0／complete：131.0059881999914秒、available5,244,407,808／peak2,046,242,816低于3,096,924,160限额／worker1／DUTFalse，8cases／18,227events／18关联。fresh69170实际运行、未最终验收，accepted仍20指定points。chunk9 PADCFG_0.pin0／1／6／7 values1／5／10／15（4bit，offset0x28）prepared未执行，不借旧pin0／7证明当前scope；原Stage2开放。
+
+
+2026-10-12 chunk6 fresh69170已exit0／complete：117.59755330599728秒、available5,260,267,520／peak1,849,614,336低于3,112,783,872限额／worker1／DUTFalse，fulltrace／wrappers／count／semantic／preflight通过。独立audit待终态，accepted仍20points；chunk10 PADCFG_0.pin2／3／4／5 values2／6／9／14 prepared未执行，原Stage2全scope继续OPEN。
+
+
+2026-10-12 chunk6 fullaudit45184已终态PASS，exacttuple／18,227events／8证书及完整fresh一致，见[独立报告](../reports/stage2-e2-inttype-high-pins18-21-independent-audit-20261012.md)。accepted current24单valuepoints（16LOW＋8HIGH），不是全值穷举。chunk7 HIGH22–25 values3／1／2／3 generation42268实际运行、未通过，own absent cache／singleworker180／无native或audit重叠；原scope继续OPEN。
+
+
+2026-10-12 chunk7 HIGH22–25 generation42268已exit0／complete：131.44182803299918秒、available5,353,672,704／peak2,046,332,928低于3,206,189,056限额／worker1／DUTFalse，8cases／18,227events／18关联。fresh75326运行中、audit待完成，accepted仍24；chunk12 PADCFG_1.pin10–13 values2／6／9／14 prepared未执行，完整原scope保持OPEN。
+
+
+2026-10-12 chunk7 fresh75326已exit0／complete：116.5613808670023秒、available5,327,286,272／peak1,849,888,768低于3,179,802,624限额／worker1／DUTFalse，fulltrace／count／semantic／wrappers／preflight通过。独立fullaudit待终态、accepted仍24；chunk13 PADCFG_2.pin16／17／22／23 values1／5／10／15 prepared未执行，原Stage2全scope继续OPEN。
+
+
+2026-10-12 chunk7 fullaudit93696已终态PASS，exacttuple／18,227events／8证书及完整fresh一致；accepted current28 singlepoints（16LOW＋12HIGH），不是全值穷举。chunk8 HIGH26–29 values1／2／3／1 generation70283实际运行、尚未通过，own absent cache／singleworker180／current source-script preflight一致且无overlap；原Stage2仍OPEN。
+
+
+2026-10-12 chunk8 HIGH26–29 generation70283已exit0／complete：132.64775778599142秒、available5,336,645,632／peak2,046,345,216低于3,189,161,984限额／worker1／DUTFalse，8cases／18,227events／18关联。fresh31823运行中、独立audit待完成，accepted仍28points；chunk15 PADCFG_3.pin24／25／30／31 values1／5／10／15 prepared未执行，原全scope继续OPEN。
+
+
+2026-10-12 chunk8 fresh31823已exit0／complete：118.06382439300069秒、available5,314,101,248／peak1,851,424,768低于3,166,617,600限额／worker1／DUTFalse，fulltrace／wrappers／semantic／count／preflight通过；独立audit待终态，accepted仍28。chunk16 PADCFG_3.pin26–29 values2／6／9／14 prepared未执行；16chunks均准备不等于已执行或已验收，原Stage2开放。
+
+
+2026-10-12 chunk8 fullaudit79481已终态PASS：exacttuple／18,227events／8证书与完整fresh一致；accepted current32指定points（16LOW＋16HIGH），每INTTYPE field一个合法value，非穷举／整bank授级。chunk9 PADCFG_0.pin0／1／6／7 values1／5／10／15 generation38477实际运行、尚未通过，offset0x28／own absent cache／singleworker180／source-script preflight一致且无overlap；原Stage2完整scope保持OPEN。
+
+
+2026-10-12 chunk9 PADCFG_0首组generation38477已exit0／complete：132.42977688899555秒、available5,366,063,104／peak2,046,464,000低于3,218,579,456限额／worker1／DUTFalse，8cases／18,222events／18关联；fresh60729实际运行、未最终验收，accepted仍32。轻量16组preparation／current source与script SHA／AST／exact field-value tuples核对PASS，完整覆盖32INTTYPE＋32PADCFG无漏重；10–16prepared不等于executed，原scope不缩减。
+
+
+2026-10-12 chunk9 PADCFG0 fresh60729已exit0／complete：119.73843699799909秒、available5,316,136,960／peak1,851,084,800低于3,168,653,312限额／worker1／DUTFalse，完整trace／count／semantic／wrappers／preflight通过。独立audit待终态，accepted仍32points、不提前36；nextchunk10 preflight通过仍未执行，16组exact64无漏重核对不替代实际验收。
+
+
+2026-10-12 chunk9 fullaudit99824终态PASS，exactPADCFG_0.pin0／1／6／7 values1／5／10／15、18,222events／8证书及完整fresh一致，见[独立报告](../reports/stage2-e2-padcfg0-first-field-independent-audit-20261012.md)。accepted current36单points（32INTTYPE＋4PADCFG），非全值穷举。chunk10 PADCFG_0.pin2–5 values2／6／9／14 generation48852实际运行、尚未通过，offset0x28／singleworker180／own absent cache／preflight一致且无overlap；原全scope保持OPEN。
+
+
+2026-10-12 chunk10 PADCFG0 pins2–5 generation48852已exit0／complete：133.4572914129967秒、available5,361,512,448／peak2,046,603,264低于3,214,028,800限额／worker1／DUTFalse，8cases／18,231events／18关联。fresh60114正在独立预算运行、audit待完成，accepted仍36指定points，不提前40或全bank授级；原Stage2保持OPEN。
+
+
+2026-10-12 chunk10 fresh60114已exit0／complete：118.20331636900664秒、available5,377,863,680／peak1,850,490,880低于3,230,380,032限额／worker1／DUTFalse，fulltrace／count／semantic／wrappers／preflight通过。fullaudit待终态、accepted仍36，不提前40；chunk11 PADCFG_1首组 offset0x2c preflight通过尚未执行，remaining word gate仅设计／只读审查，不计passed。
+
+
+2026-10-12 chunk10 fullaudit30129终态PASS，exactPADCFG0 pins2–5 values2／6／9／14、18,231events／8证书与完整fresh一致；accepted current40单points（32INTTYPE＋8PADCFG0），非全值穷举。chunk11 PADCFG1首组 pin8／9／14／15 values1／5／10／15 generation12336实际运行、尚未通过，offset0x2c／own absent cache／singleworker180／preflight一致无overlap；word设计无审查阻断但仍未执行，原scope开放。
+
+
+2026-10-12 chunk11 PADCFG1首组generation12336已exit0／complete：132.28506910100987秒、available5,405,487,104／peak2,046,394,368低于3,258,003,456限额／worker1／DUTFalse，8cases／18,222events／18关联。fresh25753实际运行、audit待完成，accepted仍40points；DIR／OUT六request word包只准备、16matrixchunks后再执行，不提前native验收。
+
+
+2026-10-12 chunk11 fresh25753已exit0／complete：118.60419732998707秒、available5,349,089,280／peak1,850,675,200低于3,201,605,632限额／worker1／DUTFalse，fulltrace／wrappers／count／semantic／preflight通过。独立fieldaudit待终态，accepted仍40；chunk12 offset0x2c preflight通过尚未执行。DIR_OUT word包（checkd9937f…7677）仅准备，16矩阵后独立审查／执行，不计native通过。
+
+
+2026-10-12 chunk11 fullaudit57934已终态PASS，exactPADCFG1 pins8／9／14／15 values1／5／10／15／18,222events／8证书及完整fresh一致；accepted current44单points（32INTTYPE＋12PADCFG），非穷举。chunk12 PADCFG1 pins10–13 values2／6／9／14 generation10967实际运行、尚未通过，offset0x2c／own absent cache／singleworker180／preflight一致且无overlap；word尚未运行，原fullscope保持开放。
+
+
+2026-10-12 chunk12 PADCFG1 pins10–13 generation10967已exit0／complete：133.12426655500894秒、available5,433,249,792／peak2,046,672,896低于3,285,766,144限额／worker1／DUTFalse，8cases／18,231events／18关联。fresh17134实际运行、audit待完成，accepted仍44；第二word GPIOEN_INTEN六case包仅准备、16矩阵后再执行，不计native通过。
+
+
+2026-10-12 chunk12 fresh17134已exit0／complete：118.8060304679966秒、available5,397,753,856／peak1,850,212,352低于3,250,270,208限额／worker1／DUTFalse，fulltrace／count／semantic／wrappers／preflight通过。fieldaudit待终态、accepted仍44不提前48；chunk13 offset0x30 preflight通过未执行。GPIOEN_INTEN第二word包（check590d73…32f5）仅prepared／轻量review无阻断，仍未运行、待16矩阵后，原scope开放。
+
+
+2026-10-12 chunk12 fullaudit8463已终态PASS，exactPADCFG1 pins10–13 values2／6／9／14、18,231events／8证书与完整fresh一致；accepted current48单points（32INTTYPE＋16PADCFG），非全值穷举。chunk13 PADCFG2首组 pin16／17／22／23 values1／5／10／15 generation92288实际运行、尚未通过，offset0x30／own absent cache／singleworker180／preflight一致无overlap；两个word包prepared未执行，原Stage2全scope仍OPEN。
+
+
+2026-10-12 chunk13 PADCFG2首组generation92288已exit0／complete：132.9991300420079秒、available5,449,052,160／peak2,046,648,320低于3,301,568,512限额／worker1／DUTFalse，8cases／18,222events／18关联。fresh97116实际运行、audit待完成，accepted仍48；PADIN word四request包（check219240…9c8c）仅prepared／APB_CPU_RAM consistency，不授sampling或reset证明，待16矩阵后运行。
+
+
+2026-10-12 chunk13 fresh97116已exit0／complete：119.25131022800633秒、available5,386,960,896／peak1,850,802,176低于3,239,477,248限额／worker1／DUTFalse，fulltrace／count／semantic／wrappers／preflight通过。fullaudit待终态、accepted仍48不提前52；chunk14 offset0x30 preflight通过未执行。PADIN word轻量review无阻断／audit准备仍未执行，原全scope保持OPEN。
+
+
+2026-10-12 chunk13 fullaudit35340终态PASS，exactPADCFG2 pins16／17／22／23 values1／5／10／15／18,222events／8证书及完整fresh一致，见[独立报告](../reports/stage2-e2-padcfg2-first-field-independent-audit-20261012.md)。accepted current52单points（32INTTYPE＋20PADCFG），非穷举。chunk14 PADCFG2 pins18–21 values2／6／9／14 generation43790实际运行、未通过，offset0x30／own absent cache／singleworker180／preflight一致无overlap；3word包prepared未执行，原scope开放。
+
+
+2026-10-12 chunk14 PADCFG2 pins18–21 generation43790已exit0／complete：132.3194965099974秒、available5,438,459,904／peak2,046,128,128低于3,290,976,256限额／worker1／DUTFalse，8cases／18,231events／18关联。fresh11311运行中、audit待完成，accepted仍52；next reset-default只读设计未实现或运行、不预授grant，原fullscope保持OPEN。
+
+
+2026-10-12 chunk14 fresh11311已exit0／complete：118.92392746800033秒、available5,382,307,840／peak1,849,397,248低于3,234,824,192限额／worker1／DUTFalse，fulltrace／count／semantic／wrappers／preflight通过。独立audit待终态，accepted仍52不提前56；chunk15 offset0x34 preflight通过尚未执行，原Stage2完整scope保持OPEN。
+
+
+2026-10-12 chunk14 fullaudit60628已终态PASS，exactPADCFG2 pins18–21 values2／6／9／14／18,231events／8证书及完整fresh一致，见[独立报告](../reports/stage2-e2-padcfg2-pins18-21-independent-audit-20261012.md)。accepted current56单points（32INTTYPE＋24PADCFG），非全值穷举。chunk15 PADCFG3首组pin24／25／30／31 values1／5／10／15 generation62291实际运行、未通过，offset0x34／own absent cache／singleworker180／preflight一致无overlap；reset-default只读设计不计实现或grant，原scope保持OPEN。
+
+
+2026-10-12 chunk15 PADCFG3首组generation62291已exit0／complete：134.15973644101177秒、available5,471,129,600／peak2,045,935,616低于3,323,645,952限额／worker1／DUTFalse，8cases／18,222events／18关联。fresh77906运行中、audit待完成，accepted仍56；reset-default独立设计review指出actualcommand全覆盖／未知命令fail closed／完整field-affect／process boundary实施前缺口，只有docs修订，未实现或授grant。
+
+
+2026-10-12 chunk15 fresh77906已exit0／complete：120.05253920699761秒、available5,461,848,064／peak1,850,097,664低于3,314,364,416限额／worker1／DUTFalse，fulltrace／count／semantic／wrappers／preflight通过。audit待终态、accepted仍56不提前60；chunk16 offset0x34 preflight通过未执行。reset-default设计reconciled仅docs、未实现或授grant，原全scope保持OPEN。
+
+
+2026-10-12 chunk15 fullaudit41628已终态PASS，exactPADCFG3 pins24／25／30／31 values1／5／10／15／18,222events／8证书与完整fresh一致，见[独立报告](../reports/stage2-e2-padcfg3-first-field-independent-audit-20261012.md)。accepted current60单points（32INTTYPE＋28PADCFG），非穷举。chunk16 PADCFG3 pins26–29 values2／6／9／14 generation9338实际运行、尚未通过，offset0x34／own absent cache／singleworker180／preflight一致无overlap；64fieldpoints后仍有word／permission／width／reset及原Stage2完整scope，不能标阶段完成。
+
+
+2026-10-12 chunk16 PADCFG3 pins26–29 generation9338已exit0／complete：131.9667810839892秒、available5,477,412,864／peak2,046,443,520低于3,329,929,216限额／worker1／DUTFalse，8cases／18,231events／18关联。fresh6576正在运行、audit待完成，accepted仍60不提前64；3word包prepared待矩阵完成后执行，原Stage2全scope保持OPEN。
+
+
+2026-10-12 chunk16 fresh6576已exit0／complete：118.51990141399438秒、available5,447,532,544／peak1,851,146,240低于3,300,048,896限额／worker1／DUTFalse，fulltrace／count／semantic／wrappers／preflight通过。最后独立audit待终态，accepted仍60不提前64；16组小证据聚合核对仅准备，各bundle current8证书不能伪称global active128，非exhaustive／fullE2。
+
+
+2026-10-12 最后chunk16 fullaudit11089实际exit0／PASS，16bundle轻量聚合PASS：accepted current64 exact指定单valuepoints（32个2bit INTTYPE＋32个4bit PADCFG），无漏重；每bundle current8证书，不能拼成global active128；16gen／16fresh各自singleworker／≤180秒，与全部sourcefreeze／fresh／resources小证据一致。见[聚合报告](../reports/stage2-e2-register-field-matrix-aggregate-20261012.md)。不是全值穷举或完整E2，word／permission／width／reset仍OPEN。Root DIR_OUT word generation48145已实际运行、尚未通过，原Stage2完整范围不缩减。
+
+
+2026-10-12 DIR_OUT word generation48145已exit0／complete：119.19223787200463秒、available5,482,065,920／peak1,715,609,600低于3,334,582,272限额／worker1／DUTFalse，6cases／13,907events／12关联／18selectedAPB／3RAM。fresh3571实际运行、独立audit待完成，word尚未accepted；narrow64已审计单valuepointscope保持独立，不扩成global或完整E2。
+
+
+2026-10-12 DIR_OUT word fresh3571已exit0／complete：101.75905876699835秒、available5,479,596,032／peak1,575,030,784低于3,332,112,384限额／worker1／DUTFalse，fulltrace／count／semantic／wrappers／preflight通过。word独立fullaudit待终态、尚未accepted；narrow64单值scope保持独立，原Stage2继续OPEN。
+
+
+2026-10-12 DIR_OUT word fullaudit42062终态PASS，13,907events／6证书／exact B.INTEN0与A.PADDIR／PADOUT 0x80000000三instance-specific write/read pairs验收，见[独立报告](../reports/stage2-e2-word-dir-out-independent-audit-20261012.md)。不授functional／reset／fullL2，narrow64保持独立。EN_INTEN generation49060实际运行、未通过，source-script SHA／AST／exact6tuple与own absent cache preflight一致／singleworker180／无overlap；PADIN未运行、reset-default未实现，原全scope保持开放。
+
+
+2026-10-12 EN_INTEN word generation49060已exit0／complete：116.19795339199482秒、available5,497,872,384／peak1,715,634,176低于3,350,388,736限额／worker1／DUTFalse，6cases／13,905events／12关联／18selectedAPB／3RAM。fresh74249运行中／audit待完成，EN_INTEN尚未accepted，DIR_OUT3pairs与narrow64分别独立。current alias zero-mask八case包仅准备、PADIN之后再执行，不借旧source，不提前native验收。
+
+
+2026-10-12 EN_INTEN fresh74249已exit0／complete：100.39961130799202秒、available5,492,273,152／peak1,573,228,544低于3,344,789,504限额／worker1／DUTFalse，fulltrace／count／semantic／wrappers／preflight通过。独立fullaudit待终态，尚未accepted、DIR_OUT与narrow64scope保持独立。current alias zero-mask八request包（check86a6e8…bd97）仅prepared，待PADIN后／独立review，不提前native验收。
+
+
+2026-10-12 EN_INTEN fullaudit99853已终态PASS，13,905events／6证书／exact B.INTEN0、A.GPIOEN与A.INTEN 0x80000000三instance-specific fullword pairs验收；B.INTEN0与DIR_OUT重复，不重复计unique，不授functional／reset／fullL2，narrow64scope独立。PADIN generation83748实际运行、未通过，current typed RO／exact4request builder／source-script preflight一致、own absent cache／singleworker180／无overlap。alias zero-mask仍prepared／review、reset-default未实现，原全scope保持OPEN。
+
+
+2026-10-12 PADIN generation83748已exit0／complete：103.98888060198806秒、available5,509,058,560／peak1,414,696,960低于3,361,574,912限额／worker1／DUTFalse，4cases／10,129events／10关联／12selectedAPB／3RAM。fresh88629实际运行、audit待完成，PADIN尚未accepted，scope只APB→CPU→RAM consistency、不授sampling／reset；EN_INTEN3pairs与narrow64独立，aliaszero仍仅prepared，原scopeOPEN。
+
+
+2026-10-12 PADIN fresh88629已exit0／complete：87.21911255799932秒、available5,506,846,720／peak1,302,310,912低于3,359,363,072限额／worker1／DUTFalse，fulltrace／count／semantic／wrappers／preflight通过。fullaudit待终态、尚未accepted，不授sampling／reset，existing wordpairs与narrow64独立。current alias fullmask八case包只准备、待PADIN＋aliaszero之后；aliaszero prepared／review通过仍未native，原scope开放。
+
+
+2026-10-12 PADIN fullaudit75237已终态PASS，10,129events／4证书／exact B.INTEN0 pair与A／B.PADIN READs，见[独立报告](../reports/stage2-e2-word-padin-independent-audit-20261012.md)。scope仅APB_CPU_RAM consistency，不授sampling／reset／fullL2，重复B.INTEN0不新增unique。current aliaszero generation52350实际运行、未通过，current v3 relation／exact8request builder／source-script preflight一致、own absent cache／singleworker180／无overlap。fullmaskprepared未执行／reset只读，原Stage2全scope保持OPEN。
+
+
+2026-10-12 current aliaszero generation52350已exit0／complete：132.50322782000876秒、available5,517,291,520／peak2,044,710,912低于3,369,807,872限额／worker1／DUTFalse，8cases／17,677events／14关联／24selectedAPB／5RAM。fresh75682实际运行、audit待完成，aliaszero尚未accepted；fullmaskprepared／轻量review通过仍未执行，PADINscoped与wordpairs／narrow64独立，原全scopeOPEN。
+
+
+2026-10-12 current aliaszero fresh75682已exit0／complete：117.51322904099652秒、available5,533,614,080／peak1,847,062,528低于3,386,130,432限额／worker1／DUTFalse，fulltrace／count／semantic／wrappers／preflight通过。独立audit待终态、zero尚未accepted，fullmaskprepared未执行；partial／high／repeat current alias下一步只读设计，不borrow旧source，原Stage2全scope开放。
+
+
+2026-10-12 current aliaszero fullaudit30129（本轮process）终态PASS，17,677events／8证书／exact8requests zero SET／CLR＋B.INTEN0 pair一致，见[独立报告](../reports/stage2-e2-alias-zero-current-independent-audit-20261012.md)。仅2source-bound zero brackets验收，不授storageversion／prerequisite／functional／reset／fullE2，word／narrow64scope独立。fullmask generation66978实际运行、未通过，actualFFFFFFFF builder／currentv3／source-script preflight一致／own absent cache／singleworker180／无overlap；partial_repeat current-source仅design待独立review，未准备执行。
+
+
+2026-10-12 current aliasfullmask generation66978已exit0／complete：130.43963241600432秒、available5,511,983,104／peak2,043,985,920低于3,364,499,456限额／worker1／DUTFalse，8cases／17,683events／14关联／24selectedAPB／5RAM。fresh32283实际运行、audit待完成，fullmask未accepted；partial_repeat独立designreview中现规则允许shared actual adjacent READ boundary，新gate独立before为实验要求，仅docs修订／未执行，原scope开放。
+
+
+2026-10-12 current fullmask fresh32283已exit0／complete：115.31429795100121秒、available5,522,804,736／peak1,849,442,304低于3,375,321,088限额／worker1／DUTFalse，fulltrace／count／semantic／wrappers／preflight通过。fullaudit待终态、fullmask未accepted／currentzero2brackets已验收；SET partial_repeat十request新worker仅prepare，sharedactualREAD规则与独立newbefore2实验要求已reconciled、未native，原scope开放。
+
+
+2026-10-12 current fullmask fullaudit39840终态PASS，17,683events／8证书／exactSET_CLRFFFFFFFF一致，见[独立报告](../reports/stage2-e2-alias-fullmask-current-independent-audit-20261012.md)。仅2fullmask brackets验收，不授functional／reset／storageversion／fullE2；zero2／word／narrow64scopes独立。SET partial_repeat十request包（check42b3ca…05dc）prepared／Root preflight通过，轻量review／audit准备中、NOTnative；当前全部native已终态，原Stage2全scope仍OPEN。
+
+
+2026-10-12 SET partial_repeat generation64745实际启动、新v1／own absent cache／singleworker180／无overlap，独立lightreview无阻断／auditprepared及Root source-SHA／AST／exact10request preflight一致。尚未通过：10cases（6READ／2plain／2alias）／10selectedMMIO／30selectedAPB／6RAM／expected16关联48allAPB仅准备断言，high／repeat不预授。current fullmask2brackets已accepted，generic规则不改，原Stage2全scope保持OPEN。
+
+
+2026-10-12 partial SET generation64745已exit0／complete：151.32340373699844秒、available5,571,547,136／peak2,346,278,912低于3,424,063,488限额／worker1／DUTFalse，10cases／21,451events／16关联／30selectedAPB／6RAM。fresh51736实际运行、audit待完成，partialSET尚未accepted，全部10cases与原预算保持；CLR partial_repeat十request包（checkf3e984…bc49）prepared，待SET全终态／独立review，未native执行，原scope开放。
+
+
+2026-10-12 partial SET fresh51736已exit0／complete：133.26829966400692秒、available5,504,163,840／peak2,122,182,656低于3,356,680,192限额／worker1／DUTFalse，fulltrace／count／semantic／wrappers／preflight通过。fullaudit待终态、SET尚未accepted，全部10cases／原180预算保持；CLR prepared lightreview无阻断／auditprepared（b3c85a…5f3b），未执行、待SET audit终态，原scopeOPEN。
+
+
+2026-10-12 partial SET finalaudit16667终态PASS，21,451events／10证书／exact seed55aa00ff_SET80000000＋repeat一致，见[独立报告](../reports/stage2-e2-alias-partial-set-current-independent-audit-20261012.md)。firstaudit69511 exit1 NameError cap为audit setup漏sidecar load，仅补load、不改事实断言，失败保留／非DUT finding。仅2SET brackets验收，不预授CLR／reset／functional／storageversion／fullE2。CLR generation60831实际运行、未通过，source-script preflight／lightreview一致／own absent cache／singleworker180／无overlap，全部10cases保留，原scopeOPEN。
+
+
+2026-10-12 partial CLR generation60831已exit0／complete：143.68561087400303秒、available5,575,970,816／peak2,345,062,400低于3,428,487,168限额／worker1／DUTFalse，10cases／21,451events／16关联／30selectedAPB／6RAM。fresh48813实际运行、audit待完成，CLR未accepted，全部10cases／原180保持。SET2brackets已accepted，首次audit setup失败真实script／stderr／receipt与SHA证据保留、非DUT finding；原scope保持OPEN。
+
+
+2026-10-12 partial CLR fresh48813已exit0／complete：139.66191233199788秒、available5,607,415,808／peak2,120,609,792低于3,459,932,160限额／worker1／DUTFalse，fulltrace／count／semantic／wrappers／preflight通过。独立fullaudit待终态、CLR尚未accepted，全部10cases／原180保持，原scope开放。
+
+
+2026-10-12 partial CLR fullaudit28385已终态PASS，21,451events／10证书／exact seed d5aa00ff，见[独立报告](../reports/stage2-e2-alias-partial-clr-current-independent-audit-20261012.md)；仅2CLR brackets验收，不授arbitrary masks／reset／storageversion／functional／fullL2。全部native与audit终态后，current f7da exact14权限软件测试exec66607 exit0，14 passed／23.06秒（真实外层wall23.440831127998536），前后源码／fixture SHA不变、stdout／stderr／终态receipt保存在[本轮证据](../../runs/stage2-e2-current-register-permission-software-20261012/receipt.json)。actual对象软件transport，无Generated Popen／DUT／RTL；仅前effect声明policy拒绝，不是PSLVERR硬件权限证明；历史22.92秒记录保持，原Stage2全scope仍OPEN。
+
+
+2026-10-12 native reset-default实施前checkpoint：current CLR2 source-bound brackets已审计accepted，current f7da permission14软件PASS23.06秒，均仅各自scope。新[ordinary native reset-default计划](../superpowers/plans/2026-10-12-stage2-ordinary-native-reset-default.md)已存在、尚未实现。为保留未提交历史源闭包，已新增[当前源码原始bytes冻结manifest](../../runs/stage2-e2-pre-native-reset-source-freeze-20261012/manifest.json)：20baseline文件／815,794bytes逐件archivebytes＝currentbytes／真实SHA核对，manifest SHA `dbb3dbc4d43fffcb808468eac67fae84cfe3c1ef6b2fb9f316dd390b8ec5a4bc`。仅historical source reconstruction材料，非runtime authority；未复制cache／binary，未改旧run pins。后续新源码必须单列证据，不能以新SHA重写已验收历史门禁；原全scope仍OPEN。
+
+2026-10-12 Task3进度更新：目标形状／consumer约束聚焦回归曾为49 passed／12.52秒（`exact-target-recipient-green.stdout`），但新增 probe-map 漂移测试有效失败（1 failed／49 deselected）：将当前 `pulp_gpio_register_map()` 的 alias period 改为256后，规则派生未拒绝，见 `probe-decode-red.stdout`。根因是当前实现将decode mask/period硬编码且derive不调用共享probe map。源码审计还标出安装后 `_validate` 未复核外部RTL/probe字节、consumer检查容忍任意新增recipient，以及命令分类器未验证调用方rule。候选SHA当时为 verifier `8421bede…348d6`、测试 `e4894ffd…45a5f`；实现代理正补充对应负例与闭合校验，Task3尚未接受。证据目录：`../runs/stage2-e2-native-reset-task3-software-20261012/`；仍限软件source-rule/refusal，不运行native/build、不产生正向证书。
+
+新增封闭性RED保留于 `external-source-rule-recipient-red.stdout`：4 failed／50 deselected／9.31秒，覆盖未知authority recipient、篡改classifier rule的mask及unrelated offsets，以及RTL路径未进入显式source_files。测试SHA为 `142b03a0…83a1fe`；实现SHA仍为 `8421bede…348d6`。GREEN与安装后漂移复验尚待实现和完整回归。
+
+2026-10-12 focused RED→GREEN：针对probe decode、probe/source helper漂移、未知recipient、caller伪rule、RTL源路径／target实例闭包的54项聚焦测试已通过（12.80秒），输出 `probe-rule-recipient-green.stdout`；当前实现SHA `1ea48e7b2d68fa56562d91253b839016809d8b4c1c4e985f565ff6be04eaa74a`。此为聚焦GREEN，安装后外部源文件漂移、完整兼容回归、最终收据/manifest及精确SHA独立复核仍未完成。
+
+后续实例状态审计再得到有效RED `private-floor-method-red.stdout`：2 failed／54 deselected／9.67秒，证明直接重设 `_consumer_floor` 能放行 foreign recipient，清空实例 `_methods` 后覆盖 `report` 也绕过 `_validate`。该快照实现SHA仍 `1ea48e7b…a74a`，测试SHA `be21ec5e…c1d6a`。实现代理正在先固定 RED，再将 authority/method基线绑定至不可由实例字段重设的闭包；最终审计尚未开始。
+
+实例状态RED→GREEN后，`private-binding-green.stdout` 为56 passed／13.07秒，实现SHA `f01fd901f6e817de7be32c5bd0adceed1b40ef1908c55f0b1d06fe814a2c6f8c`；实例 method table 与 authority consumer floor 已改为闭包固定。仍待实际 source-byte 修改后验证 `report`/preflight 永久拒绝、全套Task3/Task2兼容回归和冻结SHA复审。
+
+真实外部源文件漂移检查及后续RegisterProgramVerifier合法控制组通过：3 passed／56 deselected／11.92秒，见 `actual-file-later-consumer-green.stdout`。执行时临时改写RTL/probe源字节，最终finally恢复；Root核对恢复后RTL SHA `1e271914…cbcaef`、probe SHA `52c5a3eb…063dd`不变。测试SHA `87d369ae…da000`，实现SHA `f01fd901…c6f8c`。完整Task3与兼容回归尚待。
+
+最终封存前再补同内容consumer registry替换RED：1 failed／59 deselected（`recipient-object-red.stdout`），证明相同内容的新set对象可绕过tuple相等比较。现改为逐对象身份绑定，单项GREEN为1 passed／59 deselected、9.33秒（`recipient-object-green.stdout`）；当前实现SHA `096e306f52ef9d00d236e56976a62fd3830fd38a4e6cf56abb492ea78cd1c14d`，测试SHA `47ea4bfd61dfa56f4bd46fc0069f085ea0bbe7956e491e84c16c7eaf6e9f66a5`。单模块与Task2三模块最终冻结回归、收据/manifest及独立review正在进行。
+
+2026-10-12 Task3最终冻结回归已exit0：Task3单模块60 passed／15.49秒；既有Task2三模块兼容92 passed／52.90秒。两个receipt均确认12项Task1/Task2/Task3/RTL/probe/profile/sidecar SHA前后不变、`native_execution=false`。最终verifier SHA `096e306f…c14d`、Task3 test SHA `47ea4bfd…f66a5`；receipt与源归档见 `../runs/stage2-e2-native-reset-task3-software-20261012/task3-final-frozen-receipt.json`、`task2-compat-final-frozen-receipt.json`、`final-source-refusal-core-manifest.json`。`final-diff-check.json` exit0。两位独立代理正在按该SHA最终审阅；Task3仍只证明source-rule/refusal软件路径，没有positive certificate或native eligibility。
+
+
+2026-10-12 ordinary native reset-default计划已冻结、Task1获Root GO。Task1／2独立review三条件继续作为实施约束：ACK至postparse／callback全错误范围、实际pinned build issuance资格、public export与private issuer／registry分离。20baseline源码bytes已归档；Task1修改后既有f7da／bfbb native门禁仅历史source qualification，旧pins不重写。Task2 Runner private consumer仍未改生产代码；其接口/边界只读审计并行进行中，Task1冻结后才进入实现。
+
+
+[Native reset-default Root执行checkpoint](../reports/stage2-e2-native-reset-default-root-execution-20261012.md)：20文件归档已独立复核；Task1两文件26项通过，六文件兼容回归59 passed＋15 subtests；最终独立审查核对五个源码／测试SHA且无 scoped blocker，Task1现冻结。Task2 Runner实现报告12项核心通过，最终收据／SHA尚待归档；第二代理正在只读裁决软件成功路径是否确实受Task1 prepare/build边界阻断。完整证据、精确SHA及回归receipt见[checkpoint](../reports/stage2-e2-native-reset-default-root-execution-20261012.md)、[回归收据](../../runs/stage2-e2-native-reset-observation-root-final-compat-20261012/receipt.json)和[终审记录](../../runs/stage2-e2-native-reset-observation-root-final-review-20261012/review.md)。Task2具体hook及风险清单在checkpoint，重点是授权实现/source固定、全target原子预检、effect前容量、cursor提交原子性与失败永久化、pre-ack消费、私有process/nonce不导出及四类运行域分离。所有现有测试证据仍是软件机械证据，不给native RTL资格或整体Stage2完成结论。
+
+2026-10-12 Task2 latest checkpoint: full three-module suite passed 75 tests／44.52秒 with stable source SHA and `native_execution=false`, but exact-SHA independent review rejected the candidate. New blockers: checker table and checker alias can be replaced together; checker `__defaults__` can be rewritten; `inspect.sys` can be rebound to fake the frame chain; receipt drain/lookup/issuance comparison failure occurs before the terminal handler after stream offset advancement. Journal/program/UART callback terminal failure handling is confirmed fixed. All four blockers now have RED→GREEN repairs assigned; Task2 stays unaccepted, Task3 has not started, joined global reset/native eligibility remain unverified. See [execution checkpoint](../reports/stage2-e2-native-reset-default-root-execution-20261012.md), historical 75-pass [receipt](../../runs/stage2-e2-native-reset-task2-software-20261012/checker-commit-order-final-green-receipt.json), and exact-SHA [review record](../../runs/stage2-e2-native-reset-task2-software-20261012/final-review-checker-commit-v3-candidate-20261012.md). Original Stage2 remains OPEN.
+
+Task2 follow-up audit confirmed a consumer install atomicity blocker: preinstall replacement of a `NativeResetEvidence` class method is detected only after observer issuers are registered; the Task2 method table must be checked against class attributes/code before any registration. A suspected Task1 observer class-method gap is closed by the pre-attach `observer.validate()` path and is a GREEN control. However, that check is reached through `session._NATIVE_RESET_CHECK_PRODUCERS[0]`, whose tuple lacks an independent pin; replacing its function with a no-op bypasses the observer preflight. Task2 must pin this dispatch tuple/function/code before calling `observer.validate()`. Checker/table/defaults were reproduced in 2 valid REDs. The first `inspect.sys` attempt (exit 3, pytest internal error) is marked setup-only; corrected `ModuleType` proxy produced valid `inspect.sys` and real receipt-lookup REDs (2 failed／52 deselected／9.55秒). A real RED for the unpinned Task1 producer-dispatch tuple is preserved at `runs/stage2-e2-native-reset-task2-software-20261012/task1-producer-anchor-red-receipt.json` (1 failed／56 deselected／9.26秒; unchanged candidate sources); installation accepted a no-op replacement. Task2-only pin repair and full regression remain pending; no native execution.
+
+本次90-pass候选的独立复审细节与最小RED见[lexical Runner-entry exact-path review](../../runs/stage2-e2-native-reset-task2-software-20261012/final-review-lexical-runner-entry-candidate.md)。
+
+Task3独立source-rule审计已完成，profile/sidecar/RTL与alias拒绝矩阵见[source-rule audit](../../runs/stage2-e2-native-reset-task3-software-20261012/source-rule-audit.md)。已独立重核profile SHA `2268967f…0b56`、sidecar SHA `0cefc52e…efc1d`、RTL SHA `1e271914…cbcaef`和probe contract SHA `52c5a3eb…063dd`；其中profile不声明reset value，sidecar/RTL均为0。
+
+
+2026-10-12 Task3复核回退：此前Task3 60项与Task2兼容92项收据仅对应候选SHA `096e306f…c14d`，不再作为当前验收。独立实际提交路径审查发现 authority 实例覆盖 `resolve` 可让Runner确认成功但保留未消费recipient；后续又发现覆盖 `register_consumer` 可导致Task3半安装，覆盖 `validate_consumer_registration` 可绕过启动阶段recipient门槛。实现代理正在同一轮补RED与fail-closed前置校验；审查仍在检查相关动态dispatch。新GREEN、完整回归、源manifest和精确SHA独立复核全部完成前，Task3保持未接受；不运行native/build、不产生正向证书。
+
+2026-10-12 Task3复核补充：动态调用边界还包括 `RegisterProgramRuntime.validate` 与 `validate_static_configuration`；实例覆盖后者可让已安装 verifier 的 report/preflight 绕过结构校验，且当前未固定运行时验证方法。此项已并入实现代理本轮RED范围；审查代理继续收集完整动态dispatch清单。共享源码漂移测试等候实现候选冻结后串行执行。
+
+Task3复核又复现实际提交dispatch bypass：Task2 pre-effect hook动态调用实例上的 `_preflight_command`，Runner pre-ack hook动态调用实例上的 `_consume_actual_commit`；同时以no-op遮蔽两者可跳过各方法内部的实例绑定检查，并让默认ack路径成功、Task3 recipient token仍待消费。实现代理已收到要求增加真实Runner提交RED和闭合dispatch修复。现有候选保持拒收，需覆盖所有新发现再冻结。
+
+Task3范围可行性裁定：精确改写 `runner._register_reset_default_verifier` 私有槽位无法仅通过本轮授权的 verifier/test 两文件可靠拦截；冻结的 Task2 `NativeResetEvidence._preflight_command` 与 Runner pre-ack 都只以该槽位作分派入口，槽位被清空/替换时不存在仍会执行的 Task3 hook。独立复核建议：若要支持防御此类外部私有槽位篡改，最小解冻点是 native_reset_evidence.py preflight anchor 和 runner.py pre-ack anchor；本轮保持冻结，因此将此类外部改写列为明确支持边界外，不宣称 Task3 两文件防护该攻击。对象实例方法shadow、authority方法覆盖及 runtime validator 覆盖仍须在当前范围内修复并复审。
+
+新实例分派／authority／runtime RED 已保存：`instance-dispatch-enrollment-red.stdout` 为6 failed／60 deselected／9.66秒，覆盖真实 issued commit、resolve instance override、成对 verifier 方法shadow、rogue consumer registration、已stage token后 validator no-op、runtime validator前后shadow。真实提交路径已观察到异常终态和未ack断言；resolve no-op时异常清理也会命中同一被覆盖方法，因此测试记录仍有1 pending token，不能要求该受损resolver同时完成清理；已要求修正此断言与fixture teardown。当前仅测试更改，生产修复仍在进行，未接受。
+
+Task3动态调用补审： verifier还对 `NativeResetEvidence` 实例动态调用 `validate/configuration/snapshot`；NRE验证体检查其实例方法表，但实例把 `validate` 自身遮蔽时可绕过该检查体。已交实现代理评估 Task3侧固定调用/身份校验可行性，并由独立复核只读分类；尚无代码修复或接受结论。
+
+NRE分派范围复核已完成：Task3可且应 pin `native_reset_evidence._METHODS` identity，并通过固定unbound entries执行 validate/configuration/snapshot；测试安装前/后 shadow，构造拒绝应先于recipient enrollment，post-install报告/preflight应sticky拒绝。Task2独立API未安装Task3时的instance shadow仍需解冻NRE/Runner才可覆盖，归外部私有Task2对象篡改边界；当前不改冻结文件。
+
+Task3已复现NRE validator-shadow RED：`task2-instance-validator-red.stdout` 为2 failed／66 deselected／9.36秒，构造前与安装后覆盖 `NativeResetEvidence.validate` 都被当前实现放过。实现正用 frozen NRE method table固定 `validate/configuration/snapshot` unbound dispatch，并改 Task3 sensitive method lookup；聚焦8项GREEN结果待回报，完整回归和复审未进行。
+
+Task3 unbound dependency source RED有效：`dispatch-source-dependency-red.stdout` 为1 failed／72 deselected／9.17秒，配置未显式包含固定unbound分派所依赖的 `native_reset_evidence.py`、`register_program_runtime.py`、`memory_commit_authority.py`、`memory_authority_distribution.py`、`register_program_verifier.py`。实现已扩展关键source pin并正跑13项聚焦GREEN，完成前继续不冻结。
+
+候选SHA `51a9abd2…b838`/`3ff36bf5…72d6` 的独立source-contract review确认profile/sidecar/RTL/probe与拒绝式文档闭合，但指出条件source-path blocker：安装检查 `target.base_dir/_SOURCE`，持续`_current_source_files()`仅重hash仓库根RTL。标准factory为canonical ROOT；已交实现代理添加canonical安装拒绝或逐target路径pins与负例。另请安全复核类级 `__getattribute__` 替换/authority-runtime class method改写可行性；最终收据暂不生成。
+
+精确候选安全复审发现真实class-level bypass：把已安装动态类 `RegisterResetDefaultVerifier.__getattribute__` 标准赋值替换成no-op，会使其自身词法guard不可达，冻结Runner/NRE随后可能ack并遗留Task3 recipient。因当前契约已pin class methods，此项为阻断；实现代理被要求用密封动态类/metaclass拦截标准class属性替换并加真实拒绝测试。纯 `type.__setattr__` 等低层替换仍可归为任意class metadata tamper边界。与canonical `target.base_dir` 检查一并合入新候选，当前SHA不接受。
+
+复核新增source-drift blocker：只pin `Path.read_bytes`而未pinTask3模块全局 `Path` alias；换成继承Path子类并覆写 `open()` 返回旧缓存bytes，可掩盖被改写源码的漂移检查。实现代理需在两个guard中固定Path alias本身并添加alias/source-drift RED→GREEN。共享文件漂移测试串行运行；精确候选仍未接受。
+
+新边界RED有效：`sealed-class-path-alias-red.stdout` 为2 failed／9.36秒（标准class special入口替换与缓存Path别名掩盖自身源码漂移）；`canonical-target-root-red.stdout` 为1 failed／9.12秒（alternate target base仍可安装）。source-file修改测试已finally恢复；实现正在合并metaclass闭包seal、Path alias pins与canonical安装拒绝，Green和新SHA待定。

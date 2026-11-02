@@ -1,0 +1,60 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-apb-pulp-i2c-fuzz",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "source_profile": "configs/peripherals/pulp_i2c/component_profile.json",
+  "source_timing": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "max_wait_cycles": 16
+  },
+  "active_id": "pulp_i2c_target",
+  "target_window": {
+    "base": 1073741824,
+    "size": 4096
+  },
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "f1_program_words": 4,
+  "handler_wait_iterations": 128,
+  "source_fixed_inputs": [
+    {
+      "endpoint_id": "i2c.pins",
+      "role": "scl_pad_i",
+      "value": 1
+    },
+    {
+      "endpoint_id": "i2c.pins",
+      "role": "sda_pad_i",
+      "value": 1
+    }
+  ],
+  "source_tuning": {
+    "fixed_inputs": [
+      {
+        "endpoint_id": "i2c.pins",
+        "role": "scl_pad_i",
+        "value": 1
+      },
+      {
+        "endpoint_id": "i2c.pins",
+        "role": "sda_pad_i",
+        "value": 1
+      }
+    ]
+  },
+  "notes": [
+    "One OBI CPU (Ibex) and the pinned PULP apb_i2c APB3 register target; no DMA model is declared, so the entry refuses F6 by name (unsupported-f6:no-dma-model:APB)",
+    "the target window is the profile's own 4 KiB APB window at 0x40000000; the register map is the profile's six words (PRESCALER 0, CTRL 4, RX 8, STATUS 12, TX 16, CMD 20) and is not repeated here",
+    "the two single-bit pad inputs scl_pad_i and sda_pad_i are held at 1 (open-drain pull-up idle) by the declaration's fixed_inputs; the generic APB3 register template owns every non-bus input, so leaving them undeclared would be refused rather than defaulted",
+    "this pinned profile declares interrupts: [] and records interrupt_o as observe-only with no CPU IRQ binding, so F5 cannot be declared; the entry refuses it by name instead of inventing a vector",
+    "the cpu and target declare 50 MHz, so assume_single_clock states that one host tick drives both models",
+    "fuzz mode: f1_program_words 4 declares a four-word straight-line F1 program in the fixed trampoline slot, and the bounded handler wait is declared although no F5 flow is offered"
+  ]
+}

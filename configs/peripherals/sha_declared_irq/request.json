@@ -1,0 +1,19 @@
+{
+  "schema_version": "local_harness.v2",
+  "profile_path": "configs/peripherals/caliptra_sha256/component_profile.json",
+  "instance_id": "sha",
+  "reset_assert_ticks": 8,
+  "reset_release_ticks": 8,
+  "max_wait_cycles": 16,
+  "tuning": {
+    "endpoint_policies": [
+      {
+        "endpoint_id": "sha256.bus",
+        "template_id": "target.ahb-lite",
+        "template_version": "1",
+        "variant_id": "full-word-single",
+        "max_outstanding": 1
+      }
+    ]
+  }
+}

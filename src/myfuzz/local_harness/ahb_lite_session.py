@@ -63,7 +63,7 @@ from .ahb_startup import configure_observer_startup, validate_startup_page
 from myfuzz.scenario.memory import PersistentMemory
 from myfuzz.scenario.router import DataflowRouter
 
-from .native_session import GeneratedNativeMemorySession
+from .native_session import GeneratedNativeMemorySession, _QUEUED_RESPONSE
 
 
 class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
@@ -81,11 +81,16 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
 
     def __init__(self, artifact, *, base_dir, cache_dir, memory,
                  router: DataflowRouter | None = None,
-                 instruction_source=None, **kwargs):
+                 instruction_source=None, defer_mmio=False,
+                 hold_declared_instructions=False, **kwargs):
         # A router is accepted for the same reason the AXI4-Lite session accepts
         # one: a CPU beat whose address falls inside a declared device window must
         # be served by the real target rather than by local RAM.  It is optional,
         # so without one the session is RAM/ROM only.
+        if type(defer_mmio) is not bool or type(hold_declared_instructions) is not bool:
+            raise ValueError('AHB deferred/declared instruction options must be bool')
+        self.defer_mmio = defer_mmio
+        self.hold_declared_instructions = hold_declared_instructions
         if router is not None and not isinstance(router, DataflowRouter):
             raise ValueError('AHB-Lite CPU router must be a DataflowRouter')
         if not isinstance(memory, PersistentMemory):
@@ -103,6 +108,7 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
         self._ahb_startup_required = True
         self._ahb_startup_complete = False
         self._ahb_startup_receipts = []
+        self._ahb_startup_records = []
         self.runtime_events = self._ahb_observer.events
         self._last_ahb_receipt = None
         self.router = router
@@ -133,11 +139,53 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
         if router is not None:
             self.max_mmio_target_accesses_per_step = 1
 
+    def declare_instruction_slots(self, address, count=1):
+        """Enable online supply only for this registered source-backed AHB CPU.
+
+        HPROT belongs to the accepted address phase retained by AhbCpuObserver;
+        an unrelated current bus value cannot classify the held backend beat.
+        """
+        if self.process is not None or self._case_id is not None:
+            raise RuntimeError('AHB instruction slots require pre-start declaration')
+        from .cvw_contract import cvw_instruction_fetch_granule
+        cvw_instruction_fetch_granule(self.artifact.plan.profile, base_dir=self.base_dir)
+        endpoint, signals, binding = bind_ahb_trace(self._artifact_document)
+        observer = self._ahb_observer
+        if (type(observer) is not AhbCpuObserver or observer.endpoint_id != endpoint
+                or signals != self._ahb_signal_map or 'hprot' not in signals
+                or observer.contract.get('signal_widths', {}).get('hprot') != 4
+                or observer.contract.get('trace_binding') != binding):
+            raise ValueError('AHB online instructions require verified HPROT address evidence')
+        self.memory.declare_instruction_slots(address, count)
+        self._online_instruction_slots = True
+        self.hold_declared_instructions = True
+
+    @property
+    def waiting_instruction_address(self):
+        if not self._online_instruction_slots:
+            return None
+        return self._held_instruction_address()
+
+    def _check_native_online_acceptance(self, pre, sample):
+        if not self._online_instruction_slots:
+            return
+        request = getattr(self, '_ahb_accepted_request', None)
+        if (not isinstance(request, dict) or request.get('address') != pre['m_req_addr']
+                or request.get('write') != pre['m_req_write']
+                or type(request.get('hprot')) is not int or not 0 <= request['hprot'] < 16):
+            raise ProtocolEnvironmentError('AHB backend request lacks original HPROT address evidence')
+        if not request['hprot'] & 1:
+            if pre['m_req_write'] or (self.router is not None and self.router.owns(pre['m_req_addr'])):
+                raise ProtocolEnvironmentError('AHB instruction fetch cannot write or reach MMIO')
+            self.native_instruction_fetch_count += 1
+
     def identity_document(self):
         identity = super().identity_document()
         identity['ahb_lite_service_schema_version'] = identity.pop(
             'native_service_schema_version')
         identity['ahb_observation_contract'] = copy.deepcopy(self._ahb_observer.contract)
+        if self.defer_mmio:
+            identity['defer_mmio'] = True
         return identity
 
     def declare_boot_instruction_slot(self):
@@ -161,7 +209,11 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
         except ValueError as error:
             raise ProtocolEnvironmentError(str(error)) from error
         self._ahb_observer.end_scope()
+        cancelled_queued = self._queued_mmio
+        self._cancel_queued_mmio()
         result = super().reset_local()
+        if cancelled_queued:
+            result['cancelled_responses'] = max(result['cancelled_responses'], 1)
         # A reset cancels every outstanding response, and the boot word must be
         # held again for the next boot.
         self.declare_boot_instruction_slot()
@@ -178,6 +230,12 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
         except ValueError as error:
             raise ProtocolEnvironmentError(str(error)) from error
         self._last_ahb_receipt = None
+        # Reset in place: the startup receipts/records lists are session-global
+        # (their identity is part of the contract), so a new case clears them
+        # instead of swapping in fresh lists.
+        self._ahb_startup_receipts.clear()
+        self._ahb_startup_records.clear()
+        self._ahb_startup_output_pending = True
         self._ahb_startup_complete = False
         self.instruction_hold_ticks = 0
         self.instruction_hold_addresses = []
@@ -222,6 +280,7 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
                 raise ProtocolEnvironmentError('AHB startup payload mismatch')
             records = validate_startup_page(payload['observations']['ahb_startup'],
                 contract, expected_page=page_index)
+            self._ahb_startup_records.extend(copy.deepcopy(records))
             for record in records:
                 sample = record['sample']
                 self._ahb_observer.observe_startup(record, rows=self._ahb_rows(sample))
@@ -237,25 +296,63 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
         beat_address = address & ~3
         if not router.owns(beat_address):
             return self._serve_local(key, address, write, be, value)
+        if self.defer_mmio:
+            if self._queued_mmio or self._pending is not None:
+                raise ValueError('AHB routed request already pending')
+            self._queued_mmio = True
+
+            def complete(response):
+                if not self._queued_mmio:
+                    raise ValueError('AHB routed callback after cancellation')
+                if (type(response) is not tuple or len(response) != 2
+                        or type(response[0]) is not int or not 0 <= response[0] < 1 << 32
+                        or type(response[1]) is not int or response[1] not in (0, 1)):
+                    raise ValueError('AHB-Lite routed target response malformed')
+                self._pending = (response[0], key.source_sequence)
+                self._pending_error = response[1]
+                self._queued_mmio = False
+                if write:
+                    self.mmio_write_count += 1
+                else:
+                    self.mmio_read_count += 1
+
+            try:
+                accepted = router.enqueue(self.service.ledger, key, address=beat_address,
+                    write=bool(write), wdata=value, be=be, beat_bytes=4, callback=complete)
+                if accepted is not True:
+                    raise ValueError('AHB routed request was not newly accepted')
+            except BaseException:
+                self._queued_mmio = False
+                raise
+            return _QUEUED_RESPONSE
         response = router.transact(self.service.ledger, key, address=beat_address,
                                    write=bool(write), wdata=value, be=be, beat_bytes=4)
         if type(response) is not tuple or len(response) != 2:
             raise ValueError('AHB-Lite routed target response malformed')
+        self._pending_error = response[1]
         if write:
             self.mmio_write_count += 1
         else:
             self.mmio_read_count += 1
         return response[0]
 
+    def _cancel_queued_mmio(self):
+        if self.router is not None and self._queued_mmio:
+            self.router.cancel_for_ledger(self.service.ledger)
+        self._queued_mmio = False
+
+    def end_case(self):
+        try:
+            return super().end_case()
+        finally:
+            self._cancel_queued_mmio()
+
     def _serve_local(self, key, address, write, be, value):
         """Local RAM/ROM service, on the native completion face.
 
-        An unfilled instruction slot is *not* caught here.  Accepting the beat and
-        withholding only the response would not hold the transfer: accepting it
-        drives the subordinate into its COMPLETE state, and the subordinate raises
-        ``HREADYEXT`` there, so a later response could no longer extend the
-        transfer.  The hold therefore has to happen one step earlier, by not
-        accepting the beat at all - see :meth:`step_local`.
+        An unfilled instruction slot is held before request acceptance by
+        :meth:`step_local`. Queued MMIO instead waits in the RTL COMPLETE state,
+        whose HREADYEXT now requires the real target response's rsp_valid.
         """
         return super()._service_accepted_request(key, address, write, be, value)
 
@@ -326,8 +423,14 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
         is not silently read as uninitialised RAM; a write is never held for an
         instruction slot.
         """
-        if self.instruction_source is not None:
+        if self.instruction_source is not None or self.hold_declared_instructions:
             requested, write = self._measured_request()
+            if self.hold_declared_instructions and self.last_samples:
+                # POST is the request offered for the next command edge. A new
+                # backend request may not yet have been valid in the prior PRE.
+                backend = self.last_samples[-1].get('post', {}).get('backend', {})
+                if backend.get('m_req_valid') == 1:
+                    requested, write = backend.get('m_req_addr'), bool(backend.get('m_req_write'))
             if (requested is not None and not write
                     and self._instruction_slot_required(requested)):
                 return requested
@@ -348,7 +451,17 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
 
     def _observe_verified_memory_edge(self, receipt):
         sample, = self.last_samples
+        original = self._ahb_observer.pending
+        accepted = bool(sample['pre']['backend']['m_req_valid']
+                        and sample['pre']['backend']['m_req_ready'])
+        request = None
+        if accepted and original is not None:
+            request = dict(address=original['address'], write=original['write'],
+                           hprot=original['controls'].get('hprot'))
         self._ahb_observer.observe(sample, rows=self._ahb_rows(sample))
+        # Capture before observer advances a completion/new address on this edge.
+        # Publish only after that edge's raw observation checks succeeded.
+        self._ahb_accepted_request = request
 
     def _ahb_rows(self, sample):
         from .ahb_manager_domain import measured_domain_rows
@@ -374,6 +487,13 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
             self._abort()
             raise
 
+    def _attach_ahb_startup_samples(self, outputs):
+        # Preserve the raw startup envelope so a separate pure checker can
+        # reconstruct address phases accepted before the first command tick.
+        if self.defer_mmio and self._ahb_startup_output_pending:
+            outputs['ahb_startup_samples'] = copy.deepcopy(self._ahb_startup_records)
+            self._ahb_startup_output_pending = False
+
     def _step_ahb_local(self, inputs):
         source = self.instruction_source
         if source is not None:
@@ -397,10 +517,12 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
                 outputs = super().step_local(inputs)
             finally:
                 self._quiescing = False
+            self._attach_ahb_startup_samples(outputs)
             if source is not None:
                 source.after_step(self, outputs)
             return outputs
         outputs = super().step_local(inputs)
+        self._attach_ahb_startup_samples(outputs)
         if source is not None:
             source.after_step(self, outputs)
         return outputs

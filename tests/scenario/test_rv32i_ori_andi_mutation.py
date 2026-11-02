@@ -60,12 +60,9 @@ def test_operand_mutation_keeps_new_instruction_class(operation):
 
 
 @pytest.mark.parametrize('funct3', [2, 3])
-def test_other_op_imm_encodings_have_precise_rejection(funct3):
-    # SLTI/SLTIU stay outside the legal subset. funct3 1 and 5 are now the
-    # legal SLLI/SRLI/SRAI shifts and are covered by their own tests.
+def test_slti_op_imm_encodings_are_accepted(funct3):
     word = (1 << 20) | (1 << 15) | (funct3 << 12) | (1 << 7) | 0x13
-    with pytest.raises(ValueError, match='unsupported RV32I OP-IMM funct3'):
-        validate_instruction_bytes(word.to_bytes(4, 'little'))
+    validate_instruction_bytes(word.to_bytes(4, 'little'))
 
 
 @pytest.mark.parametrize('funct3', [1, 5])

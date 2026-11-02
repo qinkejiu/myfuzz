@@ -1,0 +1,21 @@
+{
+  "schema_version": "inprocess_source_behavior.v1",
+  "description": "ZipCPU wbuart F5 declaration used to test whether this host can run an F5 cycle on a Wishbone or AXI4-Lite register target: it names the RTL's own TX-FIFO interrupt output, the FIFO_STATUS status word and a TXREG trigger write.",
+  "notes": [
+    "Register offsets from configs/peripherals/zipcpu_uart/component_profile.json: SETUP 0x00, FIFO_STATUS 0x04 (read only), RXREG 0x08 (read pops the RX FIFO), TXREG 0x0c (write pushes the TX FIFO)",
+    "source_port is the RTL's own output o_uart_tx_int: wbuart.v:365 'assign o_uart_tx_int = txf_status[0];' and ufifo.v:297-303 define bit 0 of a transmit FIFO status as 'the FIFO can be written to'",
+    "status_offsets [0x04] is FIFO_STATUS, a read-only word that carries the two FIFO status nibbles; register_kind labels it status because of the STATUS substring",
+    "this declaration exists to ask the F5 gate a question, not to claim a cycle: o_uart_tx_int is a combinational FIFO level that is already high out of reset (the TX FIFO is empty, so it can be written), so no declared trigger write raises it and no declared clear write lowers it. The four wbuart interrupt outputs are all FIFO levels (wbuart.v:207,212,365,369); the two receive-side ones need bytes the receiver really clocked in, and rx_break is tied to 1'b0 in this configuration (wbuart.v:157), so this host cannot create a receive event from a register write",
+    "the two non-bus pin inputs rx and cts_n are held at their idle constants by the scenario's fixed_inputs, so no serial frame can arrive in a run of this shape"
+  ],
+  "source_port": "o_uart_tx_int",
+  "source_bit_offset": 0,
+  "trigger_writes": [
+    [12, 1]
+  ],
+  "status_offsets": [
+    4
+  ],
+  "status_cause_bits": [],
+  "clear_writes": []
+}

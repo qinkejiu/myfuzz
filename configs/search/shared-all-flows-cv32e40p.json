@@ -1,0 +1,20 @@
+{
+  "schema_version": "dependency_search_scenario.v1",
+  "name": "shared-all-flows-cv32e40p",
+  "backend": "descriptor",
+  "descriptor": "configs/scenarios/compiled-f1-f6-cv32e40p-rvfi-gpio-dma-shared/generic_scenario.json",
+  "flow": "mixed",
+  "records": [
+    "F3:55000000",
+    "F1:03200000",
+    "F4:0001000000",
+    "F5:0000000100000000",
+    "F2:08100040",
+    "F6:0110c00008000000",
+    "F5:0000000000000000"
+  ],
+  "goal": {
+    "id": "shared-six-flow-execution-cv32e40p",
+    "description": "Online typed F1-F6 execution with one CV32E40P CPU, RAM, DMA and causal GPIO session; the CPU observation authority is the passive four-field RVFI stream plus real irq_ack_o/irq_id_o."
+  }
+}

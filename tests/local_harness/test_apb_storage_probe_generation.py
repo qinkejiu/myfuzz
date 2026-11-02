@@ -1,8 +1,22 @@
 """Pure probe controls: no elaboration, process, or live authority."""
 import pytest
 from myfuzz.local_harness.tuning import load_local_harness_tuning
+from tests.local_harness.driver_text_support import (drop_lines_with,
+                                                     main_region,
+                                                     strip_dut_eval_timing)
 
 SELECTOR = dict(endpoint_id='timer.bus', contract_id='pulp-apb-timer.ctrl0.source.v1', register='TIMER0_CTRL')
+
+
+# The frozen ``.before.py`` snapshots predate later, unrelated driver instrumentation
+# (dut-eval timing capture: ``eval_dut``/``write_dut_timing`` helpers). Those tests own
+# the storage-probe/startup feature surface, so they compare the generated ``main``
+# region with that later instrumentation normalised away rather than whole-file bytes.
+# The stripping itself is shared with ``test_ahb_startup`` and
+# ``test_runner_obi_trace_set`` in ``tests.local_harness.driver_text_support``.
+def stable_driver_cpp(cpp):
+    """Driver bytes with instrumentation added after the snapshots removed."""
+    return drop_lines_with(strip_dut_eval_timing(main_region(cpp)))
 
 
 def test_optional_selector_roundtrip():
@@ -78,7 +92,8 @@ def test_nonoptin_full_text_unchanged(generated):
     olddriver = types.ModuleType('myfuzz.local_harness._old_probe_driver')
     olddriver.__file__ = str(ROOT/'src/myfuzz/local_harness/driver_renderer.py')
     exec((ROOT/'.superpowers/apb-storage-probe-generation/driver_renderer.before.py').read_text(), olddriver.__dict__)
-    assert olddriver.render_local_driver(prior, base_dir=ROOT).cpp_text == render_local_driver(prior, base_dir=ROOT).cpp_text
+    assert stable_driver_cpp(olddriver.render_local_driver(prior, base_dir=ROOT).cpp_text) \
+        == stable_driver_cpp(render_local_driver(prior, base_dir=ROOT).cpp_text)
 
 
 @pytest.mark.parametrize('mutation', ('hierarchy','comment','procedural','metadata','duplicate'))

@@ -1,0 +1,95 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "dma_profile": "configs/peripherals/zipdma_smoke/component_profile.json",
+  "dma_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "dma_capability": "configs/scenarios/compiled-f1-f6-ibex-gpio-zipdma-shared/dma.test_capability.json",
+  "dma_behavior": "configs/behaviors/zipdma_f6.json",
+  "dma_block_words": 4,
+  "dma_window": {
+    "base": 1073754112,
+    "size": 16
+  },
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "name": "inprocess-obi-wb-uart-zipdma-route-read-f1f6",
+  "description": "One Ibex RVFI OBI CPU with one real Wishbone-classic ZipCPU UART and a ZipDMA: the master reads the fixed UART SETUP register through the slave's own cyc/stb/ack cycle and writes the captured word into an incrementing RAM block.",
+  "targets": [
+    {
+      "name": "wbuart",
+      "profile": "configs/peripherals/zipcpu_uart/component_profile.json",
+      "active_id": "wbuart_target",
+      "window": {
+        "base": 536891392,
+        "size": 16
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 2,
+        "max_wait_cycles": 16
+      },
+      "behavior": null,
+      "pins": null,
+      "fixed_inputs": [
+        {
+          "endpoint_id": "uart.pins",
+          "role": "rx",
+          "value": 1
+        },
+        {
+          "endpoint_id": "uart.pins",
+          "role": "cts_n",
+          "value": 0
+        }
+      ],
+      "tuning": {}
+    }
+  ],
+  "dma_increment_source": false,
+  "dma_increment_destination": true,
+  "dma_route": {
+    "kind": "target_window",
+    "direction": "read",
+    "target_name": "wbuart",
+    "target_index": 0,
+    "target_profile": "configs/peripherals/zipcpu_uart/component_profile.json",
+    "target_window": {
+      "base": 536891392,
+      "size": 16
+    },
+    "register": "SETUP",
+    "offset": 0,
+    "address_mode": "fixed",
+    "evidence": {
+      "kind": "register_readback",
+      "register": "SETUP",
+      "offset": 0,
+      "field": "uart_setup",
+      "sampling": "pre_post_transfer",
+      "source": "third_party/soc-zipcpu-wbuart/rtl/wbuart.v:119-137 (uart_setup is a 31-bit register written from the four byte lanes of UART_SETUP) and 513 (a read of UART_SETUP returns {1'b0, uart_setup}), so the word the F4 case stores is the word every routed read returns"
+    },
+    "notes": [
+      "a read route captures the fixed SETUP register (offset 0x00) into the incrementing RAM destination block, so every routed beat presents the same target word and the four destination words are equal.  A read of UART_SETUP has no side effect in the pinned RTL (only a write resets the UART state), so the CPU's pre/post readback is the same word the master captured",
+      "RXREG is deliberately not the routed register: a read of it pops the RX FIFO (ufifo.v with RXFIFO=1), and the FIFO is empty at reset with rx tied high (idle), so a routed read there would be a pop on an empty FIFO rather than a captured register word"
+    ]
+  },
+  "notes": [
+    "the routed target is the pinned ZipCPU wbuart Wishbone-classic slave behind the generated beat_to_wishbone adapter; its register window is 16 bytes and its profile declares SETUP 0 (rw, a write resets the UART state), FIFO_STATUS 4 (ro), RXREG 8 (rw, a read pops the RX FIFO) and TXREG 12 (rw, a write pushes the TX FIFO)",
+    "the target is mapped at 0x20005000 rather than its SoC 0x40001000 because the pinned ZipDMA's SOURCE/DESTINATION CSR fields are 30-bit byte addresses (third_party/soc-zipcpu/rtl/zipdma/zipdma_ctrl.v:73-74,161-181,259-260 with ADDRESS_WIDTH=32, BUS_WIDTH=32): a byte address >= 0x40000000 cannot be encoded",
+    "F4 stores the source word in SETUP first (0x20005000), then F6 reads it back through the DMA; a read route does not reset the devices, so the stored word is the transfer's source data",
+    "the captured word must equal both the F4 expectation and the CPU's own pre/post readback of the same register"
+  ],
+  "fuzz_seed_records": [
+    "F4:20005000:0000abcd"
+  ]
+}

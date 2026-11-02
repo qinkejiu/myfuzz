@@ -1,0 +1,9 @@
+{
+  "name": "spi-picorv32-wb-compact",
+  "cpu_request": "configs/scenarios/compiled-f4-obi-wb-uart-setup/requests/processor.json",
+  "ip_request": "configs/scenarios/compiled-f2-f4-obi-apb-spi-mmio-ibex/requests/peripheral.json",
+  "ip_capability": "configs/scenarios/compiled-f2-f4-obi-apb-spi-mmio-ibex/test_capability.json",
+  "mmio_base": 1073745920,
+  "ram": {"base": 0, "size": 196608},
+  "write_values": [85, 170]
+}

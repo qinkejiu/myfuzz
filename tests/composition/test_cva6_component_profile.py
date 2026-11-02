@@ -296,8 +296,10 @@ class DispositionLedgerTests(Cva6ProfileFixture):
         self.assertEqual((1, 1), (declared["irq_i"].bit_lo, declared["irq_i"].bit_hi))
         self.assertEqual("fuzz", declared["time_irq_i"].disposition)
         self.assertEqual("cycle_value", declared["time_irq_i"].strategy)
-        self.assertEqual("unconnected", declared["rvfi_probes_o"].disposition)
-        self.assertTrue(declared["rvfi_probes_o"].coverage_loss)
+        # The RVFI probe bundle is exported whole so a real scoreboard can be
+        # attached to it; it is an observation, not a coverage loss any more.
+        self.assertEqual("observe", declared["rvfi_probes_o"].disposition)
+        self.assertFalse(declared["rvfi_probes_o"].coverage_loss)
         self.assertEqual("observe", declared["cvxif_req_o"].disposition)
         self.assertEqual("constant", declared["cvxif_resp_i"].disposition)
 
@@ -430,8 +432,11 @@ class Cva6DiagnosticCompositionTests(Cva6ProfileFixture):
                                    "awready", "arready", "wready", "bvalid", "bid",
                                    "bresp", "buser", "rvalid", "rid", "rdata", "rresp",
                                    "rlast", "ruser")]},
+                          # Exported whole as one passive observation: one segment,
+                          # and its leaf is the net the wrapper drives (the port
+                          # used to be left open, which is why this leaf was empty).
                           {"instance": "cpu0", "port": "rvfi_probes_o", "members": 88,
-                           "segments": 1, "leaves": []}],
+                           "segments": 1, "leaves": ["cpu0__rvfi_probes_o"]}],
                          finding["expected"])
 
     def test_every_cpu_adapter_pin_is_the_role_net_of_its_member(self) -> None:

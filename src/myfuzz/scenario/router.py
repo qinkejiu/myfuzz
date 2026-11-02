@@ -43,8 +43,8 @@ class DataflowRouter:
     """
 
     def __init__(self, windows: tuple[DeviceWindow, ...]) -> None:
-        if not windows or not isinstance(windows, tuple):
-            raise ValueError("at least one device window is required")
+        if not isinstance(windows, tuple):
+            raise ValueError("device windows must be a tuple")
         for index, window in enumerate(windows):
             if not isinstance(window, DeviceWindow):
                 raise ValueError("windows must contain DeviceWindow records")

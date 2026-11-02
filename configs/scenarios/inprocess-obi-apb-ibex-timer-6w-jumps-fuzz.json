@@ -1,0 +1,70 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-apb-ibex-pulp-timer-zipdma-6w-jumps-f1-fuzz",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "source_profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+  "source_timing": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "max_wait_cycles": 16
+  },
+  "active_id": "pulp_timer_active",
+  "source_port": "irq_o",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 16,
+  "trigger_writes": [
+    [
+      4,
+      0
+    ],
+    [
+      8,
+      0
+    ],
+    [
+      0,
+      4294967295
+    ]
+  ],
+  "status_offsets": [
+    0
+  ],
+  "status_cause_bits": null,
+  "clear_writes": [],
+  "dma_profile": "configs/peripherals/zipdma_smoke/component_profile.json",
+  "dma_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "dma_capability": "configs/scenarios/compiled-f1-f6-ibex-gpio-zipdma-shared/dma.test_capability.json",
+  "dma_block_words": 4,
+  "target_window": {
+    "base": 1073745920,
+    "size": 4096
+  },
+  "dma_window": {
+    "base": 1073754112,
+    "size": 16
+  },
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "notes": [
+    "trigger_writes and status_offsets repeat the values already used by configs/scenarios/inprocess-irq-pulp-timer-profile.json; the entry re-checks them against the timer register map and interrupt declarations",
+    "dma_window must not overlap the APB target window; the timer owns 0x40000000..0x40000fff",
+    "the timer declares 50 MHz, the CPU 50 MHz and the ZipDMA a nominal 1 Hz simulation rate, so assume_single_clock states that one host tick drives all three models",
+    "f1_program_words 6 declares a six-word F1 program in the fixed trampoline slot and f1_allow_jumps admits JAL/JALR with a link destination of x0/x1 and a statically proven target.  A JAL target is kSlot + 4*i + sext(jimm); a JALR target is x[rs1] + sext(imm) and is admitted only when rs1 is x0 or a register the program provably loads one exact constant into (LUI/ADDI/ADD/ANDI).  Every target must be a 4-byte aligned instruction start of the installed image and strictly forward; target == kSlot + 4*words (the appended return jump) is the legal exit.  A backward jump, an indirect base that is not a proven constant, CSR, compressed parcels, loops and out-of-image targets are refused by name.  A jump legally skips words, so the case's evidence is the in-slot RVFI retirement trace: prog_retires and prog_trace_count, the strictly increasing prog_pc_order, prog_pc_repeat 0, and prog_trace_hash (FNV-1a 32 over pc/insn/rd/wdata, including the link-register writeback pc+4) compared with the Python reference trace built from f1_reference_expectation.  Evidence: runs/round1-f1-controlflow/.",
+    "fuzz_flows [\"F1\"] narrows the closed-loop batch to the F1 program flow, so every generated and mutated input is a program of the declared shape whose RVFI retirement trace is compared with the Python reference trace.  The same host/timer/DMA models are built; only the offered flow set changes."
+  ],
+  "f1_program_words": 6,
+  "fuzz_flows": [
+    "F1"
+  ],
+  "f1_allow_jumps": true
+}

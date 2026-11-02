@@ -340,14 +340,15 @@ class IpProtocolEventNormalizerTests(unittest.TestCase):
         roles = ('a_valid', 'a_ready', 'a_source', 'a_opcode', 'a_size', 'a_address',
                  'a_mask', 'a_data', 'd_valid', 'd_ready', 'd_opcode', 'd_size',
                  'd_source', 'd_data', 'd_error')
-        artifact = SimpleNamespace(runtime_document={
+        from tests.scenario.test_ip_plugin_free_fixtures import _signed
+        artifact = SimpleNamespace(runtime_document=_signed({
             'kind': 'tlul_register_observe',
             'base_event_schema_version': 'ip_base_event.v1',
             'base_protocol_trace': trace('tl-ul', roles),
             'clock_schedule': {'primary_clock_domain': 'bus_clk'},
             'effective_max_wait_cycles': 2,
             'physical_exports': [],
-        }, plan=SimpleNamespace(request=request, profile=profile))
+        }), plan=SimpleNamespace(request=request, profile=profile))
 
         class Session:
             reset_epoch = 4

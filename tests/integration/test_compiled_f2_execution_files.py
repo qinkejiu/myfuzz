@@ -29,7 +29,8 @@ def f2_row(inputs):
 
 def test_public_factory_maps_each_executor_to_one_flow():
     assert _FLOW_BY_EXECUTOR == {'compiled_f4_obi_apb': 'F4',
-                                 'compiled_f2_obi_apb': 'F2'}
+                                 'compiled_f2_obi_apb': 'F2',
+                                 'compiled_f6_cpu_dma': 'F6'}
 
 
 def test_f2_support_report_is_source_backed_without_live_authority(generated):
@@ -48,9 +49,13 @@ def test_f2_support_report_is_source_backed_without_live_authority(generated):
     assert support['producer_binding']['live_authority'] == 'not_claimed'
     assert 'actual_native_current_register_version_token' in support['startup_requires']
     assert 'dependent_XOR_result_RAM_store' in support['startup_requires']
-    # Only the selected F2 row is executable here; other flows are not silently
-    # claimed by the F2 report.
-    assert all(row['flow_id'] == 'F2' for row in support['unsupported_paths'])
+    others = [path for path in inputs['compiled']['paths']
+              if path['path_id'] != support['path_id']]
+    assert support['unsupported_paths'] == [
+        dict(path_id=path['path_id'], flow_id=path['flow_id'],
+             reason='compiled-executor-flow-unsupported',
+             compiled_status=path['status'], compiled_reason=path['reason'])
+        for path in others]
 
 
 def test_f2_support_refuses_a_document_without_the_admitted_read_path(generated):

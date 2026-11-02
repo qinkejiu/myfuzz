@@ -1,0 +1,39 @@
+{
+  "schema_version": "inprocess_source_behavior.v1",
+  "description": "PULP APB3 GPIO F5 behavior with two pad groups whose declared directions are falsifiable: an output group (the device owns those pads) and an inout group (the per-bit dir resolution). The case line reports, per group, what the device's own PADDIR port said about that declaration.",
+  "notes": [
+    "the F5 facts are the reviewed PULP GPIO sequence (GPIOEN(4), INTEN(24), INTTYPE_LOW(28), PADOUT(12)=0x2b) with INTSTATUS(36) read-clearing",
+    "group0 'device_pads' declares direction out: the host presents no driver value for it, the wire is the device's own PADOUT word, and the witness is the device's PADDIR port - PADIR 0 on a bit contradicts the declaration and is counted per tick",
+    "group1 'shared_pads' declares inout: the per-bit host/device resolution, with no direction claim and therefore no witness",
+    "group0 holds the wire for 2 host ticks and group1, being the last group, holds it for the rest of the case. The declaration order is the drive order",
+    "the direction witness is a measurement, not an assumption: the first case of this scenario's record chain is the PADDIR write itself, so its case line reports the contradiction the declaration produced before the device was configured, and every later case reports the honoured witness",
+    "no execution is claimed by this file: the run under runs/p2-pins-serial-20261103/ is the evidence"
+  ],
+  "source_port": "interrupt",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 16,
+  "trigger_writes": [[4, 4294967295], [24, 1], [28, 1], [12, 43]],
+  "status_offsets": [36],
+  "status_cause_bits": null,
+  "clear_writes": [],
+  "pin_groups": [
+    {
+      "name": "device_pads",
+      "kind": "dir_resolved_pad_word",
+      "direction": "out",
+      "hold_ticks": 2,
+      "padin_offset": 8,
+      "external_value": 0,
+      "pad_resolution": "device_drives_when_dir_bit_high_else_host"
+    },
+    {
+      "name": "shared_pads",
+      "kind": "dir_resolved_pad_word",
+      "direction": "inout",
+      "hold_ticks": 3,
+      "padin_offset": 8,
+      "external_value": 0,
+      "pad_resolution": "device_drives_when_dir_bit_high_else_host"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-apb-timer-timed-rational-refusal",
+  "description": "One timed CV32E40P RVFI CPU at its pinned 50 MHz declaration (Verilator --timing, half period 10000 ps) and one untimed PULP APB3 timer declared at 30000000 Hz.  The pair has no whole half-period divider, so the exact common grid is lcm(50000000,30000000) = 150000000 Hz and one grid step is 1/(2 x 150000000) s = 3333.33 ps, which is not a whole number of picoseconds: the shared timed context cannot advance one grid step exactly, so the entry refuses the session by name instead of rounding the grid.  No model run, no bus success and no case line are produced.",
+  "cpu_profile": "configs/cpus/cv32e40p_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "targets": [
+    {
+      "name": "timer30",
+      "profile": "configs/peripherals/pulp_timer_30mhz/component_profile.json",
+      "active_id": "timer30",
+      "window": {
+        "base": 1073745920,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": null,
+      "pins": null,
+      "fixed_inputs": [],
+      "tuning": {}
+    }
+  ],
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": false,
+  "notes": [
+    "The CPU is the pinned timed CV32E40P model (configs/cpus/cv32e40p_rvfi_local, verilator_timing_mode timing, half period 10000 ps = a whole number of picoseconds).  The 30 MHz target profile is a declared composition variant of the pinned PULP apb_timer: same RTL, source revision, reset and APB3 pin contract, only clocks[0].frequency_hz differs.",
+    "The expected refusal is \"unsupported: timed phase grid: the common grid step of the declared rates (50000000,30000000 Hz) is 1 / (2 x 150000000) s, which is not a whole number of picoseconds, so the shared timed context cannot advance to it exactly\".  It states the limit instead of rounding the declared rates or the grid.",
+    "The same pair with untimed models is admitted and runs (configs/scenarios/inprocess-obi-apb-rational-pair-f1f4.json): only a timed model needs the grid step to be whole picoseconds.  Separately, a 30 MHz model itself declared verilator_timing_mode timing is refused even earlier, at artifact build, with timed-clock-half-period-not-integral-picoseconds (its own half period is 16666.67 ps)."
+  ]
+}

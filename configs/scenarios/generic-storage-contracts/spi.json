@@ -1,0 +1,28 @@
+{
+  "adapter_id": "apb3.storage.v1",
+  "adapter_version": "1",
+  "alias_register_offsets": [
+    8,
+    24,
+    40,
+    56
+  ],
+  "capability": "configs/scenarios/compiled-f4-obi-apb-spi-cv32e40p/test_capability.json",
+  "compose": "configs/scenarios/compiled-f4-obi-apb-spi-cv32e40p/compose.json",
+  "f4_records": [
+    "55000000",
+    "aa000000",
+    "78563412"
+  ],
+  "flows": [
+    "F2",
+    "F4"
+  ],
+  "non_alias_register_offset": 12,
+  "register": "SPICMD",
+  "renamed_instance": false,
+  "scenario": "spi",
+  "schema_version": "generic_storage_contract_selection.v1",
+  "source_contract_id": "pulp-apb-spi.spicmd.source.v1",
+  "supplement": "configs/scenarios/compiled-f4-obi-apb-spi-cv32e40p/f2_execution_supplement.json"
+}

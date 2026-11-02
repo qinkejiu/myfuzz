@@ -78,7 +78,8 @@ from pathlib import Path
 from myfuzz.local_harness.harness_set import (
     GENERATED_TIER, HARNESS_SET_SCHEMA_VERSION)
 from myfuzz.scenario.compiled_paths import (
-    COMPILED_PATHS_SCHEMA, FLOW_IDS, STATUS_EXECUTABLE, STATUS_UNSUPPORTED)
+    COMPILED_PATHS_SCHEMA, FLOW_IDS, STATUS_EXECUTABLE, STATUS_UNSUPPORTED,
+    compiled_document_sha256)
 from myfuzz.scenario.p5_arm_metrics import (
     CHECKLIST_METRIC_GROUPS, GROUP_SPECS, P5ArmMetricsInputError,
     SCHEMA_VERSION as P5_ARM_METRICS_SCHEMA, analyze_arm)
@@ -219,6 +220,187 @@ def _described(document: Mapping, path: Path | None, *, default: str) -> dict:
             'sha256': _digest(document)}
 
 
+def _validated_f6_assertions(compiled,paths,document,evidence,result_path):
+    from myfuzz.scenario.f6_execution_binding import CompiledF6ExecutionBinding
+    from myfuzz.scenario.f6_assertion_evidence import validate_f6_assertion_evidence
+    from myfuzz.scenario.f6_execution_contract import EXPECTATION_IDS
+    from myfuzz.integration.compiled_f6_runtime_path import restore_prepared_runtime_paths
+    def require(ok,code):
+        if not ok:raise ValueError('F6 report '+code)
+    try:
+        binding=CompiledF6ExecutionBinding(evidence['execution_binding']).document()
+        selected=[p for p in paths if p['path_id']==evidence['path_id'] and p['flow_id']=='F6']
+        require(len(selected)==1,'selected path')
+        path=json.loads(_canonical(selected[0]));admission=binding['runtime_path_admission']
+        compiled_hash=compiled_document_sha256(compiled)
+        path_hash=hashlib.sha256(_canonical(path)).hexdigest()
+        require(binding['flow_id']=='F6' and binding['path_id']==path['path_id']
+            and binding['run_id']==evidence['run_id'] and binding['compiled_document_sha256']==compiled_hash
+            and binding['selected_path_sha256']==path_hash and admission['logical_path']==path,'binding scope')
+        require(binding['expectation_ids']==list(EXPECTATION_IDS)
+            ==path['execution_contract']['expectation_ids'],'five expectations')
+        body={k:v for k,v in admission.items() if k!='admission_sha256'}
+        require(hashlib.sha256(_canonical(body)).hexdigest()==admission['admission_sha256']
+            ==binding['runtime_path_admission_sha256'],'admission digest')
+        restore_prepared_runtime_paths(admission)
+        require(binding['execution_contract_sha256']==hashlib.sha256(_canonical(path['execution_contract'])).hexdigest(),
+            'execution contract')
+        scope=dict(compiled_document_sha256=compiled_hash,binding_sha256=binding['binding_sha256'],
+            path_sha256=path_hash,execution_binding_sha256=binding['binding_sha256'],path_id=path['path_id'],run_id=evidence['run_id'])
+        pair=dict(assertions=document,assertion_evidence=dict(schema_version='compiled_F6_assertion_evidence.v1',
+            **scope,cases=evidence['cases']))
+        validate_f6_assertion_evidence(pair,execution_binding=scope,case_inventory=evidence['cases'])
+    except (ValueError,TypeError,KeyError,IndexError) as error:
+        _refuse('assertion-evidence-invalid','/assertion_results',str(error))
+    rows=[dict(row,flow_id='F6',path_id=path['path_id'],run_id=scope['run_id'],case_id=case['case_id'],
+        compiled_document_sha256=compiled_hash,binding_sha256=scope['binding_sha256'],path_sha256=path_hash)
+        for case in document['cases'] for row in case['assertions']]
+    return {path['path_id']:rows}, {'supplied':True,**_described(document,result_path,default='compiled_F6_assertion_results.v1')}, {
+        'supplied':True,**_described(evidence,None,default='compiled F6 assertion runtime evidence')}
+
+
+def _validated_assertions(compiled, paths, *, results, evidence, base_dir):
+    """Join saved outcomes to separately collected cases; confer no tier grants.
+
+    The first supported binding is explicitly F2. The execution binding and
+    admission describe static identity only, and never substitute for native
+    evidence. Cases must come from the runtime collector, not the saved output.
+    """
+    absent = {'supplied': False, 'reason': 'no compiled assertion evidence supplied'}
+    if results is None and evidence is None:
+        return {}, dict(absent), dict(absent)
+    if results is None or evidence is None:
+        _refuse('assertion-results-evidence-pair-required', '/assertion_results')
+    if (type(evidence) is not dict or set(evidence) != {
+            'execution_binding', 'path_id', 'run_id', 'cases'}):
+        _refuse('assertion-evidence-fields-invalid', '/assertion_evidence')
+    document, result_path = _load_document(results, base_dir=base_dir,
+        code='assertion-results', pointer='/assertion_results')
+    binding = evidence['execution_binding']
+    if type(binding) is dict and binding.get('schema_version') == 'compiled_F6_execution_binding.v1':
+        return _validated_f6_assertions(compiled,paths,document,evidence,result_path)
+    if (type(binding) is not dict or binding.get('schema_version') !=
+            'compiled_F2_execution_binding.v1'):
+        _refuse('assertion-binding-schema-unsupported',
+                '/assertion_evidence/execution_binding/schema_version')
+    from myfuzz.integration.compiled_build_join import _binding_document
+    from myfuzz.scenario.compiled_assertion_results import validate_assertion_results
+    from myfuzz.scenario.f2_read_contract import validate_f2_read_contract
+
+    def require(condition, detail):
+        if not condition:
+            raise ValueError(detail)
+
+    try:
+        _binding_document(binding, flow='F2')
+        selected = [path for path in paths if path.get('path_id') == evidence['path_id']]
+        require(len(selected) == 1, 'selected path required')
+        # Compiler declarations may contain tuples in memory; saved/runtime
+        # identities and the strict assertion schema use their JSON arrays.
+        path = json.loads(_canonical(selected[0]))
+        contract = validate_f2_read_contract(path)
+        compiled_hash = compiled_document_sha256(compiled)
+        # Execution binding and typed assertions retain the historical ASCII
+        # encoding; runtime path admission has its established UTF-8 encoding.
+        path_hash = compiled_document_sha256(path)
+        runtime_id = path['runtime_path_identity']['path_id']
+        require(binding.get('compiled_document_sha256') == compiled_hash,
+                'compiled document mismatch')
+        require(binding.get('selected_path_sha256') == path_hash and
+                binding.get('path_id') == path['path_id'] and
+                binding.get('runtime_path_id') == runtime_id, 'binding path mismatch')
+        require(binding.get('assertions') == path['assertions'] and
+                binding.get('assertions_sha256') == hashlib.sha256(json.dumps(path['assertions'], sort_keys=True,
+                    separators=(',', ':'), allow_nan=False).encode()).hexdigest(),
+                'binding assertions mismatch')
+        admission = binding.get('runtime_path_admission')
+        require(type(admission) is dict and admission.get('schema_version') ==
+                'compiled_F2_runtime_path_admission.v1', 'runtime admission schema')
+        admission_hash = hashlib.sha256(_canonical({k: v for k, v in admission.items()
+                                         if k != 'binding_sha256'})).hexdigest()
+        require(admission.get('binding_sha256') == admission_hash and
+                binding.get('runtime_path_admission_sha256') == admission_hash,
+                'runtime admission digest')
+        require(admission.get('compiled_document_sha256') == compiled_hash and
+                _canonical(admission.get('selected_path')) == _canonical(path) and
+                admission.get('selected_path_sha256') == hashlib.sha256(_canonical(path)).hexdigest(),
+                'runtime admission selected document mismatch')
+        require(_canonical(admission.get('path_mapping')) == _canonical({
+                'logical_path_id': path['path_id'], 'runtime_path_id': runtime_id}) and
+                _canonical(admission.get('runtime_path_identity')) ==
+                _canonical(path['runtime_path_identity']),
+                'runtime admission path identity mismatch')
+        require(_canonical(admission.get('execution_contract')) == _canonical(contract),
+                'runtime admission execution contract mismatch')
+        for field, compiled_field in (('graph', 'runtime_dependency_graph'),
+                                      ('contract', 'runtime_path_contract')):
+            expected_hash = hashlib.sha256(_canonical(compiled[compiled_field])).hexdigest()
+            require(admission.get(field + '_sha256') == expected_hash,
+                    'runtime admission ' + field + ' mismatch')
+            require(_canonical(admission['prepared'][field]) == _canonical(compiled[compiled_field]),
+                    'prepared ' + field + ' mismatch')
+            if field == 'contract':
+                require(binding.get('runtime_contract_sha256') == expected_hash,
+                        'binding runtime contract mismatch')
+        # Rebuild the pure prepared path and validate its cached admission.
+        # This checks selections and source joins even after all saved hashes
+        # have been recomputed coherently by a caller.
+        from myfuzz.integration.compiled_f2_runtime_path import CompiledF2RuntimePathAdmission
+        from myfuzz.scenario.dependency import DependencyGraph, DependencyPath, DependencyEdge
+        from myfuzz.scenario.instruction_image_binding import InstructionImageSourceBinding
+        from myfuzz.scenario.runtime_path_contract import PreparedRuntimePathContract, RuntimePathContract
+        graph = DependencyGraph.from_edge_document(compiled['runtime_dependency_graph'])
+        runtime_contract = RuntimePathContract.from_document(compiled['runtime_path_contract'])
+        identity = path['runtime_path_identity']
+        selection = DependencyPath(path['target']['node'], tuple(identity['source_ids']),
+                                   tuple(DependencyEdge(**edge) for edge in identity['edges']))
+        prepared = PreparedRuntimePathContract(graph, runtime_contract,
+                                              ((path['direction'], selection),))
+        require(_canonical(admission['prepared']) == _canonical(prepared.document()),
+                'prepared selected path mismatch')
+        source_binding = InstructionImageSourceBinding.from_document(admission['source_binding'])
+        cached = CompiledF2RuntimePathAdmission(prepared, source_binding,
+                    path['path_id'], runtime_id, _canonical(admission))
+        cached.validate_cached_identity()
+        for kind, field in (('instruction_image', 'instruction_image'),
+                            ('cpu_load_stream', 'cpu_load_stream')):
+            source = next(source for source in path['sources'] if source['kind'] == kind)
+            require(_canonical(admission.get(field)) == _canonical(source) and
+                    admission.get(field + '_sha256') == hashlib.sha256(_canonical(source)).hexdigest(),
+                    'runtime admission source mismatch')
+            if kind == 'instruction_image':
+                expected_source = InstructionImageSourceBinding(
+                    path_id=runtime_id, direction=path['direction'],
+                    source_id=identity['source_ids'][0],
+                    logical_source_id=source['source_id'], component=source['component'],
+                    memory_id=source['port'], base=source['range'][0],
+                    size=source['range'][1] - source['range'][0] + 1,
+                    readable=True, writable=True)
+                require(_canonical(source_binding.document()) ==
+                        _canonical(expected_source.document()),
+                        'runtime instruction source binding mismatch')
+        validate_assertion_results(document,
+            compiled_document_sha256=compiled_hash,
+            binding_sha256=binding['binding_sha256'], path=path,
+            run_id=evidence['run_id'], cases=evidence['cases'])
+        evidence_desc = {'supplied': True, **_described(evidence, None,
+                          default='compiled assertion runtime evidence')}
+    except (ValueError, TypeError, KeyError, IndexError) as error:
+        _refuse('assertion-evidence-invalid', '/assertion_results', str(error))
+    rows = []
+    for case in document['cases']:
+        for assertion in case['assertions']:
+            rows.append({**assertion, 'evidence_refs': list(assertion['evidence_refs']),
+                'flow_id': path['flow_id'], 'path_id': path['path_id'],
+                'run_id': document['run_id'], 'case_id': case['case_id'],
+                'compiled_document_sha256': document['compiled_document_sha256'],
+                'binding_sha256': document['binding_sha256'],
+                'path_sha256': document['path_sha256']})
+    descriptor = {'supplied': True, **_described(document, result_path,
+                   default='compiled_assertion_results.v1')}
+    return {path['path_id']: rows}, descriptor, evidence_desc
+
+
 def _validate_compiled_paths(document: Mapping):
     """``(rows, counts)``; every status/reason is taken exactly as stated."""
     if document.get('schema_version') != COMPILED_PATHS_SCHEMA:
@@ -260,7 +442,7 @@ def _validate_compiled_paths(document: Mapping):
     return rows, counts
 
 
-def _validate_harness_set(document: Mapping) -> list:
+def _validate_harness_set(document: Mapping, *, f6_path=None) -> list:
     wiring = document.get('wiring')
     route_bearing = (
         (isinstance(wiring, Mapping)
@@ -268,13 +450,31 @@ def _validate_harness_set(document: Mapping) -> list:
                  or 'dma_master_routes' in wiring))
         or 'dma_master_routes' in document
     )
-    if route_bearing:
+    if route_bearing and f6_path is None:
         _refuse('capability-report-route-intent-unsupported',
                 '/wiring/dma_master_routes')
-    if document.get('schema_version') != HARNESS_SET_SCHEMA_VERSION:
+    expected_schema='harness_set.v2' if f6_path is not None and route_bearing else HARNESS_SET_SCHEMA_VERSION
+    if document.get('schema_version') != expected_schema:
         _refuse('unsupported-harness-set-schema', '/schema_version',
                 {'expected': HARNESS_SET_SCHEMA_VERSION,
                  'observed': document.get('schema_version')})
+    if route_bearing and f6_path is not None:
+        try:
+            from myfuzz.scenario.compiled_paths import load_path_wiring
+            parsed=load_path_wiring(wiring)
+            contract=f6_path['execution_contract']
+            if (f6_path.get('flow_id')!='F6' or f6_path.get('status')!='executable'
+                    or wiring.get('dma_master_routes')!=contract['master_routes']['intents']
+                    or list(parsed.dma_master_route_bindings)!=contract['master_routes']['bindings']
+                    or {row['instance_id'] for row in document['components']}!={contract['cpu']['instance_id'],contract['dma']['instance_id']}):
+                raise ValueError('F6 harness route/binding/component scope mismatch')
+            from myfuzz.local_harness.dma_artifact_endpoint_links import PROVIDER_ID
+            selected=[row for row in document['components'] if row['instance_id']==contract['dma']['instance_id']]
+            provider=selected[0]['dma_endpoint_links']
+            if provider.get('provider_id')!=PROVIDER_ID or provider.get('filename')!='dma_endpoint_links.v1.json':
+                raise ValueError('F6 issued provider identity required')
+        except (ValueError,TypeError,KeyError,IndexError) as error:
+            _refuse('f6-harness-route-binding-invalid','/harness_set/wiring',str(error))
     if document.get('tier') != GENERATED_TIER:
         _refuse('harness-set-tier-not-generated', '/tier',
                 {'expected': GENERATED_TIER, 'observed': document.get('tier')})
@@ -1004,7 +1204,7 @@ def _finding_names(row: Mapping, *, flow_id: str | None = None,
 class _Context:
     def __init__(self, *, compiled_artifact, harness_artifact, harness_supplied,
                  compiled_identity, harness_rows, session, findings, fresh,
-                 unavailable, instances, cpu_instance):
+                 unavailable, instances, cpu_instance, assertion_rows):
         self.compiled_artifact = compiled_artifact
         self.harness_artifact = harness_artifact
         self.harness_supplied = harness_supplied
@@ -1012,6 +1212,7 @@ class _Context:
         self.harness_rows = harness_rows
         self.session = session
         self.findings = findings
+        self.assertion_rows = assertion_rows
         self.fresh = fresh
         self.unavailable = unavailable
         self.instances = instances
@@ -1206,7 +1407,8 @@ def _grade_path(row: Mapping, index: int, ctx: _Context) -> dict:
             },
             'not_claimed': list(row.get('not_claimed') or ()),
         },
-        'assertion_results': findings_here,
+        'assertion_results': ctx.assertion_rows.get(row.get('path_id'), []),
+        'checker_findings': findings_here,
     })
 
 
@@ -1460,7 +1662,8 @@ def _throughput(session: Mapping) -> dict:
 
 def build_capability_report(compiled_paths, *, harness_set=None, session=None,
                             fresh_verification=None, checker_findings=None,
-                            unavailable=None, label=None, base_dir='.') -> dict:
+                            unavailable=None, label=None, base_dir='.',
+                            assertion_results=None, assertion_evidence=None) -> dict:
     """Grade one composition's paths and components from the supplied evidence.
 
     ``compiled_paths`` is required and is authoritative for path identity,
@@ -1469,6 +1672,9 @@ def build_capability_report(compiled_paths, *, harness_set=None, session=None,
     fresh-verification document, checker findings and an explicit
     ``capability_unavailable.v1`` declaration.  Missing evidence never lowers a
     status and never raises: it is reported as *grade not claimed* with a reason.
+    Typed ``assertion_results`` require independent ``assertion_evidence`` with
+    execution_binding, path_id, run_id and runtime-collected cases. Their strict
+    identity join records outcomes without awarding capability tiers.
     An unusable input raises :class:`CapabilityReportRefused` with ``code`` and
     ``pointer`` instead of producing a partly-graded document.
     """
@@ -1478,6 +1684,9 @@ def build_capability_report(compiled_paths, *, harness_set=None, session=None,
         compiled_paths, base_dir=base, code='compiled-paths',
         pointer='/compiled_paths')
     compiled_rows, compiled_counts = _validate_compiled_paths(compiled)
+    assertion_rows, assertions_desc, assertion_evidence_desc = _validated_assertions(
+        compiled, compiled_rows, results=assertion_results, evidence=assertion_evidence,
+        base_dir=base)
     compiled_desc = _described(compiled, compiled_path,
                                default=COMPILED_PATHS_SCHEMA)
     compiled_desc['counts'] = (dict(compiled_counts)
@@ -1493,7 +1702,9 @@ def build_capability_report(compiled_paths, *, harness_set=None, session=None,
         document, path = _load_document(harness_set, base_dir=base,
                                         code='harness-set',
                                         pointer='/harness_set')
-        harness_rows = _validate_harness_set(document)
+        selected_f6=[row for row in compiled_rows if row.get('flow_id')=='F6' and row.get('status')=='executable'
+                     and row.get('execution_contract',{}).get('schema_version')=='compiled_F6_cpu_dma_contract.v1']
+        harness_rows = _validate_harness_set(document,f6_path=selected_f6[0] if len(selected_f6)==1 else None)
         harness_desc = {'supplied': True,
                         **_described(document, path,
                                      default=HARNESS_SET_SCHEMA_VERSION),
@@ -1613,7 +1824,8 @@ def build_capability_report(compiled_paths, *, harness_set=None, session=None,
                    fresh=fresh,
                    unavailable=unavailable_rows,
                    instances=instances,
-                   cpu_instance=cpu_instance)
+                   cpu_instance=cpu_instance,
+                   assertion_rows=assertion_rows)
 
     paths = [_grade_path(row, index, ctx)
              for index, row in enumerate(compiled_rows)]
@@ -1691,17 +1903,8 @@ def build_capability_report(compiled_paths, *, harness_set=None, session=None,
 
     skipped = [record['skipped'] for record in components
                if record['status'] == STATUS_SKIPPED_UNAVAILABLE]
-    assertion_results = []
-    for record in paths:
-        for row in record['assertion_results']:
-            assertion_results.append({
-                'flow_id': record['flow_id'], 'path_id': record['path_id'],
-                'finding_id': row.get('finding_id'),
-                'expectation_id': row.get('expectation_id'),
-                'assertion_class': row.get('assertion_class'),
-                'classification': row.get('classification'),
-                'outcome': row.get('outcome', row.get('status')),
-                'detail': row.get('detail')})
+    assertion_results = [dict(row) for record in paths
+                         for row in record['assertion_results']]
 
     tier_awards = {tier: sum(1 for subject in [*paths, *components]
                              for row in subject['tiers']
@@ -1757,6 +1960,8 @@ def build_capability_report(compiled_paths, *, harness_set=None, session=None,
             'harness_set': harness_desc,
             'fresh_verification': fresh_desc,
             'checker_findings': findings_desc,
+            'assertion_results': assertions_desc,
+            'assertion_evidence': assertion_evidence_desc,
             'unavailable': unavailable_desc,
             # A descriptor only: the full session evidence lives under the
             # top-level `session` key and is not serialized twice.

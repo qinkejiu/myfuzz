@@ -1,0 +1,13 @@
+{
+  "name": "cv32e40p-profile-embedded-zipdma-i2c",
+  "cpu_profile": "configs/cpus/cv32e40p_profile/component_profile.json",
+  "dma_profile": "configs/peripherals/embedded_profile_dma/component_profile.json",
+  "target": {
+    "profile": "configs/peripherals/embedded_profile_target/component_profile.json",
+    "base": 1073754112,
+    "write_values": [
+      85,
+      170
+    ]
+  }
+}

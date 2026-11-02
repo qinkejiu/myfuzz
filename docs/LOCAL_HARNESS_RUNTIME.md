@@ -1,3 +1,15 @@
+## 2026-10-24 统一 F2 RFuzz：限定验收完成
+
+显式compiled-f2-rfuzz入口及逐例反馈/receipt/fresh/初始字节校验已实现，真实finalizer材料与主异常/次级诊断修复经独立复审通过。第三冻结21916项输入的十门全部独立接受：软件498 passed/5精确native skip/22 subtests、五项原生runtime控制、两项预构造拒绝、三组正常F2、改名和同版本F4 Timer/SPI。最终Spec/source、Quality及软件/原生PASS。F2 wire8保留地址4/未绑定suffix4，单test1..8条全量预检、9..200不截断拒绝；仅两条D3 typed期望。每组有自己的完整fresh和构建/进程关联；以下旧候选仍属于各自冻结版本。见[最终报告](reports/compiled-f2-rfuzz-entry-20261023.md)。
+
+## 2026-10-23 Compiled F2 真实读响应：实现与验收边界
+
+`run_compiled_dataflow.py --executor compiled_f2_obi_apb` 已有独立 F2 文件入口：四字节地址候选、源登记的 APB3 全字稳定寄存器、真实 CPU LW／PRDATA／XOR 0x5a5／依赖 RAM store、当前 IP register version、typed 断言和完整 fresh。不得把读请求地址变成 PRDATA 注入或隐藏初始化写。
+
+[历史 Timer／SPI 原生门](reports/compiled-f2-native-gate-20261023.md)只证明其冻结版本。当前源码另补失败用例断言、取指顺序、诊断与报告身份、fresh 保存字节保护，整片复审通过；第三轮软件门的四项 F4 夹具失败已确认并修复；F4 fresh raw 保存缺口也已修复并复审。最终八门均终态且独立审计 PASS；53模块软件门为1001 passed、31 skipped、53 subtests passed。有界 F2 文件入口与 F4 兼容切片验收完成，统一 F2 RFuzz 和系统验收仍开放。准确终态以[本轮记录](reports/f2-f4-current-acceptance-20261023.md)为准。
+
+边界：候选地址单值、PRDATA reset-zero；不证明变异多样性、有用搜索吞吐、退休或其他F1/F3/F5/F6。统一auto_harness/RFuzz已注册显式F2执行器，原实施计划Task5的统一入口义务已由最终补充验收满足。F4兼容两组反馈均八零；CV32E40P native CPU error保持未观测。P6/P7-E/P8、通用F6、任意同协议接入与六CPU/四IP总验收保持开放。
+
 ## 2026-10-22 PULP SPI SPICMD compiled-F4 storage/readback
 
 [CV32E40P + PULP SPI Attempt5](reports/compiled-f4-cv32e40p-pulp-spi-spicmd-20261022.md)通过本地 first/fresh 门：四个 full-word 候选写 `SPICMD@0x40001008`，读回后写 RAM；每条结果有 native OBI store、RAM writer/version 和响应链，fresh 的完整证书前缀相同。准确范围为 source-reviewed `pulp-apb-spi.spicmd.source.v1` 单个寄存器行。它不运行串行 SPI、不观察 STATUS/FIFO/IRQ，不是 DMA/F6，也不代表任意 APB3、retirement 或系统级 CPU/IP 验收。
@@ -353,6 +365,8 @@ Ibex OBI CPU runtime 现额外导出两端点、合计 15 个真实 CPU 侧被�
 后续[Runner 双端点 OBI 报告](reports/runner-obi-trace-set-20261017.md)将上述保存的原始 Ibex 样本经真实 Runner drain/投影路径离线消费：562 条日志记录含 200 条原始 pre/post 采样，仍认证 52 条事务，数据端覆盖 2 写、1 读、3 成功响应，单端点篡改保留另一端点 3 条证书。该次没有新 RTL 构建或当前源码 fresh 重跑，不证明 CPU/IP 事务 join、在线反馈或认证场景前缀 replay。
 
 ZipCPU `wbdmac` 已在真实生成式 session 中完成两次独立四字 RAM→RAM 传输：每次四读四写、四笔目的 RAM 提交、第 34 边沿真实 IRQ，完整轨迹归一化进程 UUID 后一致。这一局部运行没有 CPU 配置或消费 IRQ；实测环境对写 burst 尾 ACK 使用一边沿额外延迟，任意延迟稳健性未证。详见 [真实 DMA RAM 报告](reports/zipcpu-wbdmac-real-ram-20261017.md)。
+
+2026-10-25 新增 F6 WBDMAC 双 endpoint Wishbone checker 软件路径：artifact 按 profile/backend 字段导出 `dma.control` 和 `dma.memory` trace，不合成 `SEL`；显式 no-SEL/full-word 条件绑定到 profile capability。Runner 将同一 PRE sample 交给两端独立 checker；F6 case report 绑定 attempt 自己的 Runner cursor、完整 PRE sample IDs、artifact/trace identity 与精确 Runner violation event。consumer 拒绝缺 report、身份漂移、游标偏移、漏样本、篡改 finding 或未清空 pending。相关 software 回归 207 passed，最终 fallback consumer 定向回归 1 passed；独立复审无 Critical/Important。实现细节见[报告索引](reports/README.md)中的 WBDMAC checker handoff。该路径尚未在完整真实 F6 native first/fresh success 与 expected-ERR archive 上独立复投影，因此不代表 F6/Freeze16 完成，也不改变以下六 CPU、四 IP 的总体验收边界。
 
 后续 Ibex＋`wbdmac` 定向闭环已补齐上述 CPU 端缺口：CPU 真实 OBI 写入四个源字和四笔 DMA 配置，DMA 真实搬运四字，native IRQ 在 DMA 边沿 92 发出并经显式 pending-level latch 于 CPU tick 76～79 交付，真实 `irq_taken_pre` 在 tick 79 出现，ISR 读取真实 DMA 状态和目的 RAM 值并写成功标记。两组全新 Ibex／DMA 进程的规范化完整轨迹一致；见[定向闭环报告](reports/ibex-zipcpu-dma-irq-isr-directed-20261017.md)。这是有界 host 事务调度的 RAM→RAM 场景，不含含真实 IP FIFO 的方向、在线搜索或认证前缀 replay。
 

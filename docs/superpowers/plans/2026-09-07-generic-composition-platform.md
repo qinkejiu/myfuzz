@@ -671,7 +671,7 @@ git commit -m "feat: register generic CVA6 BOOM and peripheral capabilities"
 - Create: `tests/integration/test_low_resource_generic_smoke.py`
 - Modify: `src/myfuzz/integration/low_resource_smoke.py`
 - Modify: `src/myfuzz/experiments/resource_policy.py`
-- Create: `docs/generic-composition-usage.md`
+- Create: `docs/history/generic-composition-usage.md`
 - Modify: `docs/README.md`
 
 - [ ] **Step 1: Write failing end-to-end tests.**
@@ -713,7 +713,7 @@ Document the minimal semantic input, source pin, generated annotation, capabilit
 - [ ] **Step 6: Commit.**
 
 ```bash
-git add src/myfuzz/integration/low_resource_smoke.py src/myfuzz/experiments/resource_policy.py tests/integration/test_low_resource_generic_smoke.py docs/generic-composition-usage.md docs/README.md
+git add src/myfuzz/integration/low_resource_smoke.py src/myfuzz/experiments/resource_policy.py tests/integration/test_low_resource_generic_smoke.py docs/history/generic-composition-usage.md docs/README.md
 git commit -m "test: validate generic composition under low resource policy"
 ```
 

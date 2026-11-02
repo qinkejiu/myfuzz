@@ -24,6 +24,7 @@ from .genome import GenomeCodec, ScenarioGenome
 from .host_identity import verify_host_source_identity
 from .replay import (ReplayComparison, ScenarioTrace, _canonical,
                      _difference_context, _record_with_runner)
+from .replay_normalize import declared_identity_mappings
 from .runner import ScenarioRunner
 
 
@@ -53,6 +54,31 @@ def _read_jsonl(path: Path) -> list[dict]:
 
 def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _semantic_digest(status: str, events, local_ticks: dict) -> str:
+    """Digest of one side's own status/events/ticks triple.
+
+    Identical to the digest ``_record_with_runner`` stores, so a pair compared
+    without any declared identity rewrite reproduces the saved value exactly.
+    """
+    return hashlib.sha256(_canonical({"status": status, "events": events,
+                                      "local_ticks": local_ticks})).hexdigest()
+
+
+def _compare_events(saved_events, raw_actual_events):
+    """Normalize only declared identities, each side with its own values.
+
+    Returns ``(normalization, expected_events, actual_events)``.  The
+    normalization rewrites nothing unless both sides carry the same number of
+    distinct values under a declared identity field (today only
+    ``scope.execution_id``-style per-run nonces), so every other byte - payload,
+    address, data, tick, memory version, event order - is still compared
+    exactly.  ``normalization.report()`` is written to ``replay_report.json``.
+    """
+    normalization = declared_identity_mappings(saved_events, raw_actual_events)
+    return (normalization, normalization.normalize_reference(saved_events),
+            normalization.normalize_actual(raw_actual_events))
 
 
 def _publish_new_evidence_directory(staged: Path, output: Path) -> None:
@@ -980,8 +1006,10 @@ def replay_evidence_bundle(output_dir: Path,
             "inflight_step", "inflight_reset", "before_begin",
             "inflight_begin", "inflight_finalize"):
         prefix = wall_cut["prefix_event_count"]
-        expected_events = saved["events"]
-        actual_events = json.loads(_canonical(actual.events))
+        raw_expected_events = saved["events"]
+        raw_actual_events = json.loads(_canonical(actual.events))
+        normalization, expected_events, actual_events = _compare_events(
+            raw_expected_events, raw_actual_events)
         difference = next((index for index in range(prefix)
                            if index >= len(actual_events)
                            or expected_events[index] != actual_events[index]), None)
@@ -1026,6 +1054,7 @@ def replay_evidence_bundle(output_dir: Path,
             "verification_scope": comparison.verification_scope,
             "first_difference": comparison.first_difference,
             "difference_context": comparison.difference_context,
+            "normalization": normalization.report(),
             "actual_semantic_sha256": actual.semantic_sha256})
         return comparison
     actual_checks = []
@@ -1047,8 +1076,10 @@ def replay_evidence_bundle(output_dir: Path,
                 tuple(check["expected_values"]))[0]
         actual_checks.append(json.loads(_canonical(expected_check)))
     actual_hits = sorted(observed_targets(actual.events, targets))
-    expected_events = saved["events"]
-    actual_events = json.loads(_canonical(actual.events))
+    raw_expected_events = saved["events"]
+    raw_actual_events = json.loads(_canonical(actual.events))
+    normalization, expected_events, actual_events = _compare_events(
+        raw_expected_events, raw_actual_events)
     difference = next((index for index in range(max(len(expected_events),
                                                     len(actual_events)))
                        if (expected_events[index] if index < len(expected_events) else None)
@@ -1062,7 +1093,9 @@ def replay_evidence_bundle(output_dir: Path,
                                                                   observed, difference))
     elif (saved["status"] != actual.status
           or saved["local_ticks"] != actual.local_ticks
-          or saved["semantic_sha256"] != actual.semantic_sha256
+          or _semantic_digest(saved["status"], expected_events,
+                              saved["local_ticks"])
+          != _semantic_digest(actual.status, actual_events, actual.local_ticks)
           or _canonical(saved_final_state) != _canonical(actual_final_state)
           or checks != actual_checks
           or saved_coverage["hits"] != actual_hits):
@@ -1086,5 +1119,6 @@ def replay_evidence_bundle(output_dir: Path,
         "verification_scope": comparison.verification_scope,
         "first_difference": comparison.first_difference,
         "difference_context": comparison.difference_context,
+        "normalization": normalization.report(),
         "actual_semantic_sha256": actual.semantic_sha256})
     return comparison

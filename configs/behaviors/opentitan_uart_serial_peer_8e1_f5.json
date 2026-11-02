@@ -1,0 +1,54 @@
+{
+  "schema_version": "inprocess_source_behavior.v1",
+  "description": "OpenTitan UART F5 behavior plus an even-parity serial peer (8e1). CTRL enables TX, RX and parity, and the peer's frame carries the even parity bit between the data bits and the stop bit, so the device's own parity check is part of the evidence.",
+  "notes": [
+    "the F5 facts are configs/behaviors/opentitan_uart_tx_done_f5.json's, with one deliberate difference: CTRL(16) is 0x80000003 instead of 0xffff0001, so the declared bit period is exactly 32 host ticks in both directions. The 16x baud tick comes from the NCO: uart_core.sv:164-177 increments a 17-bit accumulator by ctrl.nco on every cycle while tx_enable or rx_enable, and tick_baud_x16 is its carry. With nco=0x8000 the carry fires every second cycle, so one bit (16 such ticks) is 32 cycles; a bit_ticks declaration of 32 is that arithmetic, not a measurement",
+    "the serial peer: rx_role 'rx' is the profile's uart.pins input the host drives, tx_role 'tx' is its output the host samples, tx_en_role 'tx_en' is the device's own transmit-enable output the host samples but never drives. idle_level 1 is the UART line's idle level and frame 8n1 is one start bit, eight data bits LSB first and one stop bit",
+    "the peer drives a complete frame only for a case whose record carries a stimulus byte (the F2 record's optional second word); the CPU clock is parked while the frame is on the wire, so the device has the byte before the CPU reads its data register. With no stimulus word the peer only samples the device's tx line",
+    "no execution is claimed by this file: the run under runs/p2-pins-serial-20261103/ is the evidence",
+    "CTRL bits (uart.hjson): 0 TX enable, 1 RX enable, 6 PARITY_EN, 7 PARITY_ODD, 31:16 NCO. 0x80000043 enables both directions, even parity and NCO=0x8000, so one bit is 32 host cycles",
+    "trigger_writes: INTR_ENABLE(4)=4 unmasks tx_done; CTRL(16)=0x80000043 enables TX, RX and even parity; WDATA(28)=0x5a pushes the byte. The peer's own frame is 11 bit times: start, eight data bits, one even parity bit and one stop bit",
+    "the frame declaration is frame 8e1, so the host's driver adds the parity bit time and the sampler checks it; a byte the device rejects with rx_parity_err would never reach RDATA, which is what the run checks"
+  ],
+  "source_port": "intr_tx_done_o",
+  "source_bit_offset": 0,
+  "trigger_writes": [
+    [
+      4,
+      4
+    ],
+    [
+      16,
+      2147483715
+    ],
+    [
+      28,
+      90
+    ]
+  ],
+  "status_offsets": [
+    0
+  ],
+  "status_cause_bits": [
+    2
+  ],
+  "clear_sequence": [
+    {
+      "kind": "write",
+      "offset": 0,
+      "value": 4
+    }
+  ],
+  "pin_groups": [
+    {
+      "name": "serial_even",
+      "kind": "serial_peer",
+      "rx_role": "rx",
+      "tx_role": "tx",
+      "tx_en_role": "tx_en",
+      "idle_level": 1,
+      "bit_ticks": 32,
+      "frame": "8e1"
+    }
+  ]
+}

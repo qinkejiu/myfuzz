@@ -1,0 +1,30 @@
+{
+  "schema_version": "local_harness.v2",
+  "profile_path": "configs/peripherals/zipcpu_uart_storage/component_profile.json",
+  "instance_id": "peripheral",
+  "reset_assert_ticks": 2,
+  "reset_release_ticks": 3,
+  "max_wait_cycles": 16,
+  "tuning": {
+    "endpoint_policies": [
+      {
+        "endpoint_id": "uart.bus",
+        "template_id": "target.wishbone",
+        "template_version": "1",
+        "variant_id": "word-addressed-registered-ack",
+        "max_outstanding": 1
+      }
+    ],
+    "fixed_inputs": [
+      {"endpoint_id": "uart.pins", "role": "rx", "value": 1},
+      {"endpoint_id": "uart.pins", "role": "cts_n", "value": 0}
+    ],
+    "wishbone_storage_observations": [
+      {
+        "endpoint_id": "uart.bus",
+        "contract_id": "zipcpu-wbuart.setup.storage.v1",
+        "register": "SETUP"
+      }
+    ]
+  }
+}

@@ -89,7 +89,5 @@ def test_xori_rejects_illegal_operands(kwargs):
         Rv32iInstruction("XORI", **kwargs)
 
 
-def test_validator_rejects_other_arithmetic_funct3():
-    # SLTI remains outside the deliberately narrow arithmetic source contract.
-    with pytest.raises(ValueError, match="unsupported"):
-        validate_instruction_bytes((0x0010A093).to_bytes(4, "little"))
+def test_validator_accepts_slti():
+    validate_instruction_bytes((0x0010A093).to_bytes(4, "little"))

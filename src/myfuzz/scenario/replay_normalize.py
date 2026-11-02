@@ -98,6 +98,16 @@ FIELD_RULES = MappingProxyType({
     field: rule for rule in NORMALIZER_RULES if rule.scope == 'field'
     for field in rule.fields})
 STATE_EDGE_RULE = RULES_BY_NAME['state_edge_endpoint']
+#: The declared per-run identity field names, derived from the rule table so a
+#: new rewrite rule automatically joins (and no name is restated by hand).  A
+#: value stored under one of these fields is a nonce minted by one native
+#: process, so a reference run and its fresh replay differ there by construction.
+IDENTITY_FIELD_NAMES = tuple(
+    field for rule in NORMALIZER_RULES if rule.scope == 'field'
+    and rule.action == 'execution_identity' for field in rule.fields)
+#: Token prefix for the shared placeholder both sides of one declared identity
+#: collapse onto.  It is never derived from a document and never written back.
+IDENTITY_TOKEN_PREFIX = 'declared-identity:'
 
 #: Fields that must survive a fresh comparison unchanged.  This positive list
 #: is the audit counterpart of ``NORMALIZER_RULES``: the two are disjoint, and
@@ -198,6 +208,90 @@ def normalize_gpio_dma_execution_identities(value, execution_ids):
 
 def _normalized(value, execution_ids):
     return normalize_execution_identities(value, execution_ids)
+
+
+def declared_identity_values(value, fields=IDENTITY_FIELD_NAMES):
+    """Ordered distinct strings stored under the declared identity fields.
+
+    The walk mirrors :func:`_normalize_with_mapping` exactly: a string is an
+    identity only when the dict key directly above it is a declared identity
+    field.  Nothing else in the document is inspected or collected.
+    """
+    found = {field: [] for field in fields}
+
+    def visit(item, field=None):
+        if isinstance(item, dict):
+            for key, child in item.items():
+                visit(child, key)
+        elif isinstance(item, (tuple, list)):
+            for child in item:
+                visit(child, field)
+        elif type(item) is str and field in found and item not in found[field]:
+            found[field].append(item)
+
+    visit(value)
+    return found
+
+
+@dataclass(frozen=True)
+class DeclaredIdentityMappings:
+    """Per-side rewrite mappings for one reference/fresh-replay pair.
+
+    ``reference`` rewrites only the reference run's own ids and ``actual`` only
+    the fresh run's own ids; one shared mapping is never applied to both sides.
+    Both sides collapse onto the same shared token, so equal structure compares
+    equal while any difference outside the declared identity fields survives.
+    """
+
+    reference: Mapping
+    actual: Mapping
+    fields: tuple = ()
+
+    @property
+    def applied(self) -> bool:
+        """True only when at least one declared identity field is rewritten."""
+        return bool(self.fields)
+
+    def normalize_reference(self, value):
+        return _normalize_with_mapping(value, self.reference)
+
+    def normalize_actual(self, value):
+        return _normalize_with_mapping(value, self.actual)
+
+    def report(self) -> dict:
+        """Honest record of what this pair of mappings rewrote, for the report."""
+        return {'schema_version': NORMALIZER_SCHEMA, 'applied': self.applied,
+                'fields': list(self.fields),
+                'mapping': 'per_side_own_values_in_first_appearance_order',
+                'rewrites': {'reference': len(self.reference),
+                             'actual': len(self.actual)}}
+
+
+def declared_identity_mappings(reference, actual) -> DeclaredIdentityMappings:
+    """Derive the two per-side mappings the declared rule table permits.
+
+    A declared identity field is rewritten only when both sides carry the same
+    number of distinct values: each side then maps its own value at that
+    position onto one shared token.  A field whose shape disagrees (a value
+    appears on one side but not the other, or the counts differ) is left alone,
+    so the caller still reports a real difference rather than inventing a
+    pairing.  Undeclared fields are never collected and never rewritten.
+    """
+    reference_values = declared_identity_values(reference)
+    actual_values = declared_identity_values(actual)
+    reference_map, actual_map, fields = {}, {}, []
+    for field in IDENTITY_FIELD_NAMES:
+        left, right = reference_values[field], actual_values[field]
+        if not left or len(left) != len(right):
+            continue
+        fields.append(field)
+        for index, (old, fresh) in enumerate(zip(left, right)):
+            token = f'{IDENTITY_TOKEN_PREFIX}{field}:{index}'
+            reference_map[old] = token
+            actual_map[fresh] = token
+    return DeclaredIdentityMappings(MappingProxyType(reference_map),
+                                    MappingProxyType(actual_map),
+                                    tuple(fields))
 
 
 def _type_name(value):
@@ -350,6 +444,9 @@ __all__ = ['NORMALIZER_SCHEMA', 'EXECUTION_ROLES', 'GPIO_DMA_EXECUTION_ROLES',
            'NormalizerRule',
            'NORMALIZER_RULES', 'RULES_BY_NAME', 'FIELD_RULES',
            'STATE_EDGE_RULE', 'RETAINED_FIELDS', 'FORBIDDEN_REWRITE_SCOPES',
+           'IDENTITY_FIELD_NAMES', 'IDENTITY_TOKEN_PREFIX',
+           'DeclaredIdentityMappings', 'declared_identity_mappings',
+           'declared_identity_values',
            'normalize_execution_identities', 'first_difference',
            'normalize_gpio_dma_execution_identities',
            'first_replay_difference', 'first_gpio_dma_replay_difference',

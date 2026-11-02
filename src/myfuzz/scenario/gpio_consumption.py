@@ -13,6 +13,32 @@ from .runtime_edge_index import RuntimeEdgeIndex
 from myfuzz.local_harness.pulp_gpio_probe_contract import (
     PULP_GPIO_PROBES, pulp_gpio_observation_contract)
 
+def is_registered_non_gpio_delivery(sessions,event):
+    """Classify an actual routed native target, never a caller's device label.
+
+    The raw delivery stays in the runner journal. This only keeps another
+    registered IP's transaction out of GPIO's fail-closed resource ledger.
+    """
+    from .router import DataflowRouter
+    from myfuzz.local_harness.session import GeneratedLocalSession
+    from myfuzz.local_harness.runtime_artifact import LocalRuntimeArtifact
+    key=event.get('fullkey');consumer=event.get('consumer_resource')
+    if (_key(key) is None or not isinstance(consumer,dict)
+            or event.get('component')!=key['source_component']):return False
+    source=sessions.get(key['source_component']);target=sessions.get(consumer.get('device_id'))
+    if not isinstance(source,GeneratedLocalSession) or not isinstance(target,GeneratedLocalSession):return False
+    artifact=getattr(target,'artifact',None);router=getattr(source,'router',None)
+    if (type(artifact) is not LocalRuntimeArtifact or type(router) is not DataflowRouter
+            or type(artifact.runtime_document.get('kind')) is not str
+            or artifact.runtime_document['kind']=='apb_gpio'):return False
+    address=consumer.get('address');width=consumer.get('beat_bytes')
+    if not _uint(address,64) or type(width) is not int or width not in (1,2,4,8):return False
+    window=DataflowRouter._window(router,address)
+    return (window is not None and window.device_id==consumer.get('device_id') and window.target is target
+        and address+width<=window.base+window.size and consumer.get('offset')==address-window.base
+        and consumer.get('target_apb_access') is None and consumer.get('target_access_id') is None)
+
+
 _REGS = {'out':32, 'dir':32, 'gpioen':32, 'inten':32, 'inttype':64,
          'status':32, 'sync0':32, 'sync1':32, 'padin_latch':32}
 _WRITE = {0:('dir','overwrite'), 4:('gpioen','overwrite'),
@@ -107,9 +133,13 @@ def is_authenticated_gpio_tick(event):
 
 class GpioConsumptionTracker:
     def __init__(self, *, max_components=16, max_completed_accesses=256,
-                 admission_registry=None, ownership=None, edge_index=None):
+                 admission_registry=None, ownership=None, edge_index=None,
+                 retain_output_history=True):
         if any(type(n) is not int or n<1 for n in (max_components,max_completed_accesses)):
             raise ValueError('capacities must be positive')
+        if type(retain_output_history) is not bool:
+            raise ValueError('retain_output_history must be boolean')
+        self.retain_output_history=retain_output_history
         if admission_registry is not None and not isinstance(admission_registry,AdmissionRegistry):
             raise ValueError('admission_registry must be AdmissionRegistry')
         if ownership is not None and not isinstance(ownership,OwnershipMap):
@@ -176,7 +206,7 @@ class GpioConsumptionTracker:
             for affected in self._states.values():affected['degraded']=True
 
     def output_resources_at(self,component,reset_epoch,local_tick,phase='post'):
-        if (type(component) is not str or not _uint(reset_epoch,64)
+        if (not self.retain_output_history or type(component) is not str or not _uint(reset_epoch,64)
                 or not _uint(local_tick,64) or phase not in ('pre','post')):
             return []
         return deepcopy(self._output_cache.get((component,reset_epoch,local_tick,phase),[]))
@@ -379,8 +409,11 @@ class GpioConsumptionTracker:
             post_output=(pre_output if pre_value==post_value else
                 [self._resource(event,state,'out',i,(post_value>>i)&1,dependencies=[pre_output[i]]) for i in range(32)])
         state['output_current']=post_output
-        for phase,refs in (('pre',pre_output),('post',post_output)):
-            self._bounded(self._output_cache,(event['component'],state['epoch'],n,phase),refs,state)
+        # Current-only register consumers still allocate identical resources in
+        # the same order, but have no historical-output authority to retain.
+        if self.retain_output_history:
+            for phase,refs in (('pre',pre_output),('post',post_output)):
+                self._bounded(self._output_cache,(event['component'],state['epoch'],n,phase),refs,state)
         reports=[self._record(event,'gpio_input_sample',status='incomplete' if state['degraded'] else 'observed',enabled_mask=enabled,stages=new)]
         if receipt_mismatch:reports.append(self._record(event,'gpio_consumption_match',status='incomplete',reason='actual_input_receipt_not_verified'))
         for phase,p,resources in (('pre',pre,stages),('post',post,new)):

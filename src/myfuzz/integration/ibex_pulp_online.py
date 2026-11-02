@@ -13,7 +13,8 @@ its published messages.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
+from copy import deepcopy
 import json
 import hashlib
 import os
@@ -28,7 +29,7 @@ from myfuzz.scenario.ibex_pulp_dual_source import (
     make_ibex_pulp_dual_source_online_decoder,
     make_ibex_pulp_dual_source_stream_bootstrap,
     make_pulp_dual_source_dynamic_binding_gate,
-    GPIO_PROFILE, CAUSAL_GPIO_PROFILE,
+    GPIO_PROFILE, CAUSAL_GPIO_PROFILE, ROOT,
 )
 from myfuzz.scenario.initial_ram_data import resolve_initial_ram_data_switch
 from myfuzz.scenario.online_case_decoder import OnlineCaseDecoder
@@ -103,6 +104,34 @@ class IbexPulpOnlineRuntime:
     executor: ScenarioRfuzzExecutor
     factory: Callable[[], ScenarioRunner]
     custom_checker: bool = False
+    compiled_f5_crosswalk: dict | None = None
+    _f5_preparation: object | None = field(default=None, repr=False, compare=False)
+
+    def _require_f5_current(self) -> None:
+        if self._f5_preparation is None or self.compiled_f5_crosswalk is None:
+            raise ValueError('compiled F5 preparation is required')
+        context = self._f5_preparation
+        context.assert_current()
+        for artifact in context.artifacts.values():
+            context.assert_artifact_current(artifact)
+        from .compiled_f5_crosswalk import validate_compiled_f5_crosswalk
+        observed = validate_compiled_f5_crosswalk(compiled_inputs=context.compiled_inputs(),
+            artifacts=context.artifacts, runner=self.session.runner, preparation=context)
+        if observed != self.compiled_f5_crosswalk:
+            raise ValueError('compiled F5 crosswalk changed')
+
+    def submit_f5(self, raw: bytes) -> OnlineCaseReceipt:
+        """Submit one pin case on the checked persistent session."""
+        if not isinstance(raw, bytes) or not 1 <= len(raw) <= 8:
+            raise ValueError('compiled F5 input must be 1..8 bytes')
+        self._require_f5_current()
+        case = self.decoder.decode(raw)
+        gate = self.session.prerequisite_gate
+        if gate is not None:
+            gate.register(self.decoder.source_action(case))
+        receipt = self.session.submit_case(case)
+        self.decoder.commit(case)
+        return receipt
 
     @property
     def source_action_gate(self) -> InstructionSlotReservationGate | None:
@@ -121,6 +150,8 @@ class IbexPulpOnlineRuntime:
         """
         if self.custom_checker and checker is None:
             raise ValueError("custom online checker needs a fresh replay checker")
+        if self._f5_preparation is not None:
+            self._require_f5_current()
         return replay_online_session(
             self.session.encode_plan(), self.factory, reference,
             checker=checker if checker is not None else IbexPulpOnlineChecker())
@@ -568,11 +599,16 @@ def make_pulp_dual_source_online_runtime(
                if candidate_exploration else {}),
             **({'classified_feedback': True, 'classified_feedback_max_records': classified_feedback_max_records}
                if classified_feedback else {}))
-    except BaseException:
+    except BaseException as error:
         try:
-            session.finish()
-        except Exception:
-            pass
+            if session._begun:
+                session.finish()
+            elif runner._status in ('running', 'quiescing', 'failed'):
+                # begin_test can fail after starting all children but before
+                # ScenarioSession.begin marks the session begun.
+                runner.finalize()
+        except BaseException as cleanup:
+            error.add_note('startup cleanup failed: ' + str(cleanup))
         raise
     return IbexPulpOnlineRuntime(session, decoder, executor, factory,
                                 checker is not None)
@@ -638,7 +674,9 @@ def make_ibex_pulp_online_runtime(
         classified_feedback_max_records: int = 4096,
         bootstrap_selector: str | None = None,
         generated_artifacts=None, compiled_inputs=None,
-        generated_execution_scope='compiled_paths') -> IbexPulpOnlineRuntime:
+        generated_execution_scope='compiled_paths',
+        f5_only: bool = False,
+        preparation_context=None) -> IbexPulpOnlineRuntime:
     """The Ibex instance of the shared online runtime assembly.
 
     ``source_actions`` is the shipped cross-case prerequisite policy and is on
@@ -695,7 +733,22 @@ def make_ibex_pulp_online_runtime(
     is rebuilt and re-decoded before use; an unknown value is refused rather
     than silently falling back to the shipped bytes.
     """
-    if (generated_artifacts is not None or compiled_inputs is not None
+    if type(f5_only) is not bool:
+        raise ValueError('f5_only must be boolean')
+    if f5_only:
+        gpio_consumption = True
+    if preparation_context is not None:
+        from myfuzz.runtime.preparation import PreparationContext
+        if (type(preparation_context) is not PreparationContext or not f5_only
+                or preparation_context._test_only or preparation_context.flow_ids != ('F5',)
+                or preparation_context.base_dir.resolve() != ROOT
+                or generated_artifacts is not None or compiled_inputs is not None
+                or generated_execution_scope != 'compiled_paths'):
+            raise ValueError('compiled F5 requires its own live preparation context')
+        preparation_context.assert_current()
+        generated_artifacts = preparation_context.artifacts
+        compiled_inputs = preparation_context.compiled_inputs()
+    elif (generated_artifacts is not None or compiled_inputs is not None
             or generated_execution_scope != 'compiled_paths'):
         from myfuzz.local_harness.generated_execution_admission import select_execution_artifacts
         generated_artifacts = select_execution_artifacts(artifacts=generated_artifacts,
@@ -724,16 +777,39 @@ def make_ibex_pulp_online_runtime(
     decoder = make_ibex_pulp_dual_source_online_decoder(
         bootstrap=bootstrap, result_slot_readback=True,
         ip_cross_case=ip_cross_case,
+        **({'f5_only': True} if f5_only else {}),
         **({'result_slot_byte_store': True} if result_slot_byte_store else {}))
     factory = make_ibex_pulp_dual_source_factory(Path(cache_dir),
         **({'generated_artifacts': generated_artifacts} if generated_artifacts is not None else {}),
         cpu_retirement=cpu_retirement, gpio_consumption=gpio_consumption,
+        **({'f5_only': True} if f5_only else {}),
         source_actions=source_actions,
         **({'physical_observations': True} if candidate_exploration or classified_feedback else {}),
         **({'native_irq_receipts': True} if native_irq_receipts else {}),
         **({'persistent_memory_runtime_contract_sha256': decoder.runtime_contract.identity_sha256}
            if persistent_memory_prerequisites else {}),
         **({'memory_commit_receipts': True} if memory_commit_receipts else {}))
+    f5_identity = []
+    if preparation_context is not None:
+        from .compiled_f5_crosswalk import validate_compiled_f5_crosswalk
+        original_factory = factory
+        def validated_factory():
+            preparation_context.assert_current()
+            for artifact in preparation_context.artifacts.values():
+                preparation_context.assert_artifact_current(artifact)
+            runner = original_factory()
+            document = validate_compiled_f5_crosswalk(
+                compiled_inputs=preparation_context.compiled_inputs(),
+                artifacts=preparation_context.artifacts, runner=runner,
+                preparation=preparation_context)
+            if f5_identity and document != f5_identity[0]:
+                raise ValueError('compiled F5 crosswalk changed during replay')
+            if not f5_identity:
+                f5_identity.append(deepcopy(document))
+            return runner
+        if hasattr(original_factory, 'new_source_action_gate'):
+            validated_factory.new_source_action_gate = original_factory.new_source_action_gate
+        factory = validated_factory
     runtime = make_pulp_dual_source_online_runtime(
         bootstrap=bootstrap, decoder=decoder, factory=factory, run_id=run_id,
         evidence_dir=evidence_dir, checker=checker,
@@ -746,6 +822,9 @@ def make_ibex_pulp_online_runtime(
            if candidate_exploration else {}),
         **({'classified_feedback': True, 'classified_feedback_max_records': classified_feedback_max_records}
            if classified_feedback else {}))
+    if preparation_context is not None:
+        runtime = replace(runtime, compiled_f5_crosswalk=deepcopy(f5_identity[0]),
+                          _f5_preparation=preparation_context)
     if candidate_exploration or classified_feedback:
         from .ibex_pulp_candidate_replay import ASSEMBLY_SCHEMA, ASSEMBLY_SCHEMA_V2, validate_candidate_assembly
         initial = runtime.session.initial_ram_data_state()

@@ -1,0 +1,20 @@
+{
+  "schema_version": "zipdma_smoke_profile.v1",
+  "source_revision": "42606d2d6ef55df313772232977621b2d72f0159",
+  "top": "zipdma",
+  "parameters": {"ADDRESS_WIDTH": 32, "SLV_WIDTH": 32, "BUS_WIDTH": 32, "LGMEMLEN": 6, "OPT_LITTLE_ENDIAN": 1},
+  "sources": {
+    "rtl/zipdma/zipdma.v": "2bd872e4352e8c33cd787d31d02ced3e16ce78202fb82715eb8164fbffbc88d2",
+    "rtl/zipdma/zipdma_ctrl.v": "2bd6dd81d58a695fc348e7e800a8a1a028d6680e99da0b52a65f9b4dad799be1",
+    "rtl/zipdma/zipdma_fsm.v": "089fae396990ef9d824263b63dd4aee381ea5e2000ad629ac34e14fd61f25c29",
+    "rtl/zipdma/zipdma_mm2s.v": "2d301683c43f87ced2c3c108a0704d20631c07c97291adca20e6857f84ae7b9c",
+    "rtl/zipdma/zipdma_s2mm.v": "3cf1392d68a1a01d1b7ba92609fe062bfd5f397515648d990f8ddfc94c26b8dd",
+    "rtl/zipdma/zipdma_rxgears.v": "bf0a4c4f3bd8c10412f796df53c9f20418dbde89074c582f51dc733534155c63",
+    "rtl/zipdma/zipdma_txgears.v": "2c7655b89bcc331f6f27955ce0c15087a534f432a5b101e6d0dad6d342e78a09",
+    "rtl/ex/sfifo.v": "f97bc8f20fa52b4819f9cfd4a18cfd257370359c065760441da37dba281c0145",
+    "rtl/ex/wbarbiter.v": "85040b4f69fc4627707e9fb3125c696ea4bf1b6256074f19702a91f532c3ff14"
+  },
+  "control_registers": {"control": 0, "source": 4, "destination": 8, "length_bytes": 12},
+  "control": {"start": 0, "clear_interrupt": 2147483648, "error_mask": 1073741824},
+  "limits": "32-bit aligned full-word RAM transfer smoke; no F6 support implied"
+}

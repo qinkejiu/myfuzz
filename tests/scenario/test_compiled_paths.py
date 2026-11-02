@@ -64,6 +64,36 @@ def missing_codes(path):
     return {row['code'] for row in path['reason']['missing']}
 
 
+def test_rvfi_gpio_f5_has_a_consumable_physical_runtime_contract():
+    directory = ROOT / 'configs/scenarios/compiled-f1-f5-ibex-gpio-shared'
+    supplement = json.loads((directory / 'execution_supplement.json').read_text())['request_supplements']
+    request = load_path_compile_request(dict(
+        schema_version='path_compile_request.v1',
+        cpu=dict(instance_id='processor', profile='configs/cpus/ibex_rvfi_local/component_profile.json'),
+        devices=[dict(instance_id='peripheral', device_id='peripheral',
+            profile='configs/peripherals/pulp_gpio_causal_local/component_profile.json',
+            test_capability='configs/scenarios/compiled-f4-obi-apb-ibex/test_capability.json')],
+        wiring=dict(schema_version='wiring_contract.v1',
+            cpu=dict(instance_id='processor', endpoint_id='processor.data',
+                template='cpu.obi', variant_id='read-write'),
+            windows=[dict(device_id='peripheral', target_instance='peripheral', endpoint_id='gpio.bus',
+                base=0x40001000, size=4096, template='target.apb3', variant_id='full-word')],
+            resources=[dict(resource_id='ram', component_instance='processor', base=0x10000,
+                size=0x30000, read=True, write=True, execute=True, initialization_policy='preload')],
+            delivery='transaction_level_explicit', cycle_accurate=False, global_interconnect=False),
+        **supplement), base_dir=ROOT)
+    compiled = compile_paths(request)
+    graph = DependencyGraph.from_edge_document(compiled['runtime_dependency_graph'])
+    contract = RuntimePathContract.from_document(compiled['runtime_path_contract'])
+    selected = path_of(compiled, 'F5')['runtime_path_identity']
+    assert selected is not None
+    paths = tuple(('IP_TO_CPU', p) for p in graph.edge_paths_to('F5.cpu_irq_entry', direction='IP_TO_CPU'))
+    prepared = PreparedRuntimePathContract(graph, contract, paths)
+    assert prepared.path_ids == (selected['path_id'],)
+    edge = next(e for e in contract.edges if e.relation == 'direct_binding')
+    assert edge is not None
+
+
 class FlowStatusTests(unittest.TestCase):
     """Exit criterion 1: every F1..F6 has a status and a reason, and no third."""
 
@@ -564,6 +594,7 @@ def probe_profile(component_id, *, irq=False, transfer=False):
         endpoints.append({'endpoint_id': f'{component_id}.irq',
                           'function': 'interrupt_source',
                           'fields': [{'role': 'irq',
+                                      'direction': 'output', 'width': 1,
                                       'aliases': [f'{component_id}_irq_o']}]})
     if transfer:
         endpoints.append({'endpoint_id': f'{component_id}.master',
@@ -1134,3 +1165,23 @@ class StaticDmaRouteWiringTests(unittest.TestCase):
 
 if __name__ == '__main__':  # pragma: no cover
     unittest.main()
+
+from tests.integration.test_compiled_f6_entry import driver_declarations
+
+def test_f6_explicit_delivery_supplement_enters_canonical_wiring_document(driver_declarations):
+    from tests.integration.test_compiled_f6_contract import source_inputs,ROOT
+    from myfuzz.scenario.compiled_paths import load_path_compile_request,compile_paths
+    request,_,_=source_inputs()
+    document=copy.deepcopy(request.document)
+    document['devices'][0]['test_capability']=str(driver_declarations['ip_capabilities'][0])
+    document['deliveries']=document['wiring'].pop('deliveries')
+    original=copy.deepcopy(document)
+    loaded=load_path_compile_request(document,base_dir=ROOT)
+    assert loaded.document==original
+    assert loaded.wiring.document['deliveries']==document['deliveries']
+    assert loaded.wiring.document['schema_version']=='path_wiring.v2'
+    assert compile_paths(loaded)==compile_paths(load_path_compile_request(original,base_dir=ROOT))
+    unmarked=copy.deepcopy(original);unmarked.pop('f6_execution')
+    legacy=load_path_compile_request(unmarked,base_dir=ROOT)
+    assert 'deliveries' not in legacy.wiring.document
+    assert legacy.wiring.deliveries

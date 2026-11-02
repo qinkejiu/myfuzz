@@ -9,8 +9,10 @@ import pytest
 from myfuzz.local_harness import runtime_renderer as renderer
 from myfuzz.local_harness.ahb_lite_session import GeneratedAhbMemorySession
 from myfuzz.local_harness.ahb_manager_domain import software_manager_domain_contract
+from myfuzz.local_harness.ahb_startup import startup_contract
 from myfuzz.local_harness.native_session import GeneratedNativeMemorySession
-from tests.local_harness.ahb_domain_support import command_sample,start_measured_prefix
+from tests.local_harness.ahb_domain_support import (command_sample,install_session_constructor_state,
+                                                    start_measured_prefix)
 from tests.local_harness.test_ahb_cpu_contract import generated
 from myfuzz.scenario.ahb_cpu_events import SHAPE,AhbCpuObserver
 from myfuzz.scenario.contracts import ProtocolEnvironmentError
@@ -63,17 +65,23 @@ def test_renderer_other_code_ast_unchanged():
 
 def fake():
  cpu=object.__new__(GeneratedAhbMemorySession)
+ cpu.memory=PersistentMemory(regions=(MemoryRegion('ram',0,4096),),initialization_seed=0,max_initialized_bytes=4096)
+ # The constructor is the only producer of the session state the real step/reset
+ # paths read, so supply it explicitly before substituting the synthetic surface.
+ install_session_constructor_state(cpu)
  cpu._execution='issued';cpu._case_id='case';cpu.reset_epoch=0
  cpu.artifact=SimpleNamespace(plan=SimpleNamespace(request=SimpleNamespace(instance_id='cpu')))
  cpu._ahb_manager_domain=software_manager_domain_contract(protocol_endpoint_id='bus')
  cpu._ahb_observer=AhbCpuObserver(component_id='cpu',endpoint_id='bus')
  cpu._ahb_observer.begin_scope(execution_id='issued',testcase_id='case',reset_epoch=0)
  start_measured_prefix(cpu._ahb_observer)
+ # The observer startup above is this control's whole startup capture, so the
+ # session-level flag mirrors it instead of claiming an incomplete startup.
+ cpu._ahb_startup_contract={**startup_contract(assert_ticks=1,release_ticks=1,snapshot_max={}),
+                            'manager_domain':cpu._ahb_manager_domain}
+ cpu._ahb_startup_complete=True
  cpu.runtime_events=cpu._ahb_observer.events;cpu._ahb_signal_map={r:r for r in SHAPE}
- cpu._last_ahb_receipt=None;cpu._pending=None;cpu._sequence_memory=0;cpu._quiescing=False
  cpu._artifact_document={'physical_exports':[]};cpu.boot_base=0
- cpu.memory=PersistentMemory(regions=(MemoryRegion('ram',0,4096),),initialization_seed=0,max_initialized_bytes=4096)
- cpu.memory_write_count=0;cpu.accepted_addresses=[];cpu.last_samples=()
  calls=[];aborts=[];cpu._abort=lambda:aborts.append(True)
  def command(operation,fields):
   calls.append(operation)
@@ -88,6 +96,18 @@ def fake():
   return receipt
  cpu.command=command
  return cpu,calls,aborts
+
+
+def test_control_session_covers_real_constructor_state(generated):
+ """The synthetic control must not lag state the real constructor installs.
+
+ A control built with ``object.__new__`` silently keeps working against an
+ older contract whenever ``__init__`` grows new state, so this fails as soon as
+ the constructor owns an attribute the control does not supply.
+ """
+ artifact,real=generated
+ cpu,_calls,_aborts=fake()
+ assert sorted(set(vars(real))-set(vars(cpu)))==[]
 
 
 def test_noop_hook_base_is_callable():

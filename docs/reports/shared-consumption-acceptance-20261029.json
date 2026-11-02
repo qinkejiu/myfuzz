@@ -1,0 +1,350 @@
+{
+  "schema_version": "independent_saved_native_evidence_audit.v1",
+  "scope": "directed shared-slot RAM/PIN consumption and terminal warm-reset invalidation",
+  "native_executed_by_this_audit": false,
+  "grants_authority": false,
+  "runs": {
+    "ram-v3": {
+      "case_count": 7,
+      "read_slots": [
+        1,
+        4,
+        6
+      ],
+      "writer_slots": [
+        0,
+        3,
+        5
+      ],
+      "semantic_feature_count": 1,
+      "total_relation_reward": 2,
+      "selection_equal": true,
+      "prefix_identity_equal": true,
+      "four_independent_native_executions": [
+        {
+          "execution": "original",
+          "identities": {
+            "cpu": {
+              "pid": 421,
+              "execution_nonce": "5ee1e6c73d9740edbf93e09dc126ff51",
+              "artifact_digest": "0a5ba410fab6d99ea97477de852360a7ee3c9951d763761c8dfc90430b53f7a8",
+              "binary_sha256": "2cf58db5325ccabe1f36ceea00663b0c28b545eb1fcc0c47e52769595b3a9b35",
+              "build_digest": "2c60a7d09996de673f2ffe864893d41e2a099f278edcd2f85214089b22600510"
+            },
+            "dma": {
+              "pid": 453,
+              "execution_nonce": "1c342817120f4f00b26211a7f507fb67",
+              "artifact_digest": "1d8c34df6485e9272f94afb15e1f55260d3e2dc6db01d33ae0f0f2eba0976d5c",
+              "binary_sha256": "205422e558ac2510ec8521d5141ede50ff77432889f211a0e6ce6f090dc1de00",
+              "build_digest": "56b3cb5308cfd9b49a2e9dbbef8e6d87eeabc8d9b2aa0ae01133cf0496b2f91a"
+            },
+            "peripheral": {
+              "pid": 485,
+              "execution_nonce": "f5d126c1caeb4f538040ca921c1a4812",
+              "artifact_digest": "6a2ed299d71f63add3979ca973f9822ce1254622b1bd4760a33706f5e127629e",
+              "binary_sha256": "8b745d04db9206429c92e24db0bed3d93fd7c3b6cb985ec73b4ba0631b13a739",
+              "build_digest": "bcc59fe2b75f4db4975760e2020fe412d1f0964f3d1549cc26d0761b4e43312b"
+            }
+          }
+        },
+        {
+          "execution": "original-replay",
+          "identities": {
+            "cpu": {
+              "pid": 539,
+              "execution_nonce": "087ddb938af7409388a8ffad235a2ea9",
+              "artifact_digest": "0a5ba410fab6d99ea97477de852360a7ee3c9951d763761c8dfc90430b53f7a8",
+              "binary_sha256": "2cf58db5325ccabe1f36ceea00663b0c28b545eb1fcc0c47e52769595b3a9b35",
+              "build_digest": "2c60a7d09996de673f2ffe864893d41e2a099f278edcd2f85214089b22600510"
+            },
+            "dma": {
+              "pid": 571,
+              "execution_nonce": "3a3629396fa242c99057f7f5248767b9",
+              "artifact_digest": "1d8c34df6485e9272f94afb15e1f55260d3e2dc6db01d33ae0f0f2eba0976d5c",
+              "binary_sha256": "205422e558ac2510ec8521d5141ede50ff77432889f211a0e6ce6f090dc1de00",
+              "build_digest": "56b3cb5308cfd9b49a2e9dbbef8e6d87eeabc8d9b2aa0ae01133cf0496b2f91a"
+            },
+            "peripheral": {
+              "pid": 603,
+              "execution_nonce": "45a6014bdb4d46e883f5e74ed7b30c18",
+              "artifact_digest": "6a2ed299d71f63add3979ca973f9822ce1254622b1bd4760a33706f5e127629e",
+              "binary_sha256": "8b745d04db9206429c92e24db0bed3d93fd7c3b6cb985ec73b4ba0631b13a739",
+              "build_digest": "bcc59fe2b75f4db4975760e2020fe412d1f0964f3d1549cc26d0761b4e43312b"
+            }
+          }
+        },
+        {
+          "execution": "fresh",
+          "identities": {
+            "cpu": {
+              "pid": 1946,
+              "execution_nonce": "1268223155144ee091c8ee74c7d3bd58",
+              "artifact_digest": "0a5ba410fab6d99ea97477de852360a7ee3c9951d763761c8dfc90430b53f7a8",
+              "binary_sha256": "2cf58db5325ccabe1f36ceea00663b0c28b545eb1fcc0c47e52769595b3a9b35",
+              "build_digest": "2c60a7d09996de673f2ffe864893d41e2a099f278edcd2f85214089b22600510"
+            },
+            "dma": {
+              "pid": 1978,
+              "execution_nonce": "78b6521874954fe2938a1c50dd16e162",
+              "artifact_digest": "1d8c34df6485e9272f94afb15e1f55260d3e2dc6db01d33ae0f0f2eba0976d5c",
+              "binary_sha256": "205422e558ac2510ec8521d5141ede50ff77432889f211a0e6ce6f090dc1de00",
+              "build_digest": "56b3cb5308cfd9b49a2e9dbbef8e6d87eeabc8d9b2aa0ae01133cf0496b2f91a"
+            },
+            "peripheral": {
+              "pid": 2010,
+              "execution_nonce": "765f8e34f74d4f4f8e197606f2cad5ac",
+              "artifact_digest": "6a2ed299d71f63add3979ca973f9822ce1254622b1bd4760a33706f5e127629e",
+              "binary_sha256": "8b745d04db9206429c92e24db0bed3d93fd7c3b6cb985ec73b4ba0631b13a739",
+              "build_digest": "bcc59fe2b75f4db4975760e2020fe412d1f0964f3d1549cc26d0761b4e43312b"
+            }
+          }
+        },
+        {
+          "execution": "fresh-replay",
+          "identities": {
+            "cpu": {
+              "pid": 2064,
+              "execution_nonce": "e5f6874a73f646ec85e42e617495b199",
+              "artifact_digest": "0a5ba410fab6d99ea97477de852360a7ee3c9951d763761c8dfc90430b53f7a8",
+              "binary_sha256": "2cf58db5325ccabe1f36ceea00663b0c28b545eb1fcc0c47e52769595b3a9b35",
+              "build_digest": "2c60a7d09996de673f2ffe864893d41e2a099f278edcd2f85214089b22600510"
+            },
+            "dma": {
+              "pid": 2096,
+              "execution_nonce": "809785d46c964d70884b59f143e9dd61",
+              "artifact_digest": "1d8c34df6485e9272f94afb15e1f55260d3e2dc6db01d33ae0f0f2eba0976d5c",
+              "binary_sha256": "205422e558ac2510ec8521d5141ede50ff77432889f211a0e6ce6f090dc1de00",
+              "build_digest": "56b3cb5308cfd9b49a2e9dbbef8e6d87eeabc8d9b2aa0ae01133cf0496b2f91a"
+            },
+            "peripheral": {
+              "pid": 2128,
+              "execution_nonce": "2c1c0735a9b24ef2bf86e5b372cc77fa",
+              "artifact_digest": "6a2ed299d71f63add3979ca973f9822ce1254622b1bd4760a33706f5e127629e",
+              "binary_sha256": "8b745d04db9206429c92e24db0bed3d93fd7c3b6cb985ec73b4ba0631b13a739",
+              "build_digest": "bcc59fe2b75f4db4975760e2020fe412d1f0964f3d1549cc26d0761b4e43312b"
+            }
+          }
+        }
+      ],
+      "actual_timing_seconds": {
+        "original": {
+          "execution_seconds": 51.988809764996404,
+          "finish_export_seconds": 22.16581327498716,
+          "replay_seconds": 98.28273457700561,
+          "wall_seconds": 208.40625583400833
+        },
+        "fresh": {
+          "execution_seconds": 51.33192486100597,
+          "finish_export_seconds": 22.450167261995375,
+          "replay_seconds": 99.2384489410033,
+          "wall_seconds": 195.75486578700657
+        }
+      }
+    },
+    "pin-v1": {
+      "case_count": 8,
+      "read_slots": [
+        2,
+        4,
+        6,
+        7
+      ],
+      "writer_slots": [
+        1,
+        3,
+        5,
+        5
+      ],
+      "semantic_feature_count": 2,
+      "total_relation_reward": 4,
+      "selection_equal": true,
+      "prefix_identity_equal": true,
+      "four_independent_native_executions": [
+        {
+          "execution": "original",
+          "identities": {
+            "cpu": {
+              "pid": 421,
+              "execution_nonce": "7c370928d4254cb9a7d76bd1a7f0053e",
+              "artifact_digest": "0a5ba410fab6d99ea97477de852360a7ee3c9951d763761c8dfc90430b53f7a8",
+              "binary_sha256": "a8933500dc86b6045cf776f1248fe759960826a2b8facd909c9f8e21553069d5",
+              "build_digest": "041dc80d582514704b5ab7cc219d717934afc00d5b50a78a119d6ab8a211e61f"
+            },
+            "dma": {
+              "pid": 453,
+              "execution_nonce": "86f68aaaf6bb438b89d4d8ad2af97b3b",
+              "artifact_digest": "56ce75feedc47bf46e07950c5c6ed8b81cc18f858a594769116c8bac636c5865",
+              "binary_sha256": "d08ad4467cbe5d8462d377b286fd8a7f0db0494565112d1cc615fb31ad6da00f",
+              "build_digest": "69742a783fdf97199cb3afda8c1b0fffae4a48341fcbd7fba319890a706b1a15"
+            },
+            "peripheral": {
+              "pid": 485,
+              "execution_nonce": "a0aecc08207e467c92d4257e713d23b1",
+              "artifact_digest": "6a2ed299d71f63add3979ca973f9822ce1254622b1bd4760a33706f5e127629e",
+              "binary_sha256": "b72a6e1945c0672e3aeaed667ad4904716072a43581b65a25c757949e08884df",
+              "build_digest": "078c5ab7799b3352055af3d2a4f293d773b2a7b6f13c1ad19aeb55f49d5be92b"
+            }
+          }
+        },
+        {
+          "execution": "original-replay",
+          "identities": {
+            "cpu": {
+              "pid": 539,
+              "execution_nonce": "10d7f6e739464754aac7793183300bb0",
+              "artifact_digest": "0a5ba410fab6d99ea97477de852360a7ee3c9951d763761c8dfc90430b53f7a8",
+              "binary_sha256": "a8933500dc86b6045cf776f1248fe759960826a2b8facd909c9f8e21553069d5",
+              "build_digest": "041dc80d582514704b5ab7cc219d717934afc00d5b50a78a119d6ab8a211e61f"
+            },
+            "dma": {
+              "pid": 571,
+              "execution_nonce": "6c22ae42f02248fcaa2b9f5f21ff16cd",
+              "artifact_digest": "56ce75feedc47bf46e07950c5c6ed8b81cc18f858a594769116c8bac636c5865",
+              "binary_sha256": "d08ad4467cbe5d8462d377b286fd8a7f0db0494565112d1cc615fb31ad6da00f",
+              "build_digest": "69742a783fdf97199cb3afda8c1b0fffae4a48341fcbd7fba319890a706b1a15"
+            },
+            "peripheral": {
+              "pid": 603,
+              "execution_nonce": "46c844c43ad7490c9eb71a59bbf6bc29",
+              "artifact_digest": "6a2ed299d71f63add3979ca973f9822ce1254622b1bd4760a33706f5e127629e",
+              "binary_sha256": "b72a6e1945c0672e3aeaed667ad4904716072a43581b65a25c757949e08884df",
+              "build_digest": "078c5ab7799b3352055af3d2a4f293d773b2a7b6f13c1ad19aeb55f49d5be92b"
+            }
+          }
+        },
+        {
+          "execution": "fresh",
+          "identities": {
+            "cpu": {
+              "pid": 1946,
+              "execution_nonce": "b3ad707d3c14431cbaa5384578ee215c",
+              "artifact_digest": "0a5ba410fab6d99ea97477de852360a7ee3c9951d763761c8dfc90430b53f7a8",
+              "binary_sha256": "a8933500dc86b6045cf776f1248fe759960826a2b8facd909c9f8e21553069d5",
+              "build_digest": "041dc80d582514704b5ab7cc219d717934afc00d5b50a78a119d6ab8a211e61f"
+            },
+            "dma": {
+              "pid": 1978,
+              "execution_nonce": "5d868faafb474d4f89f59264e83239b3",
+              "artifact_digest": "56ce75feedc47bf46e07950c5c6ed8b81cc18f858a594769116c8bac636c5865",
+              "binary_sha256": "d08ad4467cbe5d8462d377b286fd8a7f0db0494565112d1cc615fb31ad6da00f",
+              "build_digest": "69742a783fdf97199cb3afda8c1b0fffae4a48341fcbd7fba319890a706b1a15"
+            },
+            "peripheral": {
+              "pid": 2010,
+              "execution_nonce": "577511b952014fe08d7ca776bfcccc4e",
+              "artifact_digest": "6a2ed299d71f63add3979ca973f9822ce1254622b1bd4760a33706f5e127629e",
+              "binary_sha256": "b72a6e1945c0672e3aeaed667ad4904716072a43581b65a25c757949e08884df",
+              "build_digest": "078c5ab7799b3352055af3d2a4f293d773b2a7b6f13c1ad19aeb55f49d5be92b"
+            }
+          }
+        },
+        {
+          "execution": "fresh-replay",
+          "identities": {
+            "cpu": {
+              "pid": 2064,
+              "execution_nonce": "2689655be3514320a8ada24c56a35576",
+              "artifact_digest": "0a5ba410fab6d99ea97477de852360a7ee3c9951d763761c8dfc90430b53f7a8",
+              "binary_sha256": "a8933500dc86b6045cf776f1248fe759960826a2b8facd909c9f8e21553069d5",
+              "build_digest": "041dc80d582514704b5ab7cc219d717934afc00d5b50a78a119d6ab8a211e61f"
+            },
+            "dma": {
+              "pid": 2096,
+              "execution_nonce": "36f960ed8e0e4627b206917666f07209",
+              "artifact_digest": "56ce75feedc47bf46e07950c5c6ed8b81cc18f858a594769116c8bac636c5865",
+              "binary_sha256": "d08ad4467cbe5d8462d377b286fd8a7f0db0494565112d1cc615fb31ad6da00f",
+              "build_digest": "69742a783fdf97199cb3afda8c1b0fffae4a48341fcbd7fba319890a706b1a15"
+            },
+            "peripheral": {
+              "pid": 2128,
+              "execution_nonce": "1de33e75a22a44e990829f76354f7ca5",
+              "artifact_digest": "6a2ed299d71f63add3979ca973f9822ce1254622b1bd4760a33706f5e127629e",
+              "binary_sha256": "b72a6e1945c0672e3aeaed667ad4904716072a43581b65a25c757949e08884df",
+              "build_digest": "078c5ab7799b3352055af3d2a4f293d773b2a7b6f13c1ad19aeb55f49d5be92b"
+            }
+          }
+        }
+      ],
+      "actual_timing_seconds": {
+        "original": {
+          "execution_seconds": 186.61313424700347,
+          "finish_export_seconds": 42.17012857199006,
+          "replay_seconds": 160.56796487201063,
+          "wall_seconds": 435.6321512180002
+        },
+        "fresh": {
+          "execution_seconds": 186.7460998299939,
+          "finish_export_seconds": 37.158610833997955,
+          "replay_seconds": 177.67388041199592,
+          "wall_seconds": 429.19875540099747
+        }
+      }
+    },
+    "reset-ram-v2": {
+      "policy": "warm_all",
+      "epochs_before": {
+        "cpu": 0,
+        "dma": 0,
+        "peripheral": 0
+      },
+      "epochs_after": {
+        "cpu": 1,
+        "dma": 1,
+        "peripheral": 1
+      },
+      "reset_barriers": 1,
+      "old_installations_unknown": true,
+      "old_relations_empty": true,
+      "terminal_probe": true,
+      "normal_campaign_completion": false
+    },
+    "reset-pin-v2": {
+      "policy": "warm_all",
+      "epochs_before": {
+        "cpu": 0,
+        "dma": 0,
+        "peripheral": 0
+      },
+      "epochs_after": {
+        "cpu": 1,
+        "dma": 1,
+        "peripheral": 1
+      },
+      "reset_barriers": 1,
+      "old_installations_unknown": true,
+      "old_relations_empty": true,
+      "terminal_probe": true,
+      "normal_campaign_completion": false
+    }
+  },
+  "checked_artifact_sha256": {
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/ram-v3/original/selection.json": "7345272b3b196d90e2a15221131652c7f33e20997d057513e125a9fbfae7ef23",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/ram-v3/fresh/selection.json": "7345272b3b196d90e2a15221131652c7f33e20997d057513e125a9fbfae7ef23",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/ram-v3/original/diagnostic-prefix-identity.json": "d9dfc5c6bc5ea37fe80a2e614899cc2362ed447f3296760adc907cf73ad3a2c1",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/ram-v3/fresh/diagnostic-prefix-identity.json": "d9dfc5c6bc5ea37fe80a2e614899cc2362ed447f3296760adc907cf73ad3a2c1",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/ram-v3/original/consumption-diagnostic.json": "ad81228db86a7e7e84f747b8450106b4f963f4c3a325cc334d0d11968106594e",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/ram-v3/original/summary.json": "fa2fa1612a2a67c8f443ab4f6e355acba4f70bdfa699f2234e1598a3ec3a8b9b",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/ram-v3/original/prefix.json": "064b831c5c3d86ad6d047bde16501a1038526ce414ea29f339574f986bfca36c",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/ram-v3/original/replay.json": "ef70efb94219454260fa45f8efc32cf756697bc2c468fd1531ea1bab5f38eed1",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/ram-v3/fresh/consumption-diagnostic.json": "ad81228db86a7e7e84f747b8450106b4f963f4c3a325cc334d0d11968106594e",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/ram-v3/fresh/summary.json": "5f8a3b691e49f37fac8832640e66ed8ea98987b52ffface0a4e4cff0d83e08a8",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/ram-v3/fresh/prefix.json": "7afdc80b1f88c1555be0388f3b54f70e5da3a66baedcb5b0ca5d1f9710e0575f",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/ram-v3/fresh/replay.json": "b2141a8a6af11088e3fd1419782058e5a51c4e32f416edcc54007a4ab2e39a93",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/pin-v1/original/selection.json": "2f77cf8100feb476fbfd71749347fc8d49b52dfe7d1d844385f3b221e356edf7",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/pin-v1/fresh/selection.json": "2f77cf8100feb476fbfd71749347fc8d49b52dfe7d1d844385f3b221e356edf7",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/pin-v1/original/diagnostic-prefix-identity.json": "8def1d1db532ea2786cc4bcc912286d963f803544af71eedf209d84cf0b51ec5",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/pin-v1/fresh/diagnostic-prefix-identity.json": "8def1d1db532ea2786cc4bcc912286d963f803544af71eedf209d84cf0b51ec5",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/pin-v1/original/consumption-diagnostic.json": "82bbfbfe3fa921a83c7d7d1bdbceb707ed63fb49e07d4ef9634b57feccc19a75",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/pin-v1/original/summary.json": "8fb578423870eb21a2cf98e9b920c522ccad3446e8af9e9d38a0d62770f5c998",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/pin-v1/original/prefix.json": "e954c34a05801267607e93b4e5b0b780c4142cca3179a4b354e998df9b07e0ab",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/pin-v1/original/replay.json": "d33940531ffe8b5ae3208e7623bad57fd448abd2f02a15d6cdf4c114528e949b",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/pin-v1/fresh/consumption-diagnostic.json": "82bbfbfe3fa921a83c7d7d1bdbceb707ed63fb49e07d4ef9634b57feccc19a75",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/pin-v1/fresh/summary.json": "341486a55c5630c5dcf8903a9cecc8963d88adac51844d7348ee75eb97d4b656",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/pin-v1/fresh/prefix.json": "e5a58f751b9fa74c3a53f698daecec0d0f39c1edeec65422bb5fa1dd3a8e99f8",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/pin-v1/fresh/replay.json": "aa86bbb8b9c89069c1faa26e80971d6a38093c29eb87ff1116ddb99fde00ae47",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/reset-ram-v2/original/consumption-diagnostic.json": "3df1099a2a3831ef65bd0cb65d6ee48025e5ed2ad747b5d412d2522967597b4c",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/reset-ram-v2/original/failure.json": "b434bed0ac6afc288fcd9761da0aaa874bc8d62fc39fb5f3755061b15fc8dd2f",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/reset-pin-v2/original/consumption-diagnostic.json": "9411acc2ac0e789a48caac4e7786615da986642b72fbad9aca46fe4840b905bd",
+    "research/input-strategy-audit-20261027/runs/shared-consumption-20261029/reset-pin-v2/original/failure.json": "4c456ee5b7d80e26e7eb02233fbed19a3d31124d58f72e15285c468b5d457b75"
+  }
+}

@@ -640,7 +640,8 @@ class OnlineCaseDecoder(_RuntimePathCache):
                  support_words: int = 0,
                  runtime_contract: RuntimePathContract | None = None,
                  flow_by_target: Mapping[str, str] | None = None,
-                 source_actions: tuple[OnlineSourceActionDeclaration, ...] = ()) -> None:
+                 source_actions: tuple[OnlineSourceActionDeclaration, ...] = (),
+                 support_component: str | None = None) -> None:
         self._runtime_contract = None
         if not isinstance(sources, tuple) or not sources or any(
                 not isinstance(source, OnlineSource) for source in sources):
@@ -696,6 +697,13 @@ class OnlineCaseDecoder(_RuntimePathCache):
                           if source.kind == "instruction"}
         if len(cpu_components) > 1:
             raise ValueError("one instruction cursor supports one CPU")
+        if (support_component is not None and
+                (type(support_component) is not str or support_component not in schedule
+                 or cpu_components and support_component not in cpu_components
+                 or runtime_contract is None or flow_by_target is None
+                 or not any(node.kind == 'instruction' and node.component == support_component
+                            for node in graph.sources.values()))):
+            raise ValueError("fixed support component must be a declared scheduled CPU")
         if type(support_words) is not int or not 0 <= support_words <= 4096:
             raise ValueError("fixed support words must be within 0..4096")
         self.support_words = support_words
@@ -703,7 +711,9 @@ class OnlineCaseDecoder(_RuntimePathCache):
             self._source_runtime_paths = MappingProxyType({source.source_id:
                 tuple(path for path in self.paths_for(source.path_id, direction=source.direction)
                       if source.source_id in path.source_ids) for source in sources})
-        self._instruction_component = next(iter(cpu_components), None)
+        self._instruction_component = (support_component if support_component is not None
+                                       else next(iter(cpu_components), None))
+        self._support_component = support_component
         self.sources, self.ownership = sources, ownership
         self.graph = graph
         if runtime_contract is not None:
@@ -835,6 +845,9 @@ class OnlineCaseDecoder(_RuntimePathCache):
             document['schema_version'] = 'online_case_decoder.v4'
             document['source_actions'] = [item.document()
                                           for item in self.source_actions.values()]
+        if self._support_component is not None:
+            document['schema_version'] = 'online_case_decoder.v5'
+            document['support_component'] = self._support_component
         return document
 
     def path_target(self, path_id):
@@ -984,15 +997,16 @@ class OnlineCaseDecoder(_RuntimePathCache):
     @classmethod
     def from_document(cls, document):
         schemas = ('online_case_decoder.v1', 'online_case_decoder.v2',
-                   'online_case_decoder.v3', 'online_case_decoder.v4')
+                   'online_case_decoder.v3', 'online_case_decoder.v4', 'online_case_decoder.v5')
         if not isinstance(document, dict) or document.get('schema_version') not in schemas:
             raise ValueError('unknown online decoder schema')
         try:
             schema = document['schema_version']
             edge_mode = schema in ('online_case_decoder.v2', 'online_case_decoder.v3',
-                                   'online_case_decoder.v4')
-            flow_mode = schema in ('online_case_decoder.v3', 'online_case_decoder.v4')
-            action_mode = schema == 'online_case_decoder.v4'
+                                   'online_case_decoder.v4', 'online_case_decoder.v5')
+            flow_mode = schema in ('online_case_decoder.v3', 'online_case_decoder.v4', 'online_case_decoder.v5')
+            action_mode = schema == 'online_case_decoder.v4' or (
+                schema == 'online_case_decoder.v5' and 'source_actions' in document)
             graph_doc = document['graph']
             graph = None
             if edge_mode:
@@ -1014,6 +1028,7 @@ class OnlineCaseDecoder(_RuntimePathCache):
                 support_words=document['support_words'], allowed_mmio_operations=tuple(document['allowed_mmio_operations']),
                 runtime_contract=RuntimePathContract.from_document(document['runtime_contract']) if edge_mode else None,
                 flow_by_target=document['flow_by_target'] if flow_mode else None,
+                support_component=document['support_component'] if schema == 'online_case_decoder.v5' else None,
                 source_actions=(tuple(OnlineSourceActionDeclaration.from_document(row)
                                       for row in document['source_actions'])
                                 if action_mode else ()))

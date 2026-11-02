@@ -1,0 +1,22 @@
+{
+  "schema_version": "ip_test_capability.v1",
+  "component_id": "opentitan_uart_local",
+  "profile_fingerprint": "sha256:da37122a6246a61509da8bace6af2d2ecdcf122422e31747fae71440de95143c",
+  "endpoint_capabilities": [
+    {"endpoint_id": "opentitan_uart.mmio", "operations": ["request", "accept", "response", "read"]}
+  ],
+  "register_semantics": [
+    {
+      "register": "STATUS",
+      "field": "status_bits",
+      "lsb": 0,
+      "width": 6,
+      "access": "ro",
+      "read_mask": 63,
+      "write_mask": 0,
+      "side_effect": "none",
+      "evidence_ref": "rtl:third_party/soc-opentitan/hw/ip/uart/rtl/uart_reg_top.sv:1130-1228,1605,1837-1843;sha256=8c40c957fbd7c1155f58d2c7696340b7ea6b82c2b0626ec684463f991538ae27"
+    }
+  ],
+  "observation_mappings": []
+}

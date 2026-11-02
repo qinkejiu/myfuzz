@@ -281,7 +281,7 @@ PYTHONPATH=src python3 scripts/audit_repository.py \
 * **Uncommitted work by a parallel workstream is untouched**:
   `.superpowers/sdd/task-2-report.md`, `configs/soc/cva6-pulp.json`,
   `docs/reports/soc-acceptance-20260914.md`,
-  `docs/系统总览与RFuzz约束组合示例_20260909.md`,
+  `docs/history/experiments/系统总览与RFuzz约束组合示例_20260909.md`,
   `tests/integration/test_soc_real_cva6.py`,
   `tests/protocols/test_axi4_processor_memory_adapter_rtl.py`, and the untracked
   `tests/fixtures/soc_cva6_pulp_boot.hex`,

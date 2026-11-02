@@ -1,0 +1,18 @@
+{
+  "name": "uart-picorv32-wb",
+  "cpu_profile": "configs/cpus/picorv32_wb/component_profile.json",
+  "cpu_timing": {"reset_assert_ticks": 2, "reset_release_ticks": 3, "max_wait_cycles": 16},
+  "ip_profile": "configs/peripherals/zipcpu_uart/component_profile.json",
+  "ip_timing": {"reset_assert_ticks": 2, "reset_release_ticks": 3, "max_wait_cycles": 16},
+  "ip_tuning": {"fixed_inputs": [
+    {"endpoint_id": "uart.pins", "role": "rx", "value": 1},
+    {"endpoint_id": "uart.pins", "role": "cts_n", "value": 0}
+  ]},
+  "ip_capability": "configs/peripherals/zipcpu_uart/test_capability.json",
+  "register": "SETUP",
+  "allow_side_effectful_register": true,
+  "mmio_base": 1610612736,
+  "ram": {"base": 0, "size": 196608},
+  "write_values": [85, 170],
+  "memory_flows": true
+}

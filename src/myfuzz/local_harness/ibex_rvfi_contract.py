@@ -6,7 +6,8 @@ from pathlib import Path
 from myfuzz.composition.component_profile import load_component_profile
 from myfuzz.composition.source_crawler import _content_hash
 
-_PROFILE_SHA256 = 'aa73e0a5dd6052a50368eb8078199f3ec9f8f50e2de1ae27fc1ce04423e8d514'
+# Explicit scalar IRQ metadata matches the authenticated wrapper input.
+_PROFILE_SHA256 = 'ee5ebb34547bc35a2e92dd22048f56b9a290af3c33e44b3220f1bec62299ba55'
 _WRAPPER_SHA256 = 'e9bfa7595201a4205204afc23eff2b904428d2fb53f7f8200743ce4932cbf6c3'
 _SIDEBAND_PATH = 'src/myfuzz/composition/rtl/ibex_irq_serial_sideband.sv'
 _SIDEBAND_SHA256 = '516c51bce5a9434e7ea018fe437dc36570677d80c3e3c89b669387e144b65120'

@@ -103,6 +103,14 @@ class OwnershipMap:
         return next(iter(producers))
 
 
+    def irq_group_owner(self, component_id: str, port: str, bit_offset: int, width: int) -> str:
+        """Return the declared group ID; never substitute an individual member."""
+        producer = self.binding_producer(component_id, port, bit_offset, width)
+        if width != 1 or not producer.startswith('irq-group:') or not producer[len('irq-group:'):]:
+            raise ValueError('input is not owned by an IRQ delivery group')
+        return producer[len('irq-group:'):]
+
+
 def compile_ownership(fields: tuple[InputField, ...],
                       owners: tuple[InputOwner, ...]) -> OwnershipMap:
     if not isinstance(fields, tuple) or not isinstance(owners, tuple):

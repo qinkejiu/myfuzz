@@ -48,7 +48,7 @@ _CREDENTIAL_ROUTE_KEYS = {
 }
 _ARTIFACT_ROW_KEYS = {"instance_id", "endpoint_links"}
 _HASH = re.compile(r"[0-9a-f]{64}\Z")
-_ONLINE_PLAN_SCHEMAS = frozenset(range(4, 24))
+_ONLINE_PLAN_SCHEMAS = frozenset(range(4, 26))
 
 
 def _fail(pointer: str) -> None:

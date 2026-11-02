@@ -1,0 +1,104 @@
+{
+  "schema_version": "inprocess_ip_only.v1",
+  "name": "p0-ip-only-pulp-timer-apb3",
+  "description": "One PULP APB Timer target model, no CPU and no DMA: the host drives APB3 read/write transactions at declared window offsets, samples the device's real responses and its own APB3 trace, and observes the device interrupt output without consuming it. A light declared sequence loop repeats the list twice; the last two reads are declared fault transactions at a register offset the timer does not implement and at a window offset no timer decodes.",
+  "source_profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+  "active_id": "pulp_timer_active",
+  "source_timing": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "max_wait_cycles": 16
+  },
+  "target_window": {
+    "base": 1073741824,
+    "size": 4096
+  },
+  "case_tick_budget": 256,
+  "case_isolation": true,
+  "sequence": {
+    "loops": 2
+  },
+  "transactions": [
+    {
+      "op": "write",
+      "offset": "0x04",
+      "value": "0x00000000",
+      "note": "disable timer 0 so the count cannot advance while it is written"
+    },
+    {
+      "op": "write",
+      "offset": "0x00",
+      "value": "0x00000055",
+      "note": "write the disabled count register"
+    },
+    {
+      "op": "read",
+      "offset": "0x00",
+      "expect_rdata": "0x00000055",
+      "expect_error": 0,
+      "note": "the device must return the word that was written to the disabled timer"
+    },
+    {
+      "op": "write",
+      "offset": "0x04",
+      "value": "0x00000028",
+      "note": "prescaler 5 with the enable bit clear"
+    },
+    {
+      "op": "read",
+      "offset": "0x04",
+      "expect_rdata": "0x00000028",
+      "expect_error": 0
+    },
+    {
+      "op": "write",
+      "offset": "0x08",
+      "value": "0x00000008",
+      "note": "compare value 8; writing the compare register resets the count"
+    },
+    {
+      "op": "read",
+      "offset": "0x08",
+      "expect_rdata": "0x00000008",
+      "expect_error": 0
+    },
+    {
+      "op": "write",
+      "offset": "0x04",
+      "value": "0x00000001",
+      "note": "enable timer 0 with prescaler 0"
+    },
+    {
+      "op": "wait",
+      "ticks": 12,
+      "expect_irq_edges_min": 1,
+      "note": "the count reaches the compare value inside these idle ticks and the device's own compare interrupt pulses"
+    },
+    {
+      "op": "read",
+      "offset": "0x00",
+      "expect_error": 0,
+      "note": "the count after the compare hit: a real word, not asserted to one exact value"
+    },
+    {
+      "op": "write",
+      "offset": "0x04",
+      "value": "0x00000000",
+      "note": "disable again so the next loop starts from a known state"
+    },
+    {
+      "op": "read",
+      "offset": "0x0c",
+      "expect_rdata": "0x00000000",
+      "expect_error": 0,
+      "note": "declared fault transaction: offset 0x0c is inside the timer window but is register index 3, which the PULP timer does not implement"
+    },
+    {
+      "op": "read",
+      "offset": "0x1c",
+      "expect_rdata": "0x00000000",
+      "expect_error": 0,
+      "note": "declared fault transaction: the timer decodes only two 16-byte register blocks, so this offset selects no timer and the shared address decoder answers with a zero word and PREADY"
+    }
+  ]
+}

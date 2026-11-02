@@ -10,6 +10,10 @@ from myfuzz.scenario.memory_service import MemoryService
 from myfuzz.scenario.router import DataflowRouter
 
 
+# Only an actual deferred callback may replace this sentinel with a response.
+_QUEUED_RESPONSE = object()
+
+
 class GeneratedNativeMemorySession(GeneratedLocalSession):
     """RAM/ROM service with optional declared-window MMIO; errors never fake completion.
 
@@ -57,6 +61,8 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
             # inline, so the driver reservation must admit it.
             self.max_mmio_target_accesses_per_step=1
         self._pending=None
+        self._pending_error=0
+        self._queued_mmio=False
         self._sequence_memory=0
         self._quiescing=False
         self.memory_write_count=0
@@ -125,7 +131,7 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
         observer = self._native_bus_observer
         # Backend consumption precedes the real CPU handshake by one tick.
         # Keep that same outstanding transfer visible to normal quiesce.
-        return int(self._pending is not None
+        return int(self._pending is not None or self._queued_mmio
                    or (observer is not None and observer.pending is not None))
 
     def begin_case(self,testcase_id):
@@ -134,7 +140,7 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
         if self._native_bus_observer is not None:
             self._native_bus_observer.revoke_source_completion()
         super().begin_case(testcase_id)
-        self._pending=None;self._sequence_memory=0;self._quiescing=False;self.last_samples=()
+        self._pending=None;self._pending_error=0;self._sequence_memory=0;self._quiescing=False;self.last_samples=()
 
     def begin_quiesce(self):
         if self.process is None or self.process.poll() is not None:
@@ -183,6 +189,7 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
         if self._native_bus_observer is not None:
             self._native_bus_observer.cancel_reset()
         self._pending=None
+        self._pending_error=0
         super().reset_local()
         return {'cancelled_responses':cancelled}
 
@@ -262,7 +269,15 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
         if not isinstance(inputs,Mapping) or inputs:
             raise ValueError('native memory CPU has no declared external inputs')
         pending=self._pending
-        controls=(self._native_request_ready(pending is None and not self._quiescing),int(pending is not None),pending[0] if pending else 0,0)
+        # Optional one-shot error response for a pending completion.  This is
+        # opt-in (default 0) and only meaningful with a pending response; it
+        # lets a real CPU exercise its bus-error/trap path without changing
+        # any default behavior.
+        error = int(pending is not None and (bool(getattr(self, '_pending_error', 0))
+                    or bool(getattr(self, '_inject_rsp_error', 0))))
+        if error:
+            self._inject_rsp_error = 0
+        controls=(self._native_request_ready(pending is None and not self._queued_mmio and not self._quiescing),int(pending is not None),pending[0] if pending else 0,error)
         receipt=self.command('STEP_MEMORY',controls)
         if receipt.status!='result' or receipt.new_ticks!=1:
             self._abort()
@@ -281,6 +296,7 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
         if consumed:
             if pending is None:raise ProtocolEnvironmentError('native response without request')
             self._pending=None
+            self._pending_error=0
         if accepted:
             if pending is not None:raise ProtocolEnvironmentError('native concurrent request')
             self._check_native_online_acceptance(pre,payload['samples'][0])
@@ -304,7 +320,8 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
                 response=self._service_accepted_request(key,address,write,be,value)
             except (ValueError,RuntimeError) as error:
                 self._abort();raise ProtocolEnvironmentError('native backend error without completion') from error
-            self._pending=(response,self._sequence_memory)
+            if response is not _QUEUED_RESPONSE:
+                self._pending=(response,self._sequence_memory)
             self.accepted_addresses.append(address)
             marker=self._artifact_document.get('instruction_identity_observation')
             if marker and payload['samples'][0]['pre']['physical'][marker]:

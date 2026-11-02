@@ -1,0 +1,15 @@
+{
+  "schema_version": "dependency_search_scenario.v1",
+  "backend": "descriptor",
+  "descriptor": "configs/scenarios/compiled-f1-f5-ibex-gpio-shared/generic_scenario.json",
+  "flow": "mixed",
+  "goal": {
+    "id": "shared-dataflow"
+  },
+  "rounds": 128,
+  "name": "gpio-shared-ram",
+  "records": [
+    "F3:55000000",
+    "F1:03200000"
+  ]
+}

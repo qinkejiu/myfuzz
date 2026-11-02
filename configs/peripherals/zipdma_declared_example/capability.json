@@ -1,0 +1,52 @@
+{
+  "component_id": "zipdma_selected_wishbone",
+  "endpoint_capabilities": [
+    {
+      "endpoint_id": "dma.control",
+      "operations": [
+        "request",
+        "accept",
+        "response",
+        "read",
+        "write",
+        "wait"
+      ]
+    },
+    {
+      "endpoint_id": "dma.memory",
+      "operations": [
+        "request",
+        "accept",
+        "response",
+        "read",
+        "write"
+      ]
+    }
+  ],
+  "feature_contract": {
+    "operations": [
+      {
+        "endpoint_id": "dma.memory",
+        "evidence_ref": "source:zipdma",
+        "operation": "transfer",
+        "required_observation_mappings": [
+          "native-master"
+        ]
+      }
+    ],
+    "provider_id": "zipdma.transfer.v1",
+    "provider_version": "1"
+  },
+  "observation_mappings": [
+    {
+      "endpoint_id": "dma.memory",
+      "evidence_ref": "source:zipdma",
+      "mapping_id": "native-master",
+      "observation_kind": "port_sample",
+      "role": "adr"
+    }
+  ],
+  "profile_fingerprint": "sha256:f7226c471991c5f912a03f5850ec6a50bca662b0e9f7ea94b7b5b9b984e35cf1",
+  "register_semantics": [],
+  "schema_version": "ip_test_capability.v2"
+}

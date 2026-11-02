@@ -1,0 +1,30 @@
+{
+  "schema_version": "harness_compose.v1",
+  "cpu": {
+    "instance_id": "processor",
+    "request": "requests/processor.json",
+    "data_endpoint": "processor.data"
+  },
+  "devices": [
+    {
+      "device_id": "peripheral",
+      "instance_id": "peripheral",
+      "request": "requests/peripheral.json",
+      "bus_endpoint": "opentitan_rv_timer.mmio",
+      "base": 1073741824,
+      "size": 4096
+    }
+  ],
+  "memory": [
+    {
+      "resource_id": "ram",
+      "component_instance": "processor",
+      "base": 65536,
+      "size": 196608,
+      "read": true,
+      "write": true,
+      "execute": true,
+      "initialization_policy": "preload"
+    }
+  ]
+}

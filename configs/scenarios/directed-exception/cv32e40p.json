@@ -1,0 +1,6 @@
+{
+  "schema_version": "directed_irq_exception.v1",
+  "name": "exception-no-irq-lineage-cv32e40p",
+  "cpu_profile": "configs/cpus/cv32e40p_rvfi_local/component_profile.json",
+  "scope": "directed_native_synchronous_exception_must_not_mint_irq_acceptance"
+}

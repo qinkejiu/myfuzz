@@ -261,6 +261,79 @@ def test_actual_command_callback_cannot_be_called_by_fixture(storage):
     with pytest.raises(ValueError):authority.issue(reset_epoch=0)
 
 
+@pytest.mark.parametrize('callback', ['_actual_begin', '_actual_command'])
+def test_command_guard_does_not_repeat_unchanged_producer_check(storage, callback):
+    """The authority adds no producer check beyond the owner guard it delegates to.
+
+    Counting the pinned producer check itself rather than a literal: the owner
+    guard performs its own check and its ``observer.validate()`` re-authenticates
+    the sources, so the delegation baseline is measured first.  The authority
+    path must consume exactly that baseline before the frame refusal, i.e. it
+    must not add an adjacent duplicate check of its own.
+    """
+    import sys
+    from types import SimpleNamespace
+    from myfuzz.local_harness.session import (_NATIVE_RESET_CHECK_PRODUCERS,
+                                              _NATIVE_RESET_OWNER_GUARD_PIN)
+    from myfuzz.scenario.apb_storage_register_version import ApbStorageRegisterVersionAuthority
+
+    authority = ApbStorageRegisterVersionAuthority(storage)
+    producer_code = _NATIVE_RESET_CHECK_PRODUCERS[0].__code__
+
+    def produce_count(action):
+        calls = []
+        def profile(frame, event, arg):
+            if event == 'call' and frame.f_code is producer_code:
+                calls.append(1)
+        previous = sys.getprofile()
+        try:
+            sys.setprofile(profile)
+            action()
+        finally:
+            sys.setprofile(previous)
+        return len(calls)
+
+    delegated = produce_count(lambda: _NATIVE_RESET_OWNER_GUARD_PIN[0](storage))
+    assert delegated >= 1
+    args = (storage, 'STEP_APB3_REG', ())
+    if callback == '_actual_command':
+        args += (SimpleNamespace(),)
+
+    def refuse():
+        with pytest.raises(ValueError, match='actual-producer-frame-required'):
+            getattr(authority, callback)(*args)
+
+    assert produce_count(refuse) == delegated
+
+
+@pytest.mark.parametrize('callback', ['_actual_begin', '_actual_command'])
+def test_observerless_guard_still_checks_producer_before_frame_refusal(storage, callback):
+    """The owner guard's observer-less fast return must not skip the pin check."""
+    import sys
+    from types import SimpleNamespace
+    from myfuzz.local_harness.session import _NATIVE_RESET_CHECK_PRODUCERS
+    from myfuzz.scenario.apb_storage_register_version import ApbStorageRegisterVersionAuthority
+
+    authority = ApbStorageRegisterVersionAuthority(storage)
+    storage._native_reset_observation = None
+    code = _NATIVE_RESET_CHECK_PRODUCERS[0].__code__
+    calls = []
+    def profile(frame, event, arg):
+        if event == 'call' and frame.f_code is code:
+            calls.append(1)
+    previous = sys.getprofile()
+    try:
+        sys.setprofile(profile)
+        with pytest.raises(ValueError, match='actual-producer-frame-required'):
+            args = (storage, 'STEP_APB3_REG', ())
+            if callback == '_actual_command':
+                args += (SimpleNamespace(),)
+            getattr(authority, callback)(*args)
+    finally:
+        sys.setprofile(previous)
+    assert len(calls) == 1
+
+
 def test_routed_context_finally_cleared_on_actual_guard_refusal(storage):
     from types import SimpleNamespace
     from dataclasses import asdict

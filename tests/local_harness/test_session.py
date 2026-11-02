@@ -52,7 +52,7 @@ class GeneratedSessionTests(unittest.TestCase):
                     sys.stdout.flush()
                     time.sleep(5)
                     continue
-                if mode == 'bad_tick': before = tick + 1
+                if mode == 'bad_tick' or (mode == 'bad_tick_after_one' and tick >= 1): before = tick + 1
                 else: before = tick
                 tick += 1
                 payload = {{'schema_version':'local_driver_result.v1','kind':kind,
@@ -145,6 +145,115 @@ class GeneratedSessionTests(unittest.TestCase):
         self.assertEqual(16, session._acknowledged)
         self.assertEqual(17, session.local_ticks)
 
+    def test_opt_in_trace_keeps_actual_commands_and_replies_across_ack(self):
+        from myfuzz.local_harness.session import record_local_commands
+        session = self.make_session()
+        with record_local_commands() as trace:
+            session.begin_case('captured-case')
+            for index in range(17):
+                session.command('STEP_GPIO', (index,))
+            session.end_case()
+        records = trace.for_session(session)
+        self.assertEqual(17, len(records))
+        self.assertEqual(list(range(1, 18)), [r['sequence'] for r in records])
+        self.assertEqual([format(index, 'x') for index in range(17)],
+                         [r['command'].split()[-1] for r in records])
+        self.assertTrue(all(r['reply'].startswith('RESULT ') for r in records))
+        self.assertEqual((0, 17), (records[0]['tick_before'], records[-1]['tick_after']))
+        self.assertTrue(trace.complete_for(session))
+
+    def test_export_distinguishes_restarted_same_component_sessions(self):
+        from types import SimpleNamespace
+        import hashlib
+        from myfuzz.local_harness.session import record_local_commands
+        self.artifact.plan = SimpleNamespace(request=SimpleNamespace(instance_id='gpio_b'))
+        session = self.make_session()
+        with record_local_commands() as trace:
+            session.begin_case('first')
+            first_pid = session.process.pid
+            first_nonce = session._execution
+            session.command('STEP_GPIO', (1,))
+            session.end_case()
+            session.begin_case('second')
+            second_pid = session.process.pid
+            second_nonce = session._execution
+            session.command('STEP_GPIO', (2,))
+            session.end_case()
+        rows = trace.export_sessions()
+        self.assertEqual(2, len(rows))
+        self.assertEqual(['gpio_b','gpio_b'], [row['component'] for row in rows])
+        self.assertEqual([first_nonce, second_nonce], [row['identity']['execution_nonce'] for row in rows])
+        self.assertEqual([first_pid, second_pid], [row['identity']['pid'] for row in rows])
+        self.assertEqual(hashlib.sha256(session._binary.read_bytes()).hexdigest(), rows[0]['identity']['binary_sha256'])
+        self.assertEqual([1, 1], [len(row['records']) for row in rows])
+        self.assertTrue(all(row['complete'] for row in rows))
+        rows[0]['records'].clear()
+        self.assertEqual(1, len(trace.export_sessions()[0]['records']))
+
+    def test_mid_session_capture_is_incomplete(self):
+        from myfuzz.local_harness.session import record_local_commands
+        session = self.make_session()
+        session.begin_case('late-capture')
+        session.command('STEP_GPIO', (0,))
+        with record_local_commands() as trace:
+            session.command('STEP_GPIO', (1,))
+        self.assertFalse(trace.complete_for(session))
+        self.assertFalse(trace.export_sessions()[0]['complete'])
+
+    def test_first_failed_command_is_exported_as_incomplete(self):
+        from myfuzz.local_harness.session import record_local_commands
+        session = self.make_session('bad_tick')
+        session.begin_case('first-command-fails')
+        pid = session.process.pid
+        with record_local_commands() as trace:
+            with self.assertRaises(ValueError):
+                session.command('STEP_GPIO', (0,))
+        row, = trace.export_sessions()
+        self.assertFalse(row['complete'])
+        self.assertEqual([], row['records'])
+        self.assertEqual(pid, row['identity']['pid'])
+
+    def test_command_trace_keeps_reply_even_if_timing_observer_changes_last_reply(self):
+        from myfuzz.local_harness.session import observe_local_command_timings, record_local_commands
+        session = self.make_session()
+        session.begin_case('timed-capture')
+        def observer(_operation, _elapsed):
+            session._last_wire_reply = 'replaced by observer'
+        with record_local_commands() as trace, observe_local_command_timings(observer):
+            session.command('STEP_GPIO', (0,))
+        self.assertTrue(trace.for_session(session)[0]['reply'].startswith('RESULT '))
+
+    def test_full_command_trace_is_marked_incomplete_without_stopping_rtl(self):
+        from myfuzz.local_harness.session import record_local_commands
+        session = self.make_session()
+        session.begin_case('bounded-capture')
+        with record_local_commands(max_commands=1) as trace:
+            session.command('STEP_GPIO', (0,))
+            second = session.command('STEP_GPIO', (1,))
+        self.assertEqual(second.tick_after, 2)
+        self.assertEqual(len(trace.for_session(session)), 1)
+        self.assertFalse(trace.complete_for(session))
+
+    def test_command_trace_byte_budget_does_not_stop_live_session(self):
+        from myfuzz.local_harness.session import record_local_commands
+        session = self.make_session()
+        session.begin_case('byte-bound-capture')
+        with record_local_commands(max_bytes=1) as trace:
+            receipt = session.command('STEP_GPIO', (0,))
+        self.assertEqual(receipt.tick_after, 1)
+        self.assertFalse(trace.complete_for(session))
+
+    def test_failed_driver_reply_marks_prior_command_trace_incomplete(self):
+        from myfuzz.local_harness.session import record_local_commands
+        session = self.make_session('bad_tick_after_one')
+        session.begin_case('failed-capture')
+        with record_local_commands() as trace:
+            session.command('STEP_GPIO', (0,))
+            with self.assertRaises(ValueError):
+                session.command('STEP_GPIO', (1,))
+        self.assertEqual(len(trace.for_session(session)), 1)
+        self.assertFalse(trace.complete_for(session))
+
     def test_wrong_ready_is_rejected_and_process_closed(self):
         session = self.make_session('wrong_ready')
         with self.assertRaisesRegex(ValueError, 'identity'):
@@ -159,6 +268,28 @@ class GeneratedSessionTests(unittest.TestCase):
                 with self.assertRaises((RuntimeError, TimeoutError)):
                     session.command('STEP_GPIO', (0,))
                 self.assertIsNone(session.process)
+
+    def test_stalled_reply_identifies_command_and_limiting_deadline(self):
+        import time
+        from myfuzz.scenario.protocol_io import LocalCommandDeadlineExceeded, command_deadline
+        session = self.make_session('stall', command_timeout_seconds=0.1)
+        session.begin_case('local-deadline')
+        with self.assertRaises(LocalCommandDeadlineExceeded) as failure:
+            session.command('STEP_GPIO', (0,))
+        details = failure.exception.timeout_diagnostic
+        self.assertEqual(details['operation'], 'STEP_GPIO')
+        self.assertEqual(details['limiting_deadline'], 'local_command')
+        self.assertIsNone(details['outer_remaining_seconds'])
+
+        session = self.make_session('stall', command_timeout_seconds=1.0)
+        session.begin_case('session-deadline')
+        with command_deadline(time.monotonic() + 0.1):
+            with self.assertRaises(LocalCommandDeadlineExceeded) as failure:
+                session.command('STEP_GPIO', (0,))
+        details = failure.exception.timeout_diagnostic
+        self.assertEqual(details['operation'], 'STEP_GPIO')
+        self.assertEqual(details['limiting_deadline'], 'outer_deadline')
+        self.assertLessEqual(details['outer_remaining_seconds'], 0)
 
     def test_bad_tick_is_rejected(self):
         session = self.make_session('bad_tick')

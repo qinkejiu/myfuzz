@@ -1,0 +1,45 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-cv32e20-timer1-overflow-f5-fuzz",
+  "cpu_profile": "configs/cpus/cv32e20/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "source_profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+  "source_timing": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "max_wait_cycles": 16
+  },
+  "active_id": "pulp_timer_active",
+  "source_behavior": "configs/behaviors/pulp_timer1_overflow_f5.json",
+  "dma_profile": "configs/peripherals/zipdma_smoke/component_profile.json",
+  "dma_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "dma_capability": "configs/scenarios/compiled-f1-f6-ibex-gpio-zipdma-shared/dma.test_capability.json",
+  "dma_block_words": 4,
+  "target_window": {
+    "base": 1073745920,
+    "size": 4096
+  },
+  "dma_window": {
+    "base": 1073754112,
+    "size": 16
+  },
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "notes": [
+    "The second CPU artifact for the same new declaration: CV32E20 instead of Ibex, with the timer1 overflow file configs/behaviors/pulp_timer1_overflow_f5.json.  Both CPUs declare a one-bit active-high machine-external IRQ input on OBI, so this run shows the declaration is CPU-independent; it does not demonstrate a different IRQ ABI, and the report says so",
+    "the CPU profile is the only difference from configs/scenarios/inprocess-obi-apb-ibex-timer1-overflow-f5-fuzz.json apart from the notes",
+    "the timer declares 50 MHz, the CPU 50 MHz and the ZipDMA a nominal 1 Hz simulation rate, so assume_single_clock states that one host tick drives all three models",
+    "two IRQ sources are declared: the target's pulse on irq_o[2] and the ZipDMA completion level"
+  ],
+  "f1_program_words": 4,
+  "handler_wait_iterations": 128
+}

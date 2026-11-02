@@ -97,7 +97,7 @@ Expected: all selected tests pass; the PULP positive binds the same prepared obj
 
 ## Completion record
 
-The joint software gate, including `test_runtime_edge_index.py`, passed **209 tests and 61 subtests in 250.50 seconds**. The graph-construction spy confirms the binder reuses the exact prepared object without constructing a replacement runtime graph; the cache-tampering negative confirms stale source-owner records are refused. This slice did not run native/build/remote tests; the report is [p7-d4-pulp-gpio-apb3-admission-20261020.md](../reports/p7-d4-pulp-gpio-apb3-admission-20261020.md).
+The joint software gate, including `test_runtime_edge_index.py`, passed **209 tests and 61 subtests in 250.50 seconds**. The graph-construction spy confirms the binder reuses the exact prepared object without constructing a replacement runtime graph; the cache-tampering negative confirms stale source-owner records are refused. This slice did not run native/build/remote tests; the report is [p7-d4-pulp-gpio-apb3-admission-20261020.md](../../reports/p7-d4-pulp-gpio-apb3-admission-20261020.md).
 
 Run: `PYTHONPATH=src python3 -m pytest -q tests/local_harness/test_dma_artifact_endpoint_links.py tests/scenario/test_dma_intent_topology_binding.py tests/scenario/test_runtime_path_contract.py tests/scenario/test_runtime_edge_index.py tests/integration/test_dma_intent_binding_replay.py tests/integration/test_dma_master_route_replay_readers.py tests/integration/test_p7b_p7c_dma_route_intent.py tests/integration/test_route_intent_reader_boundaries.py --tb=short`
 

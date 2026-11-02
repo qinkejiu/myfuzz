@@ -1,0 +1,46 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "refused-uart-serial-role-missing",
+  "description": "Refusal sample: a serial peer whose tx role is not a pad role of the pinned UART. The executor refuses the missing role by name (unsupported-serial:role:rts_n).",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "targets": [
+    {
+      "name": "tluluart",
+      "profile": "configs/peripherals/opentitan_uart_local/component_profile.json",
+      "active_id": "tluluart_target",
+      "window": {
+        "base": 1073754112,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": "configs/behaviors/declaration-only/uart_serial_peer_missing_role_f5.json",
+      "pins": null,
+      "fixed_inputs": [
+        {
+          "endpoint_id": "uart.pins",
+          "role": "rx",
+          "value": 1
+        }
+      ],
+      "tuning": {}
+    }
+  ],
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "handler_wait_iterations": 256,
+  "notes": [
+    "this scenario exists to record the named refusal, not to pass",
+    "configs/behaviors/declaration-only/uart_serial_peer_missing_role_f5.json declares tx_role 'rts_n', which the OpenTitan UART profile does not expose",
+    "the refusal is raised by pin_group_declaration in scripts/run_inprocess_f1f6.py"
+  ]
+}

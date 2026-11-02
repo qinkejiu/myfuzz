@@ -1,0 +1,591 @@
+{
+  "status": "verified",
+  "authority": false,
+  "native_target_protocol": "ahb-lite",
+  "CPU_contract": "cv32e20_native_irq_receipts.v1",
+  "phases": {
+    "original": {
+      "events": 3635,
+      "commands": {
+        "cpu": 127,
+        "sha_active": 134,
+        "sha_idle": 128
+      },
+      "CPU_store_ticks": [
+        78,
+        88,
+        98
+      ],
+      "native_AHB_requests": [
+        {
+          "schema_version": "ip_base_event.v1",
+          "event_type": "transaction_request",
+          "component_id": "caliptra_sha256",
+          "instance_id": "sha_active",
+          "endpoint_id": "sha256.bus",
+          "role": "protocol_transaction",
+          "raw_event_refs": [
+            2077
+          ],
+          "related_request_event_refs": [
+            2077
+          ],
+          "local_event_id": "sha_active|0|ahb-lite|79|pre|transaction_request|5|0",
+          "clock_domain": "core",
+          "tick": 79,
+          "reset_epoch": 0,
+          "transaction_key": null,
+          "native_identity": {
+            "channel": "AHB"
+          },
+          "identity_gap": "protocol_has_no_transaction_id",
+          "action_ref": null,
+          "source_ref": null,
+          "observation_mapping_id": null,
+          "observation_property": "measured_protocol_boundary",
+          "payload": {
+            "channel": "AHB",
+            "address": 2048,
+            "direction": "write",
+            "htrans": 2,
+            "hsize": 2
+          }
+        },
+        {
+          "schema_version": "ip_base_event.v1",
+          "event_type": "transaction_request",
+          "component_id": "caliptra_sha256",
+          "instance_id": "sha_active",
+          "endpoint_id": "sha256.bus",
+          "role": "protocol_transaction",
+          "raw_event_refs": [
+            2389
+          ],
+          "related_request_event_refs": [
+            2389
+          ],
+          "local_event_id": "sha_active|0|ahb-lite|94|pre|transaction_request|5|0",
+          "clock_domain": "core",
+          "tick": 94,
+          "reset_epoch": 0,
+          "transaction_key": null,
+          "native_identity": {
+            "channel": "AHB"
+          },
+          "identity_gap": "protocol_has_no_transaction_id",
+          "action_ref": null,
+          "source_ref": null,
+          "observation_mapping_id": null,
+          "observation_property": "measured_protocol_boundary",
+          "payload": {
+            "channel": "AHB",
+            "address": 2052,
+            "direction": "write",
+            "htrans": 2,
+            "hsize": 2
+          }
+        },
+        {
+          "schema_version": "ip_base_event.v1",
+          "event_type": "transaction_request",
+          "component_id": "caliptra_sha256",
+          "instance_id": "sha_active",
+          "endpoint_id": "sha256.bus",
+          "role": "protocol_transaction",
+          "raw_event_refs": [
+            2701
+          ],
+          "related_request_event_refs": [
+            2701
+          ],
+          "local_event_id": "sha_active|0|ahb-lite|109|pre|transaction_request|5|0",
+          "clock_domain": "core",
+          "tick": 109,
+          "reset_epoch": 0,
+          "transaction_key": null,
+          "native_identity": {
+            "channel": "AHB"
+          },
+          "identity_gap": "protocol_has_no_transaction_id",
+          "action_ref": null,
+          "source_ref": null,
+          "observation_mapping_id": null,
+          "observation_property": "measured_protocol_boundary",
+          "payload": {
+            "channel": "AHB",
+            "address": 2076,
+            "direction": "write",
+            "htrans": 2,
+            "hsize": 2
+          }
+        }
+      ],
+      "native_AHB_responses": [
+        {
+          "schema_version": "ip_base_event.v1",
+          "event_type": "transaction_response",
+          "component_id": "caliptra_sha256",
+          "instance_id": "sha_active",
+          "endpoint_id": "sha256.bus",
+          "role": "protocol_transaction",
+          "raw_event_refs": [
+            2085
+          ],
+          "related_request_event_refs": [
+            2077
+          ],
+          "local_event_id": "sha_active|0|ahb-lite|80|pre|transaction_response|5|0",
+          "clock_domain": "core",
+          "tick": 80,
+          "reset_epoch": 0,
+          "transaction_key": null,
+          "native_identity": {
+            "channel": "AHB"
+          },
+          "identity_gap": "protocol_has_no_transaction_id",
+          "action_ref": null,
+          "source_ref": null,
+          "observation_mapping_id": null,
+          "observation_property": "measured_protocol_boundary",
+          "payload": {
+            "channel": "AHB",
+            "address": 2048,
+            "direction": "write",
+            "value": 1,
+            "error": false
+          }
+        },
+        {
+          "schema_version": "ip_base_event.v1",
+          "event_type": "transaction_response",
+          "component_id": "caliptra_sha256",
+          "instance_id": "sha_active",
+          "endpoint_id": "sha256.bus",
+          "role": "protocol_transaction",
+          "raw_event_refs": [
+            2397
+          ],
+          "related_request_event_refs": [
+            2389
+          ],
+          "local_event_id": "sha_active|0|ahb-lite|95|pre|transaction_response|5|0",
+          "clock_domain": "core",
+          "tick": 95,
+          "reset_epoch": 0,
+          "transaction_key": null,
+          "native_identity": {
+            "channel": "AHB"
+          },
+          "identity_gap": "protocol_has_no_transaction_id",
+          "action_ref": null,
+          "source_ref": null,
+          "observation_mapping_id": null,
+          "observation_property": "measured_protocol_boundary",
+          "payload": {
+            "channel": "AHB",
+            "address": 2052,
+            "direction": "write",
+            "value": 1,
+            "error": false
+          }
+        },
+        {
+          "schema_version": "ip_base_event.v1",
+          "event_type": "transaction_response",
+          "component_id": "caliptra_sha256",
+          "instance_id": "sha_active",
+          "endpoint_id": "sha256.bus",
+          "role": "protocol_transaction",
+          "raw_event_refs": [
+            2709
+          ],
+          "related_request_event_refs": [
+            2701
+          ],
+          "local_event_id": "sha_active|0|ahb-lite|110|pre|transaction_response|5|0",
+          "clock_domain": "core",
+          "tick": 110,
+          "reset_epoch": 0,
+          "transaction_key": null,
+          "native_identity": {
+            "channel": "AHB"
+          },
+          "identity_gap": "protocol_has_no_transaction_id",
+          "action_ref": null,
+          "source_ref": null,
+          "observation_mapping_id": null,
+          "observation_property": "measured_protocol_boundary",
+          "payload": {
+            "channel": "AHB",
+            "address": 2076,
+            "direction": "write",
+            "value": 1,
+            "error": false
+          }
+        }
+      ],
+      "source_rise_event": 2726,
+      "source_rise_tick": 112,
+      "source_rise_phase": "post",
+      "latest_source_tick": 115,
+      "latest_source_level": 1,
+      "take_tick": 100,
+      "serial": 1,
+      "serial_schema": "cpu_irq_serial_observation.v1",
+      "first_retire_tick": 105,
+      "first_pc": 66092,
+      "identities": [
+        {
+          "artifact_digest": "396e252763c68e0086f61e8ceefbd33384a58cd5efe4269e4820efd0e0fe69d4",
+          "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/829591b6f2c04c4a8b333ffb9832ffbbfa41b99f41e3d535334f19f5aba378a5/harness",
+          "binary_sha256": "a3e517b9a87e4ce3effe90bcd61c84c8616f9ac664f2af5fa3556cca8d9814dc",
+          "build_digest": "829591b6f2c04c4a8b333ffb9832ffbbfa41b99f41e3d535334f19f5aba378a5",
+          "component": "cpu",
+          "execution_nonce": "c265923dd7ba4a09a61f4205b4e1600d",
+          "exit_code": 0,
+          "manifest_sha256": "ce11ba951e32ed8cdc5dae9010129a4bf8f665ddf2c825cd6f6785599e0a3110",
+          "pid": 3642734,
+          "reaped": true
+        },
+        {
+          "artifact_digest": "4f7ed50fddad738a6e257ec93781948216bd0d2df3177596df1d50e7fb2bc3bd",
+          "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/2877078fb138c17fd7419d4fb9453b94214684022de0684764815ce547f6cb0e/harness",
+          "binary_sha256": "5c15ab4f6b1dd2517fea5c26b23a9cdcd07852cdde11bec03ad0c399dae664b2",
+          "build_digest": "2877078fb138c17fd7419d4fb9453b94214684022de0684764815ce547f6cb0e",
+          "component": "sha_active",
+          "execution_nonce": "5f2df5a11ef3452495af9d94bda27b8b",
+          "exit_code": 0,
+          "manifest_sha256": "41b941911c819b7bb7caf12d2e399632b72508c495d54d69bba7df4116532b5b",
+          "pid": 3642766,
+          "reaped": true
+        },
+        {
+          "artifact_digest": "41ef062899ae0769a3634a19314dfd52febc11feb13762f1b7ffa8f3d9afc878",
+          "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/4541c849d5f117c25c6928dd6e1cab41c7c07fab73af80e4caea36d9064bc8ca/harness",
+          "binary_sha256": "f049ad43f49245ef40625a558fff17382e95177c89af72299e4bf075a906f8ba",
+          "build_digest": "4541c849d5f117c25c6928dd6e1cab41c7c07fab73af80e4caea36d9064bc8ca",
+          "component": "sha_idle",
+          "execution_nonce": "146db60c32be4540a0b96c4ae811f56a",
+          "exit_code": 0,
+          "manifest_sha256": "52e30dfe04a8a02f84624cb322e95d45aeeb64426d1d50481086044db6bc0f6c",
+          "pid": 3642798,
+          "reaped": true
+        }
+      ],
+      "raw_sha256": {
+        "events.json": "7254494e94481859e97025a0df70389eeabf0b56646693a6590d3c567351aed5",
+        "local_commands.json": "22d7b9d46bf17ea3d08d0e72a6a7321c5a676e723510b603e54e61db8f4851bb",
+        "executions.json": "f9f27802230af7e599e4c800c1ea49061e4dbfaca36caa367203fa9795d254cb",
+        "result.json": "3af0121a9f896f08a95fdd7882cf48b135c7338107faa4aad806b38148a1108d"
+      }
+    },
+    "fresh": {
+      "events": 3635,
+      "commands": {
+        "cpu": 127,
+        "sha_active": 134,
+        "sha_idle": 128
+      },
+      "CPU_store_ticks": [
+        78,
+        88,
+        98
+      ],
+      "native_AHB_requests": [
+        {
+          "schema_version": "ip_base_event.v1",
+          "event_type": "transaction_request",
+          "component_id": "caliptra_sha256",
+          "instance_id": "sha_active",
+          "endpoint_id": "sha256.bus",
+          "role": "protocol_transaction",
+          "raw_event_refs": [
+            2077
+          ],
+          "related_request_event_refs": [
+            2077
+          ],
+          "local_event_id": "sha_active|0|ahb-lite|79|pre|transaction_request|5|0",
+          "clock_domain": "core",
+          "tick": 79,
+          "reset_epoch": 0,
+          "transaction_key": null,
+          "native_identity": {
+            "channel": "AHB"
+          },
+          "identity_gap": "protocol_has_no_transaction_id",
+          "action_ref": null,
+          "source_ref": null,
+          "observation_mapping_id": null,
+          "observation_property": "measured_protocol_boundary",
+          "payload": {
+            "channel": "AHB",
+            "address": 2048,
+            "direction": "write",
+            "htrans": 2,
+            "hsize": 2
+          }
+        },
+        {
+          "schema_version": "ip_base_event.v1",
+          "event_type": "transaction_request",
+          "component_id": "caliptra_sha256",
+          "instance_id": "sha_active",
+          "endpoint_id": "sha256.bus",
+          "role": "protocol_transaction",
+          "raw_event_refs": [
+            2389
+          ],
+          "related_request_event_refs": [
+            2389
+          ],
+          "local_event_id": "sha_active|0|ahb-lite|94|pre|transaction_request|5|0",
+          "clock_domain": "core",
+          "tick": 94,
+          "reset_epoch": 0,
+          "transaction_key": null,
+          "native_identity": {
+            "channel": "AHB"
+          },
+          "identity_gap": "protocol_has_no_transaction_id",
+          "action_ref": null,
+          "source_ref": null,
+          "observation_mapping_id": null,
+          "observation_property": "measured_protocol_boundary",
+          "payload": {
+            "channel": "AHB",
+            "address": 2052,
+            "direction": "write",
+            "htrans": 2,
+            "hsize": 2
+          }
+        },
+        {
+          "schema_version": "ip_base_event.v1",
+          "event_type": "transaction_request",
+          "component_id": "caliptra_sha256",
+          "instance_id": "sha_active",
+          "endpoint_id": "sha256.bus",
+          "role": "protocol_transaction",
+          "raw_event_refs": [
+            2701
+          ],
+          "related_request_event_refs": [
+            2701
+          ],
+          "local_event_id": "sha_active|0|ahb-lite|109|pre|transaction_request|5|0",
+          "clock_domain": "core",
+          "tick": 109,
+          "reset_epoch": 0,
+          "transaction_key": null,
+          "native_identity": {
+            "channel": "AHB"
+          },
+          "identity_gap": "protocol_has_no_transaction_id",
+          "action_ref": null,
+          "source_ref": null,
+          "observation_mapping_id": null,
+          "observation_property": "measured_protocol_boundary",
+          "payload": {
+            "channel": "AHB",
+            "address": 2076,
+            "direction": "write",
+            "htrans": 2,
+            "hsize": 2
+          }
+        }
+      ],
+      "native_AHB_responses": [
+        {
+          "schema_version": "ip_base_event.v1",
+          "event_type": "transaction_response",
+          "component_id": "caliptra_sha256",
+          "instance_id": "sha_active",
+          "endpoint_id": "sha256.bus",
+          "role": "protocol_transaction",
+          "raw_event_refs": [
+            2085
+          ],
+          "related_request_event_refs": [
+            2077
+          ],
+          "local_event_id": "sha_active|0|ahb-lite|80|pre|transaction_response|5|0",
+          "clock_domain": "core",
+          "tick": 80,
+          "reset_epoch": 0,
+          "transaction_key": null,
+          "native_identity": {
+            "channel": "AHB"
+          },
+          "identity_gap": "protocol_has_no_transaction_id",
+          "action_ref": null,
+          "source_ref": null,
+          "observation_mapping_id": null,
+          "observation_property": "measured_protocol_boundary",
+          "payload": {
+            "channel": "AHB",
+            "address": 2048,
+            "direction": "write",
+            "value": 1,
+            "error": false
+          }
+        },
+        {
+          "schema_version": "ip_base_event.v1",
+          "event_type": "transaction_response",
+          "component_id": "caliptra_sha256",
+          "instance_id": "sha_active",
+          "endpoint_id": "sha256.bus",
+          "role": "protocol_transaction",
+          "raw_event_refs": [
+            2397
+          ],
+          "related_request_event_refs": [
+            2389
+          ],
+          "local_event_id": "sha_active|0|ahb-lite|95|pre|transaction_response|5|0",
+          "clock_domain": "core",
+          "tick": 95,
+          "reset_epoch": 0,
+          "transaction_key": null,
+          "native_identity": {
+            "channel": "AHB"
+          },
+          "identity_gap": "protocol_has_no_transaction_id",
+          "action_ref": null,
+          "source_ref": null,
+          "observation_mapping_id": null,
+          "observation_property": "measured_protocol_boundary",
+          "payload": {
+            "channel": "AHB",
+            "address": 2052,
+            "direction": "write",
+            "value": 1,
+            "error": false
+          }
+        },
+        {
+          "schema_version": "ip_base_event.v1",
+          "event_type": "transaction_response",
+          "component_id": "caliptra_sha256",
+          "instance_id": "sha_active",
+          "endpoint_id": "sha256.bus",
+          "role": "protocol_transaction",
+          "raw_event_refs": [
+            2709
+          ],
+          "related_request_event_refs": [
+            2701
+          ],
+          "local_event_id": "sha_active|0|ahb-lite|110|pre|transaction_response|5|0",
+          "clock_domain": "core",
+          "tick": 110,
+          "reset_epoch": 0,
+          "transaction_key": null,
+          "native_identity": {
+            "channel": "AHB"
+          },
+          "identity_gap": "protocol_has_no_transaction_id",
+          "action_ref": null,
+          "source_ref": null,
+          "observation_mapping_id": null,
+          "observation_property": "measured_protocol_boundary",
+          "payload": {
+            "channel": "AHB",
+            "address": 2076,
+            "direction": "write",
+            "value": 1,
+            "error": false
+          }
+        }
+      ],
+      "source_rise_event": 2726,
+      "source_rise_tick": 112,
+      "source_rise_phase": "post",
+      "latest_source_tick": 115,
+      "latest_source_level": 1,
+      "take_tick": 100,
+      "serial": 1,
+      "serial_schema": "cpu_irq_serial_observation.v1",
+      "first_retire_tick": 105,
+      "first_pc": 66092,
+      "identities": [
+        {
+          "artifact_digest": "396e252763c68e0086f61e8ceefbd33384a58cd5efe4269e4820efd0e0fe69d4",
+          "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/829591b6f2c04c4a8b333ffb9832ffbbfa41b99f41e3d535334f19f5aba378a5/harness",
+          "binary_sha256": "a3e517b9a87e4ce3effe90bcd61c84c8616f9ac664f2af5fa3556cca8d9814dc",
+          "build_digest": "829591b6f2c04c4a8b333ffb9832ffbbfa41b99f41e3d535334f19f5aba378a5",
+          "component": "cpu",
+          "execution_nonce": "076d5490604e4f58af11549cc360d262",
+          "exit_code": 0,
+          "manifest_sha256": "ce11ba951e32ed8cdc5dae9010129a4bf8f665ddf2c825cd6f6785599e0a3110",
+          "pid": 3642863,
+          "reaped": true
+        },
+        {
+          "artifact_digest": "4f7ed50fddad738a6e257ec93781948216bd0d2df3177596df1d50e7fb2bc3bd",
+          "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/2877078fb138c17fd7419d4fb9453b94214684022de0684764815ce547f6cb0e/harness",
+          "binary_sha256": "5c15ab4f6b1dd2517fea5c26b23a9cdcd07852cdde11bec03ad0c399dae664b2",
+          "build_digest": "2877078fb138c17fd7419d4fb9453b94214684022de0684764815ce547f6cb0e",
+          "component": "sha_active",
+          "execution_nonce": "fbc33309c48f4280a648a7b92e3381f8",
+          "exit_code": 0,
+          "manifest_sha256": "41b941911c819b7bb7caf12d2e399632b72508c495d54d69bba7df4116532b5b",
+          "pid": 3642895,
+          "reaped": true
+        },
+        {
+          "artifact_digest": "41ef062899ae0769a3634a19314dfd52febc11feb13762f1b7ffa8f3d9afc878",
+          "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/4541c849d5f117c25c6928dd6e1cab41c7c07fab73af80e4caea36d9064bc8ca/harness",
+          "binary_sha256": "f049ad43f49245ef40625a558fff17382e95177c89af72299e4bf075a906f8ba",
+          "build_digest": "4541c849d5f117c25c6928dd6e1cab41c7c07fab73af80e4caea36d9064bc8ca",
+          "component": "sha_idle",
+          "execution_nonce": "b5f99b335e2a43318da6168bd4eebfb8",
+          "exit_code": 0,
+          "manifest_sha256": "52e30dfe04a8a02f84624cb322e95d45aeeb64426d1d50481086044db6bc0f6c",
+          "pid": 3642927,
+          "reaped": true
+        }
+      ],
+      "raw_sha256": {
+        "events.json": "7254494e94481859e97025a0df70389eeabf0b56646693a6590d3c567351aed5",
+        "local_commands.json": "8012ade7e6b397b9e60404dc600121d9495221343686cc4d63c2eba4a5d50b31",
+        "executions.json": "b665ac07a701a28397f0c0cb7dd5ebc74f861d0cf9443ca2e60701f77fa14869",
+        "result.json": "3af0121a9f896f08a95fdd7882cf48b135c7338107faa4aad806b38148a1108d"
+      }
+    }
+  },
+  "result": {
+    "decision_serial": 1,
+    "first_fetch": 65536,
+    "first_retirement_pc": 66092,
+    "grants_F5": false,
+    "grants_F6": false,
+    "idle_observed_samples": 256,
+    "isr_mmio": "unknown",
+    "native_take_tick": 100,
+    "native_target_protocol": "ahb-lite",
+    "reward_eligible": false,
+    "scope": "declared-IP-output-to-CPU-first-handler",
+    "source_pulse_tick": 112,
+    "source_version": "unknown",
+    "status": "verified",
+    "transport_only": true,
+    "trigger_writes": [
+      [
+        2048,
+        1
+      ],
+      [
+        2052,
+        1
+      ],
+      [
+        2076,
+        1
+      ]
+    ]
+  },
+  "fresh_scope": "same-invocation-independent-native-sessions",
+  "scope": "software-triggered sticky IRQ output transport; no digest/HRESP error/F5/F6/reward"
+}

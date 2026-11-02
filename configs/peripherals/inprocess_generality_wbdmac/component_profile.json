@@ -1,0 +1,313 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "zipcpu_wbdmac",
+  "kind": "peripheral",
+  "description": "Pinned unmodified ZipCPU wbdmac: autonomous pipelined Wishbone memory master plus pipelined registered-ack control target. Source-admitted dual-role runtime and one-edge driver generation are available. Autonomous DMA session, memory service and actual transfer execution remain unverified. Master addresses are 30-bit words; no SEL pin exists on either interface. Immediate trigger pins fixed zero in initial environment; no DMA data or IRQ simulated. Executable RTL start key is 0xfed, not stale header 0x3db. [generality fix variant: the CSR unit, length-unit, clear and master-shift facts the F6 host reads are declared here instead of being restated by the wbdmac source contract: SOURCE/DESTINATION hold a byte address and the RTL derives the master word address (shift 2); TOTAL_LENGTH counts words; the completion IRQ is a native pulse with no software clear register.]",
+  "source": {
+    "root": "third_party/soc-zipcpu",
+    "revision": "git:42606d2d6ef55df313772232977621b2d72f0159",
+    "top_module": "wbdmac",
+    "files": [
+      "rtl/peripherals/wbdmac.v"
+    ],
+    "include_roots": [],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "parameters": [
+        {
+          "name": "ADDRESS_WIDTH",
+          "value": "30"
+        },
+        {
+          "name": "BUS_WIDTH",
+          "value": "32"
+        },
+        {
+          "name": "SLV_WIDTH",
+          "value": "32"
+        },
+        {
+          "name": "LGMEMLEN",
+          "value": "10"
+        }
+      ],
+      "warning_policy": "recorded-nonfatal"
+    }
+  },
+  "clocks": [
+    {
+      "port": "i_clk",
+      "domain": "core",
+      "frequency_hz": 50000000
+    }
+  ],
+  "resets": [
+    {
+      "port": "i_reset",
+      "domain": "sys_rst",
+      "polarity": "active_high",
+      "synchronous": true,
+      "release": "Assert synchronously for at least one edge; no transfer accepted during reset."
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "dma.control",
+      "function": "mmio_slave",
+      "protocol": [
+        "wishbone",
+        "pipelined"
+      ],
+      "clock": "core",
+      "reset": "sys_rst",
+      "fields": [
+        {
+          "role": "cyc",
+          "aliases": [
+            "i_swb_cyc"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "stb",
+          "aliases": [
+            "i_swb_stb"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "we",
+          "aliases": [
+            "i_swb_we"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "adr",
+          "aliases": [
+            "i_swb_addr"
+          ],
+          "direction": "input",
+          "width": 2
+        },
+        {
+          "role": "dat_w",
+          "aliases": [
+            "i_swb_data"
+          ],
+          "direction": "input",
+          "width": 32
+        },
+        {
+          "role": "stall",
+          "aliases": [
+            "o_swb_stall"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "ack",
+          "aliases": [
+            "o_swb_ack"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "dat_r",
+          "aliases": [
+            "o_swb_data"
+          ],
+          "direction": "output",
+          "width": 32
+        }
+      ]
+    },
+    {
+      "endpoint_id": "dma.memory",
+      "function": "memory_master",
+      "protocol": [
+        "wishbone",
+        "pipelined"
+      ],
+      "clock": "core",
+      "reset": "sys_rst",
+      "fields": [
+        {
+          "role": "cyc",
+          "aliases": [
+            "o_mwb_cyc"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "stb",
+          "aliases": [
+            "o_mwb_stb"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "we",
+          "aliases": [
+            "o_mwb_we"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "adr",
+          "aliases": [
+            "o_mwb_addr"
+          ],
+          "direction": "output",
+          "width": 30
+        },
+        {
+          "role": "dat_w",
+          "aliases": [
+            "o_mwb_data"
+          ],
+          "direction": "output",
+          "width": 32
+        },
+        {
+          "role": "stall",
+          "aliases": [
+            "i_mwb_stall"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "ack",
+          "aliases": [
+            "i_mwb_ack"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "dat_r",
+          "aliases": [
+            "i_mwb_data"
+          ],
+          "direction": "input",
+          "width": 32
+        },
+        {
+          "role": "err",
+          "aliases": [
+            "i_mwb_err"
+          ],
+          "direction": "input",
+          "width": 1
+        }
+      ]
+    },
+    {
+      "endpoint_id": "dma.interrupt",
+      "function": "interrupt_source",
+      "clock": "core",
+      "reset": "sys_rst",
+      "fields": [
+        {
+          "role": "irq",
+          "aliases": [
+            "o_interrupt"
+          ],
+          "direction": "output",
+          "width": 1
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "address_width": 2,
+    "data_width": 32,
+    "read": true,
+    "write": true,
+    "byte_enable": false,
+    "partial_write": false,
+    "has_error": false,
+    "address_units": "word",
+    "master_address_width": 30,
+    "master_address_units": "word",
+    "master_has_error": true,
+    "master_byte_enable": false,
+    "master_fixed_byte_enable": 15,
+    "wishbone_flavour": "pipelined",
+    "dma_composite_runtime": false,
+    "local_runtime_variant": "wishbone_dma_edge_v1",
+    "source_destination_units": "byte_address_shift_right_2",
+    "master_address_shift": 2,
+    "length_unit": "words",
+    "irq_clear": "none"
+  },
+  "address": {
+    "window_size": 16,
+    "alignment": 16,
+    "registers": [
+      {
+        "name": "CONTROL_STATUS",
+        "offset": 0,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "keyed_start_or_abort"
+      },
+      {
+        "name": "TOTAL_LENGTH",
+        "offset": 4,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "word_count"
+      },
+      {
+        "name": "SOURCE",
+        "offset": 8,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "byte_address_to_master_word_address"
+      },
+      {
+        "name": "DESTINATION",
+        "offset": 12,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "byte_address_to_master_word_address"
+      }
+    ]
+  },
+  "evidence": {
+    "elaboration": "configs/soc/closures/zipcpu_wbdmac.json",
+    "physical_ports": "configs/peripherals/zipcpu_wbdmac/evidence/elaborated_ports.json",
+    "runtime_status": "edge_transport_generated_dma_session_unimplemented",
+    "requires": "Autonomous master session, ledger-backed memory service, shared CPU scheduling and actual DUT transport/transfer tests. Classic CPU/register target adapters are not used."
+  },
+  "port_actions": [
+    {
+      "port": "i_dev_ints",
+      "action": "constant",
+      "value": 0,
+      "reason": "Initial DMA edge environment uses immediate trigger only"
+    }
+  ],
+  "interrupts": [
+    {
+      "endpoint_id": "dma.interrupt",
+      "role": "irq",
+      "polarity": "active_high",
+      "clock_domain": "core",
+      "trigger": "pulse",
+      "hold": "Registered native completion/error pulse from wbdmac.v:378-387; asserted for the last write ACK with cfg_len=1 or a non-idle native master error.",
+      "clear": "Reset clears o_interrupt; each subsequent i_clk edge replaces it with the current completion/error predicate. No software IRQ-clear register.",
+      "pulse_width_cycles": 1
+    }
+  ]
+}

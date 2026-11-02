@@ -1,13 +1,12 @@
 """Real prepared-cache validator and regeneration checkpoint; no RTL authority."""
 from contextlib import nullcontext
 from copy import deepcopy
-from types import SimpleNamespace
 import hashlib
 import pytest
 from myfuzz.local_harness import build
 from myfuzz.local_harness.runtime_artifact import LocalRuntimeArtifact
 from myfuzz.local_harness.renderer import _sha
-from tests.local_harness.test_host_source_reuse_boundaries import tree,write
+from tests.local_harness.test_host_source_reuse_boundaries import tree,write,plan_fixture,profile_fixture
 
 
 class RegenerationReached(Exception):pass
@@ -16,7 +15,7 @@ class RegenerationReached(Exception):pass
 def cached(tree,monkeypatch):
     cpp='int main() {}';rtl='module fixture; endmodule'
     doc=dict(status='driver_generated',driver_status='generated',driver_schema_version='local_driver_generation.v1',cpp_sha256=hashlib.sha256(cpp.encode()).hexdigest(),runtime_sv_sha256=hashlib.sha256(rtl.encode()).hexdigest());doc['artifact_digest']=_sha(doc)
-    artifact=LocalRuntimeArtifact(SimpleNamespace(profile=SimpleNamespace(component_id="fixture")),None,{},rtl,cpp,doc)
+    artifact=LocalRuntimeArtifact(plan_fixture("fixture"),None,{},rtl,cpp,doc)
     snapshots=build._host_sources()
     identity=dict(toolchain={},host_sources=dict(schema_version='local_harness_host_sources.v1',files=[dict(path=n,sha256=hashlib.sha256(raw).hexdigest()) for n,raw in sorted(snapshots.items())]))
     def regenerate(*a,**kw):raise RegenerationReached()
@@ -81,3 +80,78 @@ def test_malformed_private_cached_shapes_are_misses_not_exceptions(tree,monkeypa
     build._PREPARED_CACHE[id(artifact)]=tuple(entry)
     assert build._prepared_if_current(artifact,tree) is None
     with pytest.raises(RegenerationReached):build._prepare(artifact,tree)
+
+
+def test_cached_prepare_reads_scoped_host_callback_once(tree,monkeypatch):
+    """The cache validator owns the freshness read; the prefix only guards hooks."""
+    artifact,identity,snapshots=cached(tree,monkeypatch)
+    with build.host_source_discovery_scope():
+        current=build._HOST_SOURCE_SCOPE.get()
+        calls=[]
+        def counted():
+            calls.append(None)
+            return current()
+        token=build._HOST_SOURCE_SCOPE.set(counted)
+        try:
+            assert build._prepare(artifact,tree)[0]==identity
+            assert len(calls)==1
+        finally:
+            build._HOST_SOURCE_SCOPE.reset(token)
+
+
+@pytest.mark.parametrize('mutation',['same_length_source','probe'])
+def test_prepare_rechecks_scoped_freshness_between_calls(tree,monkeypatch,mutation):
+    import os
+    artifact,identity,snapshots=cached(tree,monkeypatch)
+    with build.host_source_discovery_scope():
+        assert build._prepare(artifact,tree)[0]==identity
+        if mutation=='same_length_source':
+            path=tree/'src/myfuzz/local_harness/wire.py';stat=path.stat()
+            path.write_bytes(b'# edit\n');os.utime(path,ns=(stat.st_atime_ns,stat.st_mtime_ns))
+        else:
+            write(tree,'src/myfuzz/local_harness/timer_session.py','# new optional\n')
+        with pytest.raises(build.LocalHarnessBuildError):
+            build._prepare(artifact,tree)
+
+
+@pytest.mark.parametrize('stage',['verify','render'])
+@pytest.mark.parametrize('mutation',['content','probe','root'])
+def test_cold_prepare_initializes_scope_before_verification_and_render(tree,monkeypatch,stage,mutation):
+    """A lazy scope must pin pre-verification bytes until the final host read."""
+    import json
+    from types import SimpleNamespace as NS
+    cpp='int main() {}';rtl='module fixture; endmodule'
+    profile=b'{}';write(tree,'fixture.json',profile.decode())
+    evidence=b'{"closure_files":[]}'
+    write(tree,'closure.json',evidence.decode())
+    lock=json.dumps({'components':[{'id':'fixture','elaboration':{'evidence':'closure.json','evidence_sha256':build._digest(evidence)}}]}).encode()
+    write(tree,'configs/soc/sources.lock.json',lock.decode())
+    verified={'lock_sha256':build._digest(lock)}
+    doc=dict(status='driver_generated',driver_status='generated',driver_schema_version='local_driver_generation.v1',
+        cpp_sha256=build._digest(cpp.encode()),runtime_sv_sha256=build._digest(rtl.encode()),
+        adapter_sources=[],driver_header_sources=[],driver_reset={},driver_limits={},driver_field_map={},module_name='fixture')
+    doc['artifact_digest']=_sha(doc)
+    structural=NS(wrapper_sv='',build_document={'include_roots':[],'defines':[],'source_files':[]})
+    plan=NS(profile=profile_fixture('fixture'),request=NS(profile_path='fixture.json'),profile_sha256=build._digest(profile))
+    artifact=LocalRuntimeArtifact(plan,structural,verified,rtl,cpp,doc)
+    baseline=NS(runtime_sv=rtl,runtime_document={k:v for k,v in doc.items() if k not in build._DRIVER_KEYS})
+    def mutate():
+        if mutation=='content':write(tree,'src/myfuzz/local_harness/wire.py','# edit\n')
+        elif mutation=='root':monkeypatch.setattr(build,'_IMPLEMENTATION_ROOT',tree/'other')
+        else:write(tree,'src/myfuzz/local_harness/timer_session.py','# new optional\n')
+    def verify(*args,**kwargs):
+        if stage=='verify':mutate()
+        return verified
+    def render(*args,**kwargs):
+        if stage=='render':mutate()
+        return baseline
+    monkeypatch.setattr(build,'_PREPARED_CACHE',{})
+    monkeypatch.setattr(build,'verify_local_source_lock',verify)
+    monkeypatch.setattr(build,'render_local_runtime',render)
+    monkeypatch.setattr(build,'_driver_shape',lambda *args:None)
+    monkeypatch.setattr(build,'_verify_generated_driver',lambda *args:None)
+    monkeypatch.setattr(build,'_REQUIRED_HEADERS',())
+    monkeypatch.setattr(build,'_toolchain',lambda:{key:{'path':'fixture-tool'} for key in ('verilator','cxx','make','ar')})
+    with build.host_source_discovery_scope():
+        with pytest.raises(build.LocalHarnessBuildError,match='host-source-(content|probe|root)-drift'):
+            build._prepare(artifact,tree)

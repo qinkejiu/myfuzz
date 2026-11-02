@@ -1,0 +1,39 @@
+{
+  "schema_version": "irq_group_native_config.v1",
+  "purpose": "Two declared-output IRQ targets in one real host OR group must be jointly active at the single native CPU take, which the shared observer refuses as ambiguous with zero credit.",
+  "case_note": "ZipTimer o_int (Wishbone) and PULP SPI events_o (APB3) are the two real members of one OR group. The fixed case program clears mstatus.MIE, writes COUNT(0x0)=8 and INTCFG(0x24)=0x80000000 in that order (real CPU stores, the same working values as declared-irq-f5-wb-timer and declared-irq-f5-apb-spi), sets mstatus.MIE and parks. The timer counts down from 8 and pulses ~6 CPU ticks after its write; the SPI event pulses ~1 tick after its write, so both host pulses are high at the enable. The observed member is the timer: the fixed ISR reads COUNT(0x0), which has no side effect, so the read cannot re-fire the SPI event (the SPI INTSTA read re-arms and re-pulses, which is why the SPI observed case keeps the proven F5 width). pulse_width_ticks=22 leaves ~13 ticks between the enable and the first pulse's end (measured per-word spacing of the fixed program) and still expires well before the real MRET (the F5 handler returns 46-47 CPU ticks after the take).",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "expected_attribution": "joint",
+  "mie_gate": true,
+  "group_id": "declared-irq-group-wb-timer-apb-spi",
+  "observed_source_id": "wb_timer",
+  "sources": [
+    {
+      "id": "wb_timer",
+      "request": "configs/peripherals/zipcpu_timer_irq/request.json",
+      "base": 1073745920,
+      "source_port": "o_int",
+      "source_bit_offset": 0,
+      "pulse_width_ticks": 22
+    },
+    {
+      "id": "spi",
+      "request": "configs/peripherals/pulp_spi_irq/request.json",
+      "base": 1073750016,
+      "source_port": "events_o",
+      "source_bit_offset": 0,
+      "pulse_width_ticks": 22
+    }
+  ],
+  "trigger_writes": [
+    ["wb_timer", 0, 8],
+    ["spi", 36, 2147483648]
+  ],
+  "status_offsets": [0],
+  "status_registers": ["COUNT"],
+  "clear_writes": [],
+  "status_cause_bits": null,
+  "image_start": 65536,
+  "image_end": 196608,
+  "result_address": 68672
+}

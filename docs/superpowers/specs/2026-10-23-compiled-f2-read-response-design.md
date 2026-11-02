@@ -1,9 +1,13 @@
 # Compiled F2 CPU load and native IP read response
 
-Status: approved by user continuation on2026-10-23; implementation in progress.
-No software/native acceptance is claimed for F2. The preceding selected
-F4 build/process identity slice remains accepted against its own frozen inputs:
-[report](../../reports/compiled-f4-built-identity-20261022.md).
+Status,2026-10-24: approved by user continuation on2026-10-23 and implemented.
+The bounded file-entry F2/F4 slice has its own accepted2098-input gate cohort:
+[report](../../reports/f2-f4-current-acceptance-20261023.md). The unified F2
+RFuzz supplement completed its final21916-input freeze3 cohort:all ten
+software/native/positive/rename/refusal/F4-compatibility gates independently
+accepted,with final Spec/source and Quality PASS:
+[unified-entry report](../../reports/compiled-f2-rfuzz-entry-20261023.md).
+These results do not grant unrestricted same-protocol or system acceptance.
 
 ## Goal and bounded scope
 

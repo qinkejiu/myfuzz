@@ -364,3 +364,40 @@ def test_grouped_binding_origin_refs_map_each_target_bit_exactly():
         assert len(resource['origin_refs'])==1
         assert resource['origin_refs'][0]['bit']==offset
         assert resource['origin_refs'][0]['version']==refs[offset]['version']
+
+
+def test_current_only_output_sampling_preserves_versions_and_default_overflow():
+    retained=GpioConsumptionTracker()
+    current=GpioConsumptionTracker(retain_output_history=False)
+    for n in range(1,130):
+        actual=current.consume(tick(n))
+        expected=retained.consume(tick(n))
+        assert current._states['gpio']['version']==retained._states['gpio']['version']
+        assert current._states['gpio']['output_current']==retained._states['gpio']['output_current']
+        if n<=128:
+            assert actual==expected
+        else:
+            assert any(e.get('reason')=='gpio_evidence_capacity_exceeded' for e in expected)
+            assert events(actual,'gpio_input_sample')[0]['status']=='observed'
+    for n in range(130,301):
+        assert events(current.consume(tick(n)),'gpio_input_sample')[0]['status']=='observed'
+    assert current._output_cache=={}
+    assert current.output_resources_at('gpio',0,129)==[]
+    assert current._states['gpio']['output_current']
+    assert not current._states['gpio']['degraded']
+
+
+def test_current_only_mode_does_not_disable_other_capacity_checks():
+    t=GpioConsumptionTracker(max_completed_accesses=1,retain_output_history=False)
+    t.consume(access())
+    out=t.consume(access(2,value=1,old=1,new=1))
+    assert any(e.get('reason')=='gpio_evidence_capacity_exceeded' for e in out)
+    assert t._states['gpio']['degraded']
+    assert t.output_resources_at('gpio',0,1)==[]
+
+
+def test_retain_output_history_requires_boolean():
+    import pytest
+    for value in (0,1,None,'false'):
+        with pytest.raises(ValueError):
+            GpioConsumptionTracker(retain_output_history=value)

@@ -53,7 +53,7 @@ class F2ReadProducerBinding:
 
     @property
     def row(self):
-        return 'generic_apb_storage_read_abi'
+        return self.document()['row']
 
 
 def select_f2_read_producer(*,artifacts,compiled_inputs,base_dir=None):
@@ -70,6 +70,13 @@ def select_f2_read_producer(*,artifacts,compiled_inputs,base_dir=None):
     if not isinstance(artifact,LocalRuntimeArtifact) or base_dir is None:
         raise ValueError('compiled-F2-producer-source-inputs-required')
     doc=artifact.runtime_document
+    if doc.get('kind') == 'apb_gpio':
+        from .gpio_f2_consumer import gpio_read_producer_document
+        document = gpio_read_producer_document(artifact=artifact, access=access,
+            contract=contract, layout=layout, compiled=compiled_inputs['compiled'], base_dir=base_dir)
+        binding = F2ReadProducerBinding(_json(document))
+        _BINDINGS[binding] = binding.document_json
+        return binding
     if (doc.get('kind')!='apb3_register_observe' or doc.get('dynamic_physical_inputs')
             or doc.get('bound_physical_inputs') or verify_apb_register_trace(artifact) is not True):
         raise ValueError('compiled-F2-producer-observation-contract-mismatch')
@@ -106,6 +113,18 @@ def build_f2_read_producer(binding,*,artifact,base_dir,cache_dir,max_cases):
     if type(binding) is not F2ReadProducerBinding or _BINDINGS.get(binding)!=binding.document_json:
         raise ValueError('compiled-F2-producer-binding-required')
     doc=binding.document()
+    if doc.get('row') == 'gpio_causal_read_abi':
+        from .gpio_f2_consumer import GeneratedPulpGpioSession, GpioRegisterVersionAuthority, check_gpio_read_observation
+        if (not isinstance(artifact, LocalRuntimeArtifact)
+                or artifact.runtime_document['artifact_digest'] != doc['target_artifact_digest']
+                or _module_source(GpioRegisterVersionAuthority) != doc['producer']['issuer_source_sha256']
+                or _module_source(GeneratedPulpGpioSession) != doc['producer']['session_source_sha256']
+                or _module_source(check_gpio_read_observation) != doc['producer']['consumer_source_sha256']):
+            raise ValueError('compiled-F2-producer-binding-mismatch')
+        if type(max_cases) is not int or not 1 <= max_cases <= 65528:
+            raise ValueError('compiled-F2-producer-budget-invalid')
+        target = GeneratedPulpGpioSession(artifact, base_dir=base_dir, cache_dir=cache_dir)
+        return target, GpioRegisterVersionAuthority(target, max_writes=max_cases+8, max_tokens=16)
     if (not isinstance(artifact,LocalRuntimeArtifact)
             or artifact.runtime_document['artifact_digest']!=doc['target_artifact_digest']
             or _module_source(ApbStorageRegisterVersionAuthority)!=doc['producer']['issuer_source_sha256']
@@ -140,6 +159,9 @@ def _authority(authority):
 
 
 def capture_f2_read_version(authority,*,register,reset_epoch):
+    from .gpio_f2_consumer import GpioRegisterVersionAuthority, capture_gpio_read_version
+    if type(authority) is GpioRegisterVersionAuthority:
+        return capture_gpio_read_version(authority, register=register, reset_epoch=reset_epoch)
     _authority(authority)
     witness=authority.consume(authority.issue(register=register,reset_epoch=reset_epoch))
     if set(witness)!=WITNESS_KEYS or witness['grants_reset_prerequisite'] is not False:
@@ -151,6 +173,11 @@ def capture_f2_read_version(authority,*,register,reset_epoch):
 
 def check_f2_read_observation(declaration,receipt,*,target_artifact,authority,token,
         before,register,reset_epoch,prior_writes):
+    from .gpio_f2_consumer import GpioRegisterVersionAuthority, check_gpio_read_observation
+    if type(authority) is GpioRegisterVersionAuthority:
+        return check_gpio_read_observation(declaration, receipt, target_artifact=target_artifact,
+            authority=authority, token=token, before=before, register=register,
+            reset_epoch=reset_epoch, prior_writes=prior_writes)
     _authority(authority)
     if type(before) is not F2ReadVersion or before not in _BEFORE or _BEFORE[before][0] is not authority:
         raise ValueError('compiled-F2-read-live-before-required')
@@ -235,3 +262,11 @@ def check_f2_read_observation(declaration,receipt,*,target_artifact,authority,to
 _AUTHORITY_CLASS=ApbStorageRegisterVersionAuthority
 _ISSUE=ApbStorageRegisterVersionAuthority.issue.__code__
 _CONSUME=ApbStorageRegisterVersionAuthority.consume.__code__
+
+
+def stable_f2_read_version(witness):
+    from .gpio_f2_consumer import VERSION_SCHEMA, stable_gpio_read_version
+    if type(witness) is dict and witness.get('schema_version') == VERSION_SCHEMA:
+        return stable_gpio_read_version(witness)
+    from .generated_storage_consumer import stable_storage_version
+    return stable_storage_version(witness)

@@ -223,7 +223,7 @@ P4 与 P5 可在契约冻结后独立开发；P2 不与同文件行为修改并�
 
 ## P16：收口、回归与剩余文件整理
 
-**Files:** 更新 `README.md`、`QUICKSTART.md`、`docs/README.md`、`docs/PROJECT_GOALS.md`、`docs/REPOSITORY_ORGANIZATION.md`、`docs/ALL_TEST_RESULTS_MASTER.md`；新增 `docs/reports/soc-acceptance-20260914.md`（实际晚于该日期时按实际日期命名）。
+**Files:** 更新 `README.md`、`QUICKSTART.md`、`docs/README.md`、`docs/PROJECT_GOALS.md`、`docs/REPOSITORY_ORGANIZATION.md`、`docs/history/experiments/ALL_TEST_RESULTS_MASTER.md`；新增 `docs/reports/soc-acceptance-20260914.md`（实际晚于该日期时按实际日期命名）。
 
 - [ ] 在新功能冻结后运行 composition/protocol/integration 定向及全量 `PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_*.py'`；分别报告 pass/skip 与真实配置验收。
 - [ ] 审查旧入口兼容、名称无关性、唯一驱动、内存/IRQ 真值来源、CPU burst/宽度限制、迟到响应、覆盖类型和 replay 身份。

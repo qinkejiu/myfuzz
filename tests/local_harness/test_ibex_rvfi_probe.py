@@ -18,6 +18,10 @@ class IbexRvfiProfileTests(unittest.TestCase):
         verified = verify_local_source_lock(plan.profile, base_dir=ROOT)
         artifact = render_local_runtime(plan, render_local_harness(plan), verified, base_dir=ROOT)
         self.assertEqual(44, len([r for r in artifact.runtime_document['physical_exports'] if r['physical_port'].startswith('rvfi_')]))
+        from myfuzz.local_harness.cpu_session import rvfi_observation_contract
+        contract = rvfi_observation_contract(artifact)
+        self.assertEqual(44, len(contract['fields']))
+        self.assertEqual('ibex_rvfi_observation.v1', contract['schema_version'])
         self.assertIn('u_component.u_dut.u_ibex.u_ibex_core', artifact.runtime_sv)
 
 from types import SimpleNamespace
@@ -34,6 +38,7 @@ class IbexRetirementTransportTests(unittest.TestCase):
                  'rvfi_halt':1,'rvfi_mode':2,'rvfi_ixl':2,'rvfi_pc_rdata':32,'rvfi_pc_wdata':32,
                  'rvfi_mem_addr':32,'rvfi_mem_rmask':4,'rvfi_mem_wmask':4,
                  'rvfi_mem_rdata':32,'rvfi_mem_wdata':32}
+        self.cpu._rvfi_contract = dict(schema_version='ibex_rvfi_observation.v1', sampling_edge='post_rising', fields=names)
         self.cpu._artifact_document['physical_exports'] = [dict(runtime_name=n,physical_port=n,width=w,direction='output',bit_lo=0,hex_digits=(w+3)//4) for n,w in names.items()]
     def step(self, observed=None, rvfi=None):
         def receipt(op, fields):

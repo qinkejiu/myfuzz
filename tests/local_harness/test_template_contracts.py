@@ -36,18 +36,25 @@ def native():
 class TemplateContractTests(unittest.TestCase):
     def test_inventory_versioned_frozen_and_no_runtime_claim(self):
         contracts = registry().list_template_contracts()
-        # Fourteen contracts: nine CPU-side and five target-side.  The target
-        # AXI4-Lite contract is the slave counterpart of ``cpu.axi4-lite`` and
-        # is the only one whose request spans two independently handshaken
-        # channels, so it is a separate shape rather than a CPU-side reuse.
-        # The two newest entries are the intentional inventory change this
-        # repository's real TileLink 1.0 declaration requires:
-        # ``cpu.tilelink``/``declared-four-role`` and
-        # ``cpu.tilelink``/``declared-five-role-write-capable`` mirror the role
-        # vocabulary of configs/cpus/boom/interface_description.json
-        # (``cpu.instruction_memory`` and ``cpu.data_memory``, protocol
-        # ``["tilelink","1"]``).  They are CPU-side entries and are not
-        # ``target.tl-ul``, which is the TileLink-UL peripheral target contract.
+        # The inventory started at fourteen contracts: nine CPU-side and five
+        # target-side.  The target AXI4-Lite contract is the slave counterpart of
+        # ``cpu.axi4-lite`` and is the only one whose request spans two
+        # independently handshaken channels, so it is a separate shape rather
+        # than a CPU-side reuse.
+        #
+        # The two historical abstract TileLink variants
+        # (``cpu.tilelink``/``declared-four-role`` and
+        # ``cpu.tilelink``/``declared-five-role-write-capable``, protocol
+        # ``["tilelink","1"]``) were **deleted**: they were written for the split
+        # ``cpu.instruction_memory``/``cpu.data_memory`` endpoints that
+        # configs/cpus/boom/interface_description.json used to declare, and that
+        # file now declares one shared coherent boundary (``cpu.coherent_memory``,
+        # 39 A/B/C/D/E roles, protocol ``["tilelink-coherent","1"]``), so no
+        # declaration carries their shape any more.  Nothing selected them by
+        # template_id either; keeping them only left two permanently
+        # unselectable rows in the inventory.  The fail-closed assertion that
+        # these ids are absent lives in
+        # tests/local_harness/test_tilelink_cpu_contract.py.
         #
         # 17 = 14 + the two OBI variants without bus-error pins (2026-10-13,
         # derived from the pinned CV32E40P core, which has no instr_err_i/
@@ -56,7 +63,18 @@ class TemplateContractTests(unittest.TestCase):
         # 19 = the above 17 plus separate pipelined Wishbone target/master
         # DMA edge contracts. The autonomous master is not a CPU contract.
         # 20 adds AHB-Lite target; 22 adds reduced AXI fetch/data contracts.
-        self.assertEqual(len(contracts), 22)
+        # 25 = 22 + the explicitly selected pipelined Wishbone DMA edge pair
+        # (``target``/``master`` ``dma-selected``, commit 0093b7c) + the real
+        # TileLink coherent CPU-side client
+        # (``cpu.tilelink-coherent``/``coherent-ab-cd-e-single-outstanding``,
+        # BOOM Phase A): its 39 required roles are the A/B/C/D/E roles of the
+        # bundled ``tilelink-coherent@1`` plugin
+        # (src/myfuzz/protocols/plugins/tilelink-coherent.json), which is what
+        # the pinned BOOM derived top declares at ``cpu.coherent_memory``
+        # (configs/cpus/boom/interface_description.json, commit 941d9be).
+        # 23 = 25 - the two dead abstract ``cpu.tilelink`` variants deleted
+        # above (13 CPU-side + 8 target-side + 2 autonomous master-side).
+        self.assertEqual(len(contracts), 23)
         ids = [(c.template_id,c.template_version,c.variant_id) for c in contracts]
         self.assertEqual(len(ids),len(set(ids)))
         for contract in contracts:

@@ -2,6 +2,8 @@
 
 Exact source bytes select a reviewed contract. This is not arbitrary RTL
 inference, a verified generated hierarchy, or a register-version issuer.
+Adding a source means adding one reviewed document here and its fixtures; the
+matching algorithm and every consumer remain source-name-agnostic.
 """
 from __future__ import annotations
 
@@ -17,6 +19,12 @@ _REVISION = 'git:03eba2e6965f5363df12621882bc70498c551a73'
 _SOURCES = (
     ('src/apb_timer.sv', '22dce4e3ff8328bdd6e1621c20e2877e7f44cfecccc07203d09e994632cc1778'),
     ('src/timer.sv', 'd352fc4476da83658d361e8f500b5a73f857f0a11e9436ab47d5bf0ba0bc7fce'),
+)
+_GPIO_ID = 'pulp-apb-gpio.paddir.source.v1'
+_GPIO_ROOT = 'third_party/soc-pulp-apb-gpio'
+_GPIO_REVISION = 'git:f82caeb7f7d89427f05e9af5ed31e0675efe0d83'
+_GPIO_SOURCES = (
+    ('rtl/apb_gpio.sv', '1e271914da4d25c87acd12121dde60a6ed955033870fd7a6730b2c9bafcbcaef'),
 )
 _SPI_ID = 'pulp-apb-spi.spicmd.source.v1'
 _SPI_SOURCES = (
@@ -147,8 +155,68 @@ def _spi_registered_document():
     return doc
 
 
+def _gpio_registered_document():
+    # PADDIR has exactly two writers at PAD_NUM=32: asynchronous reset and a
+    # selected full-word APB write.  PADOUT/PADOUTSET/PADOUTCLR write
+    # r_gpio_out, and the upper-bank PADDIR_32_63 decode only sets
+    # s_write_dir[63:32], which the i < PAD_NUM commit loop never stores.
+    doc = dict(
+        schema_version='apb_storage_source_contract.v1', contract_id=_GPIO_ID,
+        scope='source_reviewed_contract', authority=False, source_authority=False,
+        native_verified=False, hierarchy_verified=False, reset_authority=False,
+        version_authority=False,
+        source=dict(root=_GPIO_ROOT, revision=_GPIO_REVISION,
+            top_module='apb_gpio', files=dict(_GPIO_SOURCES),
+            include_roots=[], defines={},
+            identity_basis='declared_pinned_revision_and_exact_reviewed_bytes_not_new_git_or_elaboration_verification'),
+        parameters=dict(APB_ADDR_WIDTH=12, PAD_NUM=32, NBIT_PADCFG=4),
+        register=dict(name='PADDIR', canonical_offset=0, width=32,
+            reset_value=0, write_mask=0xffffffff, read_mask=0xffffffff),
+        clock=dict(port='HCLK', edge='posedge'),
+        reset=dict(port='HRESETn', polarity='active_low', synchronous=False,
+            event='negedge HRESETn or asserted at posedge HCLK'),
+        decode=dict(address_width=12, mask=0x7c, value=0,
+            expression="PADDR[6:2] == 5'b00000",
+            top_select='s_apb_addr = PADDR[6:2]',
+            child_select='5-bit s_apb_addr case; REG_PADDIR_00_31 = 5\'b00000',
+            ignored_address_bits=[0, 1, 7, 8, 9, 10, 11],
+            alias_period_bytes=128, raw_address_alias_count=128,
+            aligned_word_alias_count=32, host_alignment_bytes=4,
+            host_alignment_scope='separate_transport_rule_not_raw_storage_decode'),
+        storage_expression=dict(
+            expression='u_component.u_dut.r_gpio_dir',
+            status='prospective_not_codegen_or_native_verified',
+            relative_source_storage='r_gpio_dir',
+            required_followup='verify_actual_elaborated_hierarchy_and_read_only_pre_post_probe_wiring'),
+        writers=dict(complete_for_registered_source=True,
+            scope='selected_PADDIR_storage_lower_32_pads_only_not_all_gpio_state',
+            hold='r_gpio_dir retains its value outside reset and selected PADDIR_00_31 writes',
+            reset="if !HRESETn: r_gpio_dir[i] <= 1'b0 for i < PAD_NUM",
+            bus_write='if PSEL && PENABLE && PWRITE && s_apb_addr==REG_PADDIR_00_31: r_gpio_dir[31:0] <= PWDATA',
+            commit='at posedge HCLK when HRESETn: selected full-word overwrite or hold',
+            read='if PSEL && PENABLE && !PWRITE && s_apb_addr==REG_PADDIR_00_31: PRDATA = r_gpio_dir; bits >= PAD_NUM read 0; combinational',
+            priority=['asynchronous_asserted_reset', 'selected_full_word_overwrite', 'hold'],
+            autonomous_ctrl_writers=[],
+            all_alias_writes='every raw decode match writes the same storage, including ignored low bits',
+            other_state='PADOUT/PADOUTSET/PADOUTCLR write r_gpio_out; PADIN/PADCFG/GPIOEN/INTEN/INTTYPE/INTSTATUS and PADDIR_32_63 write other state or no lower-bank storage; none write r_gpio_dir[31:0]',
+            ready_error='PREADY=1, PSLVERR=0; no error generation claim'),
+        source_review=[
+            dict(file='rtl/apb_gpio.sv',
+                lines=[[11, 11], [26, 26], [121, 121], [209, 233],
+                       [274, 286], [526, 536], [781, 784]],
+                fact='PADDR[6:2] decode, REG_PADDIR_00_31 full-word write and complete reset/commit of r_gpio_dir, combinational PADDIR read mux, and constant PREADY/PSLVERR')],
+        not_claimed=['arbitrary_RTL_inference', 'native_hierarchy', 'generated_probe',
+            'build_process_eligibility', 'reset_observation', 'live_register_version',
+            'serialized_authority', 'complete_F4', 'P7', 'PADOUT', 'PADOUTSET',
+            'PADOUTCLR', 'PADIN', 'PADCFG_0_to_3', 'GPIOEN', 'INTEN',
+            'INTTYPE_LOW_HIGH', 'INTSTATUS', 'gpio_interrupt', 'gpio_pins',
+            'error_generation', 'upper_32_pads_at_other_PAD_NUM', 'other_registers'])
+    doc['digest'] = hashlib.sha256(_json(doc).encode()).hexdigest()
+    return doc
+
+
 def registered_apb_storage_source_contracts():
-    return (_ID, _SPI_ID)
+    return (_ID, _SPI_ID, _GPIO_ID)
 
 
 def _verify_profile(profile, document):
@@ -179,6 +247,14 @@ def _verify_profile(profile, document):
         if (len(endpoints) != 1 or endpoints[0] != EndpointSpec(
                 endpoint_id=endpoints[0].endpoint_id, function='mmio_slave', protocol=('apb', '3'),
                 fields=tuple(ProfileField(role=r, aliases=(r.upper(),)) for r in roles))):
+            raise ValueError('apb-storage-endpoint-mismatch')
+    if document['contract_id'] == _GPIO_ID:
+        endpoints = [e for e in profile.endpoints if e.protocol is not None]
+        roles = ('paddr', 'psel', 'penable', 'pwrite', 'pwdata', 'pready', 'prdata', 'pslverr')
+        if (len(endpoints) != 1
+                or endpoints[0].function != 'mmio_slave'
+                or tuple(endpoints[0].protocol) != ('apb', '3')
+                or tuple(field.role for field in endpoints[0].fields) != roles):
             raise ValueError('apb-storage-endpoint-mismatch')
     if any(type(profile.capabilities.get(k)) is not int or profile.capabilities[k] != v
            for k, v in (('address_width', 12), ('data_width', 32))):
@@ -218,7 +294,8 @@ def select_apb_storage_source_contract(profile, *, base_dir, selection):
     if (type(selection) is not dict or set(selection) != {'contract_id', 'register'}
             or type(selection['contract_id']) is not str or type(selection['register']) is not str):
         raise ValueError('apb-storage-selection-unsupported')
-    for factory in (_registered_document, _spi_registered_document):
+    for factory in (_registered_document, _spi_registered_document,
+                    _gpio_registered_document):
         document = factory()
         if (selection['contract_id'] == document['contract_id']
                 and selection['register'] == document['register']['name']):
@@ -233,7 +310,8 @@ def _require_registered_document(document):
         serialized = _json(document)
     except (TypeError, ValueError) as error:
         raise ValueError('apb-storage-contract-mismatch') from error
-    for factory in (_registered_document, _spi_registered_document):
+    for factory in (_registered_document, _spi_registered_document,
+                    _gpio_registered_document):
         expected = factory()
         if serialized == _json(expected):
             return expected

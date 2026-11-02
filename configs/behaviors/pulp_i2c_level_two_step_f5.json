@@ -1,0 +1,26 @@
+{
+  "schema_version": "inprocess_source_behavior.v1",
+  "description": "PULP apb_i2c level interrupt with the device's two-write acknowledge protocol. Trigger: CTRL=core_en|ien, TX=0x5a, CMD=0x10 starts the byte transfer; irq_flag is STATUS[0]. Clear (declared by the scenario's ordered irq_clear_sequence, because this increment's executor owns the sequence and the behavior schema's host capability is still one step): third_party/soc-pulp-apb-i2c/apb_i2c.sv:128 `wire iack = r_cmd[0];` is the held register bit and apb_i2c.sv:189-193 `irq_flag <= (s_done | i2c_al | irq_flag) & ~iack;` clears the flag on the first write (CMD=1), after which interrupt_o = irq_flag && s_ien drops; the second write CMD=0 releases the held iack so the peripheral is not left masking every later s_done.",
+  "source_port": "interrupt_o",
+  "source_bit_offset": 0,
+  "trigger_writes": [
+    [
+      4,
+      192
+    ],
+    [
+      16,
+      90
+    ],
+    [
+      20,
+      16
+    ]
+  ],
+  "status_offsets": [
+    12
+  ],
+  "status_cause_bits": [
+    0
+  ]
+}

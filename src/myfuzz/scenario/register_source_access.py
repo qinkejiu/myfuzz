@@ -63,7 +63,26 @@ def validate_register_candidate(request,compiled,*,source_id,source_component,
     if write and value&~access['value_mask']:
         raise ValueError('register-candidate-reserved-value-bits')
     if write and access['value_mask']!=0xffffffff:
-        raise ValueError('register-candidate-masked-merge-policy-undeclared')
+        capability=request.component(target_component).capability
+        fields=[f for f in capability.register_semantics
+                if (f.register,f.field)==(access['register'],access['field'])]
+        if (len(fields)!=1 or fields[0].write_policy!='full_word_reserved_zero'
+                or fields[0].lsb!=0 or fields[0].width!=32
+                or fields[0].read_mask!=fields[0].write_mask):
+            raise ValueError('register-candidate-masked-merge-policy-undeclared')
+        # The declared policy authorizes this exact full-word value: every
+        # non-fuzzable bit is zero (already checked above against value_mask).
+        # There is no host merge and no host register read.
+        profile=request.component(target_component).profile
+        registers=([r for r in profile.address.registers if r.name==access['register']]
+                   if profile.address is not None else [])
+        # The write's real side effect is an independent dimension: it must be
+        # the declared one, and it is recorded rather than assumed to be 'none'
+        # and never inferred from the masked write policy.
+        if (len(registers)!=1
+                or registers[0].side_effect!=fields[0].side_effect):
+            raise ValueError('register-candidate-masked-write-side-effect-mismatch')
+
     return dict(schema_version='validated_register_candidate.v1',validated=True,
         runtime_admitted=False,source_id=source_id,access=deepcopy(access),
         value=value,byte_enable=byte_enable,

@@ -1,0 +1,118 @@
+{
+  "schema_version": "inprocess_ip_only.v1",
+  "name": "p2-ip-only-opentitan-rv-timer-tlul",
+  "description": "One OpenTitan Earlgrey rv_timer target model behind the real beat_to_tlul register kernel, no CPU and no DMA. Every case line states the A-channel handshake (opcode/address/mask/data) the request was accepted on and the D-channel response (data/error) the transfer completed on, both sampled from the target's own taps. Expectations are the RTL's own register facts: INTR_STATE0 is rw1c and INTR_TEST0 pulses it, CTRL bit 0 is the timer-active bit, CFG0 resets to step=1/prescale=0 (0x00010000), and writing a compare register clears INTR_STATE0 through mtimecmp_update.",
+  "source_profile": "configs/peripherals/opentitan_rv_timer_local/component_profile.json",
+  "active_id": "tlultimer_target",
+  "source_timing": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "max_wait_cycles": 16
+  },
+  "target_window": {
+    "base": 1073754112,
+    "size": 4096
+  },
+  "case_tick_budget": 256,
+  "fuzz": {
+    "wait_every": 8
+  },
+  "sequence": {
+    "loops": 1
+  },
+  "transactions": [
+    {
+      "op": "read",
+      "offset": "0x104",
+      "expect_rdata": "0x00000000",
+      "expect_error": 0,
+      "note": "INTR_STATE0 after reset: no interrupt is latched"
+    },
+    {
+      "op": "write",
+      "offset": "0x108",
+      "value": "0x00000001",
+      "note": "INTR_TEST0 bit 0 pulses the timer interrupt through prim_intr_hw"
+    },
+    {
+      "op": "read",
+      "offset": "0x104",
+      "expect_rdata": "0x00000001",
+      "expect_error": 0,
+      "note": "the pulsed interrupt is latched in INTR_STATE0"
+    },
+    {
+      "op": "write",
+      "offset": "0x104",
+      "value": "0x00000001",
+      "note": "rw1c: writing the latched bit back clears it"
+    },
+    {
+      "op": "read",
+      "offset": "0x104",
+      "expect_rdata": "0x00000000",
+      "expect_error": 0
+    },
+    {
+      "op": "read",
+      "offset": "0x10c",
+      "expect_rdata": "0x00010000",
+      "expect_error": 0,
+      "note": "CFG0 reset value: step=1 (bits 23:16) with prescale=0 (bits 11:0)"
+    },
+    {
+      "op": "write",
+      "offset": "0x004",
+      "value": "0x00000001",
+      "note": "CTRL bit 0 makes timer 0 active"
+    },
+    {
+      "op": "read",
+      "offset": "0x004",
+      "expect_rdata": "0x00000001",
+      "expect_error": 0
+    },
+    {
+      "op": "read",
+      "offset": "0x110",
+      "expect_error": 0,
+      "note": "TIMER_V_LOWER0 while the timer is active: mtime advances on every tick step=1, so this word is recorded as the observed count (the first run of this batch declared 0x00000000 here and the device answered 0x00000007 - a real, undeclared advance, kept in runs/p2-ip-only-20261103/tlul-declared-mismatch)"
+    },
+    {
+      "op": "wait",
+      "ticks": 8,
+      "note": "the active timer ticks every cycle with prescale 0 and advances mtime by step=1"
+    },
+    {
+      "op": "read",
+      "offset": "0x110",
+      "expect_error": 0,
+      "note": "TIMER_V_LOWER0 after the wait: the device really advanced, the word is recorded without pinning it to a cycle-exact value"
+    },
+    {
+      "op": "write",
+      "offset": "0x118",
+      "value": "0x00000005",
+      "note": "COMPARE_LOWER0_0 = 5; writing a compare register clears INTR_STATE0 through mtimecmp_update"
+    },
+    {
+      "op": "read",
+      "offset": "0x104",
+      "expect_rdata": "0x00000000",
+      "expect_error": 0
+    },
+    {
+      "op": "read",
+      "offset": "0x118",
+      "expect_rdata": "0x00000005",
+      "expect_error": 0,
+      "note": "the compare register returns the word that was written"
+    },
+    {
+      "op": "write",
+      "offset": "0x004",
+      "value": "0x00000000",
+      "note": "disable the timer so the declared sequence ends from a known state"
+    }
+  ]
+}

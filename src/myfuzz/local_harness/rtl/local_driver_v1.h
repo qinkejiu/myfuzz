@@ -160,6 +160,7 @@ inline ParseResult parse_command(const std::string &line,
   }
   result.command.operation = tokens[3];
   constexpr std::uint64_t word = 0xffffffffULL;
+  constexpr std::uint64_t dword = 0xffffffffffffffffULL;
   std::vector<std::uint64_t> maxima;
   if (tokens[3] == "STEP_CPU") maxima = {1, 1, 1, word, 1, 1, 1, word, 1};
   else if (tokens[3] == "STEP_AXI4") {
@@ -182,9 +183,15 @@ inline ParseResult parse_command(const std::string &line,
               std::numeric_limits<std::uint64_t>::max()};
   }
   else if (tokens[3] == "STEP_WB_DMA") maxima = {1, 1, 1, 3, word, 1, 1, word, 1};
+  else if (tokens[3] == "STEP_WB_DMA_SEL") maxima = {1, 1, 1, 3, word, 15, 1, 1, word, 1};
+  else if (tokens[3] == "STEP_WB_DMA_WIDE") maxima = {1, 1, 1, word, word, 1, 1, word, 1};
+  else if (tokens[3] == "STEP_WB_DMA_SEL_WIDE") maxima = {1, 1, 1, word, word, 15, 1, 1, word, 1};
   else if (tokens[3] == "STEP_WISHBONE") maxima = {1, word};
   else if (tokens[3] == "STEP_WISHBONE_IRQ") maxima = {1, word, word};
   else if (tokens[3] == "STEP_MEMORY") maxima = {1, 1, word, 1};
+  // The coherent TileLink client's backend beat is one 8-byte word, so the
+  // response field is 64 bits wide rather than the 32-bit `word` above.
+  else if (tokens[3] == "STEP_TL_COHERENT") maxima = {1, 1, dword, 1};
   else if (command_set == CommandSet::AhbStartup && tokens[3] == "READ_AHB_STARTUP") maxima = {63};
   else if (command_set == CommandSet::ApbStorageStartup && tokens[3] == "READ_APB_STORAGE_STARTUP") maxima = {63};
   else if (tokens[3] == "STEP_RVX_MEMORY") maxima = {1, 1, word};

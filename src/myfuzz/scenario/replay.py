@@ -36,6 +36,7 @@ class ReplayComparison:
     actual_trace: ScenarioTrace
     difference_context: dict | None = None
     verification_scope: str = "full"
+    differences: tuple[dict, ...] = ()
 
 
 def _difference_context(expected: dict | None, actual: dict | None,

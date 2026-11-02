@@ -1,0 +1,13 @@
+{
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "source_request": "configs/peripherals/zipcpu_timer_irq/request.json",
+  "active_id": "wb_timer_active",
+  "idle_id": "wb_timer_idle",
+  "active_base": 1073745920,
+  "idle_base": 1073750016,
+  "source_adapter": "declared-output.v1",
+  "source_port": "o_int",
+  "source_bit_offset": 0,
+  "trigger_writes": [[0, 8]],
+  "pulse_width_ticks": 16
+}

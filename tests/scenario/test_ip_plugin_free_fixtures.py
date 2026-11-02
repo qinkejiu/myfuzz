@@ -35,18 +35,33 @@ KINDS = {'tl-ul': 'tlul_register_observe', 'apb3': 'apb3_register_observe',
          'wishbone': 'wishbone_register_observe'}
 
 
+def _signed(document):
+    """Sign the constructed document the way every real renderer does.
+
+    The protocol evidence consumer identifies its frozen declaration by the
+    runtime contract digest, and every rendered runtime document carries
+    ``artifact_digest`` (``runtime_renderer``/``renderer._sha``).  A
+    hand-constructed document must supply the same canonical field instead of
+    leaving the consumer to invent one.
+    """
+    document['artifact_digest'] = hashlib.sha256(
+        json.dumps(document, sort_keys=True, separators=(',', ':'),
+                   ensure_ascii=False).encode()).hexdigest()
+    return document
+
+
 def artifact(protocol, *, component='opaque', instance='dut', exports=(), bound=(),
              max_wait=8):
     trace = dict(schema_version='ip_protocol_trace.v1', protocol=protocol,
                  endpoint_id='bus', clock_domain='local_clk', max_wait_cycles=max_wait,
                  signals={role: 'tap_' + role for role in WIDTHS[protocol]},
                  signal_widths=WIDTHS[protocol])
-    return SimpleNamespace(runtime_document={
+    return SimpleNamespace(runtime_document=_signed({
         'kind': KINDS[protocol], 'base_event_schema_version': 'ip_base_event.v1',
         'base_protocol_trace': trace,
         'clock_schedule': {'primary_clock_domain': 'local_clk'},
         'effective_max_wait_cycles': max_wait, 'physical_exports': list(exports),
-        'bound_physical_inputs': list(bound)}, plan=SimpleNamespace(
+        'bound_physical_inputs': list(bound)}), plan=SimpleNamespace(
             request=SimpleNamespace(instance_id=instance,
                                     document=lambda: {'schema_version': 'local_harness.v2'}),
             profile=SimpleNamespace(component_id=component, endpoints=(
@@ -521,8 +536,29 @@ def test_versioned_raw_observations_freeze_actual_session_epoch():
 
 
 def test_old_artifacts_keep_their_raw_observation_envelope():
+    # An artifact that declares no raw-observation version and does not join the
+    # runner-owned versioned trace set keeps the bare envelope: nothing is
+    # invented for it.  (Presence of the plural trace-group key is what keeps
+    # it off that path.)
     f = Fixture('apb3')
+    f.session.artifact.runtime_document['base_protocol_traces'] = {
+        'sample_group': 'protocol_taps', 'sampling': 'pre_post', 'traces': []}
     f.sample()
     raw = [row for row in f.runner.events if row.get('kind') == 'local_tick_sample']
     assert raw
     assert all('observation_schema_version' not in row and 'reset_epoch' not in row for row in raw)
+
+
+def test_versioned_trace_set_participation_always_carries_the_envelope():
+    # The runner-owned trace set is itself a versioned observation stream: its
+    # evidence consumers (`ip_protocol_evidence`, `ip_binding_evidence`) refuse
+    # any raw observation without `observation_schema_version`/
+    # `reset_epoch`, so an artifact on that path is stamped even when it does
+    # not declare `raw_observation_schema_version` itself.
+    f = Fixture('apb3')
+    f.session.reset_epoch = 7
+    f.sample()
+    raw = [row for row in f.runner.events if row.get('kind') == 'local_tick_sample']
+    assert raw
+    assert all(row.get('observation_schema_version') == 'ip_raw_observation.v1' for row in raw)
+    assert all(row.get('reset_epoch') == 7 for row in raw)

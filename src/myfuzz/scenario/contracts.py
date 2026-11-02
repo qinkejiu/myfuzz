@@ -95,6 +95,12 @@ def _verify_generated_session(identity: dict):
     cpu_observation_fields = cpu_fields | {'cpu_observation_schema_version',
                                           'cpu_retirement_sampling_edge'}
     cpu_native_irq_fields = cpu_observation_fields | {'cpu_native_irq_receipt_contract'}
+    cpu_streams = {'cpu_custom_irq_observation': {'schema_version':'custom_irq_observation.v1'},
+                   'memory_commit_stream': {'schema_version':'memory_write_commit_stream.v1','capacity':256},
+                   'memory_read_issuance': {'schema_version':'memory_read_authority.v1','capacity':256},
+                   'cpu_physical_tick_stream': {'schema_version':'cpu_physical_tick_stream.v1',
+                                                'capacity':256,'sampling':'pre_post'}}
+    present_streams = set(identity) & set(cpu_streams) if isinstance(identity, dict) else set()
     gpio_observation_fields = {'gpio_target_context_schema_version',
                               'gpio_observation_contract'}
     register_common_fields = {'setup_writes', 'probe_offsets',
@@ -138,14 +144,14 @@ def _verify_generated_session(identity: dict):
                       'source_hex', 'startup_writes', 'read_rx_after_source'}
     wb_uart_genome_fields = wb_uart_fields | {'source_mode'}
     wb_uart_cpu_fields = wb_uart_genome_fields | {'cpu_routed_mode'}
-    if not isinstance(identity, dict) or set(identity) not in (
+    if not isinstance(identity, dict) or set(identity) - present_streams not in (
             base_fields, base_fields | cpu_fields, base_fields | cpu_observation_fields,
             base_fields | cpu_native_irq_fields,
             base_fields | gpio_observation_fields,
             base_fields | apb_register_fields,
             base_fields | ahb_register_fields,
             base_fields | native_fields,
-            base_fields | ahb_fields,
+            base_fields | ahb_fields, base_fields | ahb_fields | {'defer_mmio'},
             base_fields | rvx_fields,
             base_fields | axi_lite_fields, base_fields | spi_fields,
             base_fields | axi4_fields, base_fields | tlul_gpio_fields,
@@ -165,11 +171,18 @@ def _verify_generated_session(identity: dict):
             *(base_fields | fields for fields in tlul_uart_fifo_variants)):
 
         raise ValueError('generated session identity has unknown or missing fields')
+    if present_streams and set(identity) - present_streams not in (
+            base_fields | cpu_fields, base_fields | cpu_observation_fields,
+            base_fields | cpu_native_irq_fields):
+        raise ValueError('CPU evidence stream requires generated CPU identity')
+    for name in present_streams:
+        if not _strict_generated_json_equal(identity[name], cpu_streams[name]):
+            raise ValueError('generated CPU evidence stream identity mismatch')
     if identity['schema_version'] != 'generated_local_session_identity.v1':
         raise ValueError('unsupported generated session schema')
     if 'cpu_native_irq_receipt_contract' in identity:
-        from myfuzz.local_harness.ibex_irq_receipt_contract import validate_ibex_irq_receipt_contract
-        validate_ibex_irq_receipt_contract(identity['cpu_native_irq_receipt_contract'])
+        from myfuzz.local_harness.native_irq_receipt_contract import validate_native_irq_receipt_contract
+        validate_native_irq_receipt_contract(identity['cpu_native_irq_receipt_contract'])
     if 'gpio_observation_contract' in identity:
         from myfuzz.local_harness.pulp_gpio_probe_contract import pulp_gpio_observation_contract
         if (identity['gpio_target_context_schema_version'] != 'pulp_gpio_routed_access.v1'
@@ -187,10 +200,6 @@ def _verify_generated_session(identity: dict):
     if 'uart_fifo_observation_contract' in identity:
         from myfuzz.local_harness.opentitan_uart_fifo_contract import validate_uart_fifo_observation_contract
         validate_uart_fifo_observation_contract(identity['uart_fifo_observation_contract'])
-    if 'cpu_observation_schema_version' in identity and (
-            identity['cpu_observation_schema_version'] != 'ibex_rvfi_observation.v1'
-            or identity['cpu_retirement_sampling_edge'] != 'post_rising'):
-        raise ValueError('generated CPU observation identity mismatch')
     timeout = identity['command_timeout_seconds']
     if type(timeout) not in (int, float) or not 0 < timeout <= 3600:
         raise ValueError('invalid generated command timeout')
@@ -206,10 +215,25 @@ def _verify_generated_session(identity: dict):
         verify_local_source_lock(plan.profile, base_dir=_ROOT,
             allow_source_only=plan.profile.component_id == 'rvx_core'), base_dir=_ROOT)
     artifact = render_local_driver(top, base_dir=_ROOT)
+    if present_streams and artifact.runtime_document['kind'] not in ('obi_cpu','wishbone_cpu'):
+        raise ValueError('CPU evidence stream requires compatible CPU artifact')
+    if 'cpu_custom_irq_observation' in present_streams:
+        from myfuzz.local_harness.profile_custom_irq import verify_custom_irq_artifact
+        verify_custom_irq_artifact(artifact, base_dir=_ROOT)
     native_cpu_irq = 'cpu_native_irq_receipt_contract' in identity
+    from myfuzz.local_harness.cpu_session import rvfi_observation_contract
+    actual_observation = rvfi_observation_contract(artifact) if artifact.runtime_document['kind'] in ('obi_cpu', 'wishbone_cpu') else None
+    if 'cpu_observation_schema_version' in identity and (
+            actual_observation is None
+            or identity['cpu_observation_schema_version'] != actual_observation['schema_version']
+            or identity['cpu_retirement_sampling_edge'] != actual_observation['sampling_edge']):
+        raise ValueError('generated CPU observation identity mismatch')
     if native_cpu_irq:
-        from myfuzz.local_harness.ibex_irq_receipt_contract import verify_ibex_irq_receipt_artifact
-        verify_ibex_irq_receipt_artifact(artifact, base_dir=_ROOT)
+        from myfuzz.local_harness.native_irq_receipt_contract import (
+            verify_native_irq_receipt_artifact, native_irq_receipt_contract)
+        verify_native_irq_receipt_artifact(artifact, base_dir=_ROOT)
+        if not _strict_generated_json_equal(identity['cpu_native_irq_receipt_contract'],native_irq_receipt_contract(artifact)):
+            raise ValueError('generated native IRQ provider identity mismatch')
     fifo_variant = plan.profile.component_id == 'opentitan_uart_fifo_local'
     fifo_identity = 'uart_fifo_observation_contract' in identity
     if fifo_variant != fifo_identity:
@@ -239,7 +263,12 @@ def _verify_generated_session(identity: dict):
             raise ValueError('generated native service identity mismatch')
     elif artifact.runtime_document['kind'] == 'ahb_lite_cpu':
         from myfuzz.scenario.ahb_cpu_events import AhbCpuObserver, bind_ahb_trace
-        _exact(identity, base_fields | ahb_fields, 'generated AHB service identity')
+        deferred = identity.get('defer_mmio', False)
+        if (type(deferred) is not bool
+                or ('defer_mmio' in identity and deferred is not True)):
+            raise ValueError('generated AHB deferred service identity mismatch')
+        _exact(identity, base_fields | ahb_fields | ({'defer_mmio'} if deferred else set()),
+               'generated AHB service identity')
         endpoint, _, trace = bind_ahb_trace(artifact.runtime_document)
         observer = AhbCpuObserver(component_id=artifact.plan.request.instance_id,
                                   endpoint_id=endpoint)
@@ -265,9 +294,9 @@ def _verify_generated_session(identity: dict):
                 or identity['source_component'] != artifact.plan.request.instance_id):
             raise ValueError('generated AXI4 CPU service identity mismatch')
     elif artifact.runtime_document['kind'] in ('obi_cpu', 'wishbone_cpu'):
-        observed = artifact.plan.profile.component_id == 'ibex_rvfi_local'
+        observed = actual_observation is not None
         _exact(identity, base_fields | (cpu_native_irq_fields if native_cpu_irq else
-                                        cpu_observation_fields if observed else cpu_fields),
+                                        cpu_observation_fields if observed else cpu_fields) | present_streams,
                'generated CPU service identity')
         service_versions = {'obi_cpu': 'generated_obi_cpu_service.v1',
                             'wishbone_cpu': 'generated_wishbone_cpu_service.v1'}

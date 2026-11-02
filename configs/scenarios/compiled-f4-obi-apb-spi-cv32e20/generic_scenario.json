@@ -1,0 +1,25 @@
+{
+  "schema_version": "generic_scenario_descriptor.v1",
+  "scenario_id": "apb-spi-cv32e20",
+  "root": "configs/scenarios",
+  "compose": "compiled-f4-obi-apb-spi-cv32e20/compose.json",
+  "supplement": "compiled-f4-obi-apb-spi-cv32e40p/f2_execution_supplement.json",
+  "capability": "compiled-f4-obi-apb-spi-cv32e40p/test_capability.json",
+  "flow_ids": [
+    "F2",
+    "F4"
+  ],
+  "executors": {
+    "F2": "compiled_f2_obi_apb",
+    "F4": "compiled_f4_obi_apb"
+  },
+  "f4_records": [
+    "55000000",
+    "aa000000",
+    "78563412"
+  ],
+  "f2_records": [
+    "08100040"
+  ],
+  "rounds": 128
+}

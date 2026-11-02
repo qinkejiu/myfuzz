@@ -1,0 +1,30 @@
+{
+  "schema_version": "inprocess_source_behavior.v1",
+  "description": "OpenTitan rv_timer F5 behavior: the level interrupt the pinned RTL drives on intr_timer_expired_hart0_timer0_o, the INTR_STATE0 word the ISR reads, and the timer compare write that clears the state in the same RTL.",
+  "notes": [
+    "facts read from third_party/soc-opentitan/hw/ip/rv_timer/rtl/rv_timer_reg_pkg.sv (CTRL 0x4, INTR_ENABLE0 0x100, INTR_STATE0 0x104, INTR_TEST0 0x108, TIMER_V_LOWER0 0x110, COMPARE_LOWER0_0 0x118) and rv_timer.sv:75-101",
+    "source_port is the RTL's own output port name; the one-bit output is timer.interrupts/timer_expired_hart0_timer0 (rv_timer.sv:31,77), active high, level, held by prim_intr_hw until cleared",
+    "trigger_writes arm one real expiry: CTRL(0x4)=1 enables the timer, COMPARE_LOWER0_0(0x118)=0 and COMPARE_UPPER0_0(0x11c)=0 make mtime >= mtimecmp true at the next tick, and INTR_ENABLE0(0x100)=1 unmasks the output. The upper compare word has to be written too: its reset value is 0xffffffff, so a lower-only write leaves mtimecmp at 0xffffffff00000000 with this counter",
+    "status_offsets [0x104] is INTR_STATE0, whose swaccess in rv_timer.hjson is rw1c; its bit 0 is the timer_expired_hart0_timer0 event, declared as the one cause bit",
+    "clear_writes writes COMPARE_LOWER0_0(0x118)=0xffffff00. rv_timer.sv:82-83 makes mtimecmp_update clear intr_state0, so this is the RTL's own compare-update clear. It is deliberately not a W1C write to INTR_STATE0: while the timer is still enabled and mtime >= mtimecmp, event_intr_i stays high, prim_intr_hw re-sets the W1C state on the next cycle (prim_intr_hw.sv:66-71, prim_subreg_arb.sv SwAccessW1C), so a W1C-only clear cannot keep the level low. Measured in the direct model probe: after a W1C of INTR_STATE0 the state read 1 and irq stayed 1; after the compare re-arm the state read 0 and irq fell",
+    "the status word is still the device's INTR_STATE0 and the ISR still reads it before the clear; the clear mechanism is the RTL's documented compare-update clear, not a host-side clear",
+    "this file states device facts only: the executor cross-checks them against configs/peripherals/opentitan_rv_timer_local/component_profile.json, and the declaration does not prove the RTL raises the level"
+  ],
+  "source_port": "intr_timer_expired_hart0_timer0_o",
+  "source_bit_offset": 0,
+  "trigger_writes": [
+    [4, 1],
+    [280, 0],
+    [284, 0],
+    [256, 1]
+  ],
+  "status_offsets": [
+    260
+  ],
+  "status_cause_bits": [
+    0
+  ],
+  "clear_writes": [
+    [280, 4294967040]
+  ]
+}

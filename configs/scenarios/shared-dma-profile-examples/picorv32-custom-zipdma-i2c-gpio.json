@@ -1,0 +1,12 @@
+{
+  "name": "picorv32-custom-zipdma-i2c-gpio",
+  "cpu_profile": "configs/cpus/picorv32_wb_irq/component_profile.json",
+  "dma_profile": "configs/peripherals/embedded_profile_dma/component_profile.json",
+  "custom_irq_bit": 3,
+  "custom_gpio_irq_bit": 4,
+  "target": {
+    "base": 1073754112,
+    "write_values": [85, 170],
+    "profile": "configs/peripherals/embedded_profile_target/component_profile.json"
+  }
+}

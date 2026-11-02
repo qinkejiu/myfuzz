@@ -249,6 +249,18 @@
     "boot_address_required": false
   },
   "evidence": {
+    "axi4_lite_fetch_observation": {
+      "schema_version": "axi4_lite_fetch_observation.v1",
+      "role": "arprot",
+      "bit": 2,
+      "asserted": "instruction_fetch",
+      "qualified_by": ["arvalid", "arready"],
+      "request_identity": "stable_through_backend_acceptance",
+      "basis": "picorv32.v:2779 mem_axi_arprot = mem_instr ? 3'b100 : 3'b000",
+      "source_files": {
+        "picorv32.v": "0836050971b3c6cdd28ac3b1e5719a67fb645161912bef1e472e63995ceb0622"
+      }
+    },
     "semantics": [
       "third_party/picorv32_upstream_reference/picorv32.v at git:ef203c2b0a3fb793280f5114941416c425c5b461",
       "The physical AXI top has no bresp or rresp. The plugin marks both runtime_required, so a later local transactor needs an explicit no-error variant; these profiles do not establish plugin runtime compatibility.",

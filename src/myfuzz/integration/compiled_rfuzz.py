@@ -41,11 +41,12 @@ import sys
 import time
 
 from myfuzz.integration.compiled_f4 import CompiledF4Runtime
-from myfuzz.integration.rfuzz_shmem import OwnedSegment
 from myfuzz.integration.rfuzz_wire import (
     InputBatch,
-    encode_coverage_buffer,
-    parse_input_buffer,
+)
+from myfuzz.integration.compiled_rfuzz_transport import (
+    parse_compiled_input_buffer as _parse_compiled_input_buffer,
+    process_compiled_owned_pair,
 )
 from myfuzz.integration.scenario_rfuzz import (
     ScenarioRfuzzExecutor,
@@ -91,8 +92,7 @@ def parse_compiled_input_buffer(data):
     accepts 1..200 records, exactly like ``GenomeRecordDecoder.max_records``;
     the candidate count is capped separately by the executor.
     """
-    return parse_input_buffer(data, input_bytes=RECORD_BYTES,
-                              max_cycles=COMPILED_WIRE_MAX_CYCLES)
+    return _parse_compiled_input_buffer(data)
 
 
 def _canonical(value) -> bytes:
@@ -398,28 +398,9 @@ class CompiledRfuzzExecutor(ScenarioRfuzzExecutor):
     # ------------------------------------------------------------------
     def process_owned_pair(self, input_id, coverage_id, *, creator_pid,
                            on_receipt=None):
-        """Parse one RFuzz buffer with the compiled route's eight-cycle bound.
-
-        The shipped base method derives the cycle bound from
-        ``online_decoder.max_input_bytes // RECORD_BYTES`` (1 for this route),
-        which refuses the real eight-cycle native scenario test.  The bound is
-        still checked: ``parse_compiled_input_buffer`` accepts 1..8 cycles and
-        refuses anything larger.
-        """
-        if input_id == coverage_id:
-            raise ValueError('input and coverage shared-memory IDs alias')
-        with OwnedSegment(input_id, creator_pid=creator_pid) as inputs, \
-                OwnedSegment(coverage_id, creator_pid=creator_pid,
-                             writable=True) as outputs:
-            batch = parse_compiled_input_buffer(inputs.read())
-            stride = ((self.counter_count + 2 + 7) // 8) * 8
-            if 16 + stride * len(batch.tests) > outputs.size:
-                raise ValueError('RFuzz coverage capacity is insufficient')
-            coverages = self.execute_batch(batch, on_receipt=on_receipt)
-            outputs.write(encode_coverage_buffer(
-                batch, coverages, counter_count=self.counter_count,
-                capacity=outputs.size))
-        return coverage_id, input_id
+        """Exchange one bounded compiled wire buffer through owned segments."""
+        return process_compiled_owned_pair(self, input_id, coverage_id,
+            creator_pid=creator_pid, on_receipt=on_receipt)
 
     # ------------------------------------------------------------------
     # The live transport's batch entry point
@@ -789,14 +770,69 @@ def build_compiled_rfuzz_executor(runtime, *, run_id, evidence_dir=None,
         feedback_interval=feedback_interval, evidence_dir=evidence_dir)
 
 
+def _saved_json_bytes(value) -> bytes:
+    return json.dumps(value, sort_keys=True, indent=2,
+                      ensure_ascii=False, allow_nan=False).encode('utf-8') + b'\n'
+
+
 def _write_json(path: Path, value) -> Path:
     path = Path(path)
     temporary = path.with_name('.' + path.name + '.tmp')
-    temporary.write_bytes(json.dumps(value, sort_keys=True, indent=2,
-                                     ensure_ascii=False, allow_nan=False)
-                          .encode('utf-8') + b'\n')
+    temporary.write_bytes(_saved_json_bytes(value))
     temporary.replace(path)
     return path
+
+
+def _write_pinned_json(path, value, saved_output_hashes):
+    """Pin the bytes of the same-call value before any later file mutation."""
+    path=Path(path)
+    expected=_saved_json_bytes(value)
+    _write_json(path,value)
+    if path.read_bytes()!=expected:
+        raise ValueError('compiled-F4-saved-output-initial-bytes-mismatch:'+path.name)
+    saved_output_hashes[path.name]=sha256(expected).hexdigest()
+
+
+def _replay_summary(envelope):
+    summary={key:value for key,value in envelope.items()
+        if key not in ('actual_prefix','actual_events')}
+    summary['actual_event_count']=len(envelope.get('actual_events') or ())
+    return summary
+
+
+def _save_replay_outputs(output,envelope,saved_output_hashes):
+    """Retain available raw evidence first, even if another export fails."""
+    failures=[]
+    for key,name in (
+            ('actual_events','compiled_f4_fresh_events.json'),
+            ('actual_prefix','compiled_f4_fresh_prefix.json'),
+            ('execution_audit','compiled_f4_fresh_execution_audit.json')):
+        if envelope.get(key) is not None:
+            try:_write_pinned_json(Path(output)/name,envelope[key],saved_output_hashes)
+            except BaseException as error:failures.append((name,error))
+    try:
+        _write_pinned_json(Path(output)/'compiled_f4_replay.json',
+            _replay_summary(envelope),saved_output_hashes)
+    except BaseException as error:failures.append(('compiled_f4_replay.json',error))
+    if failures:
+        primary=failures[0][1]
+        for name,error in failures[1:]:
+            primary.add_note('compiled-F4 replay output '+name+': '+repr(error))
+        raise primary
+
+
+def _required_fresh_replay_documents(envelope):
+    documents={}
+    for key,name,kind in (
+            ('actual_prefix','compiled_f4_fresh_prefix.json',dict),
+            ('actual_events','compiled_f4_fresh_events.json',list),
+            ('execution_audit','compiled_f4_fresh_execution_audit.json',dict)):
+        if type(envelope.get(key)) is not kind:
+            raise ValueError('compiled-F4-fresh-output-required:'+key)
+        documents[name]=envelope[key]
+    if envelope['execution_audit'].get('closed') is not True:
+        raise ValueError('compiled-F4-fresh-closed-audit-required')
+    return documents
 
 
 def fresh_verification_document(envelope, plan, *, session_dir=None) -> dict:
@@ -842,18 +878,23 @@ def verify_saved_compiled_f4_build_outputs(output_dir, *, outcome, harness_set, 
     """Check persisted documents against same-call values before publishing hashes."""
     from .compiled_f4_build_join import verify_compiled_f4_build_material
     output = Path(output_dir)
-    replay = {key:value for key,value in outcome['replay'].items()
-              if key not in ('actual_prefix','actual_events')}
-    replay['actual_event_count'] = len(outcome['replay'].get('actual_events') or ())
+    replay = _replay_summary(outcome['replay'])
     expected = {'compiled_f4_build_join.v1.json':outcome['build_join'],
                 'compiled_f4_prefix.json':outcome['plan'],
-                'compiled_f4_replay.json':replay}
+                'compiled_f4_replay.json':replay,
+                **_required_fresh_replay_documents(outcome['replay']),
+                'compiled_f4_fresh_verification.json':outcome['verification']}
+    initial_hashes=outcome.get('saved_output_hashes')
+    if type(initial_hashes) is not dict or not set(expected)<=set(initial_hashes):
+        raise ValueError('compiled-F4-saved-output-initial-byte-pins-required')
     saved = {}; hashes = {}
     for name, document in expected.items():
         raw = (output/name).read_bytes()
         parsed = json.loads(raw)
         if _canonical(parsed) != _canonical(document):
             raise ValueError('compiled-F4-saved-build-output-mismatch:'+name)
+        if sha256(raw).hexdigest()!=initial_hashes[name]:
+            raise ValueError('compiled-F4-saved-output-bytes-changed:'+name)
         saved[name] = parsed
         hashes[name] = sha256(raw).hexdigest()
     verify_compiled_f4_build_material(saved['compiled_f4_build_join.v1.json'],
@@ -894,6 +935,7 @@ def run_compiled_f4_rfuzz_session(*, artifacts, compiled_inputs, base_dir,
     runtime = None
     error = None
     build_evidence = {'original':{}, 'fresh':{}}
+    saved_output_hashes = {}
     def save_original_build(snapshot):
         build_evidence['original'] = snapshot
     def make_build_join(failure=None):
@@ -925,29 +967,23 @@ def run_compiled_f4_rfuzz_session(*, artifacts, compiled_inputs, base_dir,
             output_dir=session, duration_seconds=budget_seconds,
             seed_records=(bytes(RECORD_BYTES),), max_tests=max_tests,
             search_seed=search_seed, max_runs_per_batch=max_runs_per_batch)
+        if live.client_returncode != 0:
+            raise ValueError('compiled-F4-rfuzz-client-exit:' + str(live.client_returncode))
         plan = runtime.finish()
-        _write_json(output / 'compiled_f4_prefix.json', plan)
+        _write_pinned_json(output / 'compiled_f4_prefix.json', plan,saved_output_hashes)
 
         def save_replay(envelope):
             if envelope.get('original_build') is not None:
                 build_evidence['original'] = envelope['original_build']
             if envelope.get('fresh_build') is not None:
                 build_evidence['fresh'] = envelope['fresh_build']
-            summary = {key: value for key, value in envelope.items()
-                       if key not in ('actual_prefix', 'actual_events')}
-            summary['actual_event_count'] = len(envelope.get('actual_events') or ())
-            _write_json(output / 'compiled_f4_replay.json', summary)
-            if envelope.get('actual_prefix') is not None:
-                _write_json(output / 'compiled_f4_fresh_prefix.json',
-                            envelope['actual_prefix'])
-            if envelope.get('execution_audit') is not None:
-                _write_json(output / 'compiled_f4_fresh_execution_audit.json',
-                            envelope['execution_audit'])
+            _save_replay_outputs(output,envelope,saved_output_hashes)
 
         replay = runtime.replay(plan, audit_sink=save_replay)
+        _required_fresh_replay_documents(replay)
         verification = fresh_verification_document(replay, plan,
                                                    session_dir=session)
-        _write_json(output / 'compiled_f4_fresh_verification.json', verification)
+        _write_pinned_json(output / 'compiled_f4_fresh_verification.json', verification,saved_output_hashes)
         join = join_compiled_receipts(session / 'receipts.jsonl',
                                       compiled_inputs['compiled'])
         _write_json(output / 'compiled_receipt_join.v1.json', join)
@@ -955,11 +991,12 @@ def run_compiled_f4_rfuzz_session(*, artifacts, compiled_inputs, base_dir,
         verify_compiled_f4_build_join(build_join, artifacts=artifacts,
             execution_binding=runtime.execution_binding.document(),
             original=build_evidence['original'], fresh=build_evidence['fresh'])
-        _write_json(output / 'compiled_f4_build_join.v1.json', build_join)
+        _write_pinned_json(output / 'compiled_f4_build_join.v1.json', build_join,saved_output_hashes)
         return {
             'live': live, 'plan': plan, 'replay': replay,
             'verification': verification, 'join': join,
             'executor': executor, 'runtime': runtime, 'build_join':build_join,
+            'saved_output_hashes':dict(saved_output_hashes),
         }
     except BaseException as exc:
         error = exc

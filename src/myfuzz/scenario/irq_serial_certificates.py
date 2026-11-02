@@ -54,7 +54,7 @@ NOT_PROOF_OF = ('event_adjacency', 'instruction_origin', 'operand_or_fifo_taint'
                 'complete_propagation_chain', 'handler_entry_or_isr_effect')
 _TAKE_IDENTITY_SCHEMA = 'irq_serial_take_identity.v1'
 
-_RESET_KINDS = ('reset_barrier', 'gpio_reset_resource', 'cpu_reset')
+_RESET_KINDS = ('reset_barrier', 'gpio_reset', 'gpio_reset_resource', 'cpu_reset')
 _NATIVE_DECISION_KINDS = ('cpu_external_irq_sample', 'cpu_external_irq_taken')
 _PIN8_KINDS = ('cpu_irq_input', 'cpu_irq_taken')
 _DECISION_KINDS = _NATIVE_DECISION_KINDS + _PIN8_KINDS
@@ -130,8 +130,15 @@ def _serial_roles(event):
     if 'irq_serial_observation' not in event:
         return None
     document = event['irq_serial_observation']
+    from myfuzz.local_harness.native_irq_receipt_contract import native_irq_serial_schema
+    expected_schema=IBEX_IRQ_SERIAL_OBSERVATION_SCHEMA  # Legacy documentary events.
+    if 'observation_contract' in event:
+        try:
+            expected_schema=native_irq_serial_schema(event['observation_contract'])
+        except (ValueError,KeyError,TypeError):
+            raise _Malformed('malformed_irq_serial_provider')
     if (not isinstance(document, Mapping) or set(document) != _OBSERVATION_FIELDS
-            or document.get('schema_version') != IBEX_IRQ_SERIAL_OBSERVATION_SCHEMA
+            or document.get('schema_version') != expected_schema
             or document.get('sampling') not in _SAMPLING
             or document.get('width_bits') != IBEX_IRQ_SERIAL_WIDTH_BITS
             or document.get('zero_semantics') != IBEX_IRQ_SERIAL_ZERO_SEMANTICS):
@@ -188,6 +195,12 @@ class IrqSerialCertificates:
         self._triggers: OrderedDict = OrderedDict()
         self._barred: OrderedDict = OrderedDict()
         self._rejections: deque = deque(maxlen=max_pending)
+        # A measured reset is a hard epoch floor per observed scope: a later
+        # event re-stamped with a pre-reset epoch is stale evidence, not a new
+        # take. Startup barriers precede any observation and therefore impose
+        # no floor (there is no prior epoch to advance from).
+        self._epoch_seen: OrderedDict = OrderedDict()
+        self._epoch_floor: OrderedDict = OrderedDict()
 
     @property
     def pending_count(self) -> int:
@@ -215,6 +228,7 @@ class IrqSerialCertificates:
             self._expire(event['event_id'])
             kind = event.get('kind')
             if kind in _RESET_KINDS:
+                self._reset_floor(event)
                 self._clear()
                 continue
             try:
@@ -224,6 +238,10 @@ class IrqSerialCertificates:
                 if scope is not None:
                     self._bar(scope, event['event_id'])
                 self._record(event, 'rejected', error.reason)
+                continue
+            if kind in _DECISION_KINDS and not self._epoch_fresh(event):
+                continue
+            if kind == 'cpu_retire' and not self._epoch_fresh(event, retirement=True):
                 continue
             if kind in _PIN8_KINDS:
                 self._trigger_reference(event)
@@ -264,6 +282,65 @@ class IrqSerialCertificates:
         self._take_keys.clear()
         self._triggers.clear()
         self._barred.clear()
+
+    def _reset_floor(self, event: Mapping) -> None:
+        """A measured reset advances the epoch floor of every observed scope.
+
+        A barrier without an epoch (``reset_barrier``) still proves that the
+        scope cannot keep the epoch it had; the new epoch must be strictly
+        greater. A typed reset additionally names its own new epoch, so the
+        floor is at least that value.
+        """
+        if not self._epoch_seen:
+            return
+        for scope, epoch in self._epoch_seen.items():
+            floor = epoch + 1
+            previous = self._epoch_floor.get(scope)
+            if previous is None or floor > previous:
+                self._epoch_floor[scope] = floor
+        component = event.get('component')
+        epoch = event.get('reset_epoch')
+        execution = event.get('execution_id')
+        if _text(component) and type(epoch) is int and epoch >= 0:
+            for scope in list(self._epoch_seen):
+                if scope[2] != component:
+                    continue
+                if _text(execution) and scope[0] != execution:
+                    continue
+                self._epoch_floor[scope] = max(self._epoch_floor.get(scope, 0), epoch)
+        while len(self._epoch_floor) > max(1, self.max_pending):
+            self._epoch_floor.popitem(last=False)
+
+    def _epoch_fresh(self, event: Mapping, *, retirement: bool = False) -> bool:
+        """Refuse evidence stamped with a pre-reset epoch; never bar the scope.
+
+        A retirement that survives a measured reset cannot be the retirement of
+        a post-reset take, so it is reported as an unmatched serial (the same
+        observation the reset already forces) plus the epoch floor.
+        """
+        scope = _scope(event)
+        epoch = event.get('reset_epoch')
+        if scope is None or type(epoch) is not int or epoch < 0:
+            return True
+        floor = self._epoch_floor.get(scope)
+        if floor is not None and epoch < floor:
+            if retirement:
+                self._record(event, 'incomplete', 'unmatched_retirement_serial',
+                             retirement_serial=event.get(
+                                 'irq_serial_observation', {}).get('retirement', {}).get('value')
+                             if isinstance(event.get('irq_serial_observation'), Mapping) else None)
+                self._rejections[-1]['epoch_floor'] = floor
+            else:
+                self._record(event, 'rejected', 'epoch_without_advanced_reset')
+                self._rejections[-1]['epoch_floor'] = floor
+            return False
+        previous = self._epoch_seen.get(scope)
+        if previous is None or epoch > previous:
+            self._epoch_seen[scope] = epoch
+            self._epoch_seen.move_to_end(scope)
+            while len(self._epoch_seen) > max(1, self.max_pending):
+                self._epoch_seen.popitem(last=False)
+        return True
 
     def _expire(self, event_id: int) -> None:
         for key, state in tuple(self._decisions.items()):
@@ -309,6 +386,13 @@ class IrqSerialCertificates:
                 self._record(event, 'incomplete', 'zero_decision_serial')
             return
         value = role['value']
+        taken = event.get('irq_taken_pre')
+        if taken is not None and taken != 1:
+            # A serial token claims an external-cause decision; a sample that
+            # reports the IRQ was not taken cannot own one.
+            self._record(event, 'rejected', 'decision_without_native_acceptance',
+                         decision_serial=value)
+            return
         identity, reason = self._identity(event, scope)
         if reason is not None:
             self._record(event, 'rejected', reason, decision_serial=value)
@@ -335,6 +419,7 @@ class IrqSerialCertificates:
             'born': event['event_id'],
             'producer_event_id': event.get('producer_event_id'),
             'decision_serial': value, 'scope': scope, 'sampling': roles['sampling'],
+            'serial_schema':roles['schema_version'],
             'phase': role['phase'], 'identity': identity,
             'identity_event_id': event['event_id'] if identity is not None else None,
             'event': dict(event)}
@@ -428,6 +513,9 @@ class IrqSerialCertificates:
             self._record(event, 'incomplete', 'unmatched_retirement_serial',
                          retirement_serial=value)
             return None
+        if state['serial_schema']!=roles['schema_version']:
+            self._record(event,'rejected','serial_provider_schema_conflict')
+            return None
         gap = event['event_id'] - state['born']
         if gap <= 0 or gap > self.max_event_gap:
             del self._decisions[key]
@@ -484,5 +572,5 @@ class IrqSerialCertificates:
                                  else None),
             'event_gap': gap,
             'event_ids': event_ids,
-            'irq_serial_observation_schema': IBEX_IRQ_SERIAL_OBSERVATION_SCHEMA,
+            'irq_serial_observation_schema': roles['schema_version'],
             'zero_semantics': IBEX_IRQ_SERIAL_ZERO_SEMANTICS}

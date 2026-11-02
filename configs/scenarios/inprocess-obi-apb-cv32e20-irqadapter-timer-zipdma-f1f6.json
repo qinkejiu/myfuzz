@@ -1,0 +1,62 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-apb-cv32e20-irqadapter-timer-zipdma-f1f6",
+  "cpu_profile": "configs/cpus/cv32e20_profile_irq_adapter/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "source_profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+  "source_timing": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "max_wait_cycles": 16
+  },
+  "active_id": "pulp_timer_active",
+  "source_port": "irq_o",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 16,
+  "trigger_writes": [
+    [
+      4,
+      0
+    ],
+    [
+      8,
+      0
+    ],
+    [
+      0,
+      4294967295
+    ]
+  ],
+  "status_offsets": [
+    0
+  ],
+  "status_cause_bits": null,
+  "clear_writes": [],
+  "dma_profile": "configs/peripherals/zipdma_smoke/component_profile.json",
+  "dma_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "dma_capability": "configs/scenarios/compiled-f1-f6-ibex-gpio-zipdma-shared/dma.test_capability.json",
+  "dma_block_words": 4,
+  "target_window": {
+    "base": 1073745920,
+    "size": 4096
+  },
+  "dma_window": {
+    "base": 1073754112,
+    "size": 16
+  },
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "notes": [
+    "P0-1 CPU replacement: the same target, DMA, windows, image and records as the Ibex declaration; only cpu_profile changes. This variant is not used by any other inprocess scenario: it elaborates cve2_top with RVFI=1 (cve2_top_tracing) and carries the cv32e20_native_irq_receipts.v1 evidence, so its IRQ acceptance is the real controller decision plus irq_ack/id, not an inference from a fetch."
+  ],
+  "description": "The Ibex timer/ZipDMA declaration with the CPU replaced by the pinned cv32e20_profile_irq_adapter model (CVE2 elaborated with RVFI=1 and the native IRQ receipt adapter). Only the cpu_profile line differs from inprocess-obi-apb-ibex-timer-zipdma-f1f6.json."
+}

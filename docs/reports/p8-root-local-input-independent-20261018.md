@@ -18,4 +18,4 @@ The audit used only standard library saved/file reads; it did not execute the pr
 
 ## Evidence
 
-Small receipts, audit scripts/results and SHA/byte pins are in [evidence/p8-root-local-input-20261018](evidence/p8-root-local-input-20261018/). Full selection/freeze/maps remain at `/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/`; stage remains at `/home/qinkejiu/myfuzz-p8-root-input-20261018-attempt2/`. Neither the 493 MB stage nor large map/archive payloads are included in this commit. The preparer receipt remains `copied_pending_closure_and_tool_review`.
+Small receipts, audit scripts/results and SHA/byte pins are in [evidence/p8-root-local-input-20261018](evidence/p8-root-local-input-20261018/). Full selection/freeze/maps remain at `archive/p8-source-metadata-20261018/root-control-attempt2/`（2026-10-26 由家目录 `/home/qinkejiu/myfuzz-p8-root-control-20261018-attempt2/` 整体移入，字节与 pin 未变）; stage remains at `archive/p8-source-metadata-20261018/root-input-attempt2/`. Neither the 493 MB stage nor large map/archive payloads are included in this commit. The preparer receipt remains `copied_pending_closure_and_tool_review`.

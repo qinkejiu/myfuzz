@@ -86,6 +86,7 @@ class RegisterFieldSemantics:
     reset_value: int | None
     side_effect: str
     evidence_ref: str
+    write_policy: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -383,7 +384,7 @@ def load_ip_test_capability(document_or_path: object, *,
         row = _object(value, f'invalid-register-semantics:{index}')
         _keys(row, {'register', 'field', 'lsb', 'width', 'access', 'read_mask',
                     'write_mask', 'side_effect', 'evidence_ref'},
-              {'reset_value'}, 'register-semantics')
+              {'reset_value','write_policy'}, 'register-semantics')
         register = _text(row.get('register'), 'invalid-register-reference')
         base = registers_by_name.get(register)
         if base is None:
@@ -426,6 +427,16 @@ def load_ip_test_capability(document_or_path: object, *,
             _fail(f'unsupported-register-field-side-effect:{side_effect}')
         if side_effect != base.side_effect:
             _fail('register-field-side-effect-conflicts-with-profile')
+        write_policy = row.get('write_policy')
+        # The write policy states which bits a full-word write really stores and
+        # that the value's reserved bits must be zero.  It says nothing about the
+        # register's side effect: that is the independent ``side_effect``
+        # dimension, checked above against the profile declaration.
+        if 'write_policy' in row and (type(write_policy) is not str
+                or write_policy != 'full_word_reserved_zero'
+                or lsb != 0 or width != 32 or access not in ('rw','wo')
+                or not 0 < write_mask < 0xffffffff or read_mask != write_mask):
+            _fail('invalid-register-field-write-policy')
         evidence_ref = _text(row.get('evidence_ref'), 'register-field-evidence-required')
         interval = (lsb, lsb + width - 1)
         occupied = seen_register_fields.setdefault(register, [])
@@ -436,7 +447,7 @@ def load_ip_test_capability(document_or_path: object, *,
         occupied.append((*interval, field_name))
         register_semantics.append(RegisterFieldSemantics(
             register, field_name, lsb, width, access, read_mask, write_mask,
-            reset_value, side_effect, evidence_ref))
+            reset_value, side_effect, evidence_ref, write_policy))
 
     endpoints_by_id = {endpoint.endpoint_id: endpoint for endpoint in profile.endpoints}
     observation_mappings = []

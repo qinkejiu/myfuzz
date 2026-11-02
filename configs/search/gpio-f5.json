@@ -1,0 +1,14 @@
+{
+  "schema_version": "dependency_search_scenario.v1",
+  "name": "gpio-f5",
+  "backend": "descriptor",
+  "descriptor": "configs/scenarios/compiled-f5-ibex-pulp-gpio/generic_scenario.json",
+  "flow": "F5",
+  "records": [
+    "F5:0000000100000000"
+  ],
+  "goal": {
+    "id": "verified-completion",
+    "description": "Configured objective; live reward requires an admitted state provider."
+  }
+}

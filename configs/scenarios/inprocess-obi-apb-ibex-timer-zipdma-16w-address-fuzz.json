@@ -1,0 +1,66 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-apb-ibex-timer-zipdma-16w-address-fuzz",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "source_profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+  "source_timing": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "max_wait_cycles": 16
+  },
+  "active_id": "pulp_timer_active",
+  "source_port": "irq_o",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 16,
+  "trigger_writes": [
+    [
+      4,
+      0
+    ],
+    [
+      8,
+      0
+    ],
+    [
+      0,
+      4294967295
+    ]
+  ],
+  "status_offsets": [
+    0
+  ],
+  "status_cause_bits": null,
+  "clear_writes": [],
+  "dma_profile": "configs/peripherals/zipdma_smoke/component_profile.json",
+  "dma_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "dma_capability": "configs/scenarios/compiled-f1-f6-ibex-gpio-zipdma-shared/dma.test_capability.json",
+  "dma_block_words": 4,
+  "target_window": {
+    "base": 1073745920,
+    "size": 4096
+  },
+  "dma_window": {
+    "base": 1073754112,
+    "size": 16
+  },
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "notes": [
+    "trigger_writes and status_offsets repeat the values already used by configs/scenarios/inprocess-irq-pulp-timer-profile.json; the entry re-checks them against the timer register map and interrupt declarations",
+    "dma_window must not overlap the APB target window; the timer owns 0x40000000..0x40000fff",
+    "the timer declares 50 MHz, the CPU 50 MHz and the ZipDMA a nominal 1 Hz simulation rate, so assume_single_clock states that one host tick drives all three models",
+    "f1_program_words 16 declares a 16-word straight-line F1 program in the fixed trampoline slot.  f1_allow_address_forms additionally admits a memory word whose base register is statically proven to hold data_base + d: ADDI xd,x18,k; ADDI xm,x0,k + ADD xd,x18,xm; LUI xm,0 + ADDI xm,xm,k + ADD xd,x18,xm; and ADDI xm,x0,c + ANDI xm,xm,window-4 + ADD xd,x18,xm.  A computed base must carry immediate 0 and its proven range must stay 4-byte aligned inside the declared 64-byte window; the legacy x18 + immediate form is unchanged.  Branches, compressed parcels and CSR words are still not admitted.  Evidence: runs/round1-f1-a/ (fixed-address, fuzz-20)."
+  ],
+  "f1_program_words": 16,
+  "f1_allow_address_forms": true
+}

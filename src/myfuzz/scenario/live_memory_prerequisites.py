@@ -61,7 +61,7 @@ class LiveMemoryEffectTracker(CrossCaseEffectTracker):
         if not self._consumer._integrity:
             self._degraded = True
         if event.get('kind') in ('reset_barrier', 'cpu_reset', 'uart_reset'):
-            self.reset(event_id=self._cursor)
+            self.reset(event_id=event['event_id'])
 
     def reset(self, *, event_id, reason='reset_barrier'):
         # A reset can invalidate retained proof but never heal uncertainty.

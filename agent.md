@@ -7,6 +7,7 @@
 1. 从当前工作机使用 `~/.ssh/config` 中的别名：`ssh jumpserver`。
 2. 在跳转机上执行 `ssh root@192.168.5.70`，进入测试目标机。
 3. 单条命令可按相同路径执行，例如 `ssh jumpserver 'ssh root@192.168.5.70 hostname'`。
+4. 对于测试目标机 也就是服务器 只能在文件夹 “fanzehui”中操作
 
 ## 文件范围
 

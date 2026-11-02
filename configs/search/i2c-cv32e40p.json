@@ -1,0 +1,18 @@
+{
+  "schema_version": "dependency_search_scenario.v1",
+  "name": "i2c-cv32e40p-mmio",
+  "backend": "descriptor",
+  "descriptor": "configs/scenarios/compiled-f2-f4-obi-apb-i2c-cv32e40p/generic_scenario.json",
+  "flow": "mixed",
+  "records": [
+    "F4:55000000",
+    "F4:aa000000",
+    "F4:34120000",
+    "F2:00100040"
+  ],
+  "goal": {
+    "id": "native-mmio-completion",
+    "description": "Actual APB write/read completion only; storage current version and consumption rewards remain unknown."
+  },
+  "rounds": 32
+}

@@ -90,7 +90,7 @@ class GpioRegisterEvidenceConsumer:
              'runtime_contract:' + self._runtime_hash), 'gpio_register_version', '1', ())
         self._ledger.append(self._declaration)
         self._tracker = GpioConsumptionTracker(max_components=1,
-                                              max_completed_accesses=max_accesses)
+                                              max_completed_accesses=max_accesses, retain_output_history=False)
         self._last_id = 0
         self._digests = OrderedDict()
         self._integrity = True
@@ -154,7 +154,7 @@ class GpioRegisterEvidenceConsumer:
             self._transactions.clear()
             self._access_count = 0
             self._tracker = GpioConsumptionTracker(max_components=1,
-                max_completed_accesses=self._max_accesses)
+                max_completed_accesses=self._max_accesses, retain_output_history=False)
             if self._awaiting_native_reset or self._incomplete:
                 self._fail('reset_barrier_without_current_native_reset')
             else:
@@ -180,7 +180,7 @@ class GpioRegisterEvidenceConsumer:
             self._register_status = 'unknown'
             self._reason = 'reset_discarded_register_versions'
             self._tracker = GpioConsumptionTracker(max_components=1,
-                max_completed_accesses=self._max_accesses)
+                max_completed_accesses=self._max_accesses, retain_output_history=False)
             return
         if kind == 'gpio_access_terminal':
             self._fail('uncertain_actual_target_access')

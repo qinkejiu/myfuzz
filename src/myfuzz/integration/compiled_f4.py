@@ -14,6 +14,7 @@ from types import MappingProxyType
 from hashlib import sha256
 import json
 from functools import wraps
+from os.path import relpath
 from pathlib import Path
 import re
 
@@ -29,7 +30,47 @@ from myfuzz.scenario.runner import ScenarioRunner
 from myfuzz.scenario.session_runtime import ScenarioSession, OnlineCase, BoundOnlineInstruction
 from myfuzz.scenario.batch import BatchAdvance, BatchSourceEvent
 from .compiled_candidate_layout import compile_candidate_layout, CandidateLayout, LAYOUT_SCHEMA
+
+_EVENT_REFS_READER = ScenarioRunner._event_refs_since
+_EVENT_REFS_CODE = _EVENT_REFS_READER.__code__
+
+
+def _borrow_exact_events(runner):
+    if (type(runner) is not ScenarioRunner or '_event_refs_since' in vars(runner)
+            or ScenarioRunner._event_refs_since is not _EVENT_REFS_READER
+            or _EVENT_REFS_READER.__code__ is not _EVENT_REFS_CODE):
+        raise ValueError('compiled-exact-event-reader-drift')
+    return _EVENT_REFS_READER(runner, 0)
+
+
+def _borrow_events(runner, start=0):
+    """Borrow this runner's journal from ``start`` for one synchronous pure read.
+
+    Two cases, and the fallback is deliberate:
+
+    * the exact pinned ``ScenarioRunner`` still owning the sealed
+      ``_event_refs_since`` -> its own records, no copy.  The caller must not
+      mutate or retain them and must detach every document it keeps.
+    * anything else (a replaced instance/class reader, or a fixture runner such
+      as ``SimpleNamespace(events_since=...)``) -> that runner's public
+      ``events_since(start)``, which keeps its documented detaching semantics.
+
+    Unlike ``_borrow_exact_events`` this is not a strictness check: it raises
+    only when the runner can serve neither reader.
+    """
+    if (type(runner) is ScenarioRunner and '_event_refs_since' not in vars(runner)
+            and ScenarioRunner._event_refs_since is _EVENT_REFS_READER
+            and _EVENT_REFS_READER.__code__ is _EVENT_REFS_CODE):
+        return _EVENT_REFS_READER(runner, start)
+    read = getattr(runner, 'events_since', None)
+    if not callable(read):
+        raise ValueError('compiled-event-reader-unavailable')
+    return read(start)
+
 from .compiled_f4_runtime_path import admit_compiled_f4_runtime_path
+from .compiled_process_audit import (BuiltProcessAudit,
+    diagnostic_build_snapshot as _diagnostic_build_snapshot,
+    capture_build_construction as _capture_build_construction)
 from .compiled_f4_build_join import built_receipt_sha256, validate_built_receipts
 from .compiled_storage_producer import (
     ROW_GENERIC_APB_STORAGE, ROW_GPIO_CAUSAL, build_storage_producer,
@@ -43,51 +84,8 @@ def _digest(value):
     return sha256(json.dumps(value, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
 
 
-def _diagnostic_build_snapshot(runtime, *, closed=None, previous=None, error=None):
-    """Capture diagnostics without allowing export refusal to erase earlier facts."""
-    try:
-        snapshot = (runtime.build_audit_snapshot() if closed is None
-                    else runtime.build_audit_snapshot(closed=closed))
-        if type(snapshot) is not dict:
-            raise ValueError('compiled-F4 build snapshot must be a document')
-    except BaseException as export_error:
-        snapshot = deepcopy(previous if previous is not None
-                            else getattr(runtime, '_build_audit_previous', {}))
-        snapshot.setdefault('unavailable', {})['snapshot'] = dict(
-            error_type=type(export_error).__name__, error=str(export_error))
-        if error is not None:
-            error.add_note('compiled-F4 build snapshot export: ' + repr(export_error))
-    if error is not None and snapshot.get('unavailable'):
-        error.add_note('compiled-F4 build diagnostics unavailable: ' + repr(snapshot['unavailable']))
-    runtime._build_audit_previous = deepcopy(snapshot)
-    return deepcopy(snapshot)
 
 
-def _capture_build_construction(function):
-    """Keep partial lifecycle evidence when __init__ cannot return an owner."""
-    @wraps(function)
-    def construct(self, *args, **kwargs):
-        self._build_audit_sink = kwargs.get('build_audit_sink')
-        self._build_sessions = {}
-        self._build_audit_previous = {}
-        self._native_processes = {}
-        self._process_identities = {}
-        try:
-            return function(self, *args, **kwargs)
-        except BaseException as error:
-            for local in self._build_sessions.values():
-                try:
-                    local.end_case()
-                except BaseException as cleanup:
-                    error.add_note('compiled-F4 startup cleanup: ' + repr(cleanup))
-            if self._build_audit_sink is not None:
-                try:
-                    self._build_audit_sink(_diagnostic_build_snapshot(
-                        self, closed=True, error=error))
-                except BaseException as audit_error:
-                    error.add_note('compiled-F4 partial build audit: ' + repr(audit_error))
-            raise
-    return construct
 
 
 def _layout_document(layout):
@@ -188,6 +186,9 @@ def _compare_prefixes(expected,actual):
     def normalized(doc):
         result=deepcopy(doc)
         for row in result['records']:
+            if row['certificate'].get('schema_version') in (
+                    'compiled_memory_case.v1','compiled_shared_F5_case.v1'):
+                continue
             for key in ('prerequisite','postcondition'):
                 row['certificate'][key].pop('process_scope',None)
         return result
@@ -201,7 +202,7 @@ def _closure(base_dir):
     # The whole Python implementation participates in replay identity: helpers,
     # Router, scheduler, checker and compiler changes all invalidate a plan.
     root=Path(base_dir)
-    return {str(p.relative_to(root)):sha256(p.read_bytes()).hexdigest()
+    return {relpath(p, root):sha256(p.read_bytes()).hexdigest()
             for p in sorted((root/'src/myfuzz').rglob('*.py'))}
 
 
@@ -516,7 +517,7 @@ def _native_steps(events, component):
         yield event,samples[0]['pre']['protocol_taps']
 
 
-def check_f4_exact_hops(*, events, declaration, image, stream, traces, address, source_event_id, joins, declared_edges, instruction_snapshots, ram_event_id, error_policy=None, proof_scope=None):
+def check_f4_exact_hops(*, events, declaration, image, stream, traces, address, source_event_id, joins, declared_edges, instruction_snapshots, ram_event_id, error_policy=None, proof_scope=None, readback_value=None):
     """Consume the narrow F4 chain: image byte versions, native OBI and APB.
 
     A consumed fetch is not instruction retirement. F4 declares consumption;
@@ -606,7 +607,7 @@ def check_f4_exact_hops(*, events, declaration, image, stream, traces, address, 
                 or beat is None or beat['acceptance_event']!=accept['producer_event_id']
                 or beat['address']!=access['address'] or beat['write']!=int(delivery['write'])
                 or (delivery['write'] and (beat['value']!=declaration['candidate']['value'] or beat['byte_enable']!=15))
-                or (not delivery['write'] and beat['rdata']!=declaration['candidate']['value'])
+                or (not delivery['write'] and beat['rdata']!=(declaration['candidate']['value'] if readback_value is None else readback_value))
                 or not accept['event_id']<delivery['event_id']<beat['response_event']):
             raise ValueError('compiled-F4-native-data-route-hop-missing')
         data_hops.append(dict(join,native_acceptance_event=beat['acceptance_event'],
@@ -617,7 +618,7 @@ def check_f4_exact_hops(*, events, declaration, image, stream, traces, address, 
         raise ValueError('compiled-F4-instruction-data-order')
     result_address=declaration.get('result_address')
     candidate=declaration.get('candidate')
-    value=candidate.get('value') if isinstance(candidate,dict) else None
+    value=(candidate.get('value') if isinstance(candidate,dict) else None) if readback_value is None else readback_value
     memory_range=image.get('range')
     if (not isinstance(memory_range,(list,tuple)) or len(memory_range)!=2
             or any(type(bound) is not int for bound in memory_range)
@@ -792,26 +793,48 @@ def _admit_f4(*, artifacts, compiled_inputs, base_dir=None):
                 or rule['failure_class']!='constraint_conflict'
                 or rule['basis']!='soc_plan.address_map.windows'):
             raise ValueError('compiled-F4-constraint-rule-unsupported')
-    if request.wiring.deliveries:
-        raise ValueError('compiled-F4-deliveries-unsupported')
-    if any(o['kind']=='bound' for o in compiled_inputs['ownership'].document()['owners']):
-        raise ValueError('compiled-F4-physical-binding-unsupported')
+    if (request.wiring.deliveries
+            or any(o['kind']=='bound' for o in compiled_inputs['ownership'].document()['owners'])):
+        from .shared_f5_runtime import admit_shared_f5_declaration
+        admit_shared_f5_declaration(artifacts=artifacts,compiled_inputs=compiled_inputs)
     return deepcopy(path),binding
 
 
-class CompiledF4Runtime:
+class CompiledF4Runtime(BuiltProcessAudit):
     """One continuous testcase with live prerequisites and fresh prefix replay."""
+    _audit_error_prefix = 'compiled-F4'
+    _audit_schema = 'compiled_F4_execution_audit.v1'
     @host_source_discovery_scope()
     @_capture_build_construction
     def __init__(self, *, artifacts, compiled_inputs, base_dir, cache_dir,
                  run_id='compiled-f4', rounds_per_case=128, max_cases=64,
-                 expected_built_receipts=None, build_audit_sink=None):
+                 expected_built_receipts=None, build_audit_sink=None,
+                 defer_begin=False, mixed_flows=False, memory_flows=False,
+                 f5_preparation=None, irq_firmware=False):
+        if f5_preparation is not None and not mixed_flows:
+            raise ValueError('shared-F5-mixed-runtime-required')
+        if f5_preparation is None and compiled_inputs['request'].wiring.deliveries:
+            raise ValueError('shared-F5-live-preparation-required')
+        if type(irq_firmware) is not bool or irq_firmware and f5_preparation is None:
+            raise ValueError('shared-IRQ-explicit-F5-preparation-required')
+        self._irq_firmware_enabled=irq_firmware
+        self.irq_firmware=None;self.irq_bootstrap=None
+        self._f5_preparation = f5_preparation
         self.path=admit_f4(artifacts=artifacts,compiled_inputs=compiled_inputs,
             base_dir=Path(base_dir))
         self.layout=compile_candidate_layout(self.path)
         self._replay_identities=[]
         if any(type(v) is not int or not 1<=v<=65536 for v in (rounds_per_case,max_cases)):
             raise ValueError('compiled-F4-budget-invalid')
+        if type(defer_begin) is not bool:
+            raise ValueError('compiled-F4-defer-begin-invalid')
+        if type(mixed_flows) is not bool:
+            raise ValueError('compiled-storage-mixed-flag-invalid')
+        if type(memory_flows) is not bool or memory_flows and not mixed_flows:
+            raise ValueError('compiled-memory-shared-flows-invalid')
+        self._mixed_flows = mixed_flows
+        self._f2_flows = mixed_flows and (f5_preparation is None or 'F2' in f5_preparation.flow_ids)
+        self._memory_flows = memory_flows
         self._caller_inputs=compiled_inputs;self._caller_artifacts=artifacts
         self._input_digest=_input_identity(compiled_inputs,artifacts)
         self.artifacts,self.inputs=_private_admission_snapshot(artifacts,compiled_inputs,Path(base_dir))
@@ -836,6 +859,7 @@ class CompiledF4Runtime:
                     'compiled-F4-generic-receipt-join-incomplete:'+missing)
             self.receipt_elements=support
         self.rounds=rounds_per_case;self.max_cases=max_cases;self.records=[];self.finished=False
+        self.attempts=[];self._failed_attempt=None
         self.closure=_closure(base_dir);self.compiled_digest=compiled_document_sha256(compiled_inputs['compiled'])
         request=compiled_inputs['request'];self.cpu_id=request.cpu.instance_id
         self.stream=next(s for s in self.path['sources'] if s['kind']=='cpu_mmio_stream')
@@ -855,9 +879,13 @@ class CompiledF4Runtime:
         if not any(r.resource_id==image['port'] and r.read is True and r.write is True
                    and r.base<=self.result and self.result+4<=r.base+r.size for r in resources):
             raise ValueError('compiled-F4-writable-image-result-resource-required')
+        from myfuzz.isa.constraints import f1_isa_from_profile
+        instruction_isa = f1_isa_from_profile(artifacts[self.cpu_id].plan.profile)
         memory=PersistentMemory(regions=tuple(MemoryRegion(r.resource_id,r.base,r.size,
             readable=r.read,writable=r.write) for r in resources), initialization_seed=0,
-            max_initialized_bytes=sum(r.size for r in resources))
+            max_initialized_bytes=sum(r.size for r in resources),
+            instruction_isa=instruction_isa if len(instruction_isa.extensions) > 1 else None)
+        self.instruction_isa=memory.instruction_isa
         from myfuzz.local_harness.cpu_session import GeneratedCve2Session
         target,self.authority=build_storage_producer(self.producer_binding,
             artifact=self.artifacts[self.target_id],base_dir=self.base_dir,
@@ -865,10 +893,37 @@ class CompiledF4Runtime:
         windows=tuple(DeviceWindow(w.device_id,w.base,w.size,target) for w in request.wiring.windows)
         if any(w.target_instance!=self.target_id for w in request.wiring.windows):
             raise ValueError('compiled-F4-router-target-unsupported')
-        cpu=GeneratedCve2Session(artifacts[self.cpu_id],base_dir=self.base_dir,cache_dir=self.cache_dir,
-            memory=memory,router=DataflowRouter(windows),defer_mmio=True)
+        cpu_class=GeneratedCve2Session;cpu_options={}
+        if self._f5_preparation is not None:
+            from .shared_f5_runtime import (PhysicalIrqCpuSession,
+                admit_shared_f5_declaration, prepare_shared_f5)
+            cpu_class=PhysicalIrqCpuSession
+            cpu_options['native_irq_receipts']=self._irq_firmware_enabled
+            cpu_options['irq_input_port']=admit_shared_f5_declaration(
+                artifacts=self.artifacts,compiled_inputs=self.inputs)
+        cpu=cpu_class(artifacts[self.cpu_id],base_dir=self.base_dir,cache_dir=self.cache_dir,
+            memory=memory,router=DataflowRouter(windows),defer_mmio=True,
+            memory_commit_receipts=self._memory_flows,
+            memory_readback_receipts=self._memory_flows,**cpu_options)
+        runner_ownership=compiled_inputs['ownership'];bindings=();irq_pulses=None
+        if self._f5_preparation is not None:
+            self.f5_binding=prepare_shared_f5(preparation=self._f5_preparation,
+                artifacts=self.artifacts,compiled_inputs=self.inputs,
+                cpu_id=self.cpu_id,target_id=self.target_id,cpu=cpu,target=target)
+            if getattr(self,'_irq_firmware_enabled',False):
+                from .shared_irq_firmware import admit_irq_firmware,build_irq_firmware,expected_boot_fetch
+                self._irq_firmware_parameters=admit_irq_firmware(self)
+                self.irq_firmware=build_irq_firmware(**self._irq_firmware_parameters,first_fetch=expected_boot_fetch(self))
+            runner_ownership=self.f5_binding.ownership
+            bindings=(self.f5_binding.binding,);irq_pulses={self.f5_binding.binding:4}
         self.runner=ScenarioRunner(sessions={self.cpu_id:cpu,self.target_id:target},
-            ownership=compiled_inputs['ownership'],bindings=())
+            ownership=runner_ownership,bindings=bindings,irq_pulses=irq_pulses)
+        if self._f5_preparation is not None:
+            self.f5_crosswalk=self.f5_binding.validate(self.runner)
+        if self._memory_flows:
+            from myfuzz.runtime.flows.memory import install_memory_feedback
+            install_memory_feedback(self.runner, cpu_id=self.cpu_id,
+                runtime_contract_sha256=self.runtime_path_admission.prepared.contract.identity_sha256)
         self._build_sessions = dict(self.runner.sessions)
         for name, local in sorted(self._build_sessions.items()):
             local.configure_built_executable_receipt()
@@ -890,17 +945,84 @@ class CompiledF4Runtime:
             built_receipts=self._built_receipts)
         self.execution_binding=CompiledF4ExecutionBinding.build(
             execution_binding_document)
+        if self._f2_flows:
+            self._setup_mixed_flows(compiled_inputs=compiled_inputs)
+        if self._memory_flows:
+            from myfuzz.runtime.flows.memory import prepare_memory_paths
+            self.memory_prepared, memory_bindings = prepare_memory_paths(
+                request=self.inputs['request'], compiled=self.inputs['compiled'])
+            self.memory_bindings = {binding.source_id.split('.')[0]: binding
+                                    for binding in memory_bindings}
+        fixed_images=()
+        if getattr(self,'_irq_firmware_enabled',False):
+            from .shared_irq_firmware import firmware_images
+            fixed_images=firmware_images(self,self.irq_firmware)
         template=ScenarioGenome(run_id,'CPU_TO_IP',self.runtime_path_admission.runtime_path_id,tuple(self.runner.sessions),
-            rounds_per_case*max_cases*2,())
+            max(rounds_per_case*max_cases*2,8192) if getattr(self,'_irq_firmware_enabled',False) else rounds_per_case*max_cases*2,(),initial_images=fixed_images)
         self._pending=None;self._checked=None
         self.session=ScenarioSession(template,self.runner,checker=self._check_receipt,
             checker_configuration_only=True)
         # Retain exact source bytes; every future slot remains unmaterialized.
-        self.session.declare_instruction_slots(self.cpu_id,self.start,(self.result-self.start)//4)
+        if getattr(self,'_irq_firmware_enabled',False):
+            self.session.declare_instruction_slots(self.cpu_id,self.start+0x1000,(self.result-self.start-0x1000)//4)
+        else:
+            self.session.declare_instruction_slots(self.cpu_id,self.start,(self.result-self.start)//4)
         prepared=self.runtime_path_admission.prepared
-        self.session.configure_runtime_paths(prepared.graph, prepared.contract,
-            prepared.runtime_paths, source_ownership=compiled_inputs['ownership'],
-            instruction_image_bindings=(self.runtime_path_admission.instruction_binding,))
+        if self._mixed_flows:
+            paths=prepared.runtime_paths
+            if self._f2_flows:
+                prepared_f2=self.runtime_path_admission_f2.prepared
+                if (_semantic_canonical(prepared_f2.graph.edge_document())
+                    != _semantic_canonical(prepared.graph.edge_document())
+                    or _semantic_canonical(prepared_f2.contract.document())
+                    != _semantic_canonical(prepared.contract.document())):
+                    raise ValueError('compiled-storage-mixed-graph-mismatch')
+                paths=self._mixed_runtime_paths(prepared.runtime_paths,
+                                            prepared_f2.runtime_paths)
+            if self._f5_preparation is not None:
+                paths=self._mixed_runtime_paths(paths,self.f5_binding.prepared.runtime_paths)
+            if self._memory_flows:
+                if (_semantic_canonical(self.memory_prepared.graph.edge_document())
+                        != _semantic_canonical(prepared.graph.edge_document())
+                        or _semantic_canonical(self.memory_prepared.contract.document())
+                        != _semantic_canonical(prepared.contract.document())):
+                    raise ValueError('compiled-memory-shared-graph-mismatch')
+                paths=self._mixed_runtime_paths(paths, self.memory_prepared.runtime_paths)
+            from myfuzz.scenario.runtime_path_contract import PreparedRuntimePathContract
+            instruction_bindings=(self.runtime_path_admission.instruction_binding,)
+            if self._f2_flows:
+                instruction_bindings += (self.runtime_path_admission_f2.instruction_binding,)
+            if self._memory_flows:
+                instruction_bindings += tuple(self.memory_bindings[flow] for flow in ('F1', 'F3'))
+            self.session.configure_runtime_paths(prepared.graph, prepared.contract,
+                paths, source_ownership=compiled_inputs['ownership'],
+                instruction_image_bindings=instruction_bindings)
+            self._mixed_contract=prepared.contract
+            self._mixed_declaration=PreparedRuntimePathContract(
+                prepared.graph, prepared.contract, paths).document()
+            self._mixed_binding_docs=tuple(binding.document() for binding in instruction_bindings)
+        else:
+            self.session.configure_runtime_paths(prepared.graph, prepared.contract,
+                prepared.runtime_paths, source_ownership=compiled_inputs['ownership'],
+                instruction_image_bindings=(self.runtime_path_admission.instruction_binding,))
+        if getattr(self,'_irq_firmware_enabled',False):
+            self.runner.configure_gpio_irq_dependency_evidence(source_component=self.target_id,
+                target_component=self.cpu_id,pin=self._irq_firmware_parameters['pin'],
+                runtime_contract_sha256=self._mixed_contract.identity_sha256)
+        self._deferred_begin = bool(defer_begin)
+        self._begun = False
+        if not defer_begin:
+            self.begin()
+
+    def begin(self):
+        """Begin the single native session; the constructor does this unless deferred.
+
+        Deferring lets a caller bind its process-local execution plan to these
+        exact runner/session objects *before* ``ScenarioSession.begin`` and the
+        native bootstrap.  Every other construction step already happened.
+        """
+        if self._begun:
+            raise ValueError('compiled-F4-already-begun')
         try:
             self._stable()
             self.session.begin()
@@ -925,11 +1047,206 @@ class CompiledF4Runtime:
                     break
             if (self.cursor is None or self.cursor%4 or not self.start<=self.cursor<self.result):
                 raise ValueError('compiled-F4-first-fetch-outside-image')
+            if getattr(self,'_irq_firmware_enabled',False):
+                from .shared_irq_firmware import advance_irq_bootstrap
+                advance_irq_bootstrap(self)
+            self._begun = True
         except BaseException as error:
             if self.session._begun and not self.session._finished:
                 try:self.session.finish()
                 except BaseException as cleanup:error.add_note('compiled-F4 session cleanup: '+repr(cleanup))
+            if getattr(self, '_build_audit_sink', None) is not None:
+                try:self._build_audit_sink(_diagnostic_build_snapshot(self, closed=True, error=error))
+                except BaseException as audit_error:error.add_note('compiled-F4 partial build audit: '+repr(audit_error))
             raise
+
+
+    # ------------------------------------------------------------------
+    # Mixed F2+F4 support: one CPU/IP/memory/runner/session, two flow kernels
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _mixed_runtime_paths(first, second):
+        rows=[];seen=set()
+        for row in (*first, *second):
+            direction,path=row
+            key=(direction,path.target)
+            if key in seen:continue
+            seen.add(key);rows.append((direction,path))
+        return tuple(rows)
+
+    def _setup_mixed_flows(self, *, compiled_inputs):
+        from .compiled_f2 import (_admit_f2, _cpu_policy as _f2_cpu_policy,
+            _cpu_traces as _f2_cpu_traces,
+            _execution_binding_document as _f2_binding_document,
+            _f2_edges, CompiledF2ExecutionBinding)
+        from .compiled_f2_runtime_path import admit_compiled_f2_runtime_path
+        from .compiled_f2_layout import compile_f2_candidate_layout
+        from .compiled_f2_consumer import select_f2_read_producer
+        path,producer=_admit_f2(artifacts=self.artifacts,
+            compiled_inputs=self.inputs,base_dir=self.base_dir)
+        self.path_f2=path
+        self.layout_f2=compile_f2_candidate_layout(path)
+        self.producer_binding_f2=producer
+        self.runtime_path_admission_f2=admit_compiled_f2_runtime_path(
+            request=self.inputs['request'],compiled=self.inputs['compiled'],path=path)
+        self.stream_f2=next(s for s in path['sources'] if s['kind']=='cpu_load_stream')
+        self.access_f2=self.stream_f2['register_access']
+        image_f2=next(s for s in path['sources'] if s['kind']=='instruction_image')
+        if (self.access_f2['target_component']!=self.target_id
+                or self.access_f2['source_component']!=self.cpu_id
+                or image_f2['source_id']!=self.image['source_id']):
+            raise ValueError('compiled-storage-mixed-target-mismatch')
+        register_f2=self.producer_binding_f2.document()['register']['name']
+        if register_f2!=self.register_name and not (
+                self.row==ROW_GPIO_CAUSAL and self.register_name=='GPIOEN' and register_f2=='PADIN'
+                and self.access_f2['register_offset']==8):
+            raise ValueError('compiled-storage-mixed-register-mismatch')
+        self.register_f2=register_f2
+        if (image_f2['range'][0]!=self.start
+                or image_f2['range'][1]+1!=self.end):
+            raise ValueError('compiled-storage-mixed-image-mismatch')
+        self.image_f2=image_f2
+        self.declared_edges_f2=_f2_edges(self.inputs['compiled'],image_f2,
+                                         self.access_f2)
+        self.error_policy_f2=_f2_cpu_policy(self.artifacts[self.cpu_id],
+                                            image_f2,self.stream_f2)
+        self.traces_f2=_f2_cpu_traces(self.artifacts[self.cpu_id],image_f2,
+                                      self.stream_f2)
+        body=_f2_binding_document(artifacts=self.artifacts,
+            compiled_inputs=self.inputs,path=path,layout=self.layout_f2,
+            producer_binding=self.producer_binding_f2,base_dir=self.base_dir,
+            source_closure=self.closure,
+            runtime_path_admission=self.runtime_path_admission_f2,
+            built_receipts=self._built_receipts)
+        self.execution_binding_f2=CompiledF2ExecutionBinding.build(body)
+
+    def _submit_f2(self, raw):
+        """F2 read case on the shared CPU/target/memory/session."""
+        from .compiled_f2_consumer import capture_f2_read_version
+        from .compiled_f2_layout import compile_f2_candidate_layout
+        from .generated_register_reader import declare_reader
+        from myfuzz.scenario.source_actions import ip_register_prerequisite
+        if self._failed_attempt is not None:
+            raise ValueError('compiled-storage-mixed-failed-attempt:'+self._failed_attempt)
+        self._stable()
+        issued=compile_f2_candidate_layout(self.path_f2)
+        if self.layout_f2!=issued:
+            raise ValueError('compiled-F2-layout-identity-changed')
+        if type(raw) is not bytes or len(raw)!=self.layout_f2.byte_length:
+            raise ValueError('compiled-F2-candidate-record-length')
+        selection=self.layout_f2.classify(raw)
+        if not selection.accepted:
+            raise ValueError('compiled-F2-candidate-'+str(selection.reason))
+        address=selection.address
+        if len(self.records)>=self.max_cases:
+            raise ValueError('compiled-storage-mixed-case-budget-exhausted')
+        declaration=declare_reader(self.inputs['request'],self.inputs['compiled'],
+            source_id=self.stream_f2['source_id'],address=address,
+            result_address=self.result)
+        code=bytes.fromhex(declaration['code_hex'])
+        if self.cursor+len(code)>self.result-(4 if getattr(self, '_memory_flows', False) else 0):
+            raise ValueError('compiled-F2-slot-exhausted')
+        target=self.runner.sessions[self.target_id]
+        before=capture_f2_read_version(self.authority,register=self.register_f2,
+            reset_epoch=target.reset_epoch)
+        pre=before.document();prior=pre['write_count']
+        index=len(self.records);case_id=f'{self.run_id}:{index}'
+        case=OnlineCase(case_id,'CPU_TO_IP',
+            self.runtime_path_admission_f2.runtime_path_id,
+            BoundOnlineInstruction(self.image_f2['source_id']+f':{index}',
+                self.cpu_id,self.cursor,code.hex(),
+                self.runtime_path_admission_f2.instruction_binding.source_id),
+            tuple(BatchAdvance(tuple(self.runner.sessions)) for _ in range(self.rounds)))
+        self._stable()
+        self._pending=('F2',declaration,before,prior);self._checked=None
+        self._attempt=dict(case_id=case_id,raw=raw.hex(),value=address,
+            instruction_address=self.cursor,assertions={})
+        try:
+            receipt=self.session.submit_case(case)
+            if receipt.violations or self._checked is None or receipt.status!='running':
+                raise ValueError('compiled-F2-protocol-checker-failed:'+
+                    str(receipt.violations))
+            observed,after,exact=self._checked
+            data_hop=exact['data_hops'][0]
+            from .compiled_f2_consumer import stable_f2_read_version
+            actual_before=observed['version_before']
+            prerequisite=ip_register_prerequisite(self.target_id,self.register_f2,
+                actual_before['reset_epoch'],data_hop['native_APB_event'],
+                actual_before['field_version']).document()
+            certificate=dict(schema_version='compiled_F2_chain.v1',status='certified',
+                path_id=self.path_f2['path_id'],source_id=self.stream_f2['source_id'],
+                case_id=case_id,instruction_source_id=self.image_f2['source_id'],
+                instruction_address=self.cursor,
+                instruction_sha256=sha256(code).hexdigest(),
+                prerequisite=prerequisite,
+                postcondition=stable_f2_read_version(after),
+                version_before=stable_f2_read_version(actual_before),
+                version_witness=stable_f2_read_version(observed['version_witness']),
+                **({'native_read':deepcopy(observed['actual_read'])} if 'actual_read' in observed else {}),
+                joins=observed['joins'],first_fetch=self.first_fetch,
+                exact_hops=exact,
+                assertions=[
+                    dict(expectation_id='protocol_checker.receipt_violations',
+                        status='passed',
+                        evidence=dict(violations=list(receipt.violations))),
+                    dict(expectation_id='cross_component.declared_edge_hops',
+                        status='passed',evidence=dict(
+                            edge_ids=[[edge['rule_index'],
+                                edge['prerequisite_index']] for edge in exact['edges']],
+                            roles=[edge['role'] for edge in exact['edges']],
+                            endpoints=[[edge['source_component'],
+                                edge['target_component']] for edge in exact['edges']],
+                            transaction=deepcopy(data_hop['source_transaction']),
+                            instruction_source_id=self.image_f2['source_id'],
+                            native_read_APB_event=data_hop['native_APB_event'],
+                            native_read_OBI_events=[
+                                data_hop['native_acceptance_event'],
+                                data_hop['native_response_event']],
+                            dependent_RAM_write_event=
+                                exact['ram_write_hop']['memory_write_event']))],
+                execution_binding_sha256=self.execution_binding_f2.digest,
+                runtime_path_id=self.runtime_path_admission_f2.runtime_path_id,
+                runtime_path_admission_sha256=self.runtime_path_admission_f2.digest,
+                runtime_admitted=True)
+            record=dict(raw=raw.hex(),value=address,
+                source_values={self.stream_f2['source_id']:address},
+                certificate=certificate,flow='F2')
+            self.records.append(record)
+            self.cursor+=len(code)
+            return deepcopy(certificate)
+        except BaseException as error:
+            self._failed_attempt=f'{self.run_id}:{index}'
+            raise
+        finally:
+            self._pending=None;self._checked=None;self._attempt=None
+
+    def _check_chain_f2(self, receipt, declaration, before, prior):
+        from .compiled_f2_consumer import check_f2_read_observation
+        from .native_obi_hops import check_f2_exact_hops
+        token=self.authority.issue(register=self.register_f2,
+            reset_epoch=before.document()['reset_epoch'])
+        observed,after=check_f2_read_observation(declaration,receipt,
+            target_artifact=self.artifacts[self.target_id],
+            authority=self.authority,token=token,before=before,
+            register=self.register_f2,
+            reset_epoch=before.document()['reset_epoch'],prior_writes=prior)
+        memory=self.runner.sessions[self.cpu_id].memory
+        instruction_snapshots=[memory.read(self.cursor+offset,4,
+            transaction_id=f'compiled-storage-mixed-check:{len(self.records)}:{offset}')
+            for offset in range(0,32,4)]
+        result_snapshot=memory.read(self.result,4,
+            transaction_id=f'compiled-storage-mixed-result:{len(self.records)}')
+        exact=deepcopy(check_f2_exact_hops(events=_borrow_exact_events(self.runner),
+            declaration=declaration,image=self.image_f2,stream=self.stream_f2,
+            traces=self.traces_f2,address=self.cursor,
+            source_event_id=self.image_f2['source_id']+f':{len(self.records)}',
+            joins=observed['joins'],declared_edges=self.declared_edges_f2,
+            instruction_snapshots=instruction_snapshots,
+            ram_event_id=observed['RAM_event'],error_policy=self.error_policy_f2,
+            proof_scope=('selected_F2_image_consumption_native_OBI_route_native_APB_'
+                f'live_{self.register_f2}_mixed_result_RAM'),
+            result_snapshot=result_snapshot))
+        return observed,after,exact
 
     def _issue_register_version(self, *, reset_epoch):
         return self.authority.issue(register=self.register_name,
@@ -937,6 +1254,7 @@ class CompiledF4Runtime:
 
     def online_identity_configuration(self):
         return dict(schema_version='compiled_F4_checker.v2',path_id=self.path['path_id'],
+            **(dict(irq_firmware_parameters=deepcopy(self._irq_firmware_parameters)) if getattr(self,'_irq_firmware_enabled',False) else {}),
             compiled_sha256=self.compiled_digest,assertions=self.path['assertions'],
             candidate_layout=_layout_document(self.layout),cpu_error_policy=deepcopy(self.error_policy),
             producer_binding=self.producer_binding.document(),
@@ -950,10 +1268,16 @@ class CompiledF4Runtime:
             return tuple(receipt.violations)
         if self._pending is None:
             return tuple(receipt.violations)
-        declaration,before,prior=self._pending
+        flow,declaration,before,prior=self._pending
         try:
-            observed,commit,after=self._check_chain(receipt,declaration,before,prior)
-            self._checked=(observed,commit,after)
+            if flow=='F2':
+                observed,after,exact=self._check_chain_f2(receipt,declaration,
+                                                          before,prior)
+                self._checked=(observed,after,exact)
+            else:
+                observed,commit,after=self._check_chain(receipt,declaration,
+                                                        before,prior)
+                self._checked=(observed,commit,after)
             return tuple(receipt.violations)
         except ValueError as error:
             self._checked=None
@@ -968,34 +1292,21 @@ class CompiledF4Runtime:
                 token=token,register=self.register_name,
                 reset_epoch=before['reset_epoch'],before=before,prior_writes=prior)
         else:
-            value=declaration['candidate']['value']
-            observed=check_writer_observation(declaration,receipt,target_artifact=self.artifacts[self.target_id])
-            writes=self.authority.writes()[prior:]
-            if len(writes)!=1:raise ValueError('compiled-F4-bound-commit-count')
-            commit=writes[0];context=commit['context']
-            delivery=next(e for e in receipt.events if e.get('event_id')==observed['joins'][0]['delivery_event'])
-            if (not context or context['source_transaction']!=delivery['source_transaction']
-                    or context['address']!=self.access['address'] or context['offset']!=self.access['register_offset']
-                    or context['write'] is not True or context['value']!=value or context['be']!=15
-                    or commit['before']!=before['value'] or commit['after']!=value or commit['epoch']!=before['reset_epoch']):
-                raise ValueError('compiled-F4-bound-commit-join-mismatch')
-            physical=next(e for e in receipt.events if e.get('event_id')==observed['joins'][0]['native_APB_event'])
-            if commit['tick']!=physical['local_tick'] or context['command_scope']!={
-                    'component':self.target_id,'reset_epoch':commit['epoch'],'command_sequence':commit['command_sequence']}:
-                raise ValueError('compiled-F4-native-commit-identity-mismatch')
-            after=self.authority.consume(self._issue_register_version(
-                reset_epoch=before['reset_epoch']))
-            if after['value']!=value:raise ValueError('compiled-F4-live-register-mismatch')
+            from .gpio_write_consumer import check_gpio_write_observation
+            observed,commit,after=check_gpio_write_observation(declaration,receipt,
+                target_artifact=self.artifacts[self.target_id],authority=self.authority,
+                access=self.access,target_component=self.target_id,register=self.register_name,
+                reset_epoch=before['reset_epoch'],before=before,prior_writes=prior)
         instruction_snapshots=[self.runner.sessions[self.cpu_id].memory.read(self.cursor+offset,4,
             transaction_id=f'compiled-F4-check:{len(self.records)}:{offset}') for offset in range(0,32,4)]
-        observed['exact_hops']=check_f4_exact_hops(events=self.runner.events_since(0),
+        observed['exact_hops']=deepcopy(check_f4_exact_hops(events=_borrow_exact_events(self.runner),
             declaration=declaration,image=self.image,stream=self.stream,traces=self.traces,
             address=self.cursor,source_event_id=self.image['source_id']+f':{len(self.records)}',
             joins=observed['joins'],declared_edges=self.declared_edges,instruction_snapshots=instruction_snapshots,
             ram_event_id=observed['RAM_event'],
             error_policy=self.error_policy,
             proof_scope=(f'selected_F4_image_consumption_native_OBI_route_native_APB_'
-                         f'{self.row}_live_{self.register_name}_result_RAM'))
+                         f'{self.row}_live_{self.register_name}_result_RAM')))
         observed['exact_hops']['assertions']=[
             dict(expectation_id='protocol_checker.receipt_violations',status='passed',evidence=dict(violations=list(receipt.violations))),
             dict(expectation_id='cross_component.declared_edge_hops',status='passed',
@@ -1012,7 +1323,20 @@ class CompiledF4Runtime:
         return observed,commit,after
 
     def _stable(self, *, allow_finished=False):
+        if getattr(self,'_irq_firmware_enabled',False) and self.irq_firmware is not None:
+            from .shared_irq_firmware import build_irq_firmware,firmware_digest,expected_boot_fetch,firmware_images
+            parameters=dict(image_start=self.image['range'][0],image_end=self.image['range'][1]+1,
+                gpio_base=self.access['window_base'],pin=next(s['bit_offset'] for s in self.f5_binding.path['sources'] if s['kind']=='external_pin'))
+            if self._irq_firmware_parameters!=parameters or not self.runner.sessions[self.cpu_id].native_irq_receipts_enabled:
+                raise ValueError('shared-IRQ-firmware-binding-changed')
+            expected=build_irq_firmware(**parameters,first_fetch=expected_boot_fetch(self))
+            if (self.irq_firmware!=expected or self.session.template.initial_images!=firmware_images(self,expected)
+                    or self.irq_bootstrap is not None and self.irq_bootstrap['firmware_sha256']!=firmware_digest(expected)):
+                raise ValueError('shared-IRQ-fixed-firmware-changed')
         if self.finished and not allow_finished:raise ValueError('compiled-F4-runtime-finished')
+        if getattr(self,'_f5_preparation',None) is not None:
+            if self.f5_binding.validate(self.runner) != self.f5_crosswalk:
+                raise ValueError('shared-F5-live-binding-changed')
         if (_input_identity(self._caller_inputs,self._caller_artifacts)!=self._input_digest
                 or _input_identity(self.inputs,self.artifacts)!=self._input_digest):
             raise ValueError('compiled-F4-input-identity-changed')
@@ -1031,7 +1355,15 @@ class CompiledF4Runtime:
             raise ValueError('compiled-F4-runtime-path-admission-removed')
         if admission is not None:
             admission.validate_cached_identity()
-            if (self.session.runtime_contract != admission.prepared.contract
+            if self._mixed_flows:
+                if (self.session.runtime_contract is not self._mixed_contract
+                        or self.session.runtime_path_document['declaration']
+                        != self._mixed_declaration
+                        or self.session.instruction_image_binding_documents
+                        != self._mixed_binding_docs):
+                    raise ValueError(
+                        'compiled-storage-mixed-runtime-path-session-changed')
+            elif (self.session.runtime_contract != admission.prepared.contract
                     or self.session.runtime_path_document['declaration'] != admission.prepared.document()
                     or self.session.instruction_image_binding_documents !=
                         (admission.instruction_binding.document(),)):
@@ -1051,6 +1383,37 @@ class CompiledF4Runtime:
         current_binding=CompiledF4ExecutionBinding.build(current_body)
         if current_binding.document_json!=self.execution_binding.document_json:
             raise ValueError('compiled-F4-execution-binding-changed')
+        if self._f2_flows:
+            from .compiled_f2 import (CompiledF2ExecutionBinding,
+                _admit_f2, _execution_binding_document as _f2_binding_document)
+            from .compiled_f2_layout import compile_f2_candidate_layout
+            if compile_f2_candidate_layout(self.path_f2)!=self.layout_f2:
+                raise ValueError('compiled-F2-layout-identity-changed')
+            path_f2,producer_f2=_admit_f2(artifacts=self.artifacts,
+                compiled_inputs=self.inputs,base_dir=self.base_dir)
+            if (path_f2!=self.path_f2
+                    or type(producer_f2) is not type(self.producer_binding_f2)
+                    or producer_f2.document_json
+                    != self.producer_binding_f2.document_json):
+                raise ValueError('compiled-F2-admission-changed')
+            self.runtime_path_admission_f2.validate_cached_identity()
+            body_f2=_f2_binding_document(artifacts=self.artifacts,
+                compiled_inputs=self.inputs,path=path_f2,
+                layout=self.layout_f2,producer_binding=producer_f2,
+                base_dir=self.base_dir,source_closure=current_closure,
+                runtime_path_admission=self.runtime_path_admission_f2,
+                built_receipts=self._validated_built_receipts())
+            if (CompiledF2ExecutionBinding.build(body_f2).document_json
+                    != self.execution_binding_f2.document_json):
+                raise ValueError('compiled-F2-execution-binding-changed')
+        if getattr(self, '_memory_flows', False):
+            from myfuzz.runtime.flows.memory import prepare_memory_paths
+            current, bindings = prepare_memory_paths(request=self.inputs['request'],
+                                                     compiled=self.inputs['compiled'])
+            if (_semantic_canonical(current.document()) != _semantic_canonical(self.memory_prepared.document())
+                    or _semantic_canonical({binding.source_id.split('.')[0]: binding.document() for binding in bindings})
+                    != _semantic_canonical({key: binding.document() for key, binding in self.memory_bindings.items()})):
+                raise ValueError('compiled-memory-path-identity-changed')
 
     def _decode_candidate(self,raw):
         issued=compile_candidate_layout(self.path)
@@ -1058,94 +1421,35 @@ class CompiledF4Runtime:
             raise ValueError('compiled-F4-layout-identity-changed')
         return issued.decode(raw)
 
-    def _validated_built_receipts(self):
-        receipts = {name:local.validate_built_executable_receipt()
-                    for name,local in sorted(self._build_sessions.items())}
-        validate_built_receipts(self.artifacts, receipts)
-        if _semantic_canonical(receipts) != _semantic_canonical(self._built_receipts):
-            raise ValueError('compiled-F4-built-receipt-identity-changed')
-        return receipts
 
-    def _validated_build_process_identities(self):
-        receipts = self._validated_built_receipts()
-        identities = {}
-        for name, local in self._build_sessions.items():
-            launches = local.built_executable_launch_observations()
-            if len(launches) != 1:
-                raise ValueError('compiled-F4-built-process-launch-missing')
-            row = launches[0]
-            receipt = receipts[name]
-            expected = dict(artifact_digest=receipt['artifact_digest'],
-                build_digest=receipt['build_digest'], binary_sha256=receipt['binary_sha256'],
-                built_receipt_sha256=built_receipt_sha256(receipt),
-                observed_executable_sha256=receipt['binary_sha256'],
-                ready_artifact_digest=receipt['artifact_digest'])
-            process = self._native_processes[name]
-            if (any(row.get(key) != value for key,value in expected.items())
-                    or row.get('pid') != process.pid
-                    or row.get('execution_nonce') != local._execution):
-                raise ValueError('compiled-F4-built-process-identity-mismatch')
-            identities[name] = dict(component=name,
-                role='cpu' if name == self.cpu_id else 'bound_target',
-                pid=row['pid'],execution_nonce=row['execution_nonce'],**expected)
-        return identities
 
-    def build_audit_snapshot(self, *, closed=None):
-        """Export retained observations; unavailable material never grants authority."""
-        previous = deepcopy(getattr(self, '_build_audit_previous', {}))
-        receipts = previous.get('receipts', {})
-        observations = previous.get('preparation_observations', {})
-        audit = previous.get('execution_audit', {})
-        identities = audit.get('identities', {})
-        exits = audit.get('exits', {})
-        failures = previous.get('unavailable', {})
-        for name, local in self._build_sessions.items():
-            def unavailable(label, error):
-                failures.setdefault(name, {})[label] = dict(
-                    error_type=type(error).__name__, error=str(error))
-            for target, label, accessor in (
-                    (receipts, 'receipt', 'built_executable_receipt_document'),
-                    (observations, 'preparation', 'build_preparation_observation_document')):
-                try:
-                    target[name] = getattr(local, accessor)()
-                except BaseException as error:
-                    unavailable(label, error)
-            try:
-                launches = local.built_executable_launch_observations()
-            except BaseException as error:
-                unavailable('launches', error)
-                try:
-                    launches = local._built_executable_launch_diagnostics()
-                except BaseException as diagnostic_error:
-                    unavailable('launch_diagnostics', diagnostic_error)
-                    launches = ()
-            try:
-                if launches:
-                    row = launches[-1]
-                    identities[name] = dict(row, component=name,
-                        role='cpu' if name == getattr(self,'cpu_id',None) else 'bound_target')
-                    exits[name] = dict(returncode=row.get('returncode'),reaped=row.get('reaped',False))
-            except BaseException as error:
-                unavailable('launch_document', error)
-        snapshot = dict(receipts=receipts,preparation_observations=observations,
-            execution_audit=dict(identities=identities,exits=exits,
-                closed=bool(getattr(self,'finished',False) if closed is None else closed)),
-            unavailable=failures)
-        self._build_audit_previous = deepcopy(snapshot)
-        return deepcopy(snapshot)
 
-    def execution_audit(self):
-        identities = self._validated_build_process_identities()
-        if identities != self._process_identities:
-            raise ValueError('compiled-F4-built-process-identity-changed')
-        codes={name:proc.poll() for name,proc in self._native_processes.items()}
-        return dict(schema_version='compiled_F4_execution_audit.v1',
-            identities=deepcopy(self._process_identities),
-            exits={name:dict(returncode=code,reaped=code is not None)
-                   for name,code in codes.items()},closed=self.finished)
+
+    def submit(self, raw, flow=None, testcase_id=None):
+        """Submit one candidate for the declared flow.
+
+        Single-flow runtimes keep ``flow=None`` and their historical behaviour.
+        A mixed runtime requires the caller to state the flow; both flows share
+        this one runner, session, memory and native target authority.
+        """
+        if not self._mixed_flows:
+            return self._submit_f4(raw)
+        if flow == 'F4':
+            return self._submit_f4(raw)
+        if flow == 'F2':
+            if not self._f2_flows:
+                raise ValueError('shared-F5-F2-consumer-unsupported')
+            return self._submit_f2(raw)
+        if flow in ('F1', 'F3') and self._memory_flows:
+            from myfuzz.runtime.flows.memory import submit_memory_case
+            return submit_memory_case(self, raw, flow=flow, testcase_id=testcase_id)
+        if flow == 'F5' and self._f5_preparation is not None:
+            from .shared_f5_runtime import submit_shared_f5
+            return submit_shared_f5(self,raw,testcase_id=testcase_id)
+        raise ValueError('compiled-storage-mixed-flow-required')
 
     @host_source_discovery_scope()
-    def submit(self, raw):
+    def _submit_f4(self, raw, flow='F4'):
         """Decode every declared candidate slice before executing any source."""
         self._stable()
         values=self._decode_candidate(raw)
@@ -1154,13 +1458,19 @@ class CompiledF4Runtime:
         declaration=declare_writer(self.inputs['request'],self.inputs['compiled'],
             source_id=self.stream['source_id'],value=value,result_address=self.result)
         code=bytes.fromhex(declaration['code_hex'])
-        if self.cursor+len(code)>self.result:raise ValueError('compiled-F4-slot-exhausted')
+        if self.cursor+len(code)>self.result-(4 if getattr(self, '_memory_flows', False) else 0):raise ValueError('compiled-F4-slot-exhausted')
         external=[s for s in self.path['sources'] if s['kind']=='external_pin']
         for number,source in enumerate(external):
             self._stable()
             pin_value=values[source['source_id']]
+            pin_direction='CPU_TO_IP';pin_path_id=None
+            if self._f5_preparation is not None:
+                pin_direction=self.f5_binding.path['direction']
+                pin_path_id=self.f5_binding.path['runtime_path_identity']['path_id']
+            else:
+                pin_direction,pin_path_id=self.runtime_path_admission.external_pin_path(source['source_id'])
             pin_case=OnlineCase(f'{self.run_id}:{len(self.records)}:external:{number}',
-                'CPU_TO_IP',self.path['path_id'],BatchSourceEvent(
+                pin_direction,pin_path_id,BatchSourceEvent(
                     source['source_id']+f':{len(self.records)}',source['component'],
                     source['port'],pin_value,source['bit_offset'],source['width']),
                 (BatchAdvance((source['component'],)),))
@@ -1177,7 +1487,7 @@ class CompiledF4Runtime:
                 self.runtime_path_admission.instruction_binding.source_id),
             tuple(BatchAdvance(tuple(self.runner.sessions)) for _ in range(self.rounds)))
         self._stable()
-        self._pending=(declaration,before,prior);self._checked=None
+        self._pending=('F4',declaration,before,prior);self._checked=None
         receipt=self.session.submit_case(case)
         self._pending=None
         if receipt.violations or self._checked is None or receipt.status!='running':
@@ -1195,11 +1505,24 @@ class CompiledF4Runtime:
             runtime_path_id=self.runtime_path_admission.runtime_path_id,
             runtime_path_admission_sha256=self.runtime_path_admission.digest,
             runtime_admitted=True)
-        self.records.append(dict(raw=raw.hex(),value=value,source_values=values,certificate=certificate))
+        record=dict(raw=raw.hex(),value=value,source_values=values,certificate=certificate)
+        if self._mixed_flows:record['flow']='F4'
+        self.records.append(record)
         self.cursor+=len(code)
         return deepcopy(certificate)
 
     def feedback(self):
+        if self._mixed_flows:
+            f4=[r for r in self.records if r.get('flow')=='F4']
+            f2=[r for r in self.records if r.get('flow')=='F2']
+            return dict(cases=len(self.records),certified=len(f4)+len(f2),
+                memory_cases=sum(r.get('flow') in ('F1','F3') for r in self.records),
+                write_cases=len(f4),read_cases=len(f2),
+                distinct_values=len({r['value'] for r in f4}),
+                changed_versions=sum(r['certificate']['commit']['before']
+                                     !=r['value'] for r in f4),
+                read_versions=len({r['certificate']['version_before']
+                                   ['field_version'] for r in f2}))
         return dict(cases=len(self.records),certified=len(self.records),
             distinct_values=len({r['value'] for r in self.records}),
             changed_versions=sum(r['certificate']['commit']['before']!=r['value'] for r in self.records))
@@ -1221,6 +1544,38 @@ class CompiledF4Runtime:
         semantic_hash=(normalized_semantic_sha256(self.trace.status,
             self.trace.events,self.trace.local_ticks)
             if self.row==ROW_GENERIC_APB_STORAGE else self.trace.semantic_sha256)
+        if self._mixed_flows:
+            from .compiled_f2 import _layout_document as _f2_layout_document
+            return dict(schema_version='compiled_storage_mixed_prefix.v1',
+                run_id=self.run_id,compiled_sha256=self.compiled_digest,
+                source_files=self.closure,
+                **(dict(irq_firmware=deepcopy(self.irq_firmware),irq_bootstrap=deepcopy(self.irq_bootstrap),
+                    irq_dependency_evidence=self.runner.gpio_irq_dependency_evidence_report()) if getattr(self,'_irq_firmware_enabled',False) else {}),
+                artifact_digests={n:a.runtime_document['artifact_digest']
+                                  for n,a in self.artifacts.items()},
+                rounds_per_case=self.rounds,max_cases=self.max_cases,
+                records=deepcopy(self.records),
+                candidate_layouts={**({'F2':_f2_layout_document(self.layout_f2)} if self._f2_flows else {}),
+                                   'F4':_layout_document(self.layout)},
+                cpu_error_policies={**({'F2':deepcopy(self.error_policy_f2)} if self._f2_flows else {}),
+                                    'F4':deepcopy(self.error_policy)},
+                producer_bindings={**({'F2':self.producer_binding_f2.document()} if self._f2_flows else {}),
+                                   'F4':self.producer_binding.document()},
+                execution_bindings={**({'F2':self.execution_binding_f2.document()} if self._f2_flows else {}),
+                                    'F4':self.execution_binding.document()},
+                execution_binding_sha256={
+                    **({'F2':self.execution_binding_f2.digest} if self._f2_flows else {}),
+                    'F4':self.execution_binding.digest},
+                runtime_path_admissions={
+                    **({'F2':self.execution_binding_f2.document().get(
+                        'runtime_path_admission')} if self._f2_flows else {}),
+                    'F4':self.execution_binding.document().get(
+                        'runtime_path_admission')},
+                **({'f5_crosswalk':deepcopy(self.f5_crosswalk),
+                    'unsupported_flows':['F6'] if self._f2_flows else ['F2','F6']}
+                   if self._f5_preparation is not None else {}),
+                online_plan=json.loads(self.session.encode_plan()),
+                semantic_hash=semantic_hash,feedback=self.feedback())
         return dict(schema_version='compiled_F4_prefix.v2',run_id=self.run_id,
             compiled_sha256=self.compiled_digest,source_files=self.closure,
             artifact_digests={n:a.runtime_document['artifact_digest'] for n,a in self.artifacts.items()},
@@ -1247,6 +1602,10 @@ class CompiledF4Runtime:
                 base_dir=self.base_dir,cache_dir=self.cache_dir,run_id=self.run_id,
                 rounds_per_case=self.rounds,max_cases=self.max_cases,
                 expected_built_receipts=self._built_receipts,
+                mixed_flows=self._mixed_flows,
+                memory_flows=self._memory_flows,
+                f5_preparation=self._f5_preparation,
+                irq_firmware=getattr(self,'_irq_firmware_enabled',False),
                 build_audit_sink=lambda snapshot:envelope.update(fresh_build=snapshot))
         except BaseException as error:
             envelope.update(error_type=type(error).__name__,error=str(error),
@@ -1263,7 +1622,11 @@ class CompiledF4Runtime:
             self._replay_identities.append(deepcopy(identities))
             envelope['fresh_build'] = _diagnostic_build_snapshot(fresh,
                 previous=envelope.get('fresh_build'))
-            for record in plan['records']:fresh.submit(bytes.fromhex(record['raw']))
+            for record in plan['records']:
+                fresh.submit(bytes.fromhex(record['raw']),
+                             flow=record.get('flow') if self._mixed_flows else None,
+                             testcase_id=record['certificate'].get('case_id')
+                                 if record.get('flow') in ('F1','F3','F5') else None)
             actual=fresh.finish()
             envelope.update(_compare_prefixes(expected,actual),actual_prefix=actual)
             return envelope

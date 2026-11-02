@@ -1,0 +1,25 @@
+{
+  "schema_version": "generic_scenario_descriptor.v1",
+  "scenario_id": "compiled-f2-f4-obi-apb-spi-mmio-ibex",
+  "root": ".",
+  "compose": "configs/scenarios/compiled-f2-f4-obi-apb-spi-mmio-ibex/compose.json",
+  "supplement": "configs/scenarios/compiled-f2-f4-obi-apb-spi-mmio-ibex/execution_supplement.json",
+  "capability": "configs/scenarios/compiled-f2-f4-obi-apb-spi-mmio-ibex/test_capability.json",
+  "flow_ids": [
+    "F2",
+    "F4"
+  ],
+  "executors": {
+    "F2": "compiled_mmio",
+    "F4": "compiled_mmio"
+  },
+  "f4_records": [
+    "55000000",
+    "aa000000",
+    "34120000"
+  ],
+  "f2_records": [
+    "08100040"
+  ],
+  "rounds": 128
+}

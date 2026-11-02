@@ -14,7 +14,8 @@ class DmaMasterRouteAdmission:
     """Match each native beat to one selected D4 route before policy checks."""
 
     __slots__ = ('_beat_policy', '_bound_topology', '_path_id', '_read_route',
-                 '_write_route', '_binding_sha256', '_route_matches')
+                 '_write_route', '_binding_sha256', '_route_matches',
+                 '__weakref__')
 
     def __init__(self, beat_policy, bound_topology, *, path_id,
                  read_route, write_route):

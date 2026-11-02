@@ -1,0 +1,13 @@
+{
+  "name": "timer-picorv32-wb-mmio",
+  "cpu_request": "configs/scenarios/compiled-f4-obi-wb-uart-setup/requests/processor.json",
+  "ip_request": "configs/peripherals/pulp_timer/mmio_request.json",
+  "ip_capability": "configs/scenarios/compiled-f4-obi-apb-timer/test_capability.json",
+  "cpu_endpoint": "processor.memory",
+  "ip_endpoint": "timer.bus",
+  "mmio_base": 1073745920,
+  "register": "TIMER0_CTRL",
+  "register_offset": 4,
+  "ram": {"base": 0, "size": 196608},
+  "write_values": [85, 170]
+}

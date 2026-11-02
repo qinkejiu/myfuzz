@@ -1,0 +1,25 @@
+{
+  "schema_version": "generic_scenario_descriptor.v1",
+  "scenario_id": "apb-i2c-ibex-mmio",
+  "root": "configs/scenarios/compiled-f2-f4-obi-apb-i2c-ibex",
+  "compose": "compose.json",
+  "supplement": "execution_supplement.json",
+  "capability": "test_capability.json",
+  "flow_ids": [
+    "F2",
+    "F4"
+  ],
+  "executors": {
+    "F2": "compiled_mmio_obi_apb",
+    "F4": "compiled_mmio_obi_apb"
+  },
+  "f4_records": [
+    "55000000",
+    "aa000000",
+    "34120000"
+  ],
+  "f2_records": [
+    "00100040"
+  ],
+  "rounds": 128
+}

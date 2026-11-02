@@ -1,0 +1,29 @@
+{
+  "schema_version": "inprocess_source_behavior.v1",
+  "description": "OpenTitan GPIO F5 behavior whose clear is the RTL's own write-one-to-clear of the bussified prim_intr_hw INTR_STATE word: INTR_TEST force-sets the event, INTR_STATE latches it, and the handler's write of 1 to that bit clears it and the level really stays low.",
+  "notes": [
+    "Register offsets read from configs/peripherals/opentitan_gpio_local/component_profile.json, which states them from the pinned autogen gpio_reg_pkg.sv: INTR_STATE 0x00 (rw, write_one_clears), INTR_ENABLE 0x04 (rw), INTR_TEST 0x08 (wo, write_pulses_interrupt_test)",
+    "source_port names the RTL's own output: gpio.sv:35 'output logic [NumIOs-1:0] intr_gpio_o', bit 0 of the one bussified interrupt vector (gpio.sv:170-181)",
+    "INTR_TEST is the SW test path of prim_intr_hw: new_event = ({Width{reg2hw_intr_test_qe_i}} & reg2hw_intr_test_q_i) | event_intr_i (prim_intr_hw.sv:64-66), so a write of 1 to INTR_TEST[0] sets INTR_STATE[0] and the wired output, without any pad activity",
+    "trigger_writes are ordered the way the RTL needs them: INTR_ENABLE(0x04)=1 first, because intr_o = status & INTR_ENABLE (prim_intr_hw.sv:104-110 FlopOutput branch), then INTR_TEST(0x08)=1 to latch the event",
+    "status_offsets [0x00] is INTR_STATE, the word the ISR reads; register_kind labels it status",
+    "clear_writes writes INTR_STATE(0x00)=1. This is a real write-one-to-clear: the register is declared swaccess rw1c in the pinned autogen gpio.hjson, and with IntrT='Event' (the gpio.sv:171 instantiation's default) prim_intr_hw does not re-assert the state, so after the write INTR_STATE[0]=0 and intr_gpio_o[0] falls and stays low until the next event. This is the opposite of rv_timer's INTR_STATE0, whose IntrT='Status' re-drives the state every cycle (see configs/behaviors/opentitan_rv_timer_f5.json)",
+    "status_cause_bits [0] is the gpio[0] interrupt event; the ISR's read value is the state word, so a case states whether the bit it cleared was the bit it read",
+    "this file states device facts only: the declaration does not prove the RTL raises or clears the level, the run's case line does"
+  ],
+  "source_port": "intr_gpio_o",
+  "source_bit_offset": 0,
+  "trigger_writes": [
+    [4, 1],
+    [8, 1]
+  ],
+  "status_offsets": [
+    0
+  ],
+  "status_cause_bits": [
+    0
+  ],
+  "clear_writes": [
+    [0, 1]
+  ]
+}

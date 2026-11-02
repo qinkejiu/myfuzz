@@ -1,0 +1,10 @@
+{
+  "schema_version": "dependency_search_scenario.v1",
+  "name": "memory-f3-ibex",
+  "backend": "descriptor",
+  "descriptor": "configs/scenarios/compiled-f4-obi-apb-timer/generic_scenario.json",
+  "flow": "F3",
+  "records": ["F3:55000000"],
+  "goal": {"id": "verified-completion", "description": "Memory input; state feedback remains unknown."},
+  "rounds": 32
+}

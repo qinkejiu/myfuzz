@@ -1,0 +1,96 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-apb-two-ip-i2c-timer-swapped-f1f6",
+  "description": "The same one-CPU-two-target declaration with the target rows swapped: the PULP I2C is target 0 at 0x40001000 and the PULP timer with its F5 behavior is target 1 at 0x40002000. It exists to show that changing which profile a target index names changes only the declaration: the host source and the loop are not edited, and the F5 handler follows irq_base to the timer's new window.",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "targets": [
+    {
+      "name": "i2c",
+      "profile": "configs/peripherals/pulp_i2c/component_profile.json",
+      "active_id": "pulp_i2c_target",
+      "window": {
+        "base": 1073745920,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": null,
+      "pins": null,
+      "fixed_inputs": [
+        {
+          "endpoint_id": "i2c.pins",
+          "role": "scl_pad_i",
+          "value": 1
+        },
+        {
+          "endpoint_id": "i2c.pins",
+          "role": "sda_pad_i",
+          "value": 1
+        }
+      ],
+      "tuning": {
+        "fixed_inputs": [
+          {
+            "endpoint_id": "i2c.pins",
+            "role": "scl_pad_i",
+            "value": 1
+          },
+          {
+            "endpoint_id": "i2c.pins",
+            "role": "sda_pad_i",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "timer",
+      "profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+      "active_id": "pulp_timer_active",
+      "window": {
+        "base": 1073750016,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": "configs/behaviors/pulp_timer_f5.json",
+      "pins": null,
+      "fixed_inputs": [],
+      "tuning": {}
+    }
+  ],
+  "dma_profile": "configs/peripherals/zipdma_smoke/component_profile.json",
+  "dma_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "dma_capability": "configs/scenarios/compiled-f1-f6-ibex-gpio-zipdma-shared/dma.test_capability.json",
+  "dma_behavior": "configs/behaviors/zipdma_f6.json",
+  "dma_block_words": 4,
+  "dma_window": {
+    "base": 1073754112,
+    "size": 16
+  },
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "f1_program_words": 4,
+  "handler_wait_iterations": 128,
+  "notes": [
+    "This is the swapped twin of inprocess-obi-apb-two-ip-timer-i2c-f1f6.json: the two target rows exchange their profiles and windows while the host source, the C++ loop and the generated trait shape stay the same. It is the evidence that target 1 can name another profile without a CPU x IP branch.",
+    "Target 1 is the PULP timer with configs/behaviors/pulp_timer_f5.json, so target_for_f5 selects index 1 and build_layout states irq_base = 0x40002000; the F5 firmware and the ISR read at that base rather than at the first target window.",
+    "Target 0 is the PULP I2C held at scl/sda = 1. It is reached by address only and declares no F5 facts."
+  ]
+}

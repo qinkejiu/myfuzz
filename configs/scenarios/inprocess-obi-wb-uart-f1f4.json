@@ -1,0 +1,54 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-wb-uart-f1f4",
+  "description": "One Ibex RVFI OBI CPU reaches one real classic Wishbone register target in one process: the ZipCPU UART as a word-addressed registered-ack beat_to_wishbone target. The case line states the cyc/stb/ack/we/adr/dat_w/dat_r/sel handshake the slave's own pins carried, and the summary states the target's protocol and bridge.",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "targets": [
+    {
+      "name": "wbuart",
+      "profile": "configs/peripherals/zipcpu_uart/component_profile.json",
+      "active_id": "wbuart_target",
+      "window": {
+        "base": 1073745920,
+        "size": 16
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 2,
+        "max_wait_cycles": 16
+      },
+      "behavior": null,
+      "pins": null,
+      "fixed_inputs": [
+        {
+          "endpoint_id": "uart.pins",
+          "role": "rx",
+          "value": 1
+        },
+        {
+          "endpoint_id": "uart.pins",
+          "role": "cts_n",
+          "value": 0
+        }
+      ],
+      "tuning": {}
+    }
+  ],
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "handler_wait_iterations": 128,
+  "notes": [
+    "One OBI CPU (Ibex RVFI) reaches one Wishbone classic target at 0x40001000 behind the real beat_to_wishbone adapter (the target profile's own protocol is wishbone/classic and its capabilities declare has_address_port true, sel_implemented true and wishbone_flavour registered-ack).",
+    "The generic wishbone_register_observe kernel is the one used: it exposes the slave's cyc/stb/we/adr/dat_w/sel/ack/dat_r (and stall) as passive trace ports, so every case states the handshake it sampled. The specialised wishbone_timer kind is refused by name because its trace has no ack/dat_r and no address port; an addressless zipcpu_timer request is refused before any RTL with unsupported-target-trace:wishbone:addressless:...",
+    "Window: the UART's 16 bytes (SETUP(0, rw, write_resets_uart_state), FIFO_STATUS(4, ro), RXREG(8, rw, read pops the RX FIFO), TXREG(12, rw, write pushes the TX FIFO)). It does not overlap the RAM image 0x10000..0x30000 and clears the 4 GiB bound.",
+    "rx=1 and cts_n=0 are the same pin constants the single-target AXI4-Lite scenario declares for the same UART RTL; they are the two non-bus inputs the wishbone register template requires an owner for.",
+    "No behavior file is declared: this target declares no F5 facts, so F5 is refused by name (unsupported-f5:target-protocol-not-run:wishbone:wbuart would apply if it did declare them), and the summary states target0_f5 no. No DMA is declared, so F6 is refused as unsupported-f6:no-dma-model:Wishbone.",
+    "The profile declares 50 MHz, the same as the CPU, so one host tick drives both models; assume_single_clock states that rather than leaving it implicit."
+  ]
+}

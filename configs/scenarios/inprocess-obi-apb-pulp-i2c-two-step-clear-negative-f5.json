@@ -1,0 +1,71 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-apb-pulp-i2c-two-step-clear-negative-f5",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "source_profile": "configs/peripherals/pulp_i2c_irq/component_profile.json",
+  "source_timing": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "max_wait_cycles": 16
+  },
+  "active_id": "pulp_i2c_target",
+  "target_window": {
+    "base": 1073741824,
+    "size": 4096
+  },
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "f1_program_words": 4,
+  "handler_wait_iterations": 2047,
+  "source_fixed_inputs": [
+    {
+      "endpoint_id": "i2c.pins",
+      "role": "scl_pad_i",
+      "value": 1
+    },
+    {
+      "endpoint_id": "i2c.pins",
+      "role": "sda_pad_i",
+      "value": 1
+    }
+  ],
+  "source_tuning": {
+    "fixed_inputs": [
+      {
+        "endpoint_id": "i2c.pins",
+        "role": "scl_pad_i",
+        "value": 1
+      },
+      {
+        "endpoint_id": "i2c.pins",
+        "role": "sda_pad_i",
+        "value": 1
+      }
+    ]
+  },
+  "notes": [
+    "Negative probe for the ordered-clear form, on the same real PULP apb_i2c level interrupt (configs/peripherals/pulp_i2c_irq).",
+    "The declared sequence is CMD=0 then CMD=0: two declared writes that never set the iack bit (apb_i2c.sv:128 `wire iack = r_cmd[0];`), so irq_flag stays set (apb_i2c.sv:189-193) and interrupt_o = irq_flag && s_ien never drops.",
+    "Expected result: the handler re-enters, the take limit is reached, the level is reported still high (level_stuck 1) and the case is failed. This is what makes the two-step form's pass condition non-vacuous: a declared clear that does not deassert the device is a recorded failure, not a pass.",
+    "This file declares the scenario; the real RTL run under runs/p1-irq/ is the evidence."
+  ],
+  "source_behavior": "configs/behaviors/pulp_i2c_level_two_step_f5.json",
+  "case_tick_budget": 80000,
+  "irq_clear_sequence": [
+    [
+      20,
+      0
+    ],
+    [
+      20,
+      0
+    ]
+  ],
+  "description": "Negative probe for the ordered-clear form: the same PULP I2C level interrupt with a declared two-write sequence that never asserts iack, so the declared clear cannot deassert the device and the case must fail with level_stuck."
+}

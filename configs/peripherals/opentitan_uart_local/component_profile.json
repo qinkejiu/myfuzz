@@ -340,6 +340,7 @@
         {
           "role": "rx",
           "direction": "input",
+          "width": 1,
           "aliases": [
             "cio_rx_i"
           ]
@@ -381,6 +382,7 @@
         {
           "role": "rx_watermark",
           "direction": "output",
+          "width": 1,
           "aliases": [
             "intr_rx_watermark_o"
           ]
@@ -569,6 +571,7 @@
     {
       "endpoint_id": "uart.interrupts",
       "role": "rx_watermark",
+      "source_id": "intr_rx_watermark_o",
       "bit": 0,
       "polarity": "active_high",
       "trigger": "level",

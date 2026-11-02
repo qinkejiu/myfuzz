@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from myfuzz.composition.constraint_ir import select_balanced
-
 from .constraints import IsaContract, RiscvInstructionProvider
 
 
@@ -299,6 +297,9 @@ class RiscvInstructionTransducer:
             raise ValueError("no operations available for instruction width")
         if illegal:
             choices += (None,)
+        # Composition imports the ISA stimulus at package initialization;
+        # defer this shared selector until the transducer class is initialized.
+        from myfuzz.composition.constraint_ir import select_balanced
         template = select_balanced(raw_selector, self.selector_width, choices)
         if template is None:
             return self._illegal_choice(raw_payload, width)

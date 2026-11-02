@@ -1,0 +1,45 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "refused-uart-two-serial-peers",
+  "description": "Refusal sample: two serial peers on one target. The host drives one framed line per target, so the second peer is refused by name (unsupported-behavior-execution:serial_peer:count:2).",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "targets": [
+    {
+      "name": "tluluart",
+      "profile": "configs/peripherals/opentitan_uart_local/component_profile.json",
+      "active_id": "tluluart_target",
+      "window": {
+        "base": 1073754112,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": "configs/behaviors/declaration-only/uart_two_serial_peers_f5.json",
+      "pins": null,
+      "fixed_inputs": [
+        {
+          "endpoint_id": "uart.pins",
+          "role": "rx",
+          "value": 1
+        }
+      ],
+      "tuning": {}
+    }
+  ],
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "handler_wait_iterations": 256,
+  "notes": [
+    "this scenario exists to record the named refusal, not to pass",
+    "the refusal is raised by myfuzz.composition.inprocess_behavior.execution_refusals"
+  ]
+}

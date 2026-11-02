@@ -1,0 +1,57 @@
+{
+  "schema_version": "inprocess_source_behavior.v1",
+  "description": "Declaration-only F5 behavior that states two dir-resolved pad groups on one device. The declaration normalizes two named groups; this host resolves one pad word, so it refuses the second group by name instead of running the first and dropping the second. Since 2026-11-03 (P2) the host executes up to four groups in declaration order; this file stays declaration-only evidence of the shape, and a second pad word is still refused by name.",
+  "notes": [
+    "this is a schema example, not any pinned device's register map: no profile in configs/peripherals declares two independent pad words, so no scenario references this file",
+    "the two groups state different directions and hold times so the normalized form carries the direction/timing facts the group schema owns: group pads is an inout word held for 0 ticks, group strobes is an output word held for 4 ticks",
+    "the interrupt facts are the PULP GPIO ones so the file is a complete F5 declaration: the refusal is about the pad groups, not about a missing trigger or status word",
+    "no execution is claimed"
+  ],
+  "source_port": "interrupt",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 16,
+  "trigger_writes": [
+    [
+      4,
+      4294967295
+    ],
+    [
+      24,
+      1
+    ],
+    [
+      28,
+      1
+    ],
+    [
+      12,
+      43
+    ]
+  ],
+  "status_offsets": [
+    36
+  ],
+  "status_cause_bits": [
+    0
+  ],
+  "pin_groups": [
+    {
+      "name": "pads",
+      "kind": "dir_resolved_pad_word",
+      "direction": "inout",
+      "hold_ticks": 0,
+      "padin_offset": 8,
+      "external_value": 0,
+      "pad_resolution": "device_drives_when_dir_bit_high_else_host"
+    },
+    {
+      "name": "strobes",
+      "kind": "dir_resolved_pad_word",
+      "direction": "out",
+      "hold_ticks": 4,
+      "padin_offset": 12,
+      "external_value": 4294967295,
+      "pad_resolution": "device_drives_when_dir_bit_high_else_host"
+    }
+  ]
+}

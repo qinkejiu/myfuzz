@@ -11,7 +11,9 @@ from .renderer import _sha
 from .runtime_artifact import LocalRuntimeArtifact
 from .session import registered_operations
 from .runtime_renderer import render_local_runtime
-from .wishbone_dma_fields import DMA_CONTROL_SHAPE, DMA_MASTER_SHAPE, DMA_STEP_PORTS
+from .wishbone_dma_fields import (DMA_CONTROL_SHAPE, DMA_MASTER_SHAPE, DMA_STEP_PORTS,
+    DMA_SELECTED_CONTROL_SHAPE, DMA_SELECTED_MASTER_SHAPE, DMA_SELECTED_STEP_PORTS,
+    dma_control_shape, dma_edge_contract, selected_dma_edge_contract, dma_select_modes, dma_profile_edge_contract)
 from .axi4_fields import AXI_STEP_PORTS
 from .cva6_axi4_fields import CVA6_AXI_STEP_PORTS
 from .vexii_axi_fields import STEP_PORTS as REDUCED_AXI_STEP_PORTS
@@ -26,6 +28,78 @@ _OT_I2C_HEADER = 'src/myfuzz/local_harness/rtl/opentitan_i2c_single_slave_peer.h
 
 def _literal(value: str) -> str:
     return json.dumps(value, ensure_ascii=True)
+
+
+def _timed_clock_contract(profile, schedule):
+    mode = profile.capabilities.get('verilator_timing_mode')
+    if mode in (None, 'no_timing'):
+        return None
+    if mode != 'timing':
+        raise ValueError('unsupported-local-verilator-timing-mode')
+    hz = schedule.get('fast_frequency_hz')
+    if type(hz) is not int or hz <= 0 or 10**12 % (2 * hz):
+        raise ValueError('timed-clock-half-period-not-integral-picoseconds')
+    return dict(schema_version='verilator_timed_clock.v1', fast_frequency_hz=hz,
+        half_period_ps=10**12 // (2 * hz), timeunit='1ns', timeprecision='1ps',
+        sampling='pre_before_rising_post_before_falling', max_evaluations_per_phase=65536,
+        startup_diagnostics='stderr_before_READY')
+
+
+def _timed_driver_cpp(contract):
+    return r'''#include <limits>
+#include <stdexcept>
+#include <cstdio>
+#include <iostream>
+#include <unistd.h>
+class TimedStartupDiagnostics {
+  int saved_stdout_ = -1;
+public:
+  TimedStartupDiagnostics() {
+    std::cout.flush(); std::fflush(stdout);
+    saved_stdout_ = ::dup(STDOUT_FILENO);
+    if (saved_stdout_ < 0) throw std::runtime_error("startup_stdout_save_failed");
+    if (::dup2(STDERR_FILENO, STDOUT_FILENO) < 0) {
+      ::close(saved_stdout_); saved_stdout_ = -1;
+      throw std::runtime_error("startup_diagnostics_redirect_failed");
+    }
+  }
+  TimedStartupDiagnostics(const TimedStartupDiagnostics &) = delete;
+  TimedStartupDiagnostics &operator=(const TimedStartupDiagnostics &) = delete;
+  void restore() {
+    if (saved_stdout_ < 0) return;
+    std::cout.flush(); std::fflush(stdout);
+    const int restored = ::dup2(saved_stdout_, STDOUT_FILENO);
+    ::close(saved_stdout_); saved_stdout_ = -1;
+    if (restored < 0) throw std::runtime_error("startup_stdout_restore_failed");
+  }
+  ~TimedStartupDiagnostics() {
+    if (saved_stdout_ >= 0) {
+      std::cout.flush(); std::fflush(stdout);
+      ::dup2(saved_stdout_, STDOUT_FILENO); ::close(saved_stdout_);
+    }
+  }
+};
+static constexpr std::uint64_t timed_half_period_ps = @HALF@;
+static void timed_advance_to(Model &dut, std::uint64_t boundary) {
+  auto *context = dut.contextp();
+  if (context->timeprecision() != -12 || context->time() > boundary)
+    throw std::runtime_error("timed_context_precision_or_order");
+  unsigned evaluations = 0;
+  for (;;) {
+    const bool pending = dut.eventsPending();
+    const std::uint64_t next = pending ? dut.nextTimeSlot() : boundary;
+    if (pending && next < context->time())
+      throw std::runtime_error("timed_event_in_the_past");
+    if (context->time() == boundary && (!pending || next > boundary)) break;
+    if (++evaluations > @MAX_EVAL@)
+      throw std::runtime_error("timed_phase_event_bound");
+    const std::uint64_t target = pending && next <= boundary ? next : boundary;
+    context->timeInc(target - context->time());
+    eval_dut(dut);
+  }
+}
+'''.replace('@HALF@', str(contract['half_period_ps'])).replace(
+        '@MAX_EVAL@', str(contract['max_evaluations_per_phase']))
 
 
 def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> LocalRuntimeArtifact:
@@ -71,7 +145,9 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         # Select the original official IRQ port; passive one-bit internal
         # probes remain ordinary exports and are never IRQ aliases.
         pulses = [row for row in exports if row['physical_port'] == 'interrupt'
-                  and row['endpoint_id'] is None and row['disposition'] == 'observe'
+                      and ((row['endpoint_id'] is None and row['disposition'] == 'observe')
+                           or (row['endpoint_id'] == 'gpio.interrupts'
+                               and row['role'] == 'irq' and row['disposition'] == 'functional'))
                   and row['direction'] == 'output' and row['width'] == 1
                   and row['bit_lo'] == 0 and row['bit_hi'] == 0]
         if len(pulses) != 1:
@@ -216,8 +292,14 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         fields['irq_o'] = irq[0]['runtime_name']
         allowed_inputs = {fields[name] for name in ('sck_i', 'csb_i', 'tpm_csb_i', 'sd_i')}
     elif kind == 'wishbone_dma':
+        dma_control_selected, dma_master_selected = dma_select_modes(artifact.plan.profile.capabilities)
+        control_width=artifact.plan.profile.capabilities['address_width']
+        expected_contract=dma_profile_edge_contract(artifact.plan.profile.capabilities)
+        if document.get('dma_edge_contract') != expected_contract:
+            raise ValueError('driver-dma-edge-contract')
         expected = {prefix+'_'+role:(direction,width)
-                    for prefix,shape in (('swb',DMA_CONTROL_SHAPE),('mwb',DMA_MASTER_SHAPE))
+                    for prefix,shape in (('swb',dma_control_shape(control_width,selected=dma_control_selected)),
+                                         ('mwb',DMA_SELECTED_MASTER_SHAPE if dma_master_selected else DMA_MASTER_SHAPE))
                     for role,(direction,width) in shape.items()}
         if (len(backend) != len(expected) or
                 {row['name']:(row['direction'],row['width']) for row in backend} != expected):
@@ -284,6 +366,24 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
             raise ValueError('driver-cva6-timer-irq-field')
         fields['irq_timer'] = timer_irq[0]['runtime_name']
         allowed_inputs = {fields['irq_external'], fields['irq_timer']}
+    elif kind == 'tilelink_coherent_cpu':
+        # Nothing outside the harness drives this CPU: the six interrupt/hartid
+        # inputs are profile constants tied by the structural wrapper, and every
+        # coherent pin belongs to the generated adapter.  The backend face is
+        # checked here so a driver can never sample a shape the runtime top did
+        # not declare (64-bit beat, 8 byte lanes, 32-bit address).
+        expected = {'m_req_valid': ('output', 1), 'm_req_ready': ('input', 1),
+                    'm_req_write': ('output', 1), 'm_req_addr': ('output', 32),
+                    'm_req_wdata': ('output', 64), 'm_req_be': ('output', 8),
+                    'm_rsp_valid': ('input', 1), 'm_rsp_ready': ('output', 1),
+                    'm_rsp_rdata': ('input', 64), 'm_rsp_error': ('input', 1),
+                    'm_fault': ('output', 1), 'm_fault_code': ('output', 2)}
+        rows = {row['name']: row for row in backend}
+        if set(rows) != set(expected) or any(
+                (rows[name]['direction'], rows[name]['width']) != shape
+                for name, shape in expected.items()):
+            raise ValueError('driver-tilelink-coherent-backend-shape')
+        allowed_inputs = set()
     elif kind == 'obi_cpu':
         cpu = artifact.plan.profile.cpu
         irq = [row for row in exports if row['endpoint_id'] == cpu.irq_entry_endpoint and
@@ -347,7 +447,8 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     max_samples = (1 if kind in ('obi_cpu', 'native_memory_cpu', 'rvx_memory_cpu',
                                 'wishbone_cpu', 'wishbone_dma', 'axi4_lite_cpu', 'axi4_cpu',
                                 'reduced_dual_axi_cpu', 'reduced_dual_axi_irq_cpu',
-                                'ahb_lite_cpu', 'cva6_packed_axi4_cpu')
+                                'ahb_lite_cpu', 'cva6_packed_axi4_cpu',
+                                'tilelink_coherent_cpu')
                    else 2 * max_wait + 5)
     # Conservative serialized upper bound, before issuing any command effects.
     maxima_backend = {row['name']: (1 << row['width']) - 1 for row in backend}
@@ -484,7 +585,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         operation_check = 'command.operation != "STEP_CVA6_AXI4"'
     elif kind == 'wishbone_dma':
         assignments = '\n'.join(f'      dut.{name} = command.fields[{index}];'
-                                for index,name in enumerate(DMA_STEP_PORTS))
+                                for index,name in enumerate(DMA_SELECTED_STEP_PORTS if dma_control_selected else DMA_STEP_PORTS))
         dispatch = assignments + r'''
       dut.eval();
       pre_backend = backend_snapshot(dut);
@@ -501,7 +602,13 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         dma_edge_state.commit(accepted, completed);
       }
 '''
-        operation_check = 'command.operation != "STEP_WB_DMA"'
+        if control_width != 2:
+            dispatch = f'''      if (command.fields[3] > {(1 << control_width)-1}ULL) {{
+        terminal = error_reply(command.execution, command.sequence, local_ticks,
+                               "invalid_input", "dma_control_address_out_of_range");
+      }} else {{
+''' + dispatch + '      }\n'
+        operation_check = 'command.operation != "' + expected_contract['operation'] + '"'
     elif kind == 'wishbone_cpu':
         dispatch = r'''      dut.wb_ack = command.fields[0];
       dut.wb_dat_r = command.fields[1];
@@ -577,6 +684,31 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
                                "protocol_environment", "ahb_startup_incomplete");
       } else {
 ''' + dispatch + '\n      }').replace('@PAGES@', str(ahb_startup['page_count']))
+    elif kind == 'tilelink_coherent_cpu':
+        # The coherent client's A/B/C/D/E pins live inside the generated
+        # adapter; the driver only plays the host memory side of the backend
+        # beat face, one 8-byte beat per local tick, exactly like the OBI/AHB
+        # memory CPUs.  A backend request offered without the host accepting it,
+        # or an adapter fault, is a named environment error -- never a
+        # synthesized completion.
+        names = ('m_req_ready', 'm_rsp_valid', 'm_rsp_rdata', 'm_rsp_error')
+        assignments = '\n'.join(f'      dut.{name} = command.fields[{index}];'
+                                for index, name in enumerate(names))
+        dispatch = assignments + '''
+      dut.eval();
+      pre_backend = backend_snapshot(dut);
+      if (dut.m_fault || (dut.m_rsp_valid && !dut.m_rsp_ready)) {
+        terminal = error_reply(command.execution, command.sequence, local_ticks,
+                               "protocol_environment", "tilelink_coherent_fault");
+      } else {
+        tick(dut, &samples);
+        if (dut.m_fault) {
+          terminal = error_reply(command.execution, command.sequence, local_ticks,
+                                 "protocol_environment", "tilelink_coherent_fault");
+        }
+      }
+'''
+        operation_check = 'command.operation != "STEP_TL_COHERENT"'
     elif kind == 'obi_cpu':
         assignments = '\n'.join(f'      dut.{name} = command.fields[{index}];' for index, name in enumerate([
             fields['irq_external'], 'i_req_ready', 'i_rsp_valid', 'i_rsp_rdata', 'i_rsp_error',
@@ -765,6 +897,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
             or not isinstance(schedule.get('resets'), list)
             or not schedule['clocks'] or not schedule['resets']):
         raise ValueError('driver-clock-schedule-required')
+    timed_clock = _timed_clock_contract(artifact.plan.profile, schedule)
     clock_rows = schedule['clocks']
     reset_rows = schedule['resets']
     if any(not isinstance(row, dict) for row in clock_rows + reset_rows):
@@ -854,6 +987,10 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
 @I2C_HEADER@
 @DMA_HEADER@
 #include <iostream>
+#include <chrono>
+#include <cstdlib>
+#include <fstream>
+#include <unistd.h>
 #include <map>
 #include <string>
 #include <vector>
@@ -867,6 +1004,29 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
 using Model = V@MODULE@;
 using namespace myfuzz::local_driver_v1;
 using JsonObject = std::map<std::string, std::string>;
+static const char *dut_timing_dir = std::getenv("MYFUZZ_DUT_TIMING_DIR");
+static bool dut_timing_startup = true;
+static std::uint64_t dut_eval_ns[2] = {0, 0}, dut_eval_count[2] = {0, 0};
+static void eval_dut(Model &dut) {
+  if (!dut_timing_dir || !*dut_timing_dir) { dut.eval(); return; }
+  const auto started = std::chrono::steady_clock::now();
+  dut.eval();
+  const auto elapsed = std::chrono::steady_clock::now() - started;
+  const unsigned phase = dut_timing_startup ? 0 : 1;
+  dut_eval_ns[phase] += std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count();
+  ++dut_eval_count[phase];
+}
+static void write_dut_timing() {
+  if (!dut_timing_dir || !*dut_timing_dir) return;
+  std::ofstream file(std::string(dut_timing_dir) + "/dut-timing-" +
+                     std::to_string(getpid()) + ".json");
+  file << "{\"schema_version\":\"dut_eval_timing.v1\",\"kind\":\"@KIND@\","
+       << "\"module\":\"@MODULE@\",\"pid\":" << getpid()
+       << ",\"startup_eval_count\":" << dut_eval_count[0]
+       << ",\"startup_eval_ns\":" << dut_eval_ns[0]
+       << ",\"runtime_eval_count\":" << dut_eval_count[1]
+       << ",\"runtime_eval_ns\":" << dut_eval_ns[1] << "}\n";
+}
 static std::uint64_t local_ticks = 0;
 @CLOCK_STATE_DECLARATIONS@
 @SPI_PEER@
@@ -918,17 +1078,17 @@ static std::string snapshot(const Model &dut) {
 @ALIASES@  return object(values);
 }
 @CLOCK_EDGE_SNAPSHOT@
-static void tick(Model &dut, std::vector<std::string> *samples) {
-@SPI_DRIVE@
+@TIMED_DECLARATIONS@static void tick(Model &dut, std::vector<std::string> *samples) {
+@TIMED_TICK_BEGIN@@SPI_DRIVE@
   dut.clk = 0;
 @CLOCK_FAST_EXTRA_LOW@  dut.eval();
-@I2C_RESOLVE@
+@TIMED_LOW_SETTLE@@I2C_RESOLVE@
 @SPI_OBSERVE@
 @I2C_OBSERVE@
   const auto pre = samples ? snapshot(dut) : "";
 @CLOCK_SCHEDULE_NEXT@  dut.clk = 1;
 @CLOCK_FAST_EXTRA_HIGH@@CLOCK_EDGE_COUNT_INC@@CLOCK_SLOW_TOGGLE@  dut.eval();
-@I2C_RESOLVE@
+@TIMED_HIGH_SETTLE@@I2C_RESOLVE@
 @CLOCK_SCHEDULE_INCREMENT@
   ++local_ticks;
 @SPI_OBSERVE@
@@ -964,7 +1124,7 @@ static bool read_command(std::string &line, bool &oversize) {
 }
 int main(int argc, char **argv) {
   Verilated::commandArgs(argc, argv);
-  Model dut;
+@STARTUP_DIAGNOSTICS_BEGIN@  Model dut;
 @INITIALIZERS@
   // Evaluate inactive reset first to create a real asynchronous assertion edge.
 @RESET_INACTIVE@  dut.eval();
@@ -982,7 +1142,8 @@ int main(int argc, char **argv) {
 @SPI_DEVICE_BOOT@
 @CLOCK_COUNTER_RESET@
   local_ticks = 0;
-  std::cout << "READY local_driver.v1 " << MYFUZZ_STRINGIFY(MYFUZZ_ARTIFACT_DIGEST)
+  dut_timing_startup = false;
+@STARTUP_DIAGNOSTICS_END@  std::cout << "READY local_driver.v1 " << MYFUZZ_STRINGIFY(MYFUZZ_ARTIFACT_DIGEST)
             << " " << hex_integer(asserted_ticks) << " " << hex_integer(released_ticks) << std::endl;
   BoundedReplay replay(@CACHE@, kMaxReplyBytes@COMMAND_SET@);
   std::string line;
@@ -1054,10 +1215,19 @@ int main(int argc, char **argv) {
     }
   }
   dut.final();
+  write_dut_timing();
   return 0;
 }
 '''
     values = dict(MODULE=document['module_name'], BACKEND=backend_items, PHYSICAL=physical_items,
+                  TIMED_DECLARATIONS=_timed_driver_cpp(timed_clock) if timed_clock else '',
+                  STARTUP_DIAGNOSTICS_BEGIN='  TimedStartupDiagnostics startup_diagnostics;\n' if timed_clock else '',
+                  STARTUP_DIAGNOSTICS_END='  startup_diagnostics.restore();\n' if timed_clock else '',
+                  TIMED_TICK_BEGIN=('  const auto timed_tick_begin = dut.contextp()->time();\n'
+                    '  if (timed_tick_begin > std::numeric_limits<std::uint64_t>::max() - 2 * timed_half_period_ps)\n'
+                    '    throw std::runtime_error("timed_clock_overflow");\n') if timed_clock else '',
+                  TIMED_LOW_SETTLE='  timed_advance_to(dut, timed_tick_begin + timed_half_period_ps);\n' if timed_clock else '',
+                  TIMED_HIGH_SETTLE='  timed_advance_to(dut, timed_tick_begin + 2 * timed_half_period_ps);\n' if timed_clock else '',
                   PROTOCOL_TAPS=protocol_tap_entry,
                   ALIASES=aliases, INITIALIZERS=initializers,
                   CLOCK_STATE_DECLARATIONS=clock_state_declarations,
@@ -1109,10 +1279,17 @@ int main(int argc, char **argv) {
     cpp = template
     for key, value in values.items():
         cpp = cpp.replace('@' + key + '@', value)
+    cpp = cpp.replace("dut.eval();", "eval_dut(dut);")
+    # The timing wrapper itself must call the underlying model directly.
+    cpp = cpp.replace("{ eval_dut(dut); return; }", "{ dut.eval(); return; }")
+    cpp = cpp.replace("const auto started = std::chrono::steady_clock::now();\n  eval_dut(dut);",
+                      "const auto started = std::chrono::steady_clock::now();\n  dut.eval();")
     headers = [{'path': name, 'sha256': hashlib.sha256((root / name).read_bytes()).hexdigest()}
                for name in (*_HEADERS, *([_DMA_HEADER] if kind == 'wishbone_dma' else []), *([_SPI_HEADER] if kind == 'apb_spi' else []),
                             *([_I2C_HEADER] if kind == 'apb_i2c' else
                               [_OT_I2C_HEADER] if kind == 'tlul_i2c' else []))]
+    if timed_clock is not None:
+        document['driver_timing'] = timed_clock
     document.update(driver_schema_version='local_driver_generation.v1', status='driver_generated',
                     driver_status='generated', driver_header_sources=headers,
                     cpp_sha256=hashlib.sha256(cpp.encode()).hexdigest(),

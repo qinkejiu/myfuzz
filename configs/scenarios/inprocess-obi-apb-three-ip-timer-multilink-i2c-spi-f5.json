@@ -1,0 +1,150 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-apb-three-ip-timer-multilink-i2c-spi-f5",
+  "description": "One Ibex RVFI OBI CPU reaches three APB3 targets in one process, and the first target declares two real IRQ links: the PULP timer's overflow (irq_o[0]) and compare (irq_o[1]) outputs. The PULP I2C and PULP SPI each declare one link, so the session's global table has four links over three targets. One F5 case selects one global link; its trigger writes, ISR status read and clear write all belong to that link's own target and status word. The two-source row is absent by name (unsupported-f5:both-needs-one-link-per-target): the pair's per-target counters cannot tell the timer's two links apart, and the ISR carries two cell sets.",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "targets": [
+    {
+      "name": "timer",
+      "profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+      "active_id": "pulp_timer_active",
+      "window": {
+        "base": 1073745920,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": "configs/behaviors/pulp_timer_multilink_f5.json",
+      "pins": null,
+      "fixed_inputs": [],
+      "tuning": {}
+    },
+    {
+      "name": "i2c",
+      "profile": "configs/peripherals/pulp_i2c_irq/component_profile.json",
+      "active_id": "pulp_i2c_target",
+      "window": {
+        "base": 1073750016,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": "configs/behaviors/pulp_i2c_level_f5.json",
+      "pins": null,
+      "fixed_inputs": [
+        {
+          "endpoint_id": "i2c.pins",
+          "role": "scl_pad_i",
+          "value": 1
+        },
+        {
+          "endpoint_id": "i2c.pins",
+          "role": "sda_pad_i",
+          "value": 1
+        }
+      ],
+      "tuning": {
+        "fixed_inputs": [
+          {
+            "endpoint_id": "i2c.pins",
+            "role": "scl_pad_i",
+            "value": 1
+          },
+          {
+            "endpoint_id": "i2c.pins",
+            "role": "sda_pad_i",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "spi",
+      "profile": "configs/peripherals/inprocess_verify_pulp_spi_irq/component_profile.json",
+      "active_id": "pulp_spi_target",
+      "window": {
+        "base": 536879104,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": "configs/behaviors/pulp_spi_eot_f5.json",
+      "pins": null,
+      "fixed_inputs": [
+        {
+          "endpoint_id": "spi.pins",
+          "role": "sdi0",
+          "value": 1
+        },
+        {
+          "endpoint_id": "spi.pins",
+          "role": "sdi1",
+          "value": 1
+        },
+        {
+          "endpoint_id": "spi.pins",
+          "role": "sdi2",
+          "value": 1
+        },
+        {
+          "endpoint_id": "spi.pins",
+          "role": "sdi3",
+          "value": 1
+        }
+      ],
+      "tuning": {
+        "fixed_inputs": [
+          {
+            "endpoint_id": "spi.pins",
+            "role": "sdi0",
+            "value": 1
+          },
+          {
+            "endpoint_id": "spi.pins",
+            "role": "sdi1",
+            "value": 1
+          },
+          {
+            "endpoint_id": "spi.pins",
+            "role": "sdi2",
+            "value": 1
+          },
+          {
+            "endpoint_id": "spi.pins",
+            "role": "sdi3",
+            "value": 1
+          }
+        ]
+      }
+    }
+  ],
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "f1_program_words": 4,
+  "handler_wait_iterations": 256,
+  "case_tick_budget": 80000,
+  "notes": [
+    "Three APB3 target rows, one generated model each. Windows: timer 0x40001000..0x40001fff, I2C 0x40002000..0x40002fff, SPI 0x20002000..0x20002fff; all are the profiles' own 4 KiB windows and pairwise disjoint, and disjoint from the RAM image 0x10000..0x30000.",
+    "Target 0's behavior is configs/behaviors/pulp_timer_multilink_f5.json: a v2 irq_sources list with two links on the same physical port irq_o - bit 0 (overflow, status TIMER0_COUNT at offset 0, triggers [[4,0],[8,0],[0,0xffffffff]]) and bit 1 (compare, status TIMER0_CMP at offset 8, triggers [[4,0],[8,3],[0,3]]). Both are pulse outputs with no clear. Target 1 is the PULP I2C (configs/peripherals/pulp_i2c_irq, configs/behaviors/pulp_i2c_level_f5.json): level interrupt_o, STATUS at 0xc, clear CMD=1. Target 2 is the PULP SPI (configs/peripherals/inprocess_verify_pulp_spi_irq, configs/behaviors/pulp_spi_eot_f5.json): pulse events_o[1], INTSTA at 0x28, no clear.",
+    "All four links declare three trigger writes, so one F5 record shape (global link index plus three trigger values) serves every row. The global table is 0 = timer overflow, 1 = timer compare, 2 = I2C level, 3 = SPI end-of-transfer.",
+    "The synthetic two-source row is refused by name: unsupported-f5:both-needs-one-link-per-target. The timer owns two links, and the pair's per-target read/clear counters and the two ISR cell sets cannot attribute two simultaneously asserted links of one target. This session therefore proves per-link selection over a four-row table, not simultaneous attribution; the three-target single-link scenario is where the both row runs.",
+    "The I2C pad inputs and the SPI serial inputs are held at their idle values in fixed_inputs and tuning.fixed_inputs, and no 32-bit pad group is selected.",
+    "No dma_profile is declared, so F6 is refused by name (unsupported-f6:no-dma-model:apb3).",
+    "This file declares the scenario; it is not evidence. The real RTL run under runs/p1-irq/ is the evidence."
+  ]
+}

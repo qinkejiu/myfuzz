@@ -23,9 +23,18 @@ def _canonical(value):
     return json.dumps(value,sort_keys=True,separators=(',',':'),ensure_ascii=False,allow_nan=False).encode()
 
 
-def _require(condition, code):
+class CompiledF2CandidateRefused(ValueError):
+    """A candidate or preflight refusal, compatible with existing callers."""
+    def __init__(self, code, pointer='', detail=None):
+        self.code = code
+        self.pointer = pointer
+        self.detail = detail
+        super().__init__('compiled-F2-decoder-'+code)
+
+
+def _require(condition, code, pointer=None, detail=None):
     if not condition:
-        raise ValueError('compiled-F2-decoder-'+code)
+        raise CompiledF2CandidateRefused(code, pointer or '/'+code, detail)
 
 
 @dataclass(frozen=True)
@@ -58,6 +67,22 @@ class CompiledF2Candidate:
 
 class CompiledF2Decoder:
     """One frozen compile request and selected F2 path, no launch authority."""
+    @property
+    def path_id(self):
+        return self.path['path_id']
+
+    @property
+    def source_id(self):
+        return self.contract['load_source_id']
+
+    @property
+    def direction(self):
+        return self.path['direction']
+
+    @property
+    def max_input_bytes(self):
+        return RECORD_BYTES
+
     @classmethod
     def from_request(cls,*,request,compiled,run_id,schedule,rounds,result_address):
         return cls(request=request,compiled=compiled,run_id=run_id,schedule=schedule,
@@ -107,11 +132,12 @@ class CompiledF2Decoder:
         _require(self.contract==self.path['execution_contract'],'contract-drift')
 
     def _at(self,raw,*,cursor,case_index,case_id=None):
-        _require(type(raw) is bytes and len(raw)==RECORD_BYTES,'wire-record')
+        _require(type(raw) is bytes and len(raw)==RECORD_BYTES,'wire-record', '/records')
         _require(type(cursor) is int and cursor%4==0 and self.image['range'][0]<=cursor<self.result,'cursor')
         _require(type(case_index) is int and case_index>=0,'case-index')
         selection=self.layout.classify(raw[:4])
-        _require(selection.accepted,'candidate-'+str(selection.reason))
+        _require(selection.accepted,'candidate-'+str(selection.reason),
+                 '/records/address', {'reason': selection.reason})
         declaration=declare_reader(self.request,self.compiled,
             source_id=self.contract['load_source_id'],address=selection.address,result_address=self.result)
         code=bytes.fromhex(declaration['code_hex'])
@@ -133,7 +159,7 @@ class CompiledF2Decoder:
 
     def decode_sequence(self,records,*,cursor,case_index):
         self.verify()
-        _require(type(records) is tuple and 1<=len(records)<=MAX_CANDIDATE_RECORDS,'sequence')
+        _require(type(records) is tuple and 1<=len(records)<=MAX_CANDIDATE_RECORDS,'sequence', '/records')
         _require(self._cursor_provider is None or cursor==self._cursor_provider(),'runtime-cursor')
         result=[]
         for offset,raw in enumerate(records):
@@ -148,4 +174,12 @@ class CompiledF2Decoder:
             source_id=self.contract['load_source_id'],candidate_layout=self.layout.document(),
             candidate_layout_sha256=self.layout.digest,wire_record_bytes=RECORD_BYTES,
             unbound_wire_bytes=RECORD_BYTES-4,result_address=self.result,
-            max_records=MAX_CANDIDATE_RECORDS,runtime_path_admission=self.runtime_path_admission.document())
+            max_records=MAX_CANDIDATE_RECORDS,runtime_path_admission=self.runtime_path_admission.document(),
+            direction=self.direction,candidate_bytes=self.layout.byte_length,max_input_bytes=RECORD_BYTES,
+            instruction_source_id=self.image['source_id'],
+            instruction_address_range=[self.image['range'][0],self.result],
+            address=self.contract['address'],register=self.contract['register'],
+            runtime_contract=self.runtime_path_admission.prepared.contract.document(),
+            graph=self.runtime_path_admission.prepared.graph.edge_document(),
+            path_mapping=self.runtime_path_admission.prepared.document()['selections'],
+            instruction_image_bindings=[self.runtime_path_admission.instruction_binding.document()])

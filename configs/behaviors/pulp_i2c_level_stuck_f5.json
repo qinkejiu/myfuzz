@@ -1,0 +1,35 @@
+{
+  "schema_version": "inprocess_source_behavior.v1",
+  "description": "Negative control: the same PULP apb_i2c level interrupt, but the declared clear write is CMD=0x10 (a new write command) instead of CMD[0]=1 (iack). The line stays high, so the host must report level_stuck and reset the device, not mask it.",
+  "source_port": "interrupt_o",
+  "source_bit_offset": 0,
+  "trigger_writes": [
+    [
+      4,
+      192
+    ],
+    [
+      16,
+      90
+    ],
+    [
+      20,
+      16
+    ]
+  ],
+  "status_offsets": [
+    12
+  ],
+  "status_cause_bits": [
+    0
+  ],
+  "clear_writes": [
+    [
+      20,
+      16
+    ]
+  ],
+  "notes": [
+    "This file is deliberately wrong about the clear: it proves the detector, not the device. Do not use it as a device declaration."
+  ]
+}

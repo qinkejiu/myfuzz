@@ -1,0 +1,37 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-apb-timer-no-rvfi-f2f4",
+  "description": "One pinned Ibex OBI CPU model with no RVFI retirement face (configs/cpus/ibex_obi_local) and one declared 25 MHz PULP APB3 timer.  The unified F1-F6 entry needs a retirement channel for the F1 host trace and refuses this model by name at header time; the refusal is the evidence, and no case line is produced, so nothing claims a retirement or a bus success in its place.",
+  "cpu_profile": "configs/cpus/ibex_obi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "targets": [
+    {
+      "name": "timer25",
+      "profile": "configs/peripherals/pulp_timer_25mhz/component_profile.json",
+      "active_id": "timer25",
+      "window": {
+        "base": 1073745920,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": "configs/behaviors/pulp_timer_f5.json",
+      "pins": null,
+      "fixed_inputs": [],
+      "tuning": {}
+    }
+  ],
+  "image_start": 65536,
+  "image_end": 196608,
+  "notes": [
+    "The CPU model exports the OBI request/response channels and probe_irq_taken_pre but assigns no rvfi_* retirement port, so the unified entry refuses the build with \"unsupported: F1 needs the CPU rvfi_* retirement probe (...)\".  This is the representative no-retirement case; it must not be replaced by a zero or a fetch count.",
+    "The target is the same declared 25 MHz composition variant as the timed-CPU scenario, so the refusal is independent of the clock plan (the plan itself is valid)."
+  ]
+}

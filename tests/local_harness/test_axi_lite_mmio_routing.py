@@ -10,8 +10,10 @@ instead of reaching the device.
 
 These tests pin the session-level contract only, using the real
 ``DataflowRouter`` with a stub :class:`RegisterTarget`: a beat inside a declared
-window is routed and its response returned, a beat outside every window still
-goes to local RAM, and a routed WRITE actually mutates the target.
+window is *queued* to the declared target (the shared MMIO executor joins that
+acceptance to the target's delivery and sample), the drained target response
+becomes the CPU beat's response, a beat outside every window still goes to local
+RAM, and a routed WRITE actually mutates the target.
 
 Reaching the real ``axiluart`` RTL is the separate native-gate step and is
 deliberately NOT claimed here.
@@ -112,6 +114,23 @@ def _key(sequence: int = 1):
     return TransactionKey('exec', 'case', 'cpu', 0, 'data', sequence)
 
 
+def _queued(session, key, address, write, be, value):
+    """Accept one routed beat and return the router acceptance row.
+
+    A routed beat is *queued* on this row (the shared MMIO executor joins a
+    queued acceptance to its delivery and to the target's own sample), so the
+    service call answers ``_QUEUED_RESPONSE`` and the target is driven when the
+    runner drains the declared target.
+    """
+    from myfuzz.local_harness.native_session import _QUEUED_RESPONSE
+    before = len(session.router.acceptances)
+    response = session._service_accepted_request(key, address, write, be, value)
+    assert response is _QUEUED_RESPONSE
+    assert session._queued_mmio is True
+    assert len(session.router.acceptances) == before + 1
+    return session.router.acceptances[-1]
+
+
 def test_routed_write_reaches_the_target_and_leaves_ram_untouched():
     """The routing path must actually drive the device, not write local RAM."""
     target = StubUart()
@@ -119,10 +138,14 @@ def test_routed_write_reaches_the_target_and_leaves_ram_untouched():
     session = _session(router=router)
     session._case_id = 'case'
 
-    session._service_accepted_request(_key(1), UART_BASE + 4, True, 15, 0x41)
-
+    acceptance = _queued(session, _key(1), UART_BASE + 4, True, 15, 0x41)
+    # The declared read/write lane policy: a write keeps the sampled strobe.
+    assert acceptance["byte_enable"] == 15
+    assert router.drain_one("uart") is True
     assert target.writes == [(4, 0x41, 15)], target.writes
     assert session.mmio_write_count == 1
+    assert session._pending == (0, 1)
+    assert session._queued_mmio is False
     # RAM must NOT hold the device byte; the whole point is that the beat
     # reached the device instead of the memory service.
     from myfuzz.scenario.memory import PersistentMemory
@@ -136,10 +159,14 @@ def test_routed_read_returns_the_target_value_not_ram():
     session = _session(router=router)
     session._case_id = 'case'
 
-    response = session._service_accepted_request(_key(1), UART_BASE, False, 0, 0)
+    # The CPU's sampled read strobe is 0; the declared whole-word granularity is
+    # what the routed request presents (never a fabricated pin sample).
+    acceptance = _queued(session, _key(1), UART_BASE, False, 0, 0)
+    assert acceptance["byte_enable"] == 15
+    assert router.drain_one("uart") is True
 
-    assert response == 0xDEADBEEF, hex(response)
     assert target.reads == [0], target.reads
+    assert session._pending == (0xDEADBEEF, 1)
     assert session.mmio_read_count == 1
 
 

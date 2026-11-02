@@ -1,0 +1,432 @@
+{
+  "schema_version": "directed_irq_matrix.v1",
+  "scope": "directed-and-native-ready-irq-validation",
+  "software_scope": "pure-reducer-and-preparation-gates-only",
+  "native_scope": "script-driven-native-cases-run-only-in-a-frozen-window-by-the-lead",
+  "notes": [
+    "This file declares cases and evidence layers. It never counts a software gate as a native result.",
+    "Every native_ready case must be executable by scripts/run_directed_irq_native.py through an existing public factory/runner.",
+    "A case that no public native runner can build is declared native_ready=false with the exact refusal code.",
+    "claimed_layers must be a subset of measurable_layers; unavailable lists what this case cannot measure today.",
+    "The four directed cases (reset, exception, two-source, unique-per-member) each declare their own public native runner; scripts/run_directed_irq_native.py executes the declared runner but its built-in layer derivation currently covers only the single-take transport cases, so those four cite the dedicated runner's summary.json as evidence."
+  ],
+  "evidence_layers": {
+    "source_verification": "the CPU source-lock / native-IRQ source contract verification document",
+    "declared_output_mapping": "declared-output.v1 physical port and runtime wire mapping produced by verify_group_sessions",
+    "irq_group_unique_attribution": "irq_group_delivery frame with attribution_status unique and one exact source id",
+    "irq_group_joint_attribution": "irq_group_delivery frame whose active_sources has more than one member",
+    "cpu_native_sample": "cpu_external_irq_sample carrying expected/actual pre/post input",
+    "cpu_native_take": "cpu_external_irq_taken carrying take_key and receipt identity",
+    "cpu_retirement_serial": "cpu_retire post pre_post_rising retirement serial observation",
+    "irq_serial_certificate": "exact nonzero decision/retirement serial join (irq_serial_certificate.v1)",
+    "reset_barrier": "measured reset barrier journal event (reset_barrier/cpu_reset/gpio_reset_resource)",
+    "post_reset_fresh_epoch": "post-reset observation admitted only with the advanced reset epoch",
+    "no_lineage_after_reset": "zero certificates reachable from pre-reset lineage",
+    "no_lineage_from_sync_exception": "a synchronous exception cause mints no IRQ decision serial and no take",
+    "debug_nmi_diversion_refused": "debug/NMI diversion observations refuse retirement lineage",
+    "unknown_origin_no_credit": "a member without an exact native source reference yields no attribution",
+    "no_delivery_frame_no_join": "a take without its irq_group_delivery frame cannot be joined",
+    "overrun_or_cancelled_no_credit": "an overrun or reset-cancelled pulse yields no delivery and no credit",
+    "peripheral_prefix_coverage": "offline Verilator line/block coverage of the saved peripheral prefix",
+    "comparability_document": "saved-prefix coverage comparability document with explicit conditions"
+  },
+  "cpu_adapters": [
+    {
+      "id": "obi-cv32e20",
+      "protocol": "obi",
+      "profile": "configs/cpus/cv32e20/component_profile.json",
+      "native_irq_receipt_contract": "myfuzz.local_harness.cv32e20_irq_receipt_contract",
+      "expectation": {
+        "status": "admitted",
+        "adapter_id": "declared-output.v1"
+      }
+    },
+    {
+      "id": "obi-ibex",
+      "protocol": "obi",
+      "profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+      "native_irq_receipt_contract": "myfuzz.local_harness.ibex_irq_receipt_contract",
+      "expectation": {
+        "status": "admitted",
+        "adapter_id": "declared-output.v1"
+      }
+    },
+    {
+      "id": "obi-cv32e40p",
+      "protocol": "obi",
+      "profile": "configs/cpus/cv32e40p_rvfi_local/component_profile.json",
+      "native_irq_receipt_contract": "myfuzz.local_harness.cv32e40p_irq_receipt_contract",
+      "expectation": {
+        "status": "admitted_when_contract_module_present",
+        "refusal_code": "unregistered-native-IRQ-CPU-adapter"
+      }
+    },
+    {
+      "id": "wishbone-picorv32",
+      "protocol": "wishbone",
+      "profile": "configs/cpus/picorv32_wb/component_profile.json",
+      "native_irq_receipt_contract": null,
+      "expectation": {
+        "status": "refused",
+        "refusal_code": "unregistered-native-IRQ-CPU-adapter"
+      }
+    },
+    {
+      "id": "ahb-lite-cvw",
+      "protocol": "ahb-lite",
+      "profile": "configs/cpus/cvw/component_profile.json",
+      "native_irq_receipt_contract": null,
+      "expectation": {
+        "status": "refused",
+        "refusal_code": "unregistered-native-IRQ-CPU-adapter"
+      }
+    }
+  ],
+  "target_protocols": [
+    {
+      "id": "apb-spi",
+      "protocol": "apb3",
+      "request": "configs/peripherals/pulp_spi_irq/request.json",
+      "source_port": "events_o",
+      "expected_kind": "apb3_register_observe",
+      "real_config": "research/input-strategy-audit-20261027/runs/declared-irq-20261029/spi-cv32e20-v1/config.json",
+      "declared_scenario": "configs/scenarios/compiled-f4-obi-apb-spi-cv32e20"
+    },
+    {
+      "id": "wishbone-ziptimer",
+      "protocol": "wishbone",
+      "request": "configs/peripherals/zipcpu_timer_irq/request.json",
+      "source_port": "o_int",
+      "expected_kind": "wishbone_register_observe",
+      "real_config": "research/input-strategy-audit-20261027/runs/declared-irq-20261029/wb-timer-ibex-v1/config.json",
+      "declared_scenario": null
+    },
+    {
+      "id": "ahb-sha",
+      "protocol": "ahb-lite",
+      "request": "configs/peripherals/sha_declared_irq/request.json",
+      "source_port": "error_intr",
+      "expected_kind": "ahb_lite_register_observe",
+      "real_config": "research/input-strategy-audit-20261027/runs/declared-irq-20261029/ahb-sha-cv32e20-v1/config.json",
+      "declared_scenario": null
+    }
+  ],
+  "cases": [
+    {
+      "id": "reset-then-irq",
+      "kind": "reset",
+      "description": "measured reset barrier invalidates serial lineage, pending take identities and installed GPIO/ISR register state; a post-reset observation in the old epoch is refused, a post-reset take carries the next epoch and a distinct take identity, and a repeated numeric token in the new epoch is not lineage",
+      "software_gate": "tests/integration/test_irq_reset_script.py",
+      "real_config": "configs/scenarios/directed-irq-reset/ibex-wb-timer.json",
+      "runner": "scripts/run_irq_reset_native.py",
+      "declared_scenario": "configs/scenarios/compiled-f1-f6-ibex-gpio-dma-shared",
+      "secondary_scenario": "configs/scenarios/compiled-f1-f6-cv32e20-gpio-dma-shared",
+      "profiles": [
+        "configs/cpus/ibex_rvfi_local/component_profile.json",
+        "configs/cpus/cv32e20/component_profile.json"
+      ],
+      "native_ready": true,
+      "required_evidence_layers": [
+        "reset_barrier",
+        "no_lineage_after_reset",
+        "post_reset_fresh_epoch"
+      ],
+      "measurable_layers": [
+        "reset_barrier",
+        "no_lineage_after_reset",
+        "post_reset_fresh_epoch",
+        "irq_serial_certificate"
+      ],
+      "claimed_layers": [
+        "reset_barrier",
+        "no_lineage_after_reset",
+        "post_reset_fresh_epoch"
+      ]
+    },
+    {
+      "id": "exception-does-not-mint",
+      "kind": "exception",
+      "description": "a real synchronous trap mints no external IRQ acceptance, no decision serial and no IRQ retirement lineage; the exception handler's real retirement and RAM marker are the evidence",
+      "software_gate": "tests/integration/test_directed_irq_matrix.py",
+      "runner": "scripts/run_irq_exception_native.py",
+      "real_config": "configs/scenarios/directed-exception/ibex.json",
+      "secondary_real_config": "configs/scenarios/directed-exception/cv32e40p.json",
+      "profiles": [
+        "configs/cpus/ibex_rvfi_local/component_profile.json",
+        "configs/cpus/cv32e40p_rvfi_local/component_profile.json"
+      ],
+      "native_ready": true,
+      "required_evidence_layers": [
+        "no_lineage_from_sync_exception"
+      ],
+      "measurable_layers": [
+        "no_lineage_from_sync_exception",
+        "debug_nmi_diversion_refused"
+      ],
+      "claimed_layers": [
+        "no_lineage_from_sync_exception"
+      ],
+      "unavailable": [
+        "native_debug_or_nmi_diversion_trace"
+      ]
+    },
+    {
+      "id": "two-source-ambiguous",
+      "kind": "multi-source",
+      "description": "two simultaneously active members of one real host OR group are ambiguous at the single native take: joint attribution with both real native pulses, no unique source id and no source credit",
+      "software_gate": "tests/integration/test_irq_group_script.py",
+      "runner": "scripts/run_irq_group_native.py",
+      "real_config": "configs/scenarios/directed-irq-group/joint-two-targets-ibex.json",
+      "declared_scenario": "configs/scenarios/declared-irq-f5-wb-timer",
+      "secondary_scenario": "configs/scenarios/declared-irq-f5-apb-spi",
+      "profiles": [
+        "configs/cpus/ibex_rvfi_local/component_profile.json"
+      ],
+      "native_ready": true,
+      "required_evidence_layers": [
+        "declared_output_mapping",
+        "irq_group_joint_attribution",
+        "cpu_native_take",
+        "unknown_origin_no_credit"
+      ],
+      "measurable_layers": [
+        "declared_output_mapping",
+        "irq_group_joint_attribution",
+        "irq_group_unique_attribution",
+        "cpu_native_sample",
+        "cpu_native_take",
+        "cpu_retirement_serial",
+        "unknown_origin_no_credit",
+        "no_delivery_frame_no_join",
+        "overrun_or_cancelled_no_credit"
+      ],
+      "claimed_layers": [
+        "declared_output_mapping",
+        "irq_group_joint_attribution",
+        "cpu_native_sample",
+        "cpu_native_take",
+        "cpu_retirement_serial",
+        "unknown_origin_no_credit"
+      ],
+      "unavailable": [
+        "native_joint_consumption_value_chain",
+        "native_second_member_take_separation",
+        "native_internal_ip_cause"
+      ]
+    },
+    {
+      "id": "unique-two-source-each",
+      "kind": "multi-source",
+      "description": "each member of the real two-member group is uniquely attributable when it is the only active source, with the exact source id, its real native sample and the full verified consumption chain",
+      "software_gate": "tests/integration/test_irq_group_script.py",
+      "runner": "scripts/run_irq_group_native.py",
+      "real_config": "configs/scenarios/directed-irq-group/unique-wb-timer-ibex.json",
+      "secondary_real_config": "configs/scenarios/directed-irq-group/unique-apb-spi-ibex.json",
+      "declared_scenario": "configs/scenarios/declared-irq-f5-wb-timer",
+      "secondary_scenario": "configs/scenarios/declared-irq-f5-apb-spi",
+      "profiles": [
+        "configs/cpus/ibex_rvfi_local/component_profile.json"
+      ],
+      "native_ready": true,
+      "required_evidence_layers": [
+        "declared_output_mapping",
+        "irq_group_unique_attribution",
+        "cpu_native_take",
+        "irq_serial_certificate"
+      ],
+      "measurable_layers": [
+        "declared_output_mapping",
+        "irq_group_unique_attribution",
+        "cpu_native_sample",
+        "cpu_native_take",
+        "cpu_retirement_serial",
+        "irq_serial_certificate",
+        "unknown_origin_no_credit"
+      ],
+      "claimed_layers": [
+        "declared_output_mapping",
+        "irq_group_unique_attribution",
+        "cpu_native_sample",
+        "cpu_native_take",
+        "cpu_retirement_serial",
+        "irq_serial_certificate"
+      ],
+      "unavailable": [
+        "native_joint_consumption_value_chain",
+        "native_internal_ip_cause"
+      ]
+    },
+    {
+      "id": "cross-protocol.apb-spi-cv32e20",
+      "kind": "cross-protocol",
+      "cpu_adapter": "obi-cv32e20",
+      "target_protocol": "apb-spi",
+      "software_gate": "scripts/check_irq_protocol_matrix.py",
+      "native_ready": true,
+      "runner": "scripts/run_timer_irq_smoke.py",
+      "real_config": "research/input-strategy-audit-20261027/runs/declared-irq-20261029/spi-cv32e20-v1/config.json",
+      "declared_scenario": "configs/scenarios/compiled-f4-obi-apb-spi-cv32e20",
+      "saved_evidence": "research/input-strategy-audit-20261027/runs/declared-irq-20261029/spi-cv32e20-v1/summary.json",
+      "required_evidence_layers": [
+        "source_verification",
+        "declared_output_mapping",
+        "irq_group_unique_attribution",
+        "cpu_native_sample",
+        "cpu_native_take",
+        "irq_serial_certificate"
+      ],
+      "measurable_layers": [
+        "source_verification",
+        "declared_output_mapping",
+        "irq_group_unique_attribution",
+        "cpu_native_sample",
+        "cpu_native_take",
+        "cpu_retirement_serial",
+        "irq_serial_certificate"
+      ],
+      "claimed_layers": [
+        "source_verification",
+        "declared_output_mapping",
+        "irq_group_unique_attribution",
+        "cpu_native_sample",
+        "cpu_native_take",
+        "irq_serial_certificate"
+      ],
+      "unavailable": []
+    },
+    {
+      "id": "cross-protocol.apb-spi-ibex",
+      "kind": "cross-protocol",
+      "cpu_adapter": "obi-ibex",
+      "target_protocol": "apb-spi",
+      "software_gate": "scripts/check_irq_protocol_matrix.py",
+      "native_ready": true,
+      "runner": "scripts/run_timer_irq_smoke.py",
+      "real_config": "research/input-strategy-audit-20261027/runs/declared-irq-20261029/spi-ibex-v1/config.json",
+      "declared_scenario": "configs/scenarios/compiled-f4-obi-apb-spi-ibex",
+      "saved_evidence": "research/input-strategy-audit-20261027/runs/declared-irq-20261029/spi-ibex-v1/summary.json",
+      "required_evidence_layers": [
+        "source_verification",
+        "declared_output_mapping",
+        "irq_group_unique_attribution",
+        "cpu_native_sample",
+        "cpu_native_take",
+        "irq_serial_certificate"
+      ],
+      "measurable_layers": [
+        "source_verification",
+        "declared_output_mapping",
+        "irq_group_unique_attribution",
+        "cpu_native_sample",
+        "cpu_native_take",
+        "cpu_retirement_serial",
+        "irq_serial_certificate"
+      ],
+      "claimed_layers": [
+        "source_verification",
+        "declared_output_mapping",
+        "irq_group_unique_attribution",
+        "cpu_native_sample",
+        "cpu_native_take",
+        "irq_serial_certificate"
+      ],
+      "unavailable": []
+    },
+    {
+      "id": "cross-protocol.wb-timer-ibex",
+      "kind": "cross-protocol",
+      "cpu_adapter": "obi-ibex",
+      "target_protocol": "wishbone-ziptimer",
+      "software_gate": "scripts/check_irq_protocol_matrix.py",
+      "native_ready": true,
+      "runner": "scripts/run_timer_irq_smoke.py",
+      "real_config": "research/input-strategy-audit-20261027/runs/declared-irq-20261029/wb-timer-ibex-v1/config.json",
+      "declared_scenario": null,
+      "saved_evidence": "research/input-strategy-audit-20261027/runs/declared-irq-20261029/wb-timer-ibex-v1/summary.json",
+      "required_evidence_layers": [
+        "source_verification",
+        "declared_output_mapping",
+        "irq_group_unique_attribution",
+        "cpu_native_sample",
+        "cpu_native_take",
+        "irq_serial_certificate"
+      ],
+      "measurable_layers": [
+        "source_verification",
+        "declared_output_mapping",
+        "irq_group_unique_attribution",
+        "cpu_native_sample",
+        "cpu_native_take",
+        "cpu_retirement_serial",
+        "irq_serial_certificate"
+      ],
+      "claimed_layers": [
+        "source_verification",
+        "declared_output_mapping",
+        "irq_group_unique_attribution",
+        "cpu_native_sample",
+        "cpu_native_take",
+        "irq_serial_certificate"
+      ],
+      "unavailable": []
+    },
+    {
+      "id": "cross-protocol.ahb-sha-cv32e20",
+      "kind": "cross-protocol",
+      "cpu_adapter": "obi-cv32e20",
+      "target_protocol": "ahb-sha",
+      "software_gate": "scripts/check_irq_protocol_matrix.py",
+      "native_ready": true,
+      "runner": "scripts/run_timer_irq_smoke.py",
+      "real_config": "research/input-strategy-audit-20261027/runs/declared-irq-20261029/ahb-sha-cv32e20-v1/config.json",
+      "declared_scenario": null,
+      "saved_evidence": "research/input-strategy-audit-20261027/runs/declared-irq-20261029/ahb-sha-cv32e20-v1/summary.json",
+      "required_evidence_layers": [
+        "source_verification",
+        "declared_output_mapping",
+        "irq_group_unique_attribution",
+        "cpu_native_sample",
+        "cpu_native_take",
+        "irq_serial_certificate"
+      ],
+      "measurable_layers": [
+        "source_verification",
+        "declared_output_mapping",
+        "irq_group_unique_attribution",
+        "cpu_native_sample",
+        "cpu_native_take",
+        "cpu_retirement_serial",
+        "irq_serial_certificate"
+      ],
+      "claimed_layers": [
+        "source_verification",
+        "declared_output_mapping",
+        "irq_group_unique_attribution",
+        "cpu_native_sample",
+        "cpu_native_take",
+        "irq_serial_certificate"
+      ],
+      "unavailable": []
+    }
+  ],
+  "coverage": {
+    "measurable": {
+      "peripheral_prefix_coverage": {
+        "tool": "scripts/measure_new_path_coverage.py",
+        "saved_measurement": "research/input-strategy-audit-20261027/runs/adapter-matrix-20261029/spi-cv32e20-v1/seed-7-state-none/coverage-measurement/measurement",
+        "saved_trace": "research/input-strategy-audit-20261027/runs/adapter-matrix-20261029/spi-cv32e20-v1/seed-7-state-none/original/local_commands.json",
+        "original_cache": "runs/config-driven-20261028/cache/473092ef39384de71033e7e877609f71cde3fe492627306a5c6ab4ca1dd71bdd"
+      },
+      "comparability_document": {
+        "tool": "scripts/measure_new_path_coverage.py",
+        "baseline_measurement": "research/input-strategy-audit-20261027/runs/automatic-coverage-20261028/compare/seed-7-uniform-none/coverage-measurement/measurement",
+        "current_measurement": "research/input-strategy-audit-20261027/runs/automatic-coverage-20261028/compare/seed-7-state-none/coverage-measurement/measurement"
+      }
+    },
+    "unavailable": {
+      "cpu_irq_receipt_prefix_coverage": "no saved offline measurement of the cpu component for an IRQ receipt/serial prefix exists in research/ or runs/",
+      "fixed_time_point_coverage": "only whole saved-prefix replay coverage exists; online or fixed-time-point coverage is not implemented",
+      "so_c_chip_coverage": "line/block coverage of one generated component is not an SoC metric"
+    }
+  }
+}

@@ -31,11 +31,16 @@
   "implemented": false,
   "interface_description": "configs/cpus/boom/interface_description.json",
   "source_locator": {
-    "root": "third_party/boom",
-    "revision": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-    "top_module": "boom_tile",
+    "root": "configs/cpus/boom/generated",
+    "revision": "sha256:4f960fdd6c96dccfe1bb7788fd628e368304b7280e5449cf3ae5463e982f2c30",
+    "top_module": "BoomTile",
     "available": false,
-    "reason": "dependency unavailable: generated RTL and supported TileLink boundary/protocol implementation required",
-    "filelist": "sources.f"
+    "reason": "reference-only: generated derived top pinned; upstream source checkout and supported TileLink boundary/protocol adapter unavailable",
+    "files": [
+      "EICG_wrapper.v",
+      "chipyard.TestHarness.SmallBoomConfig.top.mems.v",
+      "chipyard.TestHarness.SmallBoomConfig.top.v",
+      "plusarg_reader.v"
+    ]
   }
 }

@@ -214,3 +214,81 @@ def test_image_bound_mixed_source_schedules_roundtrip_for_schema24_and25(termina
     else:
         session.submit_case(candidate(session))
         finish_and_replay()
+
+
+@pytest.mark.parametrize('policy', ['warm_all', 'cold_all'])
+def test_bound_instructions_with_reset_image_roundtrip(policy, monkeypatch):
+    from myfuzz.scenario.genome import MemoryImage
+    initial = MemoryImage('boot', 'cpu', 0x1000, '13000000')
+    def configured_with_reset():
+        session = configured()
+        session.template = replace(session.template, initial_images=(initial,))
+        return session
+    monkeypatch.setattr(Cpu, 'reset_local', lambda self: {'cancelled_responses':0}, raising=False)
+    session = configured_with_reset()
+    session.begin()
+    session.submit_case(candidate(session, 0x1004))
+    session.reset(policy, image=replace(initial, data_hex='93001000'))
+    session.advance_after_reset(('cpu',))
+    second = candidate(session, 0x1008)
+    second = replace(second, case_id='two', source=replace(second.source, action_id='action2'))
+    session.submit_case(second)
+    reference = session.finish()
+    plan = session.encode_plan()
+    document = json.loads(plan)
+    assert document['schema_version'] == 26
+    assert document['reset_operations'][0]['image']['data_hex'] == '93001000'
+    assert document['instruction_image_bindings'] == list(session.instruction_image_binding_documents)
+    result = replay_online_session(plan, factory, reference)
+    assert result.matches, result.difference_context
+
+
+def test_bound_reset_terminal_failure_roundtrip(monkeypatch):
+    from myfuzz.scenario.genome import MemoryImage
+    from unittest.mock import patch
+    initial = MemoryImage('boot', 'cpu', 0x1000, '13000000')
+    monkeypatch.setattr(Cpu, 'reset_local', lambda self: {'cancelled_responses':0}, raising=False)
+    session = configured()
+    session.template = replace(session.template, initial_images=(initial,))
+    session.begin()
+    session.submit_case(candidate(session, 0x1004))
+    session.reset('warm_all', image=replace(initial, data_hex='93001000'))
+    second = candidate(session, 0x1008)
+    second = replace(second, case_id='two', source=replace(second.source, action_id='action2'))
+    original = Cpu.accept_instructions
+    def fail(self, address, data, **kwargs):
+        if address == 0x1008:
+            raise ValueError('reset epoch instruction failure')
+        return original(self, address, data, **kwargs)
+    with patch.object(Cpu, 'accept_instructions', fail):
+        with pytest.raises(ValueError, match='reset epoch instruction failure'):
+            session.submit_case(second)
+        reference = session.finish()
+        plan = session.encode_plan()
+        assert json.loads(plan)['schema_version'] == 27
+        result = replay_online_session(plan, factory, reference)
+        assert result.matches, result.difference_context
+
+
+@pytest.mark.parametrize('change', ['binding', 'missing_runtime', 'missing_provenance', 'reset_order'])
+def test_bound_reset_plan_tampering_refused_before_factory(change, monkeypatch):
+    import hashlib
+    from unittest.mock import Mock
+    from myfuzz.scenario.genome import MemoryImage
+    initial = MemoryImage('boot', 'cpu', 0x1000, '13000000')
+    monkeypatch.setattr(Cpu, 'reset_local', lambda self: {'cancelled_responses':0}, raising=False)
+    session = configured()
+    session.template = replace(session.template, initial_images=(initial,))
+    session.begin(); session.submit_case(candidate(session, 0x1004))
+    session.reset('warm_all', image=replace(initial, data_hex='93001000'))
+    reference = session.finish()
+    doc = json.loads(session.encode_plan())
+    if change == 'binding': doc['instruction_image_bindings'][0]['source_id'] = 'other'
+    elif change == 'missing_runtime': doc.pop('runtime_paths')
+    elif change == 'missing_provenance': doc.pop('source_admissions')
+    else: doc['reset_operations'][0]['after_cases'] = 2
+    plan = json.dumps(doc, sort_keys=True, separators=(',', ':')).encode()
+    reference = replace(reference, genome_sha256=hashlib.sha256(plan).hexdigest())
+    never = Mock(side_effect=AssertionError('factory called'))
+    with pytest.raises(ValueError): replay_online_session(plan, never, reference)
+    never.assert_not_called()

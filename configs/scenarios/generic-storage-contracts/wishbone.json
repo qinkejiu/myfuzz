@@ -1,0 +1,25 @@
+{
+  "adapter_id": "wishbone.storage.v1",
+  "adapter_version": "1",
+  "alias_register_offsets": [
+    0
+  ],
+  "capability": "configs/scenarios/compiled-f4-obi-wb-uart-setup/test_capability.json",
+  "compose": "configs/scenarios/compiled-f4-obi-wb-uart-setup/compose.json",
+  "f4_records": [
+    "55000000",
+    "aa000000",
+    "78563412"
+  ],
+  "flows": [
+    "F2",
+    "F4"
+  ],
+  "non_alias_register_offset": 4,
+  "register": "SETUP",
+  "renamed_instance": false,
+  "scenario": "wishbone-uart-setup",
+  "schema_version": "generic_storage_contract_selection.v1",
+  "source_contract_id": "zipcpu-wbuart.setup.storage.v1",
+  "supplement": "configs/scenarios/compiled-f4-obi-wb-uart-setup/execution_supplement.json"
+}

@@ -6,6 +6,12 @@ P1–P5 已按各阶段报告的声明范围验收，P6–P8 未验收；本次�
 
 用户原件 `SoC内部数据流动与去向.docx` 是取指、数据读、数据写、MMIO、中断和 DMA 六类数据流的设计来源，逐类目标与当前状态见[实施计划](superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md)。运行时路径应编译自受信组件事实和显式场景声明；该 Word 文件本身不是自动接线配置。
 
+## 2026-10-24 Compiled F2 文件与统一 RFuzz 执行链
+
+显式 compose／capability／supplement／records → D2 artifacts 与同次 D3 → `f2_read_contract.py`／`compiled_f2_runtime_path.py` 严格准入 → 独立地址 layout／reader／decoder → `CompiledF2Runtime` 启动后解析当前 IP register version → 真实 OBI／APB read 与依赖 RAM store → 每个 admitted attempt 的 typed 断言及独立 inventory → 新进程完整 fresh → `compiled_runtime_report.py` 校验能力报告材料 → 文件入口保存并重核初始字节 pin。
+
+共享 `compiled_process_audit.py` 只抽取构建回执、实际进程身份与部分诊断，不把 F2 作为 F4 executor 子类。F2 保持自己的 binding／build join／execution audit schema。文件入口为 `scripts/run_compiled_dataflow.py --executor compiled_f2_obi_apb`；统一 `auto_harness`／RFuzz 已新增显式 `compiled-f2-rfuzz` adapter。运输、反馈、receipt join、live/fresh 生命周期、保存字节与 F2 在线材料校验分别位于 `compiled_rfuzz_transport.py`、`compiled_f2_feedback.py`、`compiled_f2_receipts.py`、`compiled_f2_rfuzz_session.py`、`compiled_f2_saved_outputs.py`、`compiled_f2_online_material.py`；执行异常身份和次级notes由executor及shared finalizer共同保留。第三冻结十门独立接受，统一入口限定验收完成，详见[实施报告](reports/compiled-f2-rfuzz-entry-20261023.md)。此前文件入口的限定验收见[报告](reports/f2-f4-current-acceptance-20261023.md)。
+
 ## 2026-10-22 Selected F4 runtime-path 执行链
 
 同次 typed request/D3 → `compiled_f4_runtime_path.py` 严格恢复图、合同和路径/来源映射 → `instruction_image_binding.py` 对实际 RAM region 的精确绑定 → `ScenarioSession.configure_runtime_paths` 在 begin 前配置 → bound instruction case 使用 runtime 路径/source ID → decoder/session/plan 保存交叉关联与 fresh constructor 重新绑定。逻辑 D3 路径 ID 保留给 compiled receipt join。最终门状态见[报告](reports/compiled-f4-runtime-path-admission-20261022.md)。

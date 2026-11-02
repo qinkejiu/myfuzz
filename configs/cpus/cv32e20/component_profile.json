@@ -211,7 +211,9 @@
           "role": "external",
           "aliases": [
             "irq_external_i"
-          ]
+          ],
+          "direction": "input",
+          "width": 1
         }
       ]
     }

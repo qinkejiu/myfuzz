@@ -1,0 +1,374 @@
+{
+  "schema_version": "declared_SPI_IRQ_independent_acceptance.v1",
+  "status": "verified",
+  "authority": false,
+  "config_difference": [
+    "cpu_profile"
+  ],
+  "runs": {
+    "spi-ibex-v1": {
+      "cpu_profile": "ibex_rvfi_local",
+      "native_CPU_contract": "ibex_native_irq_receipts.v2",
+      "phases": {
+        "original": {
+          "events": 8018,
+          "commands": {
+            "cpu": 103,
+            "spi_active": 106,
+            "spi_idle": 104
+          },
+          "MMIO_event": 5442,
+          "store_tick": 74,
+          "raw_APB": {
+            "psel": 1,
+            "penable": 1,
+            "pready": 1,
+            "pwrite": 1,
+            "paddr": 36,
+            "pwdata": 2147483648,
+            "pslverr": 0,
+            "event_id": 5504,
+            "tick": 76
+          },
+          "pulse_event": 5551,
+          "pulse_tick": 77,
+          "pulse_phase": "post",
+          "latest_source_tick": 81,
+          "latest_source_value": 0,
+          "take_tick": 76,
+          "serial_schema": "ibex_irq_serial_observation.v1",
+          "serial": 1,
+          "first_retire_tick": 81,
+          "first_pc": 66092,
+          "first_fetch": 65664,
+          "identities": [
+            {
+              "artifact_digest": "11aee60741bdaa15ce6c4d5dd2f6fc187269fe6951af4eb4a19f537c7f1425fc",
+              "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/27d11135c9b8805d25f5b6ba3ed8aba2f935b4b47c1cdd76e9ef9cb45d529c2c/harness",
+              "binary_sha256": "45580ef2927f758ec6f1bafeb1880e8d32e7fb36f957b2bf9206b16606be39d2",
+              "build_digest": "27d11135c9b8805d25f5b6ba3ed8aba2f935b4b47c1cdd76e9ef9cb45d529c2c",
+              "component": "cpu",
+              "execution_nonce": "1caf0da7bb32436686e065305365f61d",
+              "exit_code": 0,
+              "manifest_sha256": "a15d46c672547d1dc060409db91687c5511b7219f641e3e640c69541a3814066",
+              "pid": 3630258,
+              "reaped": true
+            },
+            {
+              "artifact_digest": "e6e5870d203bf63c0adaf65151808cfcc106ceeb96fd029aecd2745b5bcbb182",
+              "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/6fb3169affe6920949a7a09bd9e8d9ded3b0bfefe78e203b9a53234a71784cf6/harness",
+              "binary_sha256": "abae6b99b3f0c47174b60577fca804ddd93fb8570583d80c90c14c24a3a29f52",
+              "build_digest": "6fb3169affe6920949a7a09bd9e8d9ded3b0bfefe78e203b9a53234a71784cf6",
+              "component": "spi_active",
+              "execution_nonce": "bcb3c83e44f749898f4869a92030f846",
+              "exit_code": 0,
+              "manifest_sha256": "9282a533dc459a8e84553a9437a5887120f5b16eccd4d89dff7310a58d75d86d",
+              "pid": 3630290,
+              "reaped": true
+            },
+            {
+              "artifact_digest": "5ccc43afd5bd970f23e6e510be363cbdd5c151781705736c7925f27989e5a153",
+              "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/bcbc9574ab105b99c6b4aba7d2e9bd1e66c31481583084f625ddfc17e4d421db/harness",
+              "binary_sha256": "39f1f49f4424b0f90547824d8d1cac2263e012ce03bf4df258fde35add8818fe",
+              "build_digest": "bcbc9574ab105b99c6b4aba7d2e9bd1e66c31481583084f625ddfc17e4d421db",
+              "component": "spi_idle",
+              "execution_nonce": "64a263e8cdd04733a7c87c418a4032c8",
+              "exit_code": 0,
+              "manifest_sha256": "14c7b63e33cce03a1ff37a968b01d8113bb7e5cc2364783e1b0ac78e03d60227",
+              "pid": 3630322,
+              "reaped": true
+            }
+          ],
+          "sha256": {
+            "events.json": "205a19dfda031aa92f647d5df52d0fa8f107cbc76c07ecac40965c906056468d",
+            "local_commands.json": "69f2c7458642b4c814e4ce49fbeb03bcbafc8e34509f1d987e6345e727ca09bc",
+            "executions.json": "45429d5f430199d430593549e254fca44f8a2a63908de6f6fb213ab1964fab3e",
+            "result.json": "ffca6fcaf0dee351d79ee251fe79643a1e4c0b232757014be0480c5ff7a5b3a9"
+          }
+        },
+        "fresh": {
+          "events": 8018,
+          "commands": {
+            "cpu": 103,
+            "spi_active": 106,
+            "spi_idle": 104
+          },
+          "MMIO_event": 5442,
+          "store_tick": 74,
+          "raw_APB": {
+            "psel": 1,
+            "penable": 1,
+            "pready": 1,
+            "pwrite": 1,
+            "paddr": 36,
+            "pwdata": 2147483648,
+            "pslverr": 0,
+            "event_id": 5504,
+            "tick": 76
+          },
+          "pulse_event": 5551,
+          "pulse_tick": 77,
+          "pulse_phase": "post",
+          "latest_source_tick": 81,
+          "latest_source_value": 0,
+          "take_tick": 76,
+          "serial_schema": "ibex_irq_serial_observation.v1",
+          "serial": 1,
+          "first_retire_tick": 81,
+          "first_pc": 66092,
+          "first_fetch": 65664,
+          "identities": [
+            {
+              "artifact_digest": "11aee60741bdaa15ce6c4d5dd2f6fc187269fe6951af4eb4a19f537c7f1425fc",
+              "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/27d11135c9b8805d25f5b6ba3ed8aba2f935b4b47c1cdd76e9ef9cb45d529c2c/harness",
+              "binary_sha256": "45580ef2927f758ec6f1bafeb1880e8d32e7fb36f957b2bf9206b16606be39d2",
+              "build_digest": "27d11135c9b8805d25f5b6ba3ed8aba2f935b4b47c1cdd76e9ef9cb45d529c2c",
+              "component": "cpu",
+              "execution_nonce": "581993a7eb0f482fb1148761e5b77969",
+              "exit_code": 0,
+              "manifest_sha256": "a15d46c672547d1dc060409db91687c5511b7219f641e3e640c69541a3814066",
+              "pid": 3630387,
+              "reaped": true
+            },
+            {
+              "artifact_digest": "e6e5870d203bf63c0adaf65151808cfcc106ceeb96fd029aecd2745b5bcbb182",
+              "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/6fb3169affe6920949a7a09bd9e8d9ded3b0bfefe78e203b9a53234a71784cf6/harness",
+              "binary_sha256": "abae6b99b3f0c47174b60577fca804ddd93fb8570583d80c90c14c24a3a29f52",
+              "build_digest": "6fb3169affe6920949a7a09bd9e8d9ded3b0bfefe78e203b9a53234a71784cf6",
+              "component": "spi_active",
+              "execution_nonce": "3a0e295c8b814e8b80fd68956cea03dc",
+              "exit_code": 0,
+              "manifest_sha256": "9282a533dc459a8e84553a9437a5887120f5b16eccd4d89dff7310a58d75d86d",
+              "pid": 3630419,
+              "reaped": true
+            },
+            {
+              "artifact_digest": "5ccc43afd5bd970f23e6e510be363cbdd5c151781705736c7925f27989e5a153",
+              "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/bcbc9574ab105b99c6b4aba7d2e9bd1e66c31481583084f625ddfc17e4d421db/harness",
+              "binary_sha256": "39f1f49f4424b0f90547824d8d1cac2263e012ce03bf4df258fde35add8818fe",
+              "build_digest": "bcbc9574ab105b99c6b4aba7d2e9bd1e66c31481583084f625ddfc17e4d421db",
+              "component": "spi_idle",
+              "execution_nonce": "8e30094f5fa54778843e1a74e993336a",
+              "exit_code": 0,
+              "manifest_sha256": "14c7b63e33cce03a1ff37a968b01d8113bb7e5cc2364783e1b0ac78e03d60227",
+              "pid": 3630451,
+              "reaped": true
+            }
+          ],
+          "sha256": {
+            "events.json": "205a19dfda031aa92f647d5df52d0fa8f107cbc76c07ecac40965c906056468d",
+            "local_commands.json": "91e6ab96d479692b647ff1ad8f218e68242027e2b0e6b5e125c21f5423e27404",
+            "executions.json": "ac8346179b4d595167b16bf3a6e721f6378c05324255be477bae4f4ff5fd6a29",
+            "result.json": "ffca6fcaf0dee351d79ee251fe79643a1e4c0b232757014be0480c5ff7a5b3a9"
+          }
+        }
+      },
+      "result": {
+        "decision_serial": 1,
+        "first_fetch": 65664,
+        "first_retirement_pc": 66092,
+        "grants_F5": false,
+        "grants_F6": false,
+        "idle_observed_samples": 208,
+        "isr_mmio": "unknown",
+        "native_take_tick": 76,
+        "reward_eligible": false,
+        "scope": "declared-IP-output-to-CPU-first-handler",
+        "source_pulse_tick": 77,
+        "source_version": "unknown",
+        "status": "verified",
+        "transport_only": true,
+        "trigger_writes": [
+          [
+            36,
+            2147483648
+          ]
+        ]
+      },
+      "summary_sha256": "b1ea36b97fe60a84b12d877bf15327eea04c9367d042fae956c38f5f56313c05"
+    },
+    "spi-cv32e20-v1": {
+      "cpu_profile": "cv32e20",
+      "native_CPU_contract": "cv32e20_native_irq_receipts.v1",
+      "phases": {
+        "original": {
+          "events": 8015,
+          "commands": {
+            "cpu": 103,
+            "spi_active": 106,
+            "spi_idle": 104
+          },
+          "MMIO_event": 5442,
+          "store_tick": 74,
+          "raw_APB": {
+            "psel": 1,
+            "penable": 1,
+            "pready": 1,
+            "pwrite": 1,
+            "paddr": 36,
+            "pwdata": 2147483648,
+            "pslverr": 0,
+            "event_id": 5504,
+            "tick": 76
+          },
+          "pulse_event": 5551,
+          "pulse_tick": 77,
+          "pulse_phase": "post",
+          "latest_source_tick": 81,
+          "latest_source_value": 0,
+          "take_tick": 76,
+          "serial_schema": "cpu_irq_serial_observation.v1",
+          "serial": 1,
+          "first_retire_tick": 81,
+          "first_pc": 66092,
+          "first_fetch": 65536,
+          "identities": [
+            {
+              "artifact_digest": "396e252763c68e0086f61e8ceefbd33384a58cd5efe4269e4820efd0e0fe69d4",
+              "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/ccb10bff1140d470de6a82b126b4ae48342bc2be58ee7a9f61a3f92487c35b91/harness",
+              "binary_sha256": "8f68a2228ee8d3afb446bf3798fdc51108121ddc89362cbcccc0f8d7a23ec85f",
+              "build_digest": "ccb10bff1140d470de6a82b126b4ae48342bc2be58ee7a9f61a3f92487c35b91",
+              "component": "cpu",
+              "execution_nonce": "bc723f17c42e42dcb9f09f9326cf8b86",
+              "exit_code": 0,
+              "manifest_sha256": "6ea5c1770ee5e89ccb21cb91af3d6a2bf6a0289d1a340eeefaf6f564e8182cfa",
+              "pid": 3632032,
+              "reaped": true
+            },
+            {
+              "artifact_digest": "e6e5870d203bf63c0adaf65151808cfcc106ceeb96fd029aecd2745b5bcbb182",
+              "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/6fb3169affe6920949a7a09bd9e8d9ded3b0bfefe78e203b9a53234a71784cf6/harness",
+              "binary_sha256": "abae6b99b3f0c47174b60577fca804ddd93fb8570583d80c90c14c24a3a29f52",
+              "build_digest": "6fb3169affe6920949a7a09bd9e8d9ded3b0bfefe78e203b9a53234a71784cf6",
+              "component": "spi_active",
+              "execution_nonce": "effd13e5292840b4942bb50f43fb22b9",
+              "exit_code": 0,
+              "manifest_sha256": "9282a533dc459a8e84553a9437a5887120f5b16eccd4d89dff7310a58d75d86d",
+              "pid": 3632064,
+              "reaped": true
+            },
+            {
+              "artifact_digest": "5ccc43afd5bd970f23e6e510be363cbdd5c151781705736c7925f27989e5a153",
+              "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/bcbc9574ab105b99c6b4aba7d2e9bd1e66c31481583084f625ddfc17e4d421db/harness",
+              "binary_sha256": "39f1f49f4424b0f90547824d8d1cac2263e012ce03bf4df258fde35add8818fe",
+              "build_digest": "bcbc9574ab105b99c6b4aba7d2e9bd1e66c31481583084f625ddfc17e4d421db",
+              "component": "spi_idle",
+              "execution_nonce": "827c4d3b0e7e4bc1b6900af8c65ca776",
+              "exit_code": 0,
+              "manifest_sha256": "14c7b63e33cce03a1ff37a968b01d8113bb7e5cc2364783e1b0ac78e03d60227",
+              "pid": 3632096,
+              "reaped": true
+            }
+          ],
+          "sha256": {
+            "events.json": "6bc6a138c4e18a41b89c653f8e11d7a33b8dcde179dbb1f8f194ecc3b524e81c",
+            "local_commands.json": "9f42c459e79d57b697249b580578576fe05e4324a881101ba4db55e2ecfd275a",
+            "executions.json": "56acc0fcf7ef56f35e1beed0521c4ab671876a15739d6898987eac2d5e98c3d2",
+            "result.json": "8898273c53977aba9a66d7f5e4847d18a3831d8c863b6df3511108465eaa0355"
+          }
+        },
+        "fresh": {
+          "events": 8015,
+          "commands": {
+            "cpu": 103,
+            "spi_active": 106,
+            "spi_idle": 104
+          },
+          "MMIO_event": 5442,
+          "store_tick": 74,
+          "raw_APB": {
+            "psel": 1,
+            "penable": 1,
+            "pready": 1,
+            "pwrite": 1,
+            "paddr": 36,
+            "pwdata": 2147483648,
+            "pslverr": 0,
+            "event_id": 5504,
+            "tick": 76
+          },
+          "pulse_event": 5551,
+          "pulse_tick": 77,
+          "pulse_phase": "post",
+          "latest_source_tick": 81,
+          "latest_source_value": 0,
+          "take_tick": 76,
+          "serial_schema": "cpu_irq_serial_observation.v1",
+          "serial": 1,
+          "first_retire_tick": 81,
+          "first_pc": 66092,
+          "first_fetch": 65536,
+          "identities": [
+            {
+              "artifact_digest": "396e252763c68e0086f61e8ceefbd33384a58cd5efe4269e4820efd0e0fe69d4",
+              "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/ccb10bff1140d470de6a82b126b4ae48342bc2be58ee7a9f61a3f92487c35b91/harness",
+              "binary_sha256": "8f68a2228ee8d3afb446bf3798fdc51108121ddc89362cbcccc0f8d7a23ec85f",
+              "build_digest": "ccb10bff1140d470de6a82b126b4ae48342bc2be58ee7a9f61a3f92487c35b91",
+              "component": "cpu",
+              "execution_nonce": "bf128d9ad0ff4811a2472fcc8a1b6717",
+              "exit_code": 0,
+              "manifest_sha256": "6ea5c1770ee5e89ccb21cb91af3d6a2bf6a0289d1a340eeefaf6f564e8182cfa",
+              "pid": 3632161,
+              "reaped": true
+            },
+            {
+              "artifact_digest": "e6e5870d203bf63c0adaf65151808cfcc106ceeb96fd029aecd2745b5bcbb182",
+              "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/6fb3169affe6920949a7a09bd9e8d9ded3b0bfefe78e203b9a53234a71784cf6/harness",
+              "binary_sha256": "abae6b99b3f0c47174b60577fca804ddd93fb8570583d80c90c14c24a3a29f52",
+              "build_digest": "6fb3169affe6920949a7a09bd9e8d9ded3b0bfefe78e203b9a53234a71784cf6",
+              "component": "spi_active",
+              "execution_nonce": "b4d508d34f8e47ac9eb8c57cdd37ff4c",
+              "exit_code": 0,
+              "manifest_sha256": "9282a533dc459a8e84553a9437a5887120f5b16eccd4d89dff7310a58d75d86d",
+              "pid": 3632193,
+              "reaped": true
+            },
+            {
+              "artifact_digest": "5ccc43afd5bd970f23e6e510be363cbdd5c151781705736c7925f27989e5a153",
+              "binary_path": "/home/qinkejiu/myfuzz/runs/config-driven-20261028/cache/bcbc9574ab105b99c6b4aba7d2e9bd1e66c31481583084f625ddfc17e4d421db/harness",
+              "binary_sha256": "39f1f49f4424b0f90547824d8d1cac2263e012ce03bf4df258fde35add8818fe",
+              "build_digest": "bcbc9574ab105b99c6b4aba7d2e9bd1e66c31481583084f625ddfc17e4d421db",
+              "component": "spi_idle",
+              "execution_nonce": "1ab3a90e3323469da094decacf98c7fe",
+              "exit_code": 0,
+              "manifest_sha256": "14c7b63e33cce03a1ff37a968b01d8113bb7e5cc2364783e1b0ac78e03d60227",
+              "pid": 3632225,
+              "reaped": true
+            }
+          ],
+          "sha256": {
+            "events.json": "6bc6a138c4e18a41b89c653f8e11d7a33b8dcde179dbb1f8f194ecc3b524e81c",
+            "local_commands.json": "c12613e5f88459f998a714953570c789595149b759f6180b810d51d36d391bf8",
+            "executions.json": "6e6e75910efe81a5cf413f6791920e960d1d0955dba1395222d2370d0866080a",
+            "result.json": "8898273c53977aba9a66d7f5e4847d18a3831d8c863b6df3511108465eaa0355"
+          }
+        }
+      },
+      "result": {
+        "decision_serial": 1,
+        "first_fetch": 65536,
+        "first_retirement_pc": 66092,
+        "grants_F5": false,
+        "grants_F6": false,
+        "idle_observed_samples": 208,
+        "isr_mmio": "unknown",
+        "native_take_tick": 76,
+        "reward_eligible": false,
+        "scope": "declared-IP-output-to-CPU-first-handler",
+        "source_pulse_tick": 77,
+        "source_version": "unknown",
+        "status": "verified",
+        "transport_only": true,
+        "trigger_writes": [
+          [
+            36,
+            2147483648
+          ]
+        ]
+      },
+      "summary_sha256": "7e831b20cedbdba504033da04db3c9ec09e16d86de36e44f138b850c041ab7f3"
+    }
+  },
+  "scope": "declared output bit transport through native CPU take/first handler; no EOT, serial SPI, F5/F6 or reward",
+  "fresh_scope": "same-invocation-independent-native-sessions"
+}

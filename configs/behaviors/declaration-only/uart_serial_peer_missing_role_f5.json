@@ -1,0 +1,49 @@
+{
+  "schema_version": "inprocess_source_behavior.v1",
+  "description": "Declaration-only behavior that declares a serial peer whose tx role is 'rts_n'. The pinned OpenTitan UART's uart.pins endpoint declares rx/tx/tx_en only, so the executor refuses the missing role by name instead of binding another port.",
+  "notes": [
+    "the peer's rx_role is the UART's real 'rx' input; tx_role 'rts_n' is a role the ZipCPU UART declares and this one does not",
+    "the refusal is unsupported-serial:role:rts_n, raised by pin_group_declaration after the declaration normalizes"
+  ],
+  "source_port": "intr_tx_done_o",
+  "source_bit_offset": 0,
+  "trigger_writes": [
+    [
+      4,
+      4
+    ],
+    [
+      16,
+      2147483651
+    ],
+    [
+      28,
+      90
+    ]
+  ],
+  "status_offsets": [
+    0
+  ],
+  "status_cause_bits": [
+    2
+  ],
+  "clear_sequence": [
+    {
+      "kind": "write",
+      "offset": 0,
+      "value": 4
+    }
+  ],
+  "pin_groups": [
+    {
+      "name": "serial_rts",
+      "kind": "serial_peer",
+      "rx_role": "rx",
+      "tx_role": "rts_n",
+      "tx_en_role": null,
+      "idle_level": 1,
+      "bit_ticks": 32,
+      "frame": "8n1"
+    }
+  ]
+}

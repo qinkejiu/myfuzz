@@ -35,9 +35,18 @@ def register_observe_policy(plan, abi=None):
                                  or not 1 <= address_width <= 12
                                  or window > 4 * (1 << address_width)))):
         raise ValueError('wishbone-register-window-unsupported')
-    allowed = {'endpoint_policies', 'fixed_inputs'}
+    allowed = {'endpoint_policies', 'fixed_inputs', 'wishbone_storage_observations'}
     if any(row.kind not in allowed for row in request.tuning.records):
         raise ValueError('wishbone-register-unsupported-tuning')
+    if any(row.kind == 'wishbone_storage_observations'
+           for row in request.tuning.records):
+        try:
+            from .wishbone_storage_probe_contract import (
+                wishbone_storage_probe_selection)
+        except ImportError as error:
+            raise ValueError('wishbone-storage-probe-contract-unavailable') from error
+        if wishbone_storage_probe_selection(plan) is None:
+            raise ValueError('wishbone-storage-probe-required')
     fixed = {}
     for row in (r.document() for r in request.tuning.records if r.kind == 'fixed_inputs'):
         key = (row['endpoint_id'], row['role'])

@@ -1,0 +1,26 @@
+{
+  "cpu_profile": "configs/cpus/cv32e20/component_profile.json",
+  "source_request": "configs/peripherals/sha_declared_irq/request.json",
+  "active_id": "sha_active",
+  "idle_id": "sha_idle",
+  "active_base": 1073745920,
+  "idle_base": 1073750016,
+  "source_adapter": "declared-output.v1",
+  "source_port": "error_intr",
+  "source_bit_offset": 0,
+  "trigger_writes": [
+    [
+      2048,
+      1
+    ],
+    [
+      2052,
+      1
+    ],
+    [
+      2076,
+      1
+    ]
+  ],
+  "pulse_width_ticks": 16
+}

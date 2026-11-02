@@ -1,0 +1,57 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-cva6-axi4-timer-f1-fuzz",
+  "cpu_profile": "configs/cpus/cva6/component_profile.json",
+  "cpu_instance_id": "processor",
+  "cpu_timing": {
+    "reset_assert_ticks": 12,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "source_profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+  "source_timing": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "max_wait_cycles": 16
+  },
+  "active_id": "pulp_timer_active",
+  "source_port": "irq_o",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 16,
+  "trigger_writes": [
+    [
+      4,
+      0
+    ],
+    [
+      8,
+      0
+    ],
+    [
+      0,
+      4294967295
+    ]
+  ],
+  "status_offsets": [
+    0
+  ],
+  "status_cause_bits": null,
+  "clear_writes": [],
+  "target_window": {
+    "base": 1073745920,
+    "size": 4096
+  },
+  "image_start": 65536,
+  "image_end": 131072,
+  "assume_single_clock": true,
+  "f1_program_words": 4,
+  "f1_rv32_projection": true,
+  "notes": [
+    "This is the F1 twin of inprocess-cva6-axi4-timer-f2f4.json: the same one packed AXI4 CVA6, the same PULP timer and the same host RAM, with the retirement channel the CVA6 really exports now observed. The CPU model exports its 6974-bit RVFI probe bundle (rvfi_probes_o) and the pinned scoreboard core/cva6_rvfi.sv is Verilated beside the run and clocked from that port, so F1's count/order/installed-word/trap facts come from the CPU's own retirement records instead of being refused.",
+    "f1_program_words 4 declares a straight-line program of 1 to 4 words in the fixed trampoline slot at 0x12000, inside the CPU configuration's execute-but-uncached 0x10000..0x20000 window, so a slot rewritten between cases is re-fetched without fence.i. Only RV32IM straight-line records are declared: no branch, jump, CSR, privileged or RV64 word is admitted, and the entry states that the RV64 record's low 32 bits are what the 32-bit reference trace compares.",
+    "fuzz mode: the same one packed AXI4 CVA6 and the same declared retirement channel, with the closed loop restricted to F1. The generator runs on the scenario's declared RV32IM projection (f1_rv32_projection), so every generated program is a 32-bit straight-line record the 64-bit core executes and the host compares on the low 32 bits of its RV64 RVFI record. The host's observed retirement facts (count, order, installed words, traps) score the input and the declared space produces the next legal program; F2-F6 are not fuzzed here."
+  ],
+  "fuzz_flows": [
+    "F1"
+  ]
+}

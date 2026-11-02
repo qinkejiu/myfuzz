@@ -17,60 +17,19 @@ relations.
 
 ## Start here
 
-- [Workspace inventory and cleanup record](docs/WORKSPACE_INVENTORY.md): what
-each top-level directory is, what the 2026-10-09 cleanup removed and
-regenerated, and the declared broken-link consequence.
-- [System overview](docs/SYSTEM_OVERVIEW.md): how the current system is layered,
-  how one online run proceeds, how it is verified, and what it does not claim.
-- [Testcase and dataflow](docs/TESTCASE_AND_DATAFLOW.md): what one testcase is,
-  how data flows inside it, which components it touches (two worked examples
-  with real event ids).
-- [Component reference](docs/COMPONENT_REFERENCE.md): every component and what
-  it does, grouped by layer (340 modules).
-- [Measured throughput](docs/THROUGHPUT.md): cases/s in three
-  measures, the per-phase breakup, the 24x gap against the same-config
-  2026-10-06 run, and what to fix.
-- [How clock constraints are obtained](docs/CLOCK_CONSTRAINTS.md): profile
-  declarations → request tick counts → plan-time validation/compilation →
-  rendered clock toggling → host edge-count cross-check.
-- [Four questions, answered with evidence](docs/FOUR_QUESTIONS_EVIDENCE.md): the
-  peripheral-event declaration story, where the code volume comes from, the
-  measured throughput bottleneck and how to raise it, and how timing is handled.
-- [Testcase runbook](docs/TESTCASE_RUNBOOK.md): organised per testcase — the data
-  flow, the components involved and how one test actually runs (command counts,
-  per-case timing, replay path).
-- [Testcase types](docs/TESTCASE_TYPES.md): the kinds of testcase and their
-  dataflows (T1–T8, with real distributions, closure evidence and limits).
-- [Input mutation basis](docs/INPUT_MUTATION_BASIS.md): what the mutation is
-  grounded in — raw layout, the six declarative constraint gates, the 37
-  rejection codes and the feedback weight formula.
-- [Current progress](docs/CURRENT_PROGRESS.md): the single status entry for
-  P0–P8, recorded gates and remaining acceptance work.
-- [P6 per-protocol row checklist](docs/superpowers/plans/2026-10-13-p6-per-protocol-row-checklist.md):
-  the five CPU-protocol rows, each with its measured state and the run that
-  proves it. **Rows 1 (OBI), 2 (full AXI4) and 3 (AXI4-Lite) now pass with real
-  audited 18-cell campaigns; row 5 is largely advanced; row 4 (classic
-  Wishbone) states its three remaining pieces.**
-- [P7 automatic onboarding](docs/superpowers/plans/2026-10-13-p7-automatic-onboarding-implementation.md):
-  stages D1–D4 and A–E, and the one command that runs them end to end.
-- [Current design](docs/CURRENT_DESIGN.md): input ownership, testcase flows,
-  persistent state, router/scheduler responsibilities and remaining gaps.
-- [Quick start](QUICKSTART.md): record/replay a real Ibex plus two-GPIO
-  scenario and generate a local IP harness.
-- [Reproduce the first step](docs/reproduction/first-step-p1-p5-20261008.md):
-  P1–P5 stage gates, current read-only rechecks, saved outputs and limits.
-- [First-step code and document audit](docs/reproduction/first-step-code-doc-audit-20261008.md):
-  active modules, shared and historical paths, and issues found in review.
-- [Runtime capability and evidence](docs/LOCAL_HARNESS_RUNTIME.md): verified
-  CPUs, IPs, protocol profiles and exact limits.
-- [Documentation index](docs/README.md): current design and historical
-  evidence.
-- [Implementation plan](docs/superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md):
-  ordered gaps, code targets and acceptance gates.
-- [Code organization](docs/CODE_ORGANIZATION.md): current execution chain,
-  shared helpers and historical paths.
-- [Repository cleanup audit](docs/reports/current-design-cleanup-source-audit-20261006.md):
-  which files were moved and why shared/legacy code remains.
+| Need | Read |
+|---|---|
+| Run a first example | [Quick start](QUICKSTART.md) |
+| Run F1–F6, live dependency search or coverage comparisons | [Universal runtime commands](docs/universal-runtime-usage.md) |
+| Understand the system | [System overview](docs/SYSTEM_OVERVIEW.md) and [current design](docs/CURRENT_DESIGN.md) |
+| Find code, configs and scripts | [Workspace map](docs/WORKSPACE_MAP.md) |
+| Check current evidence and open gates | [Current progress](docs/CURRENT_PROGRESS.md) |
+| Find a document or historical report | [Documentation index](docs/README.md) |
+| Develop or verify a change | [Code organization](docs/CODE_ORGANIZATION.md), [scripts](scripts/README.md) and [tests](tests/README.md) |
+
+The six-CPU/four-IP joint matrix and full P6/P7/P8 acceptance remain open.
+Recorded software gates and fixed-instance RTL evidence have their own scopes;
+see the current progress page before reusing a historical result.
 
 ## Current testcase execution
 

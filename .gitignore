@@ -57,3 +57,32 @@ temp/
 # leaves them behind; they are fixtures of no run, so they are neither tracked
 # nor kept.
 /configs/.alias-test-*/
+
+# --- 2026-11-03 cleanup: keep multi-gigabyte experiment/evidence bulk on disk ---
+# `runs/` is already disregarded above.  `research/` holds the 2026-10 input-strategy
+# audit's raw experiment trees (tens of GB); its written reports are cited from
+# docs/ by path and stay on disk, but the run bulk is not mirrored into git.
+/research/
+# Scratch directories earlier rounds left in the repository root (source copies of
+# probe hosts, compiled probes, elaboration audit trees).  They are never sources.
+/.tmp-*/
+/.myfuzz-audit-*/
+/.sdd/
+/.backups/
+# Raw evidence bundles under docs/reports/evidence/ are local reproduction material:
+# compressed captures and per-run JSON traces are frequently hundreds of megabytes.
+# The written reports (docs/reports/*.md) and the small manifests already in the
+# index stay tracked; new bulk under this tree is not added automatically.  Use
+# `git add -f <path>` for a specific small artefact that must be versioned.
+/docs/reports/evidence/**/*.gz
+/docs/reports/evidence/**/*.tar
+/docs/reports/evidence/**/*.tar.gz
+/docs/reports/evidence/**/*.tgz
+/docs/reports/evidence/**/*.zip
+/docs/reports/evidence/**/*.gch
+/docs/reports/evidence/**/*.o
+/docs/reports/evidence/**/*.a
+/docs/reports/evidence/**/*.so
+/docs/reports/evidence/**/*.vcd
+/docs/reports/evidence/**/*.fst
+/docs/reports/evidence/**/*.json

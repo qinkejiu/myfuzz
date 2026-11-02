@@ -75,7 +75,11 @@ def compile_f2_candidate_layout(path):
     _require(image is not None and load is not None and image is not load, 'source-set')
     bounds=image.get('range')
     _require(image.get('kind')=='instruction_image' and image.get('component')==load.get('component')
-             and image.get('bit_offset')==0 and image.get('mask')==0xffffffff
+             and image.get('bit_offset')==0
+             # A 64-bit CPU declares its image source with the full 64-bit
+             # field mask; only the *range* bounds the 4-byte candidate
+             # record, and that range must still be a 32-bit address.
+             and image.get('mask') in (0xffffffff,(1<<64)-1)
              and image.get('alignment') in (2,4) and isinstance(image.get('port'),str)
              and isinstance(bounds,(list,tuple)) and len(bounds)==2
              and all(_integer(v,0,0xffffffff) for v in bounds) and bounds[0]%4==0
@@ -84,7 +88,7 @@ def compile_f2_candidate_layout(path):
     _require(load.get('kind')=='cpu_load_stream' and load.get('width')==32
              and load.get('bit_offset')==0 and load.get('mask')==0xffffffff
              and load.get('range')==[contract['address'],contract['address']]
-             and load.get('alignment')==4 and contract['response_mask']==0xffffffff,
+             and load.get('alignment')==4 and _integer(contract['response_mask'],0,0xffffffff),
              'register-word-shape')
     access=load.get('register_access')
     _require(isinstance(access,dict) and set(access)=={
@@ -99,7 +103,7 @@ def compile_f2_candidate_layout(path):
              and access.get('source_endpoint')==load.get('endpoint_id')==contract['source_endpoint']
              and access.get('register')==load.get('register')
              and access.get('field')==load.get('field')
-             and access.get('value_mask')==0xffffffff and access.get('width_bytes')==4
+             and access.get('value_mask')==contract['response_mask'] and access.get('width_bytes')==4
              and access.get('allowed_byte_enables')==[15]
              and access.get('byte_enable_domain')=='target_word_lanes'
              and access.get('access_alignment')==4

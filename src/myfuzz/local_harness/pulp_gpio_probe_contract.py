@@ -11,7 +11,7 @@ from types import MappingProxyType
 from myfuzz.composition.component_profile import load_component_profile
 
 PULP_GPIO_PROFILE = 'configs/peripherals/pulp_gpio_causal_local/component_profile.json'
-_PROFILE_SHA256 = 'ebda4798cc5e3874957e3b4aad8aa3fe3131c94f01537e90759fbd2f1bbfead0'
+_PROFILE_SHA256 = 'a90565921ad184972182a27bf81766ab41850ba448ffdcd0849f764e31fda21d'
 PULP_GPIO_PROBES = MappingProxyType({
     'apb_addr': (12, 'PADDR'), 'psel': (1, 'PSEL'),
     'penable': (1, 'PENABLE'), 'pwrite': (1, 'PWRITE'),

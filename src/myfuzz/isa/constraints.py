@@ -6,6 +6,18 @@ from dataclasses import dataclass
 
 
 _IMPLEMENTED_EXTENSIONS = frozenset(("I", "M", "C"))
+#: ``cpu.family`` values that declare a real RISC-V core.  Every hand-written
+#: CPU profile says ``riscv``; the pinned *generated* VexiiRiscv profile names
+#: its own generator family while declaring exactly the same RV32 facts.  A
+#: core that is not RISC-V (``zipaxi`` declares ``zipcpu``) stays refused, and
+#: the xlen/extension checks below are unchanged for every family.
+_RISCV_CPU_FAMILIES = frozenset(("riscv", "vexiiriscv"))
+
+
+def declared_riscv_cpu(cpu) -> bool:
+    """Whether one declared ``profile.cpu`` object describes a RISC-V core."""
+    family = getattr(cpu, "family", None)
+    return isinstance(family, str) and family.strip().lower() in _RISCV_CPU_FAMILIES
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +49,28 @@ class IsaContract:
     @property
     def supports_legal_instruction_validation(self) -> bool:
         return "I" in self.extensions and set(self.extensions) <= _IMPLEMENTED_EXTENSIONS
+
+
+def f1_isa_from_profile(profile):
+    """The F1 instruction subset available on a declared CPU profile.
+
+    ``xlen`` is the profile's own: a 32-bit core gets ``RV32I/M/C`` and a 64-bit
+    core gets ``RV64I/M/C``.  The F1/F3 lowerer only emits ``LUI``/``LW``/``SW``
+    and ``NOP`` (plus the fuzzable record itself), whose encodings are identical
+    in RV32 and RV64, and the memory flow's evidence is a 4-byte physical access
+    at the declared scratch word - not a register-width claim.  Declaring 32 for
+    a 64-bit core would be a narrower lie than the reverse, but it would also
+    refuse every real RV64 row, so the profile's ``xlen`` is used verbatim.
+    """
+    cpu = profile.cpu
+    if not declared_riscv_cpu(cpu) or cpu.xlen not in (32, 64):
+        raise ValueError('F1 requires a declared RV32 or RV64 CPU')
+    extensions = {value.upper() for value in cpu.extensions}
+    if 'I' not in extensions:
+        raise ValueError('F1 requires the I extension')
+    selected = ('I',) + tuple(ext for ext in ('M', 'C') if ext in extensions)
+    return IsaContract(cpu.xlen, selected,
+                       instruction_alignment=2 if 'C' in extensions else 4)
 
 
 class RiscvInstructionProvider:

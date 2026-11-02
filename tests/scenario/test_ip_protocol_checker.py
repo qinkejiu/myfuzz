@@ -358,6 +358,17 @@ class IpProtocolCheckerTests(unittest.TestCase):
         self.assertEqual(['wishbone_response_without_request'],
                          [row['payload']['violation_code'] for row in repeated])
 
+    def test_wishbone_read_stall_still_requires_select_stability(self):
+        roles = ('cyc', 'stb', 'we', 'adr', 'dat_w', 'sel', 'ack', 'stall', 'dat_r')
+        widths = {'cyc':1,'stb':1,'we':1,'adr':16,'dat_w':32,'sel':4,'ack':1,'stall':1,'dat_r':32}
+        checker = self.checker('wishbone', roles, widths)
+        checker.consume_local_tick(self.raw(1,1,{'cyc':1,'stb':1,'we':0,'adr':4,
+            'dat_w':1,'sel':15,'ack':0,'stall':1,'dat_r':0}),reset_epoch=0)
+        findings = checker.consume_local_tick(self.raw(2,2,{'cyc':1,'stb':1,'we':0,'adr':4,
+            'dat_w':0,'sel':3,'ack':0,'stall':0,'dat_r':0}),reset_epoch=0)
+        self.assertIn('wishbone_request_changed_while_stalled',
+                      [row['payload']['violation_code'] for row in findings])
+
     def test_wishbone_wait_budget_is_bounded(self):
         roles = ('cyc', 'stb', 'we', 'adr', 'dat_w', 'sel', 'ack', 'stall',
                  'dat_r')
@@ -409,6 +420,7 @@ class IpProtocolCheckerTests(unittest.TestCase):
                   'd_source': 8, 'd_data': 32, 'd_error': 1}
         artifact = SimpleNamespace(runtime_document={
             'kind': 'tlul_register_observe',
+        'artifact_digest': 'd' * 64,
             'base_event_schema_version': 'ip_base_event.v1',
             'base_protocol_trace': trace('tl-ul', roles, widths),
             'clock_schedule': {'primary_clock_domain': 'bus_clk'},
@@ -445,6 +457,29 @@ class IpProtocolCheckerTests(unittest.TestCase):
                          violation['payload']['violation_code'])
         self.assertEqual('protocol_violation', runner.failure_status)
         self.assertEqual('failed', runner._status)
+
+    def test_obi_checker_accepts_grant_then_correlated_response(self):
+        roles = ('req', 'gnt', 'addr', 'rvalid', 'rdata')
+        widths = {'req': 1, 'gnt': 1, 'addr': 32, 'rvalid': 1, 'rdata': 32}
+        protocol_trace = trace('obi', roles, widths)
+        protocol_trace['max_outstanding'] = 1
+        checker = checker_type()(
+            component_id='anonymous_cpu', instance_id='cpu0',
+            protocol_trace=protocol_trace)
+        grant = checker.consume_local_tick(
+            self.raw(1, 1, dict(req=1, gnt=1, addr=0x100, rvalid=0, rdata=0)),
+            reset_epoch=0)
+        response = checker.consume_local_tick(
+            self.raw(2, 2, dict(req=0, gnt=0, addr=0, rvalid=1, rdata=0x1234)),
+            reset_epoch=0)
+        duplicate_response = checker.consume_local_tick(
+            self.raw(3, 3, dict(req=0, gnt=0, addr=0, rvalid=1, rdata=0x1234)),
+            reset_epoch=0)
+        self.assertEqual((), grant)
+        self.assertEqual((), response)
+        self.assertEqual(['obi_response_without_prior_grant'],
+                         [row['payload']['violation_code']
+                          for row in duplicate_response])
 
 
 if __name__ == '__main__':

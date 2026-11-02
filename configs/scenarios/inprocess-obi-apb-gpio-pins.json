@@ -1,0 +1,55 @@
+{
+  "schema_version": "inprocess_gpio_scenario.v1",
+  "description": "One OBI CPU, the pinned PULP APB3 GPIO (causal probe profile) and a host pad model. The CPU reaches the device only over APB3; the pads are resolved by this host from the device's own gpio_out/gpio_dir ports and one declared external pin value. Register offsets are the reviewed PULP apb_gpio map.",
+  "active_id": "target",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "source_profile": "configs/peripherals/pulp_gpio_causal_local/component_profile.json",
+  "image_start": 65536,
+  "image_end": 196608,
+  "target_window": {
+    "base": 1073741824,
+    "size": 4096
+  },
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "source_timing": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "max_wait_cycles": 16
+  },
+  "assume_single_clock": true,
+  "registers": {
+    "PADDIR": 0,
+    "GPIOEN": 4,
+    "PADIN": 8,
+    "PADOUT": 12,
+    "PADOUTSET": 16,
+    "PADOUTCLR": 20,
+    "INTEN": 24,
+    "INTTYPE_LOW": 28,
+    "INTTYPE_HIGH": 32,
+    "INTSTATUS": 36,
+    "PADCFG_0": 40
+  },
+  "irq": {
+    "status_offset": 36,
+    "trigger_offsets": [
+      4,
+      24,
+      28,
+      12
+    ],
+    "clear": null,
+    "source_port": "interrupt",
+    "source_bit_offset": 0,
+    "pulse_width_ticks": 16
+  },
+  "pins": {
+    "padin_offset": 8,
+    "external_value": 0,
+    "pad_resolution": "device_drives_when_dir_bit_high_else_host"
+  }
+}

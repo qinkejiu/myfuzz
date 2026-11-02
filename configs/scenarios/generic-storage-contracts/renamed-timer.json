@@ -1,0 +1,28 @@
+{
+  "adapter_id": "apb3.storage.v1",
+  "adapter_version": "1",
+  "alias_register_offsets": [
+    4,
+    12,
+    20,
+    28
+  ],
+  "capability": "configs/scenarios/generic-storage-contracts/renamed-timer/test_capability.json",
+  "compose": "configs/scenarios/generic-storage-contracts/renamed-timer/compose.json",
+  "f4_records": [
+    "55000000",
+    "aa000000",
+    "78563412"
+  ],
+  "flows": [
+    "F2",
+    "F4"
+  ],
+  "non_alias_register_offset": 8,
+  "register": "TIMER0_CTRL",
+  "renamed_instance": true,
+  "scenario": "renamed-timer",
+  "schema_version": "generic_storage_contract_selection.v1",
+  "source_contract_id": "pulp-apb-timer.ctrl0.source.v1",
+  "supplement": "configs/scenarios/generic-storage-contracts/renamed-timer/execution_supplement.json"
+}

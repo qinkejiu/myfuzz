@@ -1,0 +1,150 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-apb-three-ip-timer-i2c-spi-f5",
+  "description": "One Ibex RVFI OBI CPU reaches three independent APB3 MMIO targets in one process, each declaring the four F5 facts: the PULP timer's pulse overflow IRQ, the PULP I2C's level IRQ and the PULP SPI's transfer-end pulse. Every declaring target's real IRQ output is sampled and OR'ed into the CPU's one external interrupt input; every physical link is numbered in one global table, so one F5 case selects one link and its trigger writes, ISR status read and clear write all belong to that link's own target. The synthetic two-source row pairs the first two declaring targets (two ISR cell sets is the host's limit); the third target keeps its own single-link row.",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "targets": [
+    {
+      "name": "timer",
+      "profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+      "active_id": "pulp_timer_active",
+      "window": {
+        "base": 1073745920,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": "configs/behaviors/pulp_timer_f5.json",
+      "pins": null,
+      "fixed_inputs": [],
+      "tuning": {}
+    },
+    {
+      "name": "i2c",
+      "profile": "configs/peripherals/pulp_i2c_irq/component_profile.json",
+      "active_id": "pulp_i2c_target",
+      "window": {
+        "base": 1073750016,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": "configs/behaviors/pulp_i2c_level_f5.json",
+      "pins": null,
+      "fixed_inputs": [
+        {
+          "endpoint_id": "i2c.pins",
+          "role": "scl_pad_i",
+          "value": 1
+        },
+        {
+          "endpoint_id": "i2c.pins",
+          "role": "sda_pad_i",
+          "value": 1
+        }
+      ],
+      "tuning": {
+        "fixed_inputs": [
+          {
+            "endpoint_id": "i2c.pins",
+            "role": "scl_pad_i",
+            "value": 1
+          },
+          {
+            "endpoint_id": "i2c.pins",
+            "role": "sda_pad_i",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "spi",
+      "profile": "configs/peripherals/inprocess_verify_pulp_spi_irq/component_profile.json",
+      "active_id": "pulp_spi_target",
+      "window": {
+        "base": 536879104,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": "configs/behaviors/pulp_spi_eot_f5.json",
+      "pins": null,
+      "fixed_inputs": [
+        {
+          "endpoint_id": "spi.pins",
+          "role": "sdi0",
+          "value": 1
+        },
+        {
+          "endpoint_id": "spi.pins",
+          "role": "sdi1",
+          "value": 1
+        },
+        {
+          "endpoint_id": "spi.pins",
+          "role": "sdi2",
+          "value": 1
+        },
+        {
+          "endpoint_id": "spi.pins",
+          "role": "sdi3",
+          "value": 1
+        }
+      ],
+      "tuning": {
+        "fixed_inputs": [
+          {
+            "endpoint_id": "spi.pins",
+            "role": "sdi0",
+            "value": 1
+          },
+          {
+            "endpoint_id": "spi.pins",
+            "role": "sdi1",
+            "value": 1
+          },
+          {
+            "endpoint_id": "spi.pins",
+            "role": "sdi2",
+            "value": 1
+          },
+          {
+            "endpoint_id": "spi.pins",
+            "role": "sdi3",
+            "value": 1
+          }
+        ]
+      }
+    }
+  ],
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "f1_program_words": 4,
+  "handler_wait_iterations": 256,
+  "case_tick_budget": 80000,
+  "notes": [
+    "Three APB3 target rows, one generated model each. Windows: timer 0x40001000..0x40001fff, I2C 0x40002000..0x40002fff, SPI 0x20002000..0x20002fff. All are the profiles' own 4 KiB windows, 4 KiB aligned, pairwise disjoint, and disjoint from the RAM image 0x10000..0x30000.",
+    "Target 0 is the PULP timer (configs/peripherals/pulp_timer_irq) with configs/behaviors/pulp_timer_f5.json: irq_o[0] pulse, trigger writes [[4,0],[8,0],[0,0xffffffff]], status TIMER0_COUNT at offset 0, no clear. Target 1 is the PULP I2C with the real interrupt export (configs/peripherals/pulp_i2c_irq) and configs/behaviors/pulp_i2c_level_f5.json: interrupt_o level, trigger writes [[4,0xc0],[16,0x5a],[20,0x10]], status STATUS at offset 0xc with cause bit 0, clear CMD(0x14)=1. Target 2 is the PULP SPI with the transfer-end interrupt export (configs/peripherals/inprocess_verify_pulp_spi_irq) and configs/behaviors/pulp_spi_eot_f5.json: events_o[1] pulse, trigger writes [[16,0x10000],[24,0xab],[0,2]], status INTSTA at offset 0x28, no clear.",
+    "All three links declare three trigger writes, which is what one F5 record shape requires: the first record word is one global link index (0 = timer overflow, 1 = I2C level, 2 = SPI end-of-transfer) followed by that link's three trigger values. A declaration whose links differ in arity is refused by name (unsupported-f5:irq-links-differ-in-arity).",
+    "The CPU has one external interrupt input (Ibex machine-external). The host samples every declaring target's real IRQ output per tick and delivers their OR to that one input; per-target counters (target0_irq_high_ticks, target1_irq_high_ticks, target2_irq_high_ticks) keep the three outputs apart. One F5 case selects one link, so its ISR status read and clear write address that link's own target: simultaneous attribution is claimed only by the synthetic two-source row, which pairs the first two declaring targets because the ISR carries two status/result/clear cell sets. The pair's member links and target indices are printed in every both case line (both_members/both_targets).",
+    "The I2C pad inputs scl_pad_i/sda_pad_i and the SPI serial inputs sdi0..sdi3 are held at their idle values in both fixed_inputs and tuning.fixed_inputs: the target request builder reads tuning and the generated header reads fixed_inputs, so the two declarations have to agree. No 32-bit pad group is selected, so the one-pad-model rule does not apply.",
+    "No dma_profile is declared, so F6 is refused by name (unsupported-f6:no-dma-model:apb3) rather than served from an absent model; the three targets and the target-routed records are the whole session.",
+    "This file declares the scenario; it is not evidence. The real RTL runs under runs/p1-irq/ are the evidence, and they claim only what their case lines read from the devices."
+  ]
+}

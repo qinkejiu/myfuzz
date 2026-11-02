@@ -1,0 +1,33 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-apb-cv32e40p-pulp-timer-zipdma-f1f6",
+  "description": "The same one-CPU/one-APB3-target/one-ZipDMA declaration the Ibex replacement runs, with the CPU profile swapped from configs/cpus/ibex_rvfi_local to the pinned configs/cpus/cv32e40p_rvfi_local. Nothing else about the build changes: the entry reads the CPU's OBI endpoints, its declared boot contract (PC_BOOT = {boot_addr_i[31:2],2'b0} at 0x10000) and its assigned RVFI observation fields from the profile.",
+  "cpu_profile": "configs/cpus/cv32e40p_rvfi_local/component_profile.json",
+  "cpu_timing": {"reset_assert_ticks": 8, "reset_release_ticks": 8, "max_wait_cycles": 16},
+  "source_profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+  "source_timing": {"reset_assert_ticks": 2, "reset_release_ticks": 3, "max_wait_cycles": 16},
+  "active_id": "pulp_timer_active",
+  "source_port": "irq_o",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 16,
+  "trigger_writes": [[4, 0], [8, 0], [0, 4294967295]],
+  "status_offsets": [0],
+  "status_cause_bits": null,
+  "clear_writes": [],
+  "dma_profile": "configs/peripherals/zipdma_smoke/component_profile.json",
+  "dma_timing": {"reset_assert_ticks": 8, "reset_release_ticks": 8, "max_wait_cycles": 16},
+  "dma_capability": "configs/scenarios/compiled-f1-f6-ibex-gpio-zipdma-shared/dma.test_capability.json",
+  "dma_block_words": 4,
+  "target_window": {"base": 1073745920, "size": 4096},
+  "dma_window": {"base": 1073754112, "size": 16},
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "notes": [
+    "The scenario is the Ibex timer/DMA declaration with its cpu_profile line changed; the target, DMA, windows, image and every record are the same bytes. That is the whole profile swap the P0-1 CPU replacement claims.",
+    "cv32e40p_rvfi_local declares the same OBI instruction/data masters as ibex_rvfi_local, so the entry's CPU bus selection, the obi_processor_memory_adapter and the target routing are unchanged. Its boot formula is the pinned external_designs/cv32e40p/rtl/cv32e40p_if_stage.sv PC_BOOT = {boot_addr_i[31:2], 2'b0} with boot_addr_i = 0x10000 held by the profile's port_actions, so the bootstrap image lands at the RAM base 0x10000 instead of Ibex's 0x10080; build_firmware already places the bootstrap at layout['boot'] and jumps to the fixed main loop, so no image or address is special-cased for this CPU.",
+    "The local top assigns only rvfi_valid/rvfi_order/rvfi_insn/rvfi_pc_rdata. F1 compares the observed retirement count, order and installed words from those fields; it never claims rvfi_intr, rvfi_trap or a writeback channel the profile does not export.",
+    "F5 delivers the timer's real irq_o to the CPU's declared machine-external line irq_i[11] (cv32e40p_irq_receipt_contract SOURCE_ID=11); the acceptance evidence is the real controller decision plus irq_ack_o/irq_id_o and the IF-stage exception PC, not an RVFI intr because that field is not driven.",
+    "The timer profile, the ZipDMA profile, the DMA capability and the F5 trigger/status facts are reused byte for byte from configs/scenarios/inprocess-obi-apb-ibex-timer-zipdma-f1f6.json, so the only difference between the two runs is the CPU profile line."
+  ]
+}

@@ -493,7 +493,7 @@ def test_binding_enters_checker_and_prefix_identity(timer_generated):
         closure={}, artifacts={}, rounds=1, max_cases=1, records=[], layout=layout,
         error_policy={'mode': 'native_error_role'}, run_id='unit',
         producer_binding=binding, execution_binding=execution_binding,
-        row=binding.row, feedback=lambda: {})
+        row=binding.row, feedback=lambda: {}, _mixed_flows=False)
     prefix = CompiledF4Runtime.finish(finished)
     assert prefix['schema_version'] == 'compiled_F4_prefix.v2'
     assert prefix['producer_binding'] == binding.document()
@@ -1425,7 +1425,7 @@ def test_generic_finish_normalizes_hash_but_keeps_real_records(timer_generated):
             max_cases=1, records=deepcopy(records), layout=layout,
             error_policy={'mode': 'native_error_role'}, run_id='unit',
             producer_binding=binding, execution_binding=execution_binding,
-            feedback=lambda: {}, row=row)
+            feedback=lambda: {}, row=row, _mixed_flows=False)
         return CompiledF4Runtime.finish(runtime)
 
     first = prefix('generic_apb_storage_abi',

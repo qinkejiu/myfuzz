@@ -1,0 +1,100 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-apb-two-ip-timer-i2c-multif5-f1f6",
+  "description": "One Ibex RVFI OBI CPU reaches two independent APB3 MMIO targets by address, and both declare a real IRQ path: the PULP timer's pulse IRQ and the PULP I2C's level IRQ. Every declaring target's real IRQ output is sampled and OR'ed into the CPU's one external interrupt input; one F5 case selects one global link, so its trigger writes, ISR status read, stored cause and clear write all belong to the selected target.",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "targets": [
+    {
+      "name": "timer",
+      "profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+      "active_id": "pulp_timer_active",
+      "window": {
+        "base": 1073745920,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": "configs/behaviors/pulp_timer_f5.json",
+      "pins": null,
+      "fixed_inputs": [],
+      "tuning": {}
+    },
+    {
+      "name": "i2c",
+      "profile": "configs/peripherals/pulp_i2c_irq/component_profile.json",
+      "active_id": "pulp_i2c_target",
+      "window": {
+        "base": 1073750016,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": "configs/behaviors/pulp_i2c_level_f5.json",
+      "pins": null,
+      "fixed_inputs": [
+        {
+          "endpoint_id": "i2c.pins",
+          "role": "scl_pad_i",
+          "value": 1
+        },
+        {
+          "endpoint_id": "i2c.pins",
+          "role": "sda_pad_i",
+          "value": 1
+        }
+      ],
+      "tuning": {
+        "fixed_inputs": [
+          {
+            "endpoint_id": "i2c.pins",
+            "role": "scl_pad_i",
+            "value": 1
+          },
+          {
+            "endpoint_id": "i2c.pins",
+            "role": "sda_pad_i",
+            "value": 1
+          }
+        ]
+      }
+    }
+  ],
+  "dma_profile": "configs/peripherals/zipdma_smoke/component_profile.json",
+  "dma_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "dma_capability": "configs/scenarios/compiled-f1-f6-ibex-gpio-zipdma-shared/dma.test_capability.json",
+  "dma_behavior": "configs/behaviors/zipdma_f6.json",
+  "dma_block_words": 4,
+  "dma_window": {
+    "base": 1073754112,
+    "size": 16
+  },
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "f1_program_words": 4,
+  "handler_wait_iterations": 256,
+  "case_tick_budget": 80000,
+  "notes": [
+    "Two APB3 targets both declare complete F5 facts, so this is the multi-declaring-target scenario. Target 0 is the PULP timer at 0x40001000 with configs/behaviors/pulp_timer_f5.json: irq_o[0] pulse, trigger writes [[4,0],[8,0],[0,0xffffffff]], status TIMER0_COUNT at offset 0, no clear. Target 1 is the PULP I2C at 0x40002000 with the real interrupt export of configs/peripherals/pulp_i2c_irq/component_profile.json and configs/behaviors/pulp_i2c_level_f5.json: interrupt_o level, trigger writes [[4,0xc0],[16,0x5a],[20,0x10]], status STATUS at offset 0xc with cause bit 0, clear CMD(0x14)=1.",
+    "The two behaviors declare the same number of trigger writes (three), which is what one F5 record shape requires: the first record word is one global link index (0 = timer's overflow link, 1 = I2C's level link) followed by that link's three trigger values. A declaration whose links differ in arity is refused by name (unsupported-f5:irq-links-differ-in-arity).",
+    "The CPU has one external interrupt input (Ibex machine-external). The host samples every declaring target's real IRQ output per tick and delivers their OR to that one input; per-target counters (target0_irq_high_ticks, target1_irq_high_ticks) and the summary's target<n>_irq delivered state keep the two outputs apart. One F5 case selects one link, so its ISR status read and clear write address that link's own target: simultaneous attribution is not claimed.",
+    "Target windows are the profiles' own 4 KiB APB windows: 0x40001000..0x40002000 and 0x40002000..0x40003000, adjacent without overlap. The ZipDMA control window is 0x40003000..0x40003010 and the fixed RAM image is 0x10000..0x30000; no window overlaps another.",
+    "The I2C pad inputs scl_pad_i and sda_pad_i are held at 1 (open-drain idle) in both fixed_inputs and tuning.fixed_inputs, as in configs/scenarios/inprocess-obi-apb-pulp-i2c-level-f5.json.",
+    "This file declares the scenario; it is not evidence. The real RTL run under runs/round1-multi-f5/ is the evidence, and it claims only what its case lines read from the devices."
+  ]
+}

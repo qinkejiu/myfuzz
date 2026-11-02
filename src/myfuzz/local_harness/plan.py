@@ -10,6 +10,7 @@ import subprocess
 from myfuzz.composition.component_profile import (
     ComponentProfile, PhysicalFacts, ProfileBinding, bind_profile,
     ComponentProfileError, elaborate_profile, load_component_profile,
+    remember_profile_source,
 )
 from myfuzz.composition.interface_description import SourceLocator
 from myfuzz.composition.source_crawler import SourceCrawlError, _declared_files
@@ -121,6 +122,9 @@ def plan_local_harness(request: LocalHarnessRequest | LocalHarnessRequestV2, *, 
         raise ValueError('invalid-profile-path:outside-configs')
     profile_bytes = profile_path.read_bytes()
     profile = load_component_profile(json.loads(profile_bytes))
+    # The file these bytes came from is what every later gate re-reads; record
+    # it so a reused static result also observes the profile *file*.
+    remember_profile_source(profile, profile_path)
     # Reject unsupported clock ratios and ordered resets during planning, before
     # generating or starting any simulator process.
     build_local_clock_schedule(profile.clocks, profile.resets,

@@ -1,0 +1,44 @@
+{
+  "schema_version": "declared_irq_f5_config.v1",
+  "purpose": "One organic declared-output IRQ case consumed by the fixed ISR in a real native session.",
+  "case_note": "The case writes global_intr_en_r(0x800), error_intr_en_r(0x804) and error_intr_trig_r(0x81c) of the Caliptra intr block, which the profile does not declare; the declared status register is STATUS(0x18).",
+  "cpu_profile": "configs/cpus/cv32e20/component_profile.json",
+  "source_request": "configs/peripherals/sha_declared_irq/request.json",
+  "source_adapter": "declared-output.v1",
+  "source_port": "error_intr",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 16,
+  "active_id": "sha_active",
+  "idle_id": "sha_idle",
+  "active_base": 1073745920,
+  "idle_base": 1073750016,
+  "trigger_writes": [
+    [
+      2048,
+      1
+    ],
+    [
+      2052,
+      1
+    ],
+    [
+      2076,
+      1
+    ]
+  ],
+  "target_window": {
+    "base": 1073745920,
+    "size": 4096
+  },
+  "status_offsets": [
+    24
+  ],
+  "status_registers": [
+    "STATUS"
+  ],
+  "clear_writes": [],
+  "status_cause_bits": null,
+  "image_start": 65536,
+  "image_end": 196608,
+  "result_address": 68672
+}

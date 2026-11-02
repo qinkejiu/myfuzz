@@ -1,0 +1,162 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-apb-ibex-timer-zipdma-fifo-f1f6",
+  "description": "One Ibex RVFI OBI CPU with two address-routed APB3 targets (PULP timer carrying F5, PULP SPI at 0x20002000 carrying the DMA TX FIFO route) and a ZipDMA whose master writes the SPI TXFIFO directly.",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "targets": [
+    {
+      "name": "timer",
+      "profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+      "active_id": "pulp_timer_active",
+      "window": {
+        "base": 1073745920,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": "configs/behaviors/pulp_timer_f5.json",
+      "pins": null,
+      "fixed_inputs": [],
+      "tuning": {}
+    },
+    {
+      "name": "pulp_spi_txfifo",
+      "profile": "configs/peripherals/pulp_spi/component_profile.json",
+      "active_id": "pulp_spi_target",
+      "window": {
+        "base": 536879104,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": null,
+      "pins": null,
+      "fixed_inputs": [
+        {
+          "endpoint_id": "spi.pins",
+          "role": "sdi0",
+          "value": 0
+        },
+        {
+          "endpoint_id": "spi.pins",
+          "role": "sdi1",
+          "value": 0
+        },
+        {
+          "endpoint_id": "spi.pins",
+          "role": "sdi2",
+          "value": 0
+        },
+        {
+          "endpoint_id": "spi.pins",
+          "role": "sdi3",
+          "value": 0
+        }
+      ],
+      "tuning": {
+        "fixed_inputs": [
+          {
+            "endpoint_id": "spi.pins",
+            "role": "sdi0",
+            "value": 0
+          },
+          {
+            "endpoint_id": "spi.pins",
+            "role": "sdi1",
+            "value": 0
+          },
+          {
+            "endpoint_id": "spi.pins",
+            "role": "sdi2",
+            "value": 0
+          },
+          {
+            "endpoint_id": "spi.pins",
+            "role": "sdi3",
+            "value": 0
+          }
+        ]
+      }
+    }
+  ],
+  "dma_profile": "configs/peripherals/zipdma_smoke/component_profile.json",
+  "dma_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "dma_capability": "configs/scenarios/compiled-f1-f6-ibex-gpio-zipdma-shared/dma.test_capability.json",
+  "dma_behavior": "configs/behaviors/zipdma_len8_f6.json",
+  "dma_block_words": 8,
+  "dma_increment_source": true,
+  "dma_increment_destination": false,
+  "dma_route": {
+    "kind": "fifo",
+    "direction": "write",
+    "target_name": "pulp_spi_txfifo",
+    "target_index": 1,
+    "target_profile": "configs/peripherals/pulp_spi/component_profile.json",
+    "target_window": {
+      "base": 536879104,
+      "size": 4096
+    },
+    "register": "TXFIFO",
+    "offset": 24,
+    "address_mode": "fixed",
+    "evidence": {
+      "kind": "fifo_level",
+      "register": "STATUS",
+      "offset": 0,
+      "field": "tx_fifo_level",
+      "bits": [
+        28,
+        24
+      ],
+      "depth": 10,
+      "sampling": "pre_post_transfer",
+      "source": "third_party/soc-pulp-apb-spi/apb_spi_master.sv:109,114"
+    }
+  },
+  "dma_window": {
+    "base": 1073754112,
+    "size": 16
+  },
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "dma_host_support": {
+    "status": "implemented_fixed_write_route",
+    "reason": "the host drives the declared target's APB3 request port from each accepted DMA master beat: the fixed route address 0x20002018 is never written to RAM, the master beat is held until the target's own response, and the F6 firmware reads the declared STATUS word before and after the transfer so the TX FIFO level is a readback, not an inference. The case line reports dma_route_writes/acks/target_writes, fifo_status_before/after, tx_fifo_level_before/after, dma_route_accepted and dma_route_partial. The RAM destination block stays at its sentinel.",
+    "where": [
+      "scripts/run_inprocess_f1f6.py (dma_route_support/dma_host_limits; DMA_ROUTE_* header macros; F6 firmware destination and STATUS reads)",
+      "scripts/inprocess_obi_apb_f1f4_spike.cpp (route state machine on the target APB port, held master beat, FIFO-level evidence at case end)"
+    ],
+    "limits": [
+      "fixed destination only: the master presents the declared route address on every beat; an aperture route is refused by name",
+      "DMA write routes only: a DMA read route is refused by name",
+      "one outstanding master beat (the device's own limit), one routed target transaction at a time",
+      "the route target must be an APB3 target of this build and must declare the routed register and the readable evidence word"
+    ]
+  },
+  "notes": [
+    "route declaration: the DMA master writes eight words to PULP SPI TXFIFO at offset 0x18 (configs/peripherals/pulp_spi/component_profile.json) with a fixed destination address, because TXFIFO is one write-only 32-bit push register (side_effect write_pushes_fifo), not an incrementing aperture",
+    "the target window is declared at 0x20002000 so the pinned ZipDMA can encode the destination: its SOURCE/DESTINATION CSR fields are AW=30-bit byte addresses (third_party/soc-zipcpu/rtl/zipdma/zipdma_ctrl.v:73-74,161-181,259-260 with ADDRESS_WIDTH=32, BUS_WIDTH=32), so any byte address >= 0x40000000 is truncated. If the real SoC maps the SPI at 0x40002000, this ZipDMA cannot reach it; wbdmac stores byte-address bits [31:2] (third_party/soc-zipcpu/rtl/peripherals/wbdmac.v:274-275) and is the device to use there",
+    "the fixed destination is encoded by ZipDMA control bit 22 (s2mm_inc_n), so the plan's start word is 0x00400000 instead of 0x00000000; src/myfuzz/composition/dma_transfer.py derives and validates that word",
+    "expected FIFO evidence: STATUS is a readable word at offset 0x00; with BUFFER_DEPTH=10 its TX FIFO element count is bits [28:24] (apb_spi_master.sv:109,114). The F6 firmware reads STATUS before the start write and after the DMA completion interrupt, stores both words in RAM, and the host case line reports fifo_status_before/after, tx_fifo_level_before/after, dma_route_target_index, dma_route_destination, dma_route_writes and dma_route_acks",
+    "the two targets are address-routed: target 0 is the PULP timer at 0x40001000 (the only F5-IRQ target, configs/behaviors/pulp_timer_f5.json), target 1 is the PULP SPI at 0x20002000 (no F5 facts: its profile declares interrupts: []), and the DMA control window is 16 bytes at 0x40003000. No window overlaps the fixed RAM image 0x10000..0x30000",
+    "expected FIFO evidence: STATUS is a readable word at offset 0x00; with BUFFER_DEPTH=10 its TX FIFO element count is bits [28:24] (apb_spi_master.sv:109,114). The F6 firmware reads STATUS before the start write and after the DMA completion interrupt, stores both words in RAM, and the host case line reports fifo_status_before/after, tx_fifo_level_before/after, dma_route_accepted (the readback difference) and dma_route_partial (whether the declared pushes exceeded the declared depth), beside dma_route_writes/acks/target_writes",
+    "the eight-word block is deliberate: it is a real FIFO burst that fits the declared depth (8 <= 10), so a full acceptance leaves the level at 8; the pass criterion requires the observed level change and fails a run whose FIFO evidence does not move",
+    "the devices are reset before a routed F6 case so the FIFO starts empty and the before/after readback is per-case; the reset is reported under device_resets in the summary and never touches the CPU or RAM"
+  ]
+}

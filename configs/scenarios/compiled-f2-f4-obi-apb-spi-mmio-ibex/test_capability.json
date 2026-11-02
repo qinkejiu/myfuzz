@@ -1,0 +1,35 @@
+{
+  "schema_version": "ip_test_capability.v3",
+  "component_id": "pulp_spi",
+  "profile_fingerprint": "sha256:d2cdcd865c77cd8e85ea5843694a9a86fc035d8a6d03a75fa7bd9cee3af2fddf",
+  "endpoint_capabilities": [
+    {
+      "endpoint_id": "spi.bus",
+      "operations": [
+        "request",
+        "accept",
+        "response",
+        "read",
+        "write",
+        "wait",
+        "error"
+      ]
+    }
+  ],
+  "register_semantics": [
+    {
+      "register": "SPICMD",
+      "field": "value",
+      "lsb": 0,
+      "width": 32,
+      "access": "rw",
+      "read_mask": 4294967295,
+      "write_mask": 4294967295,
+      "side_effect": "none",
+      "reset_value": 0,
+      "evidence_ref": "rtl:third_party/soc-pulp-apb-spi/spi_master_apb_if.sv@sha256:c653811843b453f0689a8f6942934ff9d551734aa4bc4e197d8b9acbfb020230:84-107,110-169,182-212;sha256=a9a32da6cc07768cab293c48989599e36b2000bb572191667960aa1423fc790a"
+    }
+  ],
+  "observation_mappings": [],
+  "register_aliases": []
+}

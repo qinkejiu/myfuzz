@@ -230,6 +230,8 @@ class SourceCrawlerTests(unittest.TestCase):
             def runner(**arguments):
                 calls.append((arguments["source_files"], arguments["include_roots"]))
                 output = arguments["output_dir"]
+                assert not output.is_relative_to(root)
+                assert arguments['output_root'] == output.parent
                 output.mkdir()
                 records = []
                 for path in closure:
@@ -415,7 +417,8 @@ class SourceCrawlerTests(unittest.TestCase):
                 SourceCrawler().crawl(locator, base_dir=root.parent)
         self.assertEqual(("include",), runner.call_args.kwargs["include_roots"])
         self.assertEqual(("rtl/opaque_tile.sv",), runner.call_args.kwargs["source_files"])
-        self.assertTrue(runner.call_args.kwargs["output_dir"].parent.name.startswith(".myfuzz-elaboration-"))
+        self.assertTrue(runner.call_args.kwargs["output_dir"].parent.name.startswith("myfuzz-elaboration-"))
+        self.assertFalse(runner.call_args.kwargs["output_dir"].is_relative_to(root))
 
     def test_elaboration_keeps_structured_top_port_out_of_scalar_ports(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

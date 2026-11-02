@@ -1,0 +1,91 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-apb-wb-tlul-mixed-timer-uart-rvtimer-f1f4",
+  "description": "One Ibex RVFI OBI CPU reaches three independently addressed MMIO targets of three different protocols in one process, with no AXI4-Lite target: the PULP timer at 0x40001000 (APB3, the one F5 target), the ZipCPU UART at 0x40002000 (Wishbone classic) and the OpenTitan rv_timer at 0x40003000 (TL-UL). This session states the three protocols' words without an AXI4-Lite group, so the neutral counter group is the Wishbone one and the TL-UL group prints its own tlul_error word.",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "targets": [
+    {
+      "name": "timer",
+      "profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+      "active_id": "pulp_timer_active",
+      "window": {
+        "base": 1073745920,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": "configs/behaviors/pulp_timer_f5.json",
+      "pins": null,
+      "fixed_inputs": [],
+      "tuning": {}
+    },
+    {
+      "name": "wbuart",
+      "profile": "configs/peripherals/zipcpu_uart/component_profile.json",
+      "active_id": "wbuart_target",
+      "window": {
+        "base": 1073750016,
+        "size": 16
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 2,
+        "max_wait_cycles": 16
+      },
+      "behavior": null,
+      "pins": null,
+      "fixed_inputs": [
+        {
+          "endpoint_id": "uart.pins",
+          "role": "rx",
+          "value": 1
+        },
+        {
+          "endpoint_id": "uart.pins",
+          "role": "cts_n",
+          "value": 0
+        }
+      ],
+      "tuning": {}
+    },
+    {
+      "name": "tlultimer",
+      "profile": "configs/peripherals/opentitan_rv_timer_local/component_profile.json",
+      "active_id": "tlultimer_target",
+      "window": {
+        "base": 1073754112,
+        "size": 4096
+      },
+      "timing": {
+        "reset_assert_ticks": 2,
+        "reset_release_ticks": 3,
+        "max_wait_cycles": 16
+      },
+      "behavior": null,
+      "pins": null,
+      "fixed_inputs": [],
+      "tuning": {}
+    }
+  ],
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "handler_wait_iterations": 128,
+  "notes": [
+    "An APB3 + Wishbone + TL-UL session with no AXI4-Lite target: target 0 is the PULP timer at 0x40001000 behind the real apb3_mmio_bridge (apb/3), target 1 is the ZipCPU UART at 0x40002000 behind the real beat_to_wishbone adapter (wishbone/classic, word-addressed registered-ack), target 2 is the OpenTitan rv_timer at 0x40003000 behind the real beat_to_tlul adapter (tl-ul/1).",
+    "The three windows are disjoint (0x40001000..0x40002000, 0x40002000..0x40002010, 0x40003000..0x40004000), none overlaps the RAM image 0x10000..0x30000, and all clear the 4 GiB bound.",
+    "Registers: TIMER0_COUNT(0)/TIMER0_CTRL(4)/TIMER0_CMP(8) on the APB3 timer; SETUP(0)/FIFO_STATUS(4)/RXREG(8)/TXREG(12) on the Wishbone UART; CTRL(0x4)/COMPARE_LOWER0_0(0x118) on the TL-UL rv_timer.",
+    "Only target 0 declares F5 facts, through configs/behaviors/pulp_timer_f5.json, so F5 remains the APB3 timer's own window and the other two targets are reached by F2/F4 only. The summary states target1_f5 no and target2_f5 no.",
+    "This session is the no-AXI4-Lite three-protocol case: the case line prints the neutral counter group once (the Wishbone group prints target_transfers and target_error), the TL-UL group prints its own tlul_a_handshakes/tlul_d_handshakes/tlul_errors and a tlul_error word, and no axi_* group exists because the build has no AXI4-Lite target.",
+    "No DMA is declared; the route criterion is the APB3 one and no route is claimed. F6 is refused as unsupported-f6:no-dma-model:APB3+Wishbone+TL-UL.",
+    "The three profiles declare 50 MHz each, so one host tick drives all four models; assume_single_clock states that rather than leaving it implicit."
+  ]
+}

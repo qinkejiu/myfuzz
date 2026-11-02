@@ -1,0 +1,17 @@
+{
+  "schema_version": "inprocess_source_behavior.v1",
+  "description": "PULP APB3 SPI F5 behavior: the transfer-end pulse on events_o[1], the three MMIO writes that start the transfer, and INTSTA at 0x28.",
+  "notes": [
+    "facts copied from configs/scenarios/inprocess-verify-irq-pulp-spi-f1f6.json (source_port events_o, source_bit_offset 1, pulse_width_ticks 16, trigger_writes [[16,65536],[24,171],[0,2]], status_offsets [40], status_cause_bits null, clear_writes [])",
+    "the same facts are recorded in configs/scenarios/inprocess-irq-pulp-spi-eot-irq-behavior.json for the same RTL",
+    "status_offsets [40] is INTSTA; the profile records that 0x28 has no read-mux arm and the recorded F5 status read is 0, so the status word is declared but no cause bits are",
+    "this file states device facts only: the executor still cross-checks them against configs/peripherals/inprocess_verify_pulp_spi_irq/component_profile.json, and the declaration does not prove the RTL raises the pulse"
+  ],
+  "source_port": "events_o",
+  "source_bit_offset": 1,
+  "pulse_width_ticks": 16,
+  "trigger_writes": [[16, 65536], [24, 171], [0, 2]],
+  "status_offsets": [40],
+  "status_cause_bits": null,
+  "clear_writes": []
+}

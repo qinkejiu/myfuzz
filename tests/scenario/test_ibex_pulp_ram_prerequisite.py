@@ -1039,6 +1039,42 @@ def test_the_commit_stream_switch_declares_exactly_one_observation(
     assert runner._uart_ram_commit_join.consume({"kind": "memory_write"}) == ()
 
 
+def test_host_ram_journal_authenticates_explicit_cpu_and_dma_services():
+    from types import SimpleNamespace
+
+    memory = PersistentMemory(regions=DUAL_SOURCE_MEMORY_REGIONS,
+        initialization_seed=37, max_initialized_bytes=0x20000)
+    cpu = MemoryService(memory, TransactionLedger(), commit_stream_capacity=4)
+    dma = MemoryService(memory, TransactionLedger(), commit_stream_capacity=4)
+    runner = SimpleNamespace(_uart_ram_commit_join=None)
+    with pytest.raises(ValueError, match='multi-service commit channel bindings'):
+        install_host_ram_commit_journal(runner, services={'cpu': cpu, 'dma': dma})
+    assert runner._uart_ram_commit_join is None
+    journal = install_host_ram_commit_journal(runner,
+        services={'cpu': cpu, 'dma': dma},
+        channel_ids={'cpu': 'data', 'dma': 'dma-memory'})
+
+    cpu_key = TransactionKey('execution', 'case', 'cpu', 0, 'data', 1)
+    dma_key = TransactionKey('execution', 'case', 'dma', 0, 'dma-memory', 1)
+    cpu_receipt = cpu.write(cpu_key, 0x10000, 0x11223344,
+                            width_bytes=4, byte_enable=15)
+    dma_receipt = dma.write(dma_key, 0x10004, 0x55667788,
+                            width_bytes=4, byte_enable=15)
+
+    assert journal.stage_commit('cpu', cpu, cpu.ledger, cpu_key, cpu_receipt)
+    assert journal.stage_commit('dma', dma, dma.ledger, dma_key, dma_receipt)
+    assert not journal.stage_commit('dma', cpu, cpu.ledger, dma_key, dma_receipt)
+
+    wrong_key = TransactionKey('execution', 'case', 'dma', 0, 'data', 1)
+    wrong_receipt = dma.write(wrong_key, 0x10008, 0xdeadbeef,
+                              width_bytes=4, byte_enable=15)
+    assert not journal.stage_commit('dma', dma, dma.ledger,
+                                    wrong_key, wrong_receipt)
+    cpu.ack_commit_events((cpu_receipt.commit_document()['commit_id'],))
+    dma.ack_commit_events((dma_receipt.commit_document()['commit_id'],
+                           wrong_receipt.commit_document()['commit_id']))
+
+
 def test_the_commit_stream_switch_is_boolean_and_plumbed_to_the_runtime(
         rendered_wiring, monkeypatch):
     from myfuzz.integration import ibex_pulp_online

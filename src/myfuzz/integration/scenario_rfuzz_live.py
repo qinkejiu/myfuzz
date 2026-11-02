@@ -179,6 +179,15 @@ def _path_switch_record(executor: ScenarioRfuzzExecutor) -> dict | None:
     return state() if callable(state) else None
 
 
+def _commit_f6_bytes(context, name, payload):
+    """Retain the first prepared bytes before any disk scan or replacement."""
+    digest=hashlib.sha256(payload).hexdigest()
+    pins=context.setdefault('f6_initial_bytes',{})
+    if name in pins and pins[name]!=digest:
+        raise ValueError('compiled-F6-first-writer-bytes-changed:'+name)
+    pins.setdefault(name,digest)
+
+
 def _run_scenario_rfuzz_live(*, executor: ScenarioRfuzzExecutor,
                              client_binary: Path, output_dir: Path,
                              duration_seconds: float,
@@ -222,10 +231,12 @@ def _run_scenario_rfuzz_live(*, executor: ScenarioRfuzzExecutor,
         from myfuzz.scenario.session_runtime import ScenarioSession
         if not isinstance(executor.session, ScenarioSession):
             raise ValueError("live continuous identity requires ScenarioSession; record-only sessions are unsupported")
-    dma_bound = getattr(executor, "_dma_intent_binding", None) is not None
+    is_f6 = getattr(executor, 'compiled_flow', None) == 'F6'
+    dma_bound = is_f6 or getattr(executor, "_dma_intent_binding", None) is not None
+    source_names = _online_runtime_source_names(dma_bound=dma_bound, is_f6=is_f6)
     frozen_inputs = {
             "source_files": [{"path": name, "sha256": _sha256_file(_ROOT / name)}
-                             for name in _fresh_runtime_source_names(dma_bound=dma_bound)],
+                             for name in source_names],
             "client": _rfuzz_client_identity(binary),
             "collector": collector_identity,
     }
@@ -243,6 +254,11 @@ def _run_scenario_rfuzz_live(*, executor: ScenarioRfuzzExecutor,
         "started": time.monotonic(), "exchanges": 0, "client_returncode": None,
         "effective_search_seconds": 0.0,
     }
+    if getattr(executor,'compiled_flow',None)=='F6':
+        for name,payload in [('rfuzz.toml',config_text.encode()),
+                ('decoder_manifest.json',(decoder_manifest+'\n').encode()),
+                ('targets.json',target_text.encode()),('seed.bin',b''.join(seed_records))]:
+            _commit_f6_bytes(executor._live_context,name,payload)
     (output / "rfuzz.toml").write_text(config_text, encoding="utf-8")
     (output / "decoder_manifest.json").write_text(decoder_manifest + "\n",
                                                     encoding="utf-8")
@@ -254,6 +270,8 @@ def _run_scenario_rfuzz_live(*, executor: ScenarioRfuzzExecutor,
             executor.session.manifest_document, sort_keys=True,
             separators=(",", ":"), ensure_ascii=False,
             allow_nan=False).encode("utf-8") + b"\n"
+        if getattr(executor,'compiled_flow',None)=='F6':
+            _commit_f6_bytes(executor._live_context,'online_session_manifest.json',manifest_bytes)
         _write_online_artifact(output / "online_session_manifest.json",
                                manifest_bytes)
     if executor.evidence_dir is None:
@@ -302,6 +320,9 @@ def _run_scenario_rfuzz_live(*, executor: ScenarioRfuzzExecutor,
             command += ("--search-seed", str(search_seed))
         try:
             persisted_receipts: set[tuple[str, int, int, str]] = set()
+            f6_receipt_hash=hashlib.sha256()
+            if getattr(executor,'compiled_flow',None)=='F6':
+                executor._live_context.setdefault('f6_initial_bytes',{})['receipts.jsonl']=f6_receipt_hash.hexdigest()
 
             def persist_receipt(receipt) -> None:
                 nonlocal last_progress_at
@@ -316,7 +337,7 @@ def _run_scenario_rfuzz_live(*, executor: ScenarioRfuzzExecutor,
                                or (decision or {}).get("closed_loop_feedback")
                                or {})
                 closed_loop_counts = closed_loop.get("counts") or {}
-                receipt_file.write(json.dumps({
+                receipt_text=json.dumps({
                     "run_id": receipt.run_id,
                     "buffer_id": receipt.buffer_id, "slot": receipt.slot,
                     "raw_sha256": receipt.raw_sha256,
@@ -390,7 +411,11 @@ def _run_scenario_rfuzz_live(*, executor: ScenarioRfuzzExecutor,
                         'interaction_feedback': interaction}
                        if getattr(executor, '_candidate_exploration', None) is not None
                        or getattr(executor, 'classified_feedback', False) else {}),
-                    }, sort_keys=True) + "\n")
+                    }, sort_keys=True) + "\n"
+                if getattr(executor,'compiled_flow',None)=='F6':
+                    f6_receipt_hash.update(receipt_text.encode())
+                    executor._live_context['f6_initial_bytes']['receipts.jsonl']=f6_receipt_hash.hexdigest()
+                receipt_file.write(receipt_text)
                 receipt_file.flush()
                 persisted_receipts.add(identity)
                 statuses[receipt.status] = statuses.get(receipt.status, 0) + 1
@@ -585,6 +610,21 @@ def _fresh_runtime_source_names(*, dma_bound: bool = False) -> tuple[str, ...]:
     return _FRESH_RUNTIME_SOURCES + (_DMA_BOUND_RUNTIME_SOURCES if dma_bound else ())
 
 
+def _online_runtime_source_names(*, dma_bound: bool, is_f6: bool) -> tuple[str, ...]:
+    sources = _fresh_runtime_source_names(dma_bound=dma_bound)
+    if is_f6:
+        sources += tuple('src/myfuzz/' + name for name in (
+            'scenario/compiled_f6_decoder.py', 'integration/compiled_f6_rfuzz.py',
+            'integration/compiled_f6_rfuzz_session.py', 'integration/compiled_f6_receipts.py',
+            'integration/compiled_f6_saved_outputs.py', 'integration/compiled_f6.py',
+            'integration/compiled_f6_runtime_path.py', 'integration/compiled_f6_consumer.py',
+            'integration/compiled_f6_firmware.py', 'integration/compiled_f6_layout.py',
+            'scenario/f6_assertion_evidence.py', 'scenario/f6_execution_binding.py',
+            'scenario/f6_execution_contract.py', 'local_harness/generated_artifact_admission.py',
+            'local_harness/harness_set.py'))
+    return sources
+
+
 def _fresh_artifact_names(output: Path) -> set[str]:
     names = {"runner_manifest.json", "decoder_manifest.json", "targets.json",
              "seed.bin", "rfuzz.toml", "receipts.jsonl"}
@@ -594,8 +634,70 @@ def _fresh_artifact_names(output: Path) -> set[str]:
     return names
 
 
+def _verify_f6_instruction_image_material(decoder, manifest, plan):
+    """Pure F6 documentary crosswalk; this grants no live authority."""
+    from .compiled_f6_runtime_path import restore_prepared_runtime_paths
+    from .compiled_f6_layout import compile_f6_candidate_layout
+    from .compiled_f6_firmware import build_f6_firmware
+    from myfuzz.scenario.instruction_image_binding import InstructionImageSourceBinding
+    from myfuzz.scenario.session_runtime import BoundOnlineInstruction
+    def require(condition,code):
+        if not condition:raise ValueError('compiled-F6-online-material-'+code)
+    try:
+        admission=decoder['runtime_path_admission']
+        body={k:v for k,v in admission.items() if k!='admission_sha256'}
+        require(hashlib.sha256(_canonical_json(body)).hexdigest()==admission['admission_sha256'],'admission-digest')
+        prepared=restore_prepared_runtime_paths(admission)
+        selected=admission['logical_path'];layout=compile_f6_candidate_layout(selected)
+        contract=selected['execution_contract'];program=build_f6_firmware(contract)
+        require(decoder['flow_id']=='F6' and decoder['path_id']==selected['path_id']
+            and decoder['candidate_layout']==layout.document() and decoder['candidate_layout_sha256']==layout.digest
+            and decoder['program']==program.document() and decoder['max_records']==1
+            and decoder['max_input_bytes']==decoder['wire_record_bytes']==8,'decoder')
+        expected_feedback=dict(schema_version='compiled_F6_feedback_projection.v1',
+            expectation_ids=list(contract['expectation_ids']),counter_count=5,
+            implementation='myfuzz.scenario.f6_assertion_evidence:f6_case_feedback',
+            partial_or_failed_vector=[0]*5,useful_search_benefit_claimed=False)
+        require(decoder.get('feedback_projection')==expected_feedback,'feedback-projection')
+        require(decoder.get('source_ids')==[source['source_id'] for source in selected['sources']]
+            and decoder.get('source_id')==selected['sources'][0]['source_id'],'source-operands')
+        bindings=decoder['instruction_image_bindings']
+        require(type(bindings) is list and len(bindings)==1 and bindings==manifest.get('instruction_image_bindings')
+            ==plan.get('instruction_image_bindings'),'image-bindings')
+        binding=InstructionImageSourceBinding.from_document(bindings[0]);binding.validate_prepared(prepared)
+        resource=contract['memory']['resource']
+        require(binding.path_id==admission['runtime_path_ids'][1]
+            and binding.logical_source_id==binding.source_id==contract['instruction_source_id']
+            and binding.component==contract['cpu']['instance_id'] and binding.memory_id==resource['resource_id']
+            and binding.base==resource['base'] and binding.size==resource['size']
+            and binding.readable is True and binding.writable is True,'image-source')
+        require(plan['runtime_paths']==manifest['runtime_paths']
+            and plan['runtime_paths']['declaration']==prepared.document(),'runtime-paths')
+        require(type(plan['schema_version']) is int and plan['schema_version'] in (24,25),'plan-schema')
+        require(type(plan.get('cases')) is list and bool(plan['cases']),'nonempty-case-list')
+        for index,case in enumerate(plan['cases']):
+            source=case['source'];data=bytes.fromhex(source['data_hex'])
+            values=tuple(int.from_bytes(data[offset:offset+4],'little')>>20 for offset in (40,48,56,64))
+            candidate=layout.decode(sum(v<<(11*i) for i,v in enumerate(values)).to_bytes(8,'little'))
+            require(case['case_id']==f"{decoder['run_id']}:case:{index}" and case['path_id']==binding.path_id
+                and case['direction']=='CPU_TO_IP' and source['kind']=='bound_instruction','case')
+            instruction=BoundOnlineInstruction(**{k:v for k,v in source.items() if k!='kind'})
+            binding.validate_instruction(instruction,instruction_slots=plan['instruction_slots'])
+            require(data==program.prefix(candidate,case_index=index)
+                and source['address']==contract['program_contract']['slot_base']+256*index,'program')
+    except (KeyError,TypeError,IndexError,OverflowError,AttributeError) as error:
+        raise ValueError('compiled-F6-online-material-shape') from error
+
+
 def _verify_instruction_image_material(decoder: dict, manifest: dict, plan: dict) -> None:
     """Join explicit image sources across decoder, actual session and saved input."""
+    if decoder.get('schema_version') == 'compiled_F6_decoder.v1':
+        _verify_f6_instruction_image_material(decoder, manifest, plan)
+        return
+    if decoder.get('schema_version') == 'compiled_F2_decoder.v1':
+        from .compiled_f2_online_material import verify_f2_instruction_image_material
+        verify_f2_instruction_image_material(decoder, manifest, plan)
+        return
     declared = decoder.get('instruction_image_bindings')
     if declared is None:
         if ('instruction_image_bindings' in manifest or 'instruction_image_bindings' in plan
@@ -1233,7 +1335,8 @@ def _write_online_run_identity(output: Path, *, session_manifest: dict,
                                run_config: dict, frozen_inputs: dict | None = None,
                                execution_mode: str = "online_cases",
                                decoder_checker: dict | None = None,
-                               dma_bound_payload: bytes | None = None) -> str:
+                               dma_bound_payload: bytes | None = None,
+                               commitment_sink=None) -> str:
     """Persist a canonical run identity and all evidence file digests."""
     output = Path(output)
     manifest_bytes = _canonical_json(session_manifest) + b"\n"
@@ -1356,11 +1459,20 @@ def _write_online_run_identity(output: Path, *, session_manifest: dict,
             "dma_binding_payload_sha256": hashlib.sha256(
                 parsed_dma_payload.payload_bytes).hexdigest(),
         })
+    if decoder_document.get('schema_version')=='compiled_F6_decoder.v1':
+        run_identity['feedback']['coverage_semantics']='F6 five-expectation evidence conjunction; partial or failed cases produce five zero counters'
+        run_identity['feedback']['projection']=decoder_document['feedback_projection']
     identity_sha256 = hashlib.sha256(_canonical_json(run_identity)).hexdigest()
     envelope = {"schema_version": "scenario_online_run_identity_envelope.v1",
                 "sha256": identity_sha256, "identity": run_identity}
-    _write_online_artifact(output / "online_run_identity.json",
-                           _canonical_json(envelope) + b"\n")
+    envelope_bytes = _canonical_json(envelope) + b"\n"
+    _write_online_artifact(output / "online_run_identity.json", envelope_bytes)
+    if (output / "online_run_identity.json").read_bytes() != envelope_bytes:
+        raise ValueError("online run identity initial bytes changed")
+    if commitment_sink is not None:
+        commitment_sink({"identity_sha256": identity_sha256,
+            "identity_file_sha256": hashlib.sha256(envelope_bytes).hexdigest(),
+            "artifacts": dict(artifacts)})
     return identity_sha256
 
 
@@ -1575,17 +1687,18 @@ def _verify_online_run_identity(output: Path, *, plan_path: Path,
     if drifted_sources:
         raise ValueError("online runtime source identity mismatch: "
                          + ", ".join(drifted_sources))
+    decoder_path = Path(output) / "decoder_manifest.json"
+    decoder_document = json.loads(decoder_path.read_bytes())
+    is_f6 = decoder_document.get('schema_version') == 'compiled_F6_decoder.v1'
     sources = identity.get("source_files", [])
     if sources and (not isinstance(sources, list)
                    or [item.get("path") for item in sources]
-                        != list(_fresh_runtime_source_names(
-                            dma_bound=dma_binding_payload is not None))
+                        != list(_online_runtime_source_names(
+                            dma_bound=dma_binding_payload is not None, is_f6=is_f6))
                    or any(item.get("sha256") != _sha256_file(_ROOT / item["path"])
                           for item in sources)):
         raise ValueError("online transport source identity mismatch")
-    decoder_path = Path(output) / "decoder_manifest.json"
     targets_path = Path(output) / "targets.json"
-    decoder_document = json.loads(decoder_path.read_bytes())
     _verify_runtime_path_material(identity.get("runtime_paths"), decoder_document, session=True)
     _verify_instruction_image_material(decoder_document, manifest_document,
         json.loads(dma_binding_payload.payload_bytes if dma_binding_payload is not None
@@ -1679,15 +1792,34 @@ def run_scenario_rfuzz_live(*, executor: ScenarioRfuzzExecutor,
         run_error = exc
         raise
     finally:
+        def raise_terminal_error(errors):
+            # F2 retains execution failures before the transport unwinds. A
+            # cleanup-only failure must never enter that executor field.
+            primary = getattr(executor, '_online_primary_error', None)
+            if primary is None:
+                primary = run_error
+            if primary is None and errors:
+                primary = errors[0]
+            if primary is not None:
+                seen = {id(primary)}
+                for error in ([run_error] if run_error is not None else []) + errors:
+                    if id(error) not in seen:
+                        primary.add_note('RFuzz terminal finalization: ' + repr(error))
+                        for note in getattr(error, '__notes__', ()):
+                            primary.add_note('RFuzz terminal secondary note: ' + note)
+                        seen.add(id(error))
+                raise primary
+
         context = getattr(executor, "_live_context", None)
         if context is None and online:
             # The caller supplied an already live session. Preflight owns no
             # output, but must still release that supplied RTL exactly once.
+            errors = []
             try:
                 executor._finish_online_session()
-            except BaseException:
-                if run_error is None:
-                    raise
+            except BaseException as error:
+                errors.append(error)
+            raise_terminal_error(errors)
         if context is not None:
             finalization_started = time.monotonic()
             finalization_timing = {name: 0.0 for name in (
@@ -1712,6 +1844,7 @@ def run_scenario_rfuzz_live(*, executor: ScenarioRfuzzExecutor,
                 effective_search_seconds=context["effective_search_seconds"],
                 decoder_manifest_sha256=context["decoder_manifest_sha256"],
                 execution_status=("failed" if run_error is not None
+                                  or getattr(executor, '_online_primary_error', None) is not None
                                   or context["client_returncode"] not in (0, None)
                                   else "complete"),
                 execution_mode=("online_cases" if online else "continuous_decoder"
@@ -1791,7 +1924,6 @@ def run_scenario_rfuzz_live(*, executor: ScenarioRfuzzExecutor,
                     else:
                         report["run_identity_schema"] = "scenario_fresh_run_identity.v1"
                 else:
-                    finish_error = None
                     phase_started = time.monotonic()
                     try:
                         defer_semantic_hash = (
@@ -1800,49 +1932,73 @@ def run_scenario_rfuzz_live(*, executor: ScenarioRfuzzExecutor,
                         trace, plan_hex = executor._finish_online_session(
                             defer_semantic_hash=defer_semantic_hash)
                     except BaseException as exc:
-                        finish_error = exc
+                        errors.append(exc)
                         trace = executor._online_final_trace
                         plan_hex = executor._online_final_plan_hex
                     finally:
                         finalization_timing["session_finish"] = (
                             time.monotonic() - phase_started)
                     dma_bound_payload = None
+                    plan_written = False
+                    trace_written = False
                     if plan_hex is not None:
                         phase_started = time.monotonic()
-                        plan_bytes = bytes.fromhex(plan_hex)
-                        binding_declaration = executor.session.dma_binding_document()
-                        if binding_declaration is not None:
-                            from myfuzz.scenario.dma_binding_replay import encode_dma_bound_payload
-                            binding_credential = executor.session.dma_binding_compilation_document()
-                            if binding_credential is None:
-                                raise ValueError("online session DMA binding credential is missing")
-                            dma_bound_payload = encode_dma_bound_payload(
-                                plan_bytes, payload_kind="online_session_plan",
-                                declaration=binding_declaration,
-                                binding_compilations={"session": binding_credential})
-                            _write_online_artifact(output / "online_plan.json", dma_bound_payload)
-                        else:
-                            _write_online_artifact(output / "online_plan.json", plan_bytes)
-                        finalization_timing["plan_write"] = (
-                            time.monotonic() - phase_started)
+                        try:
+                            plan_bytes = bytes.fromhex(plan_hex)
+                            binding_declaration = executor.session.dma_binding_document()
+                            if binding_declaration is not None:
+                                from myfuzz.scenario.dma_binding_replay import encode_dma_bound_payload
+                                binding_credential = executor.session.dma_binding_compilation_document()
+                                if binding_credential is None:
+                                    raise ValueError("online session DMA binding credential is missing")
+                                dma_bound_payload = encode_dma_bound_payload(
+                                    plan_bytes, payload_kind="online_session_plan",
+                                    declaration=binding_declaration,
+                                    binding_compilations={"session": binding_credential})
+                                if getattr(executor,'compiled_flow',None)=='F6':
+                                    _commit_f6_bytes(context,'online_plan.json',dma_bound_payload)
+                                _write_online_artifact(output / "online_plan.json", dma_bound_payload)
+                            else:
+                                if getattr(executor,'compiled_flow',None)=='F6':
+                                    _commit_f6_bytes(context,'online_plan.json',plan_bytes)
+                                _write_online_artifact(output / "online_plan.json", plan_bytes)
+                            plan_written = True
+                        except BaseException as exc:
+                            errors.append(exc)
+                        finally:
+                            finalization_timing["plan_write"] = (
+                                time.monotonic() - phase_started)
                     if trace is not None:
                         phase_started = time.monotonic()
                         try:
                             if compressed_trace:
                                 trace = _write_online_trace_zlib(output, trace)
                                 executor._online_final_trace = trace
-                            elif len(trace.events) >= _JSONL_TRACE_EVENT_THRESHOLD:
+                            elif len(trace.events) >= _JSONL_TRACE_EVENT_THRESHOLD and getattr(executor,'compiled_flow',None)!='F6':
                                 trace = _write_online_trace_jsonl(output, trace)
                                 executor._online_final_trace = trace
                             else:
+                                if getattr(executor,'compiled_flow',None)=='F6':
+                                    trace_hash=hashlib.sha256()
+                                    for fragment in canonical_json_chunks(trace):trace_hash.update(fragment.encode())
+                                    trace_hash.update(b'\n')
+                                    initial=context.setdefault('f6_initial_bytes',{})
+                                    initial.setdefault('online_final_trace.json',trace_hash.hexdigest())
                                 _write_online_trace(output / "online_final_trace.json", trace)
+                            trace_written = True
+                        except BaseException as exc:
+                            errors.append(exc)
                         finally:
                             finalization_timing["trace_write"] = (
                                 time.monotonic() - phase_started)
                     report["run_identity_schema"] = "scenario_online_run_identity.v1"
                     report["session_status"] = trace.status if trace is not None else "not_started"
-                    if trace is not None and plan_hex is not None:
+                    if plan_written and trace_written:
                         phase_started = time.monotonic()
+                        if getattr(executor,'compiled_flow',None)=='F6':
+                            for name,digest in context['f6_initial_bytes'].items():
+                                if _sha256_file(output/name)!=digest:
+                                    raise ValueError('compiled-F6-first-writer-bytes-changed:'+name)
                         report["online_run_identity_sha256"] = _write_online_run_identity(
                             output, session_manifest=executor.session.manifest_document,
                             plan_bytes=plan_bytes, trace=trace,
@@ -1850,7 +2006,9 @@ def run_scenario_rfuzz_live(*, executor: ScenarioRfuzzExecutor,
                             frozen_inputs=context["frozen_inputs"],
                             execution_mode=report["execution_mode"],
                             decoder_checker=context["checker_identity"],
-                            dma_bound_payload=dma_bound_payload)
+                            dma_bound_payload=dma_bound_payload,
+                            commitment_sink=lambda material: context.update(
+                                online_artifact_commitment=material))
                         if dma_bound_payload is not None:
                             outer_document = json.loads(dma_bound_payload)
                             report["dma_binding_required"] = "p7_dma_bound_payload.v1"
@@ -1858,8 +2016,6 @@ def run_scenario_rfuzz_live(*, executor: ScenarioRfuzzExecutor,
                             report["dma_binding_payload_sha256"] = outer_document["payload_sha256"]
                         finalization_timing["identity_write"] = (
                             time.monotonic() - phase_started)
-                    if finish_error is not None:
-                        raise finish_error
             except BaseException as exc:
                 errors.append(exc)
             if errors:
@@ -1879,8 +2035,11 @@ def run_scenario_rfuzz_live(*, executor: ScenarioRfuzzExecutor,
                     time.monotonic() - finalization_started)
                 report["finalization_timing_seconds"] = finalization_timing
             try:
+                if getattr(executor,'compiled_flow',None)=='F6':
+                    report.update(feedback_projection=executor.online_decoder.document()['feedback_projection'],
+                        feedback_target_hits=sorted(executor._target_hits),useful_search_benefit_claimed=False,
+                        search_diversity=None,search_cost=None,search_rates=None)
                 _write_online_artifact(report_path, _canonical_json(report) + b"\n")
             except BaseException as exc:
                 errors.append(exc)
-            if errors and run_error is None:
-                raise errors[0]
+            raise_terminal_error(errors)

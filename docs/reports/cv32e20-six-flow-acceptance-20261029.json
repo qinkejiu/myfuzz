@@ -1,0 +1,326 @@
+{
+  "build_join_status": "complete",
+  "cross_CLI_verified": false,
+  "full_normalized_prefix_matches": true,
+  "inputs": {
+    "research/input-strategy-audit-20261027/runs/shared-all-flows-20261029/cv32e20-v2/original/case_sequence.actual.json": "57341b6eec39326628a7df6f875d29e86f3cb1f5fe5c5719419798f7d437d32b",
+    "research/input-strategy-audit-20261027/runs/shared-all-flows-20261029/cv32e20-v2/original/prefix.json": "ed1bdf741c7903157f46c607d66e58f6998529fbef2eb1fc0e20d2757af3f0e7",
+    "research/input-strategy-audit-20261027/runs/shared-all-flows-20261029/cv32e20-v2/original/replay.json": "9de49769f31701a7fa9e688086859334028c56a139b6c42dbf6db889901057ed",
+    "research/input-strategy-audit-20261027/runs/shared-all-flows-20261029/cv32e20-v2/original/summary.json": "2cb9109077c172acdcf3fc789e673663c6bd3217300901a5df4ec76d5de18392"
+  },
+  "new_process_fresh": true,
+  "performance_AB": false,
+  "phases": {
+    "fresh": {
+      "F5": [
+        {
+          "case_id": "cv32e20-gpio-dma-shared-mixed:F5:4",
+          "mret_event": 13924,
+          "pin": 1,
+          "return_PC": 70404,
+          "serial": 1,
+          "status": "verified",
+          "take_key": [
+            "cpu",
+            0,
+            1
+          ],
+          "trigger_id": "peripheral:0:trigger:1"
+        },
+        {
+          "case_id": "cv32e20-gpio-dma-shared-mixed:F5:7",
+          "mret_event": 29259,
+          "pin": 0,
+          "return_PC": 71172,
+          "serial": 3,
+          "status": "verified",
+          "take_key": [
+            "cpu",
+            0,
+            3
+          ],
+          "trigger_id": "peripheral:0:trigger:2"
+        }
+      ],
+      "F6": [
+        {
+          "case_id": "cv32e20-gpio-dma-shared-mixed:case:0",
+          "case_index": 0,
+          "irq_take_key": [
+            "cpu",
+            0,
+            2
+          ],
+          "obligations": [
+            "cross_component.declared_edge_hops",
+            "dma.cpu_configuration",
+            "dma.irq_isr_completion",
+            "dma.word_transfer_join",
+            "protocol_checker.receipt_violations"
+          ],
+          "return_receipt_id": {
+            "execution": "9f2cfbd66ee2436c927680004f6c90a3",
+            "sequence": 653
+          },
+          "successor_receipt_id": {
+            "execution": "9f2cfbd66ee2436c927680004f6c90a3",
+            "sequence": 657
+          },
+          "words": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "case_id": "cv32e20-gpio-dma-shared-mixed:case:1",
+          "case_index": 1,
+          "irq_take_key": [
+            "cpu",
+            0,
+            4
+          ],
+          "obligations": [
+            "cross_component.declared_edge_hops",
+            "dma.cpu_configuration",
+            "dma.irq_isr_completion",
+            "dma.word_transfer_join",
+            "protocol_checker.receipt_violations"
+          ],
+          "return_receipt_id": {
+            "execution": "9f2cfbd66ee2436c927680004f6c90a3",
+            "sequence": 970
+          },
+          "successor_receipt_id": {
+            "execution": "9f2cfbd66ee2436c927680004f6c90a3",
+            "sequence": 974
+          },
+          "words": [
+            1,
+            2,
+            3,
+            4
+          ]
+        }
+      ],
+      "completed": true,
+      "event_count": 38384,
+      "flow_sequence": [
+        "F3",
+        "F1",
+        "F4",
+        "F5",
+        "F2",
+        "F6",
+        "F5",
+        "F6"
+      ],
+      "full_normalized_prefix_sha256": "a38f6087097601eaedb1126ec5de0a8659c90a223d7bb2c2c97b13151c28b85d",
+      "local_ticks": {
+        "cpu": 977,
+        "dma": 1010,
+        "peripheral": 1023
+      },
+      "processes": {
+        "cpu": {
+          "artifact_digest": "396e252763c68e0086f61e8ceefbd33384a58cd5efe4269e4820efd0e0fe69d4",
+          "binary_sha256": "a3fdd2acca32344d6646d63662d61b34d4d5f3621cc98bcfedc35adda90dc27f",
+          "build_digest": "f20e147adec2c6fdde10e94eb5c507260d180ce1158c6439dd636f4d8852991f",
+          "execution_nonce": "9f2cfbd66ee2436c927680004f6c90a3",
+          "pid": 3604519
+        },
+        "dma": {
+          "artifact_digest": "cb832497b2547178de91e6adf0c083101bb2f866dc49cb1ec3a26d24d8a256ea",
+          "binary_sha256": "e584979b70fc17594ebf0ab4824615fac9a484fbc2dc9ceea4c9743537182ed1",
+          "build_digest": "a8c4e8fc9919b2b1959d45b32231b3e54bf7262b6dfc1866653b15be78ccdf7f",
+          "execution_nonce": "efbfba2ae61c499f94717345aff6580b",
+          "pid": 3604551
+        },
+        "peripheral": {
+          "artifact_digest": "c139a12ff8d4d75fc816e6be4517a54adcd051e7c4c52abf9032675842a8edd9",
+          "binary_sha256": "893062c6efa6e658f2a7535c99309f853d00561014f42b959d9cfa2252d86be8",
+          "build_digest": "15be0a6d7e9746b5fcb4e6d3739968916a1717e10140013f0c6ac36f77af2ae4",
+          "execution_nonce": "ead6ae5a50cd478289f656be28d880f3",
+          "pid": 3604583
+        }
+      },
+      "semantic_hash": "bb1fd561f555a3cf76c30d940941181d2b3deaea4dc9604d731f94f7973bd22d"
+    },
+    "original": {
+      "F5": [
+        {
+          "case_id": "cv32e20-gpio-dma-shared-mixed:F5:4",
+          "mret_event": 13924,
+          "pin": 1,
+          "return_PC": 70404,
+          "serial": 1,
+          "status": "verified",
+          "take_key": [
+            "cpu",
+            0,
+            1
+          ],
+          "trigger_id": "peripheral:0:trigger:1"
+        },
+        {
+          "case_id": "cv32e20-gpio-dma-shared-mixed:F5:7",
+          "mret_event": 29259,
+          "pin": 0,
+          "return_PC": 71172,
+          "serial": 3,
+          "status": "verified",
+          "take_key": [
+            "cpu",
+            0,
+            3
+          ],
+          "trigger_id": "peripheral:0:trigger:2"
+        }
+      ],
+      "F6": [
+        {
+          "case_id": "cv32e20-gpio-dma-shared-mixed:case:0",
+          "case_index": 0,
+          "irq_take_key": [
+            "cpu",
+            0,
+            2
+          ],
+          "obligations": [
+            "cross_component.declared_edge_hops",
+            "dma.cpu_configuration",
+            "dma.irq_isr_completion",
+            "dma.word_transfer_join",
+            "protocol_checker.receipt_violations"
+          ],
+          "return_receipt_id": {
+            "execution": "b067cd06b60c483e9019dee86e747487",
+            "sequence": 653
+          },
+          "successor_receipt_id": {
+            "execution": "b067cd06b60c483e9019dee86e747487",
+            "sequence": 657
+          },
+          "words": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "case_id": "cv32e20-gpio-dma-shared-mixed:case:1",
+          "case_index": 1,
+          "irq_take_key": [
+            "cpu",
+            0,
+            4
+          ],
+          "obligations": [
+            "cross_component.declared_edge_hops",
+            "dma.cpu_configuration",
+            "dma.irq_isr_completion",
+            "dma.word_transfer_join",
+            "protocol_checker.receipt_violations"
+          ],
+          "return_receipt_id": {
+            "execution": "b067cd06b60c483e9019dee86e747487",
+            "sequence": 970
+          },
+          "successor_receipt_id": {
+            "execution": "b067cd06b60c483e9019dee86e747487",
+            "sequence": 974
+          },
+          "words": [
+            1,
+            2,
+            3,
+            4
+          ]
+        }
+      ],
+      "completed": true,
+      "event_count": 38384,
+      "flow_sequence": [
+        "F3",
+        "F1",
+        "F4",
+        "F5",
+        "F2",
+        "F6",
+        "F5",
+        "F6"
+      ],
+      "full_normalized_prefix_sha256": "a38f6087097601eaedb1126ec5de0a8659c90a223d7bb2c2c97b13151c28b85d",
+      "local_ticks": {
+        "cpu": 977,
+        "dma": 1010,
+        "peripheral": 1023
+      },
+      "processes": {
+        "cpu": {
+          "artifact_digest": "396e252763c68e0086f61e8ceefbd33384a58cd5efe4269e4820efd0e0fe69d4",
+          "binary_sha256": "a3fdd2acca32344d6646d63662d61b34d4d5f3621cc98bcfedc35adda90dc27f",
+          "build_digest": "f20e147adec2c6fdde10e94eb5c507260d180ce1158c6439dd636f4d8852991f",
+          "execution_nonce": "b067cd06b60c483e9019dee86e747487",
+          "pid": 3604237
+        },
+        "dma": {
+          "artifact_digest": "cb832497b2547178de91e6adf0c083101bb2f866dc49cb1ec3a26d24d8a256ea",
+          "binary_sha256": "e584979b70fc17594ebf0ab4824615fac9a484fbc2dc9ceea4c9743537182ed1",
+          "build_digest": "a8c4e8fc9919b2b1959d45b32231b3e54bf7262b6dfc1866653b15be78ccdf7f",
+          "execution_nonce": "d370c2675db9415eb3aa4edf617562dd",
+          "pid": 3604269
+        },
+        "peripheral": {
+          "artifact_digest": "c139a12ff8d4d75fc816e6be4517a54adcd051e7c4c52abf9032675842a8edd9",
+          "binary_sha256": "893062c6efa6e658f2a7535c99309f853d00561014f42b959d9cfa2252d86be8",
+          "build_digest": "15be0a6d7e9746b5fcb4e6d3739968916a1717e10140013f0c6ac36f77af2ae4",
+          "execution_nonce": "e2faf2ca915040608e90104f9d346bb4",
+          "pid": 3604301
+        }
+      },
+      "semantic_hash": "b81640886a707b4fefaa37f2646bfb89adff206191500accf41c804202ac5fe1"
+    }
+  },
+  "public_shared_selector_identity_review": {
+    "branch": "flow F6 or summary.shared_slots is True",
+    "function": "myfuzz.search.descriptor_search._prefix_identity",
+    "raw_hash_use": "authenticate saved raw trace only",
+    "runtime_cross_CLI_tested_in_this_run": false,
+    "stable_identity": "normalized_prefix_sha256 plus trace genome/manifest/compiled and online-plan hashes"
+  },
+  "retained_v1_failure": {
+    "path": "research/input-strategy-audit-20261027/runs/shared-all-flows-20261029/cv32e20-v1/original/failure.json",
+    "sha256": "133b114c6da80ba200d5cd3779937d48b45ea5478c1515cdb0653fbd02550f66"
+  },
+  "schema_version": "cv32e20_six_flow_acceptance_audit.v1",
+  "scope": "saved_artifact_independent_consistency_verification_not_live_authority",
+  "status": "verified",
+  "stored_hash_diagnosis": {
+    "calculation": "CompiledF6Runtime._prefix.semantic_hash = trace.semantic_sha256; ScenarioSession._trace_semantic_sha256 hashes raw status/events/local_ticks without process normalization",
+    "conclusion": "raw trace identity includes actual process execution nonce; not a process-stable semantic identity, not prefix supplementation timing drift",
+    "first_raw_difference": {
+      "fresh": "9f2cfbd66ee2436c927680004f6c90a3",
+      "original": "b067cd06b60c483e9019dee86e747487",
+      "path": "actual_events[45].f6_obi_scope[0]"
+    },
+    "raw_recomputation_matches_stored": {
+      "fresh": true,
+      "original": true
+    }
+  },
+  "stored_semantic_hashes_match": false,
+  "timings": {
+    "execution_seconds": 142.63982726098038,
+    "finish_export_seconds": 45.87508438900113,
+    "replay_seconds": 267.92311514998437,
+    "wall_seconds": 492.30017218599096
+  },
+  "verification_implementation_sha256": {
+    "src/myfuzz/integration/compiled_f6.py": "beb95d017f5db627f886693414710833305f316bc8741a9ce20dcbaf67656ede",
+    "src/myfuzz/scenario/session_runtime.py": "44363004188a9442226266f32061d8ca1962ea46df4b8e3a1add5be924e214b7",
+    "src/myfuzz/search/descriptor_search.py": "ee60ca385c01bef9559eb35937331ab56cb1919bc3782a82ee10dc955a22be23"
+  }
+}

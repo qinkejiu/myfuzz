@@ -1,0 +1,36 @@
+{
+  "schema_version": "ip_test_capability.v3",
+  "component_id": "pulp_i2c",
+  "profile_fingerprint": "sha256:fb3b661a2a7234599721304e59ea7e5c1885a546ad87ddab7b6dad5f65faf045",
+  "endpoint_capabilities": [
+    {
+      "endpoint_id": "i2c.bus",
+      "operations": [
+        "request",
+        "accept",
+        "response",
+        "read",
+        "write",
+        "wait",
+        "error"
+      ]
+    }
+  ],
+  "register_semantics": [
+    {
+      "register": "PRESCALER",
+      "field": "value",
+      "lsb": 0,
+      "width": 32,
+      "access": "rw",
+      "read_mask": 65535,
+      "write_mask": 65535,
+      "side_effect": "none",
+      "reset_value": 0,
+      "evidence_ref": "rtl:third_party/soc-pulp-apb-i2c/apb_i2c.sv@84855413cc2c8e70209ee7f168a0225d3c5914a1:68-90,110-115;sha256=a57ab49abdf879e03db1582c9716eb84c5d14c9457f7dd86a239c95757ea0169",
+      "write_policy": "full_word_reserved_zero"
+    }
+  ],
+  "observation_mappings": [],
+  "register_aliases": []
+}

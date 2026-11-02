@@ -1,0 +1,19 @@
+{
+  "schema_version": "inprocess_source_behavior.v1",
+  "description": "PULP APB3 timer F5 behavior for the second timer instance: the overflow pulse on irq_o[2], the timer1 register window, and the count word the ISR reads.",
+  "notes": [
+    "source_bit_offset 2 is the profile's timer1_overflow source (configs/peripherals/pulp_timer_irq/component_profile.json) and the RTL wiring apb_timer.sv `irq_o[2*k+1:2*k]` with k=1, i.e. bit 2 is timer1's overflow output; apb_timer.sv also states PADDR[4] selects the timer instance (`slave_address_int = PADDR[4:4]`, TIMER_CNT=2), which is why timer1 lives at offsets 0x10/0x14/0x18",
+    "timer.sv (pinned at git:03eba2e6965f5363df12621882bc70498c551a73) drives irq_o[0] when `REG_TIMER == 32'hffffffff && prescaler == cycle_counter`; writing COUNT 0xffffffff therefore raises the overflow pulse without enabling the counter, exactly the sequence the timer0 overflow file uses",
+    "trigger_writes [[20,0],[24,0],[16,4294967295]] are TIMER1_CTRL(20)=0, TIMER1_CMP(24)=0 (the RTL resets the count when the compare word is written) and TIMER1_COUNT(16)=0xffffffff; CTRL 0 leaves counting disabled, so the equality is a one-shot and the count is reset to 0 by the event, not re-armed",
+    "status_offsets [16] is TIMER1_COUNT (rw, 32-bit), so the case reports isr_read_register_kind count for the second instance; the timer has no cause/status word, so status_cause_bits stays null and clear_writes stays empty (automatic counter reset, no acknowledge register)",
+    "pulse_width_ticks 32 is the host's declared delivery width, not an RTL width: the native pulse is one HCLK; it differs from the 16 of the timer0 overflow file so the run records a different delivery width for the same device",
+    "this file states device facts only: the executor still cross-checks them against configs/peripherals/pulp_timer_irq/component_profile.json, and the declaration does not prove the RTL raises the pulse"
+  ],
+  "source_port": "irq_o",
+  "source_bit_offset": 2,
+  "pulse_width_ticks": 32,
+  "trigger_writes": [[20, 0], [24, 0], [16, 4294967295]],
+  "status_offsets": [16],
+  "status_cause_bits": null,
+  "clear_writes": []
+}

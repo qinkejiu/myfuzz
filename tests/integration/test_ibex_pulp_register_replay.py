@@ -335,3 +335,52 @@ class RegisterCapabilityChannelTests(unittest.TestCase):
                 self.assertIs(api.make_register_runtime_factory(assembly)(session),ctor.return_value)
                 if sentinel=='omitted':session.configure_register_capability_preflight.assert_not_called()
                 else:session.configure_register_capability_preflight.assert_called_once_with(sentinel)
+
+
+def test_mixed_selector_is_separate_closed_and_causal():
+    api=module()
+    mixed=api.make_mixed_register_assembly(advance_rounds=3,max_records=8)
+    assert mixed['selector']=='ibex_pulp_mixed_gpio'
+    assert api.validate_mixed_register_assembly(mixed)==mixed
+    with __import__('pytest').raises(ValueError):
+        api.validate_register_assembly(mixed)
+    for key,value in [('gpio_consumption',False),('external_sources',[]),('sidecar_selector','pulp_gpio_declared')]:
+        changed=deepcopy(mixed);changed[key]=value
+        with __import__('pytest').raises(ValueError):
+            api.validate_mixed_register_assembly(changed)
+
+
+def test_mixed_bundle_round_trip_reconstructs_real_objects_without_native(tmp_path,monkeypatch):
+    api=module()
+    from myfuzz.local_harness.build import host_source_discovery_scope
+    from myfuzz.scenario.ibex_pulp_dual_source import make_ibex_pulp_dual_source_stream_bootstrap
+    from myfuzz.scenario.session_runtime import ScenarioSession
+    with host_source_discovery_scope(reuse_nested=True):
+        assembly=api.make_mixed_register_assembly(advance_rounds=3,max_records=8)
+        bootstrap=make_ibex_pulp_dual_source_stream_bootstrap()
+        real_factory=api.make_mixed_register_factory(cache_dir=tmp_path/'cache',assembly=assembly)
+        def software_factory(**kwargs):
+            def software():
+                runner=real_factory()
+                def begin(case_id):
+                    runner._status='running'
+                    cpu=runner.sessions['cpu'];cpu._case_id='stream'
+                    cpu._serve('instr',0,bootstrap.instruction_start,0,15)
+                runner.begin_test=begin
+                runner.step_batch=lambda order:None
+                runner.finalize=lambda:None
+                return runner
+            return software
+        monkeypatch.setattr(api,'make_mixed_register_factory',software_factory)
+        session=ScenarioSession(bootstrap.template,software_factory()())
+        session.declare_instruction_slots('cpu',bootstrap.instruction_start,bootstrap.instruction_count)
+        runtime=api.make_mixed_register_runtime_factory(assembly)(session)
+        session.begin()
+        runtime.submit_external(dict(schema_version='external_pin_request.v1',case_id='pin',action_id='pin:source',
+            source_id='gpio_b.external_pin8',value=1),stop_after_advance=lambda index:index==0)
+        trace=session.finish();plan=session.encode_plan()
+        assert b'external_pin_runtime_manifest.v2' in plan
+        assert all('configuration' not in row['manifest'] for row in runtime.snapshot()['records'])
+        api.save_ibex_pulp_mixed_register_bundle(output_dir=tmp_path/'saved',assembly=assembly,
+            session_manifest=session.manifest_document,plan_bytes=plan,trace=trace,runtime_state=runtime.snapshot())
+        assert api.replay_ibex_pulp_mixed_register_files(cache_dir=tmp_path/'fresh',output_dir=tmp_path/'saved').matches

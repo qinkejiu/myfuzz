@@ -1,7 +1,7 @@
 {
   "schema_version": "ip_test_capability.v3",
   "component_id": "pulp_gpio_causal_local",
-  "profile_fingerprint": "sha256:02117ba35e967cb8228441c514cf7907f088ce90d5eca418a821a974fe3174fc",
+  "profile_fingerprint": "sha256:ee74bbea425647070cbe6c5e798055e78525a35f51bbe17d03de38f3fe4fcaa6",
   "endpoint_capabilities": [
     {
       "endpoint_id": "gpio.bus",

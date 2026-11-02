@@ -5,6 +5,27 @@ from copy import deepcopy
 from .runtime_edge_index import RuntimeEdgeIndex
 from .source_provenance import AdmissionRegistry
 
+_IMMUTABLE_FIELDS = (str, int, float, bool)
+
+
+def _copy_value(value):
+    """Detached value copy of one JSON-shaped field; ``deepcopy`` otherwise.
+
+    Same value domain as ``deepcopy`` for every event record (dict/list/tuple
+    of strings, numbers, booleans and ``None``), without its per-node dispatch
+    on the immutable leaves. Any other type keeps the ``deepcopy`` behaviour.
+    """
+    kind = type(value)
+    if kind is dict:
+        return {_copy_value(key): _copy_value(item) for key, item in value.items()}
+    if kind is list:
+        return [_copy_value(item) for item in value]
+    if kind is tuple:
+        return tuple(_copy_value(item) for item in value)
+    if value is None or kind in _IMMUTABLE_FIELDS:
+        return value
+    return deepcopy(value)
+
 
 class EventProvenance:
     def __init__(self, edge_index: RuntimeEdgeIndex):
@@ -23,9 +44,15 @@ class EventProvenance:
 
         Facts from a failed local command remain in the log. Unknown writer
         references stay unknown; neither current case nor transport candidates
-        may manufacture a causal origin. The supplied record is never modified.
+        may manufacture a causal origin. The supplied record is never modified,
+        and the journal keeps no object of it: a caller that holds the record's
+        nested values cannot rewrite the appended evidence.
+
+        Only ``provenance`` is written, and every value in it that derives from
+        ``record`` is copied here (``resource`` below, ``observed_case`` from
+        this decorator's own state, ``edge_candidates`` from the edge index).
         """
-        result = deepcopy(record)
+        result = {key: _copy_value(value) for key, value in record.items()}
         kind = record.get('kind')
         refs = []
         resource = None

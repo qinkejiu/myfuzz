@@ -293,5 +293,17 @@
       "value": 0,
       "reason": "Initial DMA edge environment uses immediate trigger only"
     }
+  ],
+  "interrupts": [
+    {
+      "endpoint_id": "dma.interrupt",
+      "role": "irq",
+      "polarity": "active_high",
+      "clock_domain": "core",
+      "trigger": "pulse",
+      "hold": "Registered native completion/error pulse from wbdmac.v:378-387; asserted for the last write ACK with cfg_len=1 or a non-idle native master error.",
+      "clear": "Reset clears o_interrupt; each subsequent i_clk edge replaces it with the current completion/error predicate. No software IRQ-clear register.",
+      "pulse_width_cycles": 1
+    }
   ]
 }

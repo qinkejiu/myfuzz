@@ -1,0 +1,168 @@
+{
+  "schema_version": "cv32e20_shared_state_offline_review.v1",
+  "status": "verified",
+  "authority": false,
+  "request": {
+    "cases": 8,
+    "flow": "mixed",
+    "policy": "state",
+    "rounds": 1024,
+    "seconds": null,
+    "seed": 7
+  },
+  "sequence": [
+    "F3:55000000",
+    "F4:0001000000",
+    "F3:55000000",
+    "F1:03200000",
+    "F1:03200000",
+    "F5:0000000100000000",
+    "F6:0110c00008000000",
+    "F3:55000000"
+  ],
+  "selection_and_transitions_exactly_equal": true,
+  "source_manifest_rows": 839,
+  "source_manifests_equal": true,
+  "current_workspace_changed_since_run": [],
+  "statistics": {
+    "arms": 8,
+    "context_saturated": false,
+    "contexts": 5,
+    "decisions": 8,
+    "features": 1,
+    "features_saturated": false,
+    "mode": "state",
+    "native_authority": false,
+    "pending": 0,
+    "settled_trials": 4
+  },
+  "irq_consumption": "unknown",
+  "source_origin": "unknown",
+  "retirement": "unknown",
+  "phases": {
+    "original": {
+      "case_count": 8,
+      "prefix_identity": {
+        "normalized_prefix_sha256": "97349095d59e4e3803242c61549d942cca83a474f616f7acbc584607d887b876",
+        "trace_genome_sha256": "a3420fada886e8fce796b220b66a2a002d116ff7f1e6882468f538fdc0c424ff",
+        "trace_manifest_sha256": "091e0c0af97c89de0fd139dacfd81863d3285d479bf079f15f2f33a144ff221b",
+        "compiled_document_sha256": "f55bb78696238833627e967b8d8a10afd0240b47dbbf789da73336e5f4e73b94",
+        "plan_sha256": "a3420fada886e8fce796b220b66a2a002d116ff7f1e6882468f538fdc0c424ff"
+      },
+      "verification": {
+        "within_invocation": {
+          "status": "not-requested",
+          "matches": null
+        },
+        "cross_invocation": {
+          "status": "not-requested",
+          "matches": null
+        },
+        "session_boundary": {
+          "status": "verified",
+          "matches": true
+        }
+      },
+      "coverage": {
+        "status": "unavailable"
+      },
+      "identities": [
+        {
+          "component": "cpu",
+          "pid": 3617704,
+          "execution_nonce": "bd78e3747b164cafab806e891fe8985d"
+        },
+        {
+          "component": "dma",
+          "pid": 3617736,
+          "execution_nonce": "b5eddbbecda9451a898813b0436349a7"
+        },
+        {
+          "component": "peripheral",
+          "pid": 3617768,
+          "execution_nonce": "a586c4e18bc147a9a6cb882317ca7e2e"
+        }
+      ],
+      "certified_event_count": 1,
+      "interaction_status": "available",
+      "execution_seconds": 87.57158549199812,
+      "wall_seconds": 146.4072272850026,
+      "bound_file_sha256": {
+        "search-manifest.json": "aefec85c261e6f74a5bcb27cff3b0444991515568da11d82971a5b2de2fffe22",
+        "summary.json": "06228698bc3f27e7f6c4463bd5c2407970cafa5dd730ead145bc7e77f1b37ffe",
+        "execution-identities.json": "e3d737e26978f1a98f6d4a06945cd18a364136033c25af75d76c7ceb606b8493",
+        "shared-measurements.json": "65e0df60b91a51b23fbe0e51a958a870c929e4c56985cf24cbb410baea8d424c"
+      }
+    },
+    "fresh": {
+      "case_count": 8,
+      "prefix_identity": {
+        "normalized_prefix_sha256": "97349095d59e4e3803242c61549d942cca83a474f616f7acbc584607d887b876",
+        "trace_genome_sha256": "a3420fada886e8fce796b220b66a2a002d116ff7f1e6882468f538fdc0c424ff",
+        "trace_manifest_sha256": "091e0c0af97c89de0fd139dacfd81863d3285d479bf079f15f2f33a144ff221b",
+        "compiled_document_sha256": "f55bb78696238833627e967b8d8a10afd0240b47dbbf789da73336e5f4e73b94",
+        "plan_sha256": "a3420fada886e8fce796b220b66a2a002d116ff7f1e6882468f538fdc0c424ff"
+      },
+      "verification": {
+        "within_invocation": {
+          "status": "verified",
+          "matches": true
+        },
+        "cross_invocation": {
+          "status": "verified",
+          "matches": true
+        },
+        "session_boundary": {
+          "status": "verified",
+          "matches": true
+        }
+      },
+      "coverage": {
+        "status": "unavailable"
+      },
+      "identities": [
+        {
+          "component": "cpu",
+          "pid": 3620688,
+          "execution_nonce": "224e8de41ce44e8d83b1ae50af9a070f"
+        },
+        {
+          "component": "dma",
+          "pid": 3620720,
+          "execution_nonce": "eab1692b8ebf4774aa6e887b8b19e7f5"
+        },
+        {
+          "component": "peripheral",
+          "pid": 3620752,
+          "execution_nonce": "570e4bb080804064a3d607c9f36972d4"
+        },
+        {
+          "component": "cpu",
+          "pid": 3621109,
+          "execution_nonce": "34676d51cdf94cd49f43939bc4b9192a"
+        },
+        {
+          "component": "dma",
+          "pid": 3621141,
+          "execution_nonce": "25129832967343508640a315d869999b"
+        },
+        {
+          "component": "peripheral",
+          "pid": 3621173,
+          "execution_nonce": "fdde27cc905f4c9b8e4c034e0a9176bf"
+        }
+      ],
+      "certified_event_count": 1,
+      "interaction_status": "available",
+      "execution_seconds": 87.30171485600295,
+      "wall_seconds": 297.21309986998676,
+      "bound_file_sha256": {
+        "search-manifest.json": "061f4e2f3f7ddbc38e7b8b712530a99bc851cde0e9b7b41e54d619de1502d94d",
+        "summary.json": "4534ceaf315aac63604d93a82250a44880c363fc334060dfd1f26e6458aad23c",
+        "execution-identities.json": "5d48dec7e15245949c9bd2f338d5ea62d6d886b3e9ceac29ef00665f7e4d6495",
+        "shared-measurements.json": "c628ace86c5868802e56319bc198138afaef7b9286b0aebeeb2d7b732d33b8d3"
+      }
+    }
+  },
+  "scope": "separate original/fresh CLI invocations; fresh additionally includes independent within-invocation replay processes"
+}

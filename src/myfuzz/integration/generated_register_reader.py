@@ -24,7 +24,11 @@ def declare_reader(request, compiled, *, source_id, address, result_address):
         target_component=contract['target_component'],address=address,
         write=False,value=0,byte_enable=15)
     cpu=request.component(contract['source_component']).profile.cpu
-    if cpu is None or cpu.xlen!=32 or 'I' not in {e.upper() for e in cpu.extensions}:
+    # The fragment is plain RV32I bytes: every opcode it uses (LUI/ADDI/LW/
+    # XORI/SW/NOP) has the same encoding and the same register-width effect
+    # on an RV64 core, where ``LW``/``SW`` still move exactly 32 bits.  A
+    # 64-bit core is therefore admissible; nothing here widens the fragment.
+    if cpu is None or cpu.xlen not in (32,64) or 'I' not in {e.upper() for e in cpu.extensions}:
         raise ValueError('generated-reader-RV32I-required')
     if type(result_address) is not int or not 0<=result_address<=0xfffffffc or result_address%4:
         raise ValueError('generated-reader-result-address-invalid')

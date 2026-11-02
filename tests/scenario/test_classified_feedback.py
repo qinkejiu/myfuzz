@@ -75,7 +75,10 @@ def test_provider_and_document_drift_rejected(bad):
     runner, cpu = memory(); feedback = ClassifiedEvidenceFeedback(runner)
     feedback.prepare_case(); transact(runner, cpu)
     provider = runner._memory_dependency_consumer
-    if bad == 'replacement': runner._memory_dependency_consumer = deepcopy(provider)
+    if bad == 'replacement':
+        # A separately installed real provider tests replacement without trying
+        # to pickle the original provider's opaque live authority.
+        runner._memory_dependency_consumer = memory()[0]._memory_dependency_consumer
     elif bad == 'config_bool': runner._memory_dependency_configuration['max_records'] = True
     else:
         record = next(iter(provider._ledger._records['verified'].values()))

@@ -101,6 +101,41 @@ class InstructionConstraintsTest(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     IsaContract(*args)
 
+    def test_f1_isa_reads_the_declared_generated_riscv_family(self) -> None:
+        # The pinned generated VexiiRiscv profile names its own family; it is a
+        # real RV32I core, so the F1 gate must read the declared ISA facts, and
+        # a core that is not RISC-V stays refused.
+        from types import SimpleNamespace
+        from myfuzz.isa.constraints import declared_riscv_cpu, f1_isa_from_profile
+        vexii = SimpleNamespace(cpu=SimpleNamespace(family="vexiiriscv", xlen=32,
+                                                   extensions=["I"]))
+        self.assertTrue(declared_riscv_cpu(vexii.cpu))
+        self.assertEqual(f1_isa_from_profile(vexii).extensions, ("I",))
+        riscv = SimpleNamespace(cpu=SimpleNamespace(family=" riscv ", xlen=32,
+                                                    extensions=["i", "m", "c"]))
+        self.assertEqual(f1_isa_from_profile(riscv).extensions, ("I", "M", "C"))
+        for cpu in (SimpleNamespace(family="zipcpu", xlen=32, extensions=[]),
+                    SimpleNamespace(family="", xlen=32, extensions=["I"]),
+                    None):
+            with self.subTest(cpu=cpu):
+                self.assertFalse(declared_riscv_cpu(cpu))
+                with self.assertRaises(ValueError):
+                    f1_isa_from_profile(SimpleNamespace(cpu=cpu))
+        # A declared RISC-V family still has to declare a 32- or 64-bit I core:
+        # the contract carries the profile's own xlen (the F1/F3 fragments use
+        # LUI/LW/SW/NOP, whose encodings are identical in RV32 and RV64), and a
+        # core without the I extension stays refused.
+        rv64 = SimpleNamespace(family="riscv", xlen=64, extensions=["i", "m", "c"])
+        self.assertEqual(f1_isa_from_profile(SimpleNamespace(cpu=rv64)).xlen, 64)
+        self.assertEqual(f1_isa_from_profile(SimpleNamespace(cpu=rv64)).extensions,
+                         ("I", "M", "C"))
+        for cpu in (SimpleNamespace(family="riscv", xlen=32, extensions=["M"]),
+                    SimpleNamespace(family="riscv", xlen=16, extensions=["I"])):
+            with self.subTest(cpu=cpu):
+                self.assertTrue(declared_riscv_cpu(cpu))
+                with self.assertRaises(ValueError):
+                    f1_isa_from_profile(SimpleNamespace(cpu=cpu))
+
 
 if __name__ == "__main__":
     unittest.main()

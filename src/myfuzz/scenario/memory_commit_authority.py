@@ -8,6 +8,7 @@ from collections.abc import Mapping
 from copy import deepcopy
 import hashlib
 import json
+from types import MappingProxyType
 from .ledger import TransactionKey,TransactionLedger
 from .memory import PersistentMemory
 from .memory_service import MemoryService,WriteReceipt
@@ -22,14 +23,28 @@ def _uint(value):return type(value) is int and 0<=value<1<<64
 
 
 class MemoryCommitAuthority(MemoryAuthorityDistribution):
-    def __init__(self, *, services, max_services=16,max_pending=256,max_regions=256):
+    def __init__(self, *, services, channel_ids=None, max_services=16,
+                 max_pending=256, max_regions=256):
         super().__init__()
         for n in (max_services,max_pending,max_regions):
             if type(n) is not int or n<1:raise ValueError('invalid memory commit authority capacity')
         if not isinstance(services,Mapping) or not services or len(services)>max_services:
             raise ValueError('bounded installed services required')
+        if channel_ids is None and len(services) != 1:
+            raise ValueError('multi-service commit channel bindings must exactly match installed services')
+        if channel_ids is None:
+            channels={component:'data' for component in services}
+        elif (not isinstance(channel_ids,Mapping)
+                or set(channel_ids)!=set(services)):
+            raise ValueError('commit channel bindings must exactly match installed services')
+        else:
+            channels=dict(channel_ids)
+        if any(type(channel) is not str or not channel.strip() or len(channel)>64
+               for channel in channels.values()):
+            raise ValueError('invalid installed commit channel')
         self.max_pending=max_pending;self._installed={};self._pending={};self._next_token=1
         self._floors={};self._bad=False;objects=set();regions=0
+        self._channel_ids=MappingProxyType(channels)
         for component,service in services.items():
             if (type(component) is not str or not component.strip() or type(service) is not MemoryService
                     or type(service.ledger) is not TransactionLedger or type(service.memory) is not PersistentMemory
@@ -61,7 +76,8 @@ class MemoryCommitAuthority(MemoryAuthorityDistribution):
         if (any(type(getattr(key,n)) is not str or not getattr(key,n).strip()
                 for n in ('execution_id','testcase_id','source_component','channel_id'))
                 or not _uint(key.source_epoch) or not _uint(key.source_sequence)
-                or key.source_sequence==0 or key.source_component!=component or key.channel_id!='data'
+                or key.source_sequence==0 or key.source_component!=component
+                or key.channel_id!=self._channel_ids.get(component)
                 or receipt.transaction_id!=key):return None
         # Membership comes from successful MemoryService.write callback only.
         # A complete arbitrary external execute_once result is not issuance.

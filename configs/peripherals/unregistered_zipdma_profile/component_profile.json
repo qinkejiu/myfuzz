@@ -1,0 +1,614 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "unregistered_zipdma_profile",
+  "kind": "peripheral",
+  "description": "Pinned ZipDMA selected 32-bit Wishbone target/master; independent source-backed smoke session; generated runtime and F6 admission pending. Clock frequency is a nominal simulation scheduling value, not an RTL or hardware frequency claim.",
+  "source": {
+    "root": "third_party/soc-zipcpu",
+    "revision": "git:42606d2d6ef55df313772232977621b2d72f0159",
+    "top_module": "zipdma",
+    "files": [
+      "rtl/zipdma/zipdma.v",
+      "rtl/zipdma/zipdma_ctrl.v",
+      "rtl/zipdma/zipdma_fsm.v",
+      "rtl/zipdma/zipdma_mm2s.v",
+      "rtl/zipdma/zipdma_s2mm.v",
+      "rtl/zipdma/zipdma_rxgears.v",
+      "rtl/zipdma/zipdma_txgears.v",
+      "rtl/ex/sfifo.v",
+      "rtl/ex/wbarbiter.v"
+    ],
+    "include_roots": [],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "parameters": [
+        {
+          "name": "ADDRESS_WIDTH",
+          "value": "32"
+        },
+        {
+          "name": "SLV_WIDTH",
+          "value": "32"
+        },
+        {
+          "name": "BUS_WIDTH",
+          "value": "32"
+        },
+        {
+          "name": "LGMEMLEN",
+          "value": "6"
+        },
+        {
+          "name": "OPT_LITTLE_ENDIAN",
+          "value": "1"
+        }
+      ],
+      "warning_policy": "recorded-nonfatal"
+    }
+  },
+  "clocks": [
+    {
+      "port": "i_clk",
+      "domain": "core",
+      "frequency_hz": 1
+    }
+  ],
+  "resets": [
+    {
+      "port": "i_reset",
+      "domain": "sys_rst",
+      "polarity": "active_high",
+      "synchronous": true,
+      "release": "Assert synchronously for at least one edge; no transfer accepted during reset."
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "dma.control",
+      "function": "mmio_slave",
+      "protocol": [
+        "wishbone",
+        "pipelined"
+      ],
+      "clock": "core",
+      "reset": "sys_rst",
+      "fields": [
+        {
+          "role": "cyc",
+          "aliases": [
+            "i_swb_cyc"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "stb",
+          "aliases": [
+            "i_swb_stb"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "we",
+          "aliases": [
+            "i_swb_we"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "adr",
+          "aliases": [
+            "i_swb_addr"
+          ],
+          "direction": "input",
+          "width": 2
+        },
+        {
+          "role": "dat_w",
+          "aliases": [
+            "i_swb_data"
+          ],
+          "direction": "input",
+          "width": 32
+        },
+        {
+          "role": "sel",
+          "aliases": [
+            "i_swb_sel"
+          ],
+          "direction": "input",
+          "width": 4
+        },
+        {
+          "role": "stall",
+          "aliases": [
+            "o_swb_stall"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "ack",
+          "aliases": [
+            "o_swb_ack"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "dat_r",
+          "aliases": [
+            "o_swb_data"
+          ],
+          "direction": "output",
+          "width": 32
+        }
+      ]
+    },
+    {
+      "endpoint_id": "dma.memory",
+      "function": "memory_master",
+      "protocol": [
+        "wishbone",
+        "pipelined"
+      ],
+      "clock": "core",
+      "reset": "sys_rst",
+      "fields": [
+        {
+          "role": "cyc",
+          "aliases": [
+            "o_mwb_cyc"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "stb",
+          "aliases": [
+            "o_mwb_stb"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "we",
+          "aliases": [
+            "o_mwb_we"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "adr",
+          "aliases": [
+            "o_mwb_addr"
+          ],
+          "direction": "output",
+          "width": 30
+        },
+        {
+          "role": "dat_w",
+          "aliases": [
+            "o_mwb_data"
+          ],
+          "direction": "output",
+          "width": 32
+        },
+        {
+          "role": "sel",
+          "aliases": [
+            "o_mwb_sel"
+          ],
+          "direction": "output",
+          "width": 4
+        },
+        {
+          "role": "stall",
+          "aliases": [
+            "i_mwb_stall"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "ack",
+          "aliases": [
+            "i_mwb_ack"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "dat_r",
+          "aliases": [
+            "i_mwb_data"
+          ],
+          "direction": "input",
+          "width": 32
+        },
+        {
+          "role": "err",
+          "aliases": [
+            "i_mwb_err"
+          ],
+          "direction": "input",
+          "width": 1
+        }
+      ]
+    },
+    {
+      "endpoint_id": "dma.interrupt",
+      "function": "interrupt_source",
+      "clock": "core",
+      "reset": "sys_rst",
+      "fields": [
+        {
+          "role": "irq",
+          "aliases": [
+            "o_interrupt"
+          ],
+          "direction": "output",
+          "width": 1
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "address_width": 2,
+    "data_width": 32,
+    "read": true,
+    "write": true,
+    "byte_enable": true,
+    "partial_write": true,
+    "has_error": false,
+    "address_units": "word",
+    "master_address_width": 30,
+    "master_address_units": "word",
+    "master_has_error": true,
+    "master_byte_enable": true,
+    "wishbone_flavour": "pipelined",
+    "dma_composite_runtime": false,
+    "local_runtime_variant": "wishbone_dma_selected_edge_v1"
+  },
+  "address": {
+    "window_size": 16,
+    "alignment": 16,
+    "registers": [
+      {
+        "name": "CONTROL_STATUS",
+        "offset": 0,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "start_or_clear_irq"
+      },
+      {
+        "name": "SOURCE",
+        "offset": 4,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "byte_address"
+      },
+      {
+        "name": "DESTINATION",
+        "offset": 8,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "byte_address"
+      },
+      {
+        "name": "LENGTH",
+        "offset": 12,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "byte_count"
+      }
+    ]
+  },
+  "evidence": {
+    "source_manifest": "configs/peripherals/zipdma_smoke/profile.json",
+    "runtime_status": "independent_selected_wishbone_session_not_generated_runtime",
+    "f6_dma": {
+      "schema_version": "f6_dma_behavior.v1",
+      "csr": {
+        "offsets": {
+          "control": 0,
+          "source": 4,
+          "destination": 8,
+          "length": 12
+        },
+        "configuration_order": [
+          "source",
+          "destination",
+          "length",
+          "control"
+        ],
+        "start_key": 0,
+        "start_word": 0,
+        "length_words": 4,
+        "block_words": 4,
+        "increment_source": true,
+        "increment_destination": true,
+        "source_destination_units": "byte_address",
+        "master_address_units": "word",
+        "master_byte_enable": 15,
+        "status_error_mask": 1073741824
+      },
+      "behavior": {
+        "length_unit": "bytes",
+        "irq_clear": {
+          "method": "write",
+          "offset": 0,
+          "value": 2147483648,
+          "byte_enable": 15
+        }
+      },
+      "irq_trigger": "level"
+    },
+    "local_source_manifest": {
+      "schema_version": "soc_sources.v1",
+      "components": [
+        {
+          "id": "unregistered_zipdma_profile",
+          "source": {
+            "root": "third_party/soc-zipcpu",
+            "revision": "git:42606d2d6ef55df313772232977621b2d72f0159",
+            "top_module": "zipdma",
+            "files": [
+              "rtl/zipdma/zipdma.v",
+              "rtl/zipdma/zipdma_ctrl.v",
+              "rtl/zipdma/zipdma_fsm.v",
+              "rtl/zipdma/zipdma_mm2s.v",
+              "rtl/zipdma/zipdma_s2mm.v",
+              "rtl/zipdma/zipdma_rxgears.v",
+              "rtl/zipdma/zipdma_txgears.v",
+              "rtl/ex/sfifo.v",
+              "rtl/ex/wbarbiter.v"
+            ],
+            "include_roots": []
+          },
+          "artifacts": [
+            {
+              "path": "doc/src/gpl-3.0.tex",
+              "sha256": "4e6c3af9bf75ed66080c9a46aafe9842c8c9a572d8612871d4c5ad5e790e7f3c",
+              "kind": "license"
+            },
+            {
+              "path": "rtl/zipdma/zipdma.v",
+              "sha256": "2bd872e4352e8c33cd787d31d02ced3e16ce78202fb82715eb8164fbffbc88d2",
+              "kind": "source"
+            },
+            {
+              "path": "rtl/zipdma/zipdma_ctrl.v",
+              "sha256": "2bd6dd81d58a695fc348e7e800a8a1a028d6680e99da0b52a65f9b4dad799be1",
+              "kind": "source"
+            },
+            {
+              "path": "rtl/zipdma/zipdma_fsm.v",
+              "sha256": "089fae396990ef9d824263b63dd4aee381ea5e2000ad629ac34e14fd61f25c29",
+              "kind": "source"
+            },
+            {
+              "path": "rtl/zipdma/zipdma_mm2s.v",
+              "sha256": "2d301683c43f87ced2c3c108a0704d20631c07c97291adca20e6857f84ae7b9c",
+              "kind": "source"
+            },
+            {
+              "path": "rtl/zipdma/zipdma_s2mm.v",
+              "sha256": "3cf1392d68a1a01d1b7ba92609fe062bfd5f397515648d990f8ddfc94c26b8dd",
+              "kind": "source"
+            },
+            {
+              "path": "rtl/zipdma/zipdma_rxgears.v",
+              "sha256": "bf0a4c4f3bd8c10412f796df53c9f20418dbde89074c582f51dc733534155c63",
+              "kind": "source"
+            },
+            {
+              "path": "rtl/zipdma/zipdma_txgears.v",
+              "sha256": "2c7655b89bcc331f6f27955ce0c15087a534f432a5b101e6d0dad6d342e78a09",
+              "kind": "source"
+            },
+            {
+              "path": "rtl/ex/sfifo.v",
+              "sha256": "f97bc8f20fa52b4819f9cfd4a18cfd257370359c065760441da37dba281c0145",
+              "kind": "source"
+            },
+            {
+              "path": "rtl/ex/wbarbiter.v",
+              "sha256": "85040b4f69fc4627707e9fb3125c696ea4bf1b6256074f19702a91f532c3ff14",
+              "kind": "source"
+            }
+          ],
+          "selected_content_hash": "sha256:c4109bbf8d66721c7ccc5cab059d4303e668bf06794f5e30e0e8daa148484f5a",
+          "closure_status": "selected",
+          "source_status": "source_verified",
+          "elaboration_status": "elaboration_verified",
+          "runtime_status": "runtime_unverified",
+          "defines": [],
+          "typed_parameters": [
+            {
+              "name": "ADDRESS_WIDTH",
+              "type": "integer",
+              "value": "32"
+            },
+            {
+              "name": "SLV_WIDTH",
+              "type": "integer",
+              "value": "32"
+            },
+            {
+              "name": "BUS_WIDTH",
+              "type": "integer",
+              "value": "32"
+            },
+            {
+              "name": "LGMEMLEN",
+              "type": "integer",
+              "value": "6"
+            },
+            {
+              "name": "OPT_LITTLE_ENDIAN",
+              "type": "integer",
+              "value": "1"
+            }
+          ],
+          "generator": {
+            "status": "not_invoked",
+            "tool_version": null,
+            "name": "none"
+          },
+          "dependencies": [],
+          "elaboration": {
+            "status": "elaboration_verified",
+            "top_module": "zipdma",
+            "tool": {
+              "name": "verilator",
+              "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+              "frontend": "verilator-lint"
+            },
+            "evidence": "inline-zipdma-evidence.json",
+            "evidence_sha256": "7a7d0fca6dcbc3e41c7a93a2bc4c42b2d8beaa5ee93f91071b2ec2cb4f5dead6",
+            "closure_files": 9,
+            "lint": {
+              "errors": 0,
+              "warnings": 2,
+              "exit_code": 0
+            }
+          }
+        }
+      ],
+      "elaboration_closures": {
+        "unregistered_zipdma_profile": {
+          "schema_version": "soc_elaboration_closure.v1",
+          "component": "unregistered_zipdma_profile",
+          "root": "third_party/soc-zipcpu",
+          "top_module": "zipdma",
+          "tool": {
+            "name": "verilator",
+            "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+            "frontend": "verilator-lint"
+          },
+          "command": [
+            "verilator",
+            "--lint-only",
+            "-Wno-fatal",
+            "--top-module",
+            "zipdma",
+            "-GADDRESS_WIDTH=32",
+            "-GSLV_WIDTH=32",
+            "-GBUS_WIDTH=32",
+            "-GLGMEMLEN=6",
+            "-GOPT_LITTLE_ENDIAN=1",
+            "third_party/soc-zipcpu/rtl/zipdma/zipdma.v",
+            "third_party/soc-zipcpu/rtl/zipdma/zipdma_ctrl.v",
+            "third_party/soc-zipcpu/rtl/zipdma/zipdma_fsm.v",
+            "third_party/soc-zipcpu/rtl/zipdma/zipdma_mm2s.v",
+            "third_party/soc-zipcpu/rtl/zipdma/zipdma_s2mm.v",
+            "third_party/soc-zipcpu/rtl/zipdma/zipdma_rxgears.v",
+            "third_party/soc-zipcpu/rtl/zipdma/zipdma_txgears.v",
+            "third_party/soc-zipcpu/rtl/ex/sfifo.v",
+            "third_party/soc-zipcpu/rtl/ex/wbarbiter.v"
+          ],
+          "include_roots": [],
+          "defines": [],
+          "parameters": [
+            {
+              "name": "ADDRESS_WIDTH",
+              "value": "32"
+            },
+            {
+              "name": "SLV_WIDTH",
+              "value": "32"
+            },
+            {
+              "name": "BUS_WIDTH",
+              "value": "32"
+            },
+            {
+              "name": "LGMEMLEN",
+              "value": "6"
+            },
+            {
+              "name": "OPT_LITTLE_ENDIAN",
+              "value": "1"
+            }
+          ],
+          "closure_files": [
+            {
+              "root": "third_party/soc-zipcpu",
+              "path": "rtl/zipdma/zipdma.v",
+              "sha256": "2bd872e4352e8c33cd787d31d02ced3e16ce78202fb82715eb8164fbffbc88d2"
+            },
+            {
+              "root": "third_party/soc-zipcpu",
+              "path": "rtl/zipdma/zipdma_ctrl.v",
+              "sha256": "2bd6dd81d58a695fc348e7e800a8a1a028d6680e99da0b52a65f9b4dad799be1"
+            },
+            {
+              "root": "third_party/soc-zipcpu",
+              "path": "rtl/zipdma/zipdma_fsm.v",
+              "sha256": "089fae396990ef9d824263b63dd4aee381ea5e2000ad629ac34e14fd61f25c29"
+            },
+            {
+              "root": "third_party/soc-zipcpu",
+              "path": "rtl/zipdma/zipdma_mm2s.v",
+              "sha256": "2d301683c43f87ced2c3c108a0704d20631c07c97291adca20e6857f84ae7b9c"
+            },
+            {
+              "root": "third_party/soc-zipcpu",
+              "path": "rtl/zipdma/zipdma_s2mm.v",
+              "sha256": "3cf1392d68a1a01d1b7ba92609fe062bfd5f397515648d990f8ddfc94c26b8dd"
+            },
+            {
+              "root": "third_party/soc-zipcpu",
+              "path": "rtl/zipdma/zipdma_rxgears.v",
+              "sha256": "bf0a4c4f3bd8c10412f796df53c9f20418dbde89074c582f51dc733534155c63"
+            },
+            {
+              "root": "third_party/soc-zipcpu",
+              "path": "rtl/zipdma/zipdma_txgears.v",
+              "sha256": "2c7655b89bcc331f6f27955ce0c15087a534f432a5b101e6d0dad6d342e78a09"
+            },
+            {
+              "root": "third_party/soc-zipcpu",
+              "path": "rtl/ex/sfifo.v",
+              "sha256": "f97bc8f20fa52b4819f9cfd4a18cfd257370359c065760441da37dba281c0145"
+            },
+            {
+              "root": "third_party/soc-zipcpu",
+              "path": "rtl/ex/wbarbiter.v",
+              "sha256": "85040b4f69fc4627707e9fb3125c696ea4bf1b6256074f19702a91f532c3ff14"
+            }
+          ],
+          "status": "elaboration_verified",
+          "lint": {
+            "errors": 0,
+            "warnings": 2,
+            "exit_code": 0
+          }
+        }
+      }
+    }
+  },
+  "port_actions": [
+    {
+      "port": "i_dev_ints",
+      "action": "constant",
+      "value": 0,
+      "reason": "Initial DMA edge environment uses immediate trigger only"
+    }
+  ],
+  "interrupts": [
+    {
+      "endpoint_id": "dma.interrupt",
+      "role": "irq",
+      "polarity": "active_high",
+      "clock_domain": "core",
+      "trigger": "level",
+      "hold": "Completion IRQ remains asserted until software clear or reset.",
+      "clear": "When idle, a CONTROL_STATUS write with SEL[3] and (data[29] or not data[30]) clears IRQ; 0x80000000 is one such write. Reset also clears IRQ."
+    }
+  ]
+}

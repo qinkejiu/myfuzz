@@ -1,0 +1,6 @@
+{
+  "name": "ibex-zipdma-profile",
+  "cpu_request": "configs/scenarios/compiled-f6-ibex-wbdmac-storage/requests/cpu.json",
+  "dma_request": "configs/scenarios/compiled-f1-f6-ibex-gpio-zipdma-shared/requests/dma.json",
+  "dma_capability": "configs/scenarios/compiled-f1-f6-ibex-gpio-zipdma-shared/dma.test_capability.json"
+}

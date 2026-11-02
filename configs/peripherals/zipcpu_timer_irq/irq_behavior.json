@@ -1,0 +1,14 @@
+{
+  "schema_version": "declared_irq_behavior.v1",
+  "source_request": "configs/peripherals/zipcpu_timer_irq/request.json",
+  "instance_name": "wb_timer",
+  "source_port": "o_int",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 16,
+  "window_size": 4,
+  "trigger_writes": [[0, 8]],
+  "status_offsets": [0],
+  "status_registers": ["COUNT"],
+  "clear_writes": [],
+  "status_cause_bits": null
+}

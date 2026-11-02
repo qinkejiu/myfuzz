@@ -13,7 +13,7 @@ from myfuzz.composition.source_crawler import _content_hash
 _WRAPPER = 'src/myfuzz/composition/rtl/soc_opentitan_uart_local_target.sv'
 _WRAPPER_SHA256 = '5991b251cf20be9a447cd4ecab0ed0643b36f4f768451a21649e9a5fe687f68b'
 _UNION_REVISION = 'sha256:3c7fb0a65426581eb7e8650048b548496ef741b670933a8beacd544b2bdb4d4f'
-_PROFILE_SHA256 = '759f864771b860c8d29b9005bf93ebb3b4381ec4472545de3c3e782b8697efce'
+_PROFILE_SHA256 = '47c5eb5736af0c278fd9a63bf321e1631e2a097b042dad7cbd45a2ee41724698'
 
 
 def verify_opentitan_uart_source_contract(profile: ComponentProfile, *, base_dir: Path) -> dict[str, object]:

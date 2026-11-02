@@ -325,11 +325,42 @@ def known_family_ids() -> list:
 #: instead of a runtime family.  Every entry consumes the compiled D3 target
 #: itself; none of them borrows a family's decoder, ownership or wiring claim.
 COMPILED_EXECUTORS = {
+    'compiled-f6-rfuzz': {
+        'entry': 'myfuzz.integration.compiled_f6_rfuzz:run_compiled_f6_rfuzz_session',
+        'flow': 'F6', 'support_assessor': 'assess_compiled_f6_support',
+        'runner': 'run_compiled_f6_session',
+        'output_verifier': 'verify_saved_compiled_f6_build_outputs',
+        'required_filenames': tuple('compiled_f6_'+suffix+'.json' for suffix in
+            ('prefix','replay','fresh_prefix','fresh_events','fresh_execution_audit','fresh_verification','build_join.v1','receipt_join.v1')) +
+            ('compiled_assertion_results.v1.json','compiled_assertion_evidence.v1.json'),
+        'requires': ['one executable admitted D3 F6 CPU programmed RAM DMA target',
+                     'the RFuzz client binary','an existing shared build cache'],
+        'family_fallback': False,
+    },
     'compiled-f4-rfuzz': {
+        'flow': 'F4',
+        'support_assessor': 'assess_compiled_f4_support',
+        'runner': 'run_compiled_session',
+        'output_verifier': 'verify_saved_compiled_f4_build_outputs',
+        'required_filenames': tuple('compiled_f4_'+suffix+'.json' for suffix in
+            ('prefix', 'replay', 'fresh_prefix', 'fresh_events', 'fresh_execution_audit', 'fresh_verification')) + ('compiled_receipt_join.v1.json', 'compiled_f4_build_join.v1.json'),
         'entry': ('myfuzz.integration.compiled_rfuzz:'
                   'run_compiled_f4_rfuzz_session'),
         'requires': ['one executable D3 F4 target', 'the RFuzz client binary',
                      'an existing shared build cache'],
+        'family_fallback': False,
+    },
+    'compiled-f2-rfuzz': {
+        'entry': 'myfuzz.integration.compiled_f2_rfuzz:run_compiled_f2_rfuzz_session',
+        'flow': 'F2',
+        'support_assessor': 'assess_compiled_f2_support',
+        'runner': 'run_compiled_f2_session',
+        'output_verifier': 'verify_saved_compiled_f2_build_outputs',
+        'required_filenames': tuple('compiled_f2_'+suffix+'.json' for suffix in
+            ('prefix', 'replay', 'fresh_prefix', 'fresh_events', 'fresh_execution_audit', 'fresh_verification', 'build_join.v1', 'receipt_join.v1')) +
+            ('compiled_assertion_results.v1.json', 'compiled_assertion_evidence.v1.json'),
+        'requires': ['one executable admitted D3 F2 read target',
+                     'the RFuzz client binary', 'an existing shared build cache'],
         'family_fallback': False,
     },
 }
@@ -1037,125 +1068,152 @@ def load_session_inputs(*,generated_root,base_dir,family,request,compiled):
         ownership=compiled_ownership.ownership,physical_port_map=physical)
 
 
-def load_compiled_session_inputs(*,generated_root,base_dir,request,compiled):
+def _f6_wiring_fixed_inputs(generated_root,request):
+    """F6 alone admits the explicit D2 v2 route-intent carrier."""
+    root=Path(generated_root)
+    document=json.loads((root/'wiring_contract.json').read_bytes())
+    harness=json.loads((root/'harness_set.json').read_bytes())
+    if (document.get('schema_version')!='wiring_contract.v2' or harness.get('wiring')!=document
+            or type(document.get('dma_master_routes')) is not dict
+            or not document['dma_master_routes'].get('routes')):
+        _refuse('compiled-f6-wiring-contract-invalid','/wiring')
+    for candidate in (document,harness['wiring'],request.wiring.document):
+        if type(candidate.get('fixed_inputs',[])) is not list or candidate.get('fixed_inputs'):
+            _refuse('compiled-rfuzz-fixed-input-unsupported','/wiring/fixed_inputs')
+    if request.wiring.fixed_inputs:
+        _refuse('compiled-rfuzz-fixed-input-unsupported','/request/wiring/fixed_inputs')
+    return []
+
+
+def load_compiled_session_inputs(*,generated_root,base_dir,request,compiled,flow='F4'):
     """Family-free inputs for the compiled route.
 
     The compiled route names no runtime family, so it must not borrow a
     family's ownership table.  Every external pin source of the one executable
-    F4 path becomes one owned input exactly as D3 declares it; the CPU MMIO
-    stream source is CPU-driven and is not an independent environment input.
+    selected path becomes one owned input exactly as D3 declares it; CPU MMIO
+    stream and CPU load address sources is CPU-driven and is not an independent environment input.
     Fixed physical inputs come only from the loaded, reconstructed D2
     artifacts; a fixed/literal wiring input is still refused instead of being
     silently dropped from the ownership map.
     """
+    if flow not in ('F2', 'F4', 'F6'):
+        _refuse('compiled-executor-flow-unsupported', '/executor/flow', {'flow': flow})
     from .generated_artifact_admission import load_generated_artifacts,GeneratedArtifactRefused
     from myfuzz.scenario.ownership import InputField,InputOwner,compile_ownership
     try:
-        artifacts=load_generated_artifacts(generated_root=generated_root,base_dir=base_dir)
+        artifacts=load_generated_artifacts(generated_root=generated_root,base_dir=base_dir,**({'flow':'F6'} if flow=='F6' else {}))
     except GeneratedArtifactRefused as error:
         _refuse(error.code,error.pointer,error.detail)
-    _refuse_compiled_wiring_fixed_inputs(generated_root,request)
-    fixed=_wiring_fixed_inputs(generated_root)
-    if fixed:
-        _refuse('compiled-rfuzz-fixed-input-unsupported','/wiring/fixed_inputs',
-                {'rows':fixed,'requires':'the compiled RFuzz route has no '
-                 'declared owner for a fixed/literal wiring input'})
-    paths=[row for row in compiled.get('paths',())
-           if row.get('flow_id')=='F4' and row.get('status')=='executable']
-    if len(paths)!=1:
-        _refuse('compiled-f4-target-required','/compiled_paths',
-                {'executable_f4_paths':[row['path_id'] for row in paths],
-                 'requires':'exactly one executable F4 path; the compiled '
-                            'executor is selected only for a compiled F4 target'})
-    path=paths[0]
-    fields=[];owners=[]
-    physical={}
-    for source in path.get('sources',()):
-        if source.get('kind')!='external_pin':
-            continue
-        component=source.get('component');port=source.get('port')
-        width=source.get('width');bit=source.get('bit_offset')
-        if (not isinstance(component,str) or not component
-                or not isinstance(port,str) or not port
-                or type(width) is not int or width<1
-                or type(bit) is not int or bit<0):
-            _refuse('compiled-rfuzz-pin-contract-invalid','/sources',
-                    {'source':source})
-        fields.append(dict(component_id=component,port=port,width=width))
-        owners.append(dict(component_id=component,port=port,bit_offset=bit,
-            width=width,kind='source',producer_ref=source['source_id']))
-        physical[(component,port)]=port
+    try:
+        if flow == 'F6':
+            fixed=_f6_wiring_fixed_inputs(generated_root,request)
+        else:
+            _refuse_compiled_wiring_fixed_inputs(generated_root,request)
+            fixed=_wiring_fixed_inputs(generated_root)
+        if fixed:
+            _refuse('compiled-rfuzz-fixed-input-unsupported','/wiring/fixed_inputs',
+                    {'rows':fixed,'requires':'the compiled RFuzz route has no '
+                     'declared owner for a fixed/literal wiring input'})
+        paths=[row for row in compiled.get('paths',())
+               if row.get('flow_id')==flow and row.get('status')=='executable']
+        if len(paths)!=1:
+            _refuse('compiled-'+flow.lower()+'-target-required','/compiled_paths',
+                    {'executable_'+flow.lower()+'_paths':[row['path_id'] for row in paths],
+                     'requires':'exactly one executable '+flow+' path for the selected executor'})
+        path=paths[0]
+        fields=[];owners=[]
+        physical={}
+        for source in path.get('sources',()):
+            if source.get('kind')!='external_pin':
+                continue
+            component=source.get('component');port=source.get('port')
+            width=source.get('width');bit=source.get('bit_offset')
+            if (not isinstance(component,str) or not component
+                    or not isinstance(port,str) or not port
+                    or type(width) is not int or width<1
+                    or type(bit) is not int or bit<0):
+                _refuse('compiled-rfuzz-pin-contract-invalid','/sources',
+                        {'source':source})
+            fields.append(dict(component_id=component,port=port,width=width))
+            owners.append(dict(component_id=component,port=port,bit_offset=bit,
+                width=width,kind='source',producer_ref=source['source_id']))
+            physical[(component,port)]=port
 
-    fixed_input_identity=[]
-    seen_fixed=set()
-    for component,artifact in sorted(artifacts.items()):
-        runtime_document=artifact.runtime_document
-        rows=runtime_document.get('fixed_physical_inputs',[])
-        if type(rows) is not list:
-            _refuse('compiled-rfuzz-fixed-artifact-input-invalid',
-                    '/artifacts/'+component+'/fixed_physical_inputs',
-                    {'requires':'a list of fixed physical input rows'})
-        for index,row in enumerate(rows):
-            pointer='/artifacts/'+component+'/fixed_physical_inputs/'+str(index)
-            if type(row) is not dict:
-                _refuse('compiled-rfuzz-fixed-artifact-input-invalid',pointer,
-                        {'row':row})
-            endpoint=row.get('endpoint_id');role=row.get('role')
-            runtime_name=row.get('runtime_name');width=row.get('width')
-            value=row.get('value')
-            input_name=row.get('input_name')
-            if input_name is None and type(endpoint) is str and type(role) is str:
-                input_name=endpoint+'.'+role
-            if (type(endpoint) is not str or not endpoint
-                    or type(role) is not str or not role
-                    or type(input_name) is not str or not input_name
-                    or type(runtime_name) is not str or not runtime_name
-                    or type(width) is not int or not 1<=width<=64
-                    or type(value) is not int or not 0<=value<2**width):
-                _refuse('compiled-rfuzz-fixed-artifact-input-invalid',pointer,
-                        {'row':row})
-            key=(component,input_name)
-            if key in seen_fixed:
-                _refuse('compiled-rfuzz-fixed-artifact-input-invalid',pointer,
-                        {'duplicate_input':list(key)})
-            seen_fixed.add(key)
-            exports=[item for item in runtime_document.get('physical_exports',())
-                     if item.get('endpoint_id')==endpoint
-                     and item.get('role')==role]
-            if (len(exports)!=1 or exports[0].get('direction')!='input'
-                    or exports[0].get('runtime_name')!=runtime_name
-                    or exports[0].get('width')!=width
-                    or type(exports[0].get('physical_port')) is not str
-                    or not exports[0]['physical_port']):
-                _refuse('compiled-rfuzz-fixed-artifact-input-invalid',pointer,
-                        {'requires':'one matching physical input export',
-                         'matches':exports})
-            physical_port=exports[0]['physical_port']
-            fields.append(dict(component_id=component,port=input_name,width=width))
-            owners.append(dict(component_id=component,port=input_name,
-                bit_offset=0,width=width,kind='fixed',
-                producer_ref='profile_constant'))
-            physical[key]=physical_port
-            fixed_input_identity.append(dict(component_id=component,
-                input_name=input_name,endpoint_id=endpoint,role=role,
-                runtime_name=runtime_name,physical_port=physical_port,
-                width=width,value=value,
-                artifact_digest=runtime_document['artifact_digest']))
-    ownership=compile_ownership(
-        tuple(InputField(**row) for row in fields),
-        tuple(InputOwner(**row) for row in owners))
-    document={'schema_version':'compiled_rfuzz_ownership.v1',
-        'basis':('D3 external_pin sources of the one executable F4 path and '
-                 'fixed physical inputs from validated D2 artifacts; no '
-                 'runtime family ownership claim is read'),
-        'path_id':path['path_id'],'fields':fields,'owners':owners,
-        'fixed_input_identity':fixed_input_identity,
-        'physical_port_map':[{'component_id':row['component_id'],
-            'port':row['port'],'physical_port':physical[(row['component_id'],
-                row['port'])]} for row in fields]}
-    _write(Path(generated_root).parent/'compiled_ownership.v1.json',document)
-    return artifacts,dict(request=request,compiled=compiled,
-        ownership=ownership,physical_port_map=physical)
+        fixed_input_identity=[]
+        seen_fixed=set()
+        for component,artifact in sorted(artifacts.items()):
+            runtime_document=artifact.runtime_document
+            rows=runtime_document.get('fixed_physical_inputs',[])
+            if type(rows) is not list:
+                _refuse('compiled-rfuzz-fixed-artifact-input-invalid',
+                        '/artifacts/'+component+'/fixed_physical_inputs',
+                        {'requires':'a list of fixed physical input rows'})
+            for index,row in enumerate(rows):
+                pointer='/artifacts/'+component+'/fixed_physical_inputs/'+str(index)
+                if type(row) is not dict:
+                    _refuse('compiled-rfuzz-fixed-artifact-input-invalid',pointer,
+                            {'row':row})
+                endpoint=row.get('endpoint_id');role=row.get('role')
+                runtime_name=row.get('runtime_name');width=row.get('width')
+                value=row.get('value')
+                input_name=row.get('input_name')
+                if input_name is None and type(endpoint) is str and type(role) is str:
+                    input_name=endpoint+'.'+role
+                if (type(endpoint) is not str or not endpoint
+                        or type(role) is not str or not role
+                        or type(input_name) is not str or not input_name
+                        or type(runtime_name) is not str or not runtime_name
+                        or type(width) is not int or not 1<=width<=64
+                        or type(value) is not int or not 0<=value<2**width):
+                    _refuse('compiled-rfuzz-fixed-artifact-input-invalid',pointer,
+                            {'row':row})
+                key=(component,input_name)
+                if key in seen_fixed:
+                    _refuse('compiled-rfuzz-fixed-artifact-input-invalid',pointer,
+                            {'duplicate_input':list(key)})
+                seen_fixed.add(key)
+                exports=[item for item in runtime_document.get('physical_exports',())
+                         if item.get('endpoint_id')==endpoint
+                         and item.get('role')==role]
+                if (len(exports)!=1 or exports[0].get('direction')!='input'
+                        or exports[0].get('runtime_name')!=runtime_name
+                        or exports[0].get('width')!=width
+                        or type(exports[0].get('physical_port')) is not str
+                        or not exports[0]['physical_port']):
+                    _refuse('compiled-rfuzz-fixed-artifact-input-invalid',pointer,
+                            {'requires':'one matching physical input export',
+                             'matches':exports})
+                physical_port=exports[0]['physical_port']
+                fields.append(dict(component_id=component,port=input_name,width=width))
+                owners.append(dict(component_id=component,port=input_name,
+                    bit_offset=0,width=width,kind='fixed',
+                    producer_ref='profile_constant'))
+                physical[key]=physical_port
+                fixed_input_identity.append(dict(component_id=component,
+                    input_name=input_name,endpoint_id=endpoint,role=role,
+                    runtime_name=runtime_name,physical_port=physical_port,
+                    width=width,value=value,
+                    artifact_digest=runtime_document['artifact_digest']))
+        ownership=compile_ownership(
+            tuple(InputField(**row) for row in fields),
+            tuple(InputOwner(**row) for row in owners))
+        document={'schema_version':'compiled_rfuzz_ownership.v1',
+            'basis':('D3 external_pin sources of the one executable '+flow+' path and '
+                     'fixed physical inputs from validated D2 artifacts; no '
+                     'runtime family ownership claim is read'),
+            'path_id':path['path_id'],'fields':fields,'owners':owners,
+            'fixed_input_identity':fixed_input_identity,
+            'physical_port_map':[{'component_id':row['component_id'],
+                'port':row['port'],'physical_port':physical[(row['component_id'],
+                    row['port'])]} for row in fields]}
+        _write(Path(generated_root).parent/'compiled_ownership.v1.json',document)
+        return artifacts,dict(request=request,compiled=compiled,
+            ownership=ownership,physical_port_map=physical)
+    except BaseException:
+        if flow=='F6':
+            from .generated_artifact_admission import release_f6_provider_credentials
+            release_f6_provider_credentials(artifacts)
+        raise
 
 
 def _refuse_compiled_wiring_fixed_inputs(generated_root,request):
@@ -1239,6 +1297,54 @@ def run_compiled_session(*,artifacts,compiled_inputs,base_dir,cache_dir,run_id,
         budget_seconds=budget_seconds,max_tests=max_tests,
         search_seed=search_seed,max_runs_per_batch=max_runs_per_batch,
         rounds_per_case=rounds_per_case)
+
+
+def run_compiled_f6_session(*,artifacts,compiled_inputs,base_dir,cache_dir,run_id,
+        session_dir,output_dir,client_binary,budget_seconds,max_tests,search_seed,
+        max_runs_per_batch,rounds_per_case=DEFAULT_ROUNDS_PER_CASE):
+    from myfuzz.integration.compiled_f6_rfuzz import run_compiled_f6_rfuzz_session
+    return run_compiled_f6_rfuzz_session(artifacts=artifacts,compiled_inputs=compiled_inputs,
+        base_dir=base_dir,cache_dir=cache_dir,run_id=run_id,session_dir=session_dir,
+        output_dir=output_dir,client_binary=client_binary,budget_seconds=budget_seconds,
+        max_tests=max_tests,search_seed=search_seed,max_runs_per_batch=max_runs_per_batch,
+        rounds_per_case=rounds_per_case)
+
+
+def run_compiled_f2_session(*,artifacts,compiled_inputs,base_dir,cache_dir,run_id,
+                            output_dir,session_dir,client_binary,budget_seconds,
+                            max_tests,search_seed,max_runs_per_batch,
+                            rounds_per_case=DEFAULT_ROUNDS_PER_CASE):
+    """Start the explicit compiled F2 route with the same-call D2/D3 objects."""
+    from myfuzz.integration.compiled_f2_rfuzz import run_compiled_f2_rfuzz_session
+    return run_compiled_f2_rfuzz_session(
+        artifacts=artifacts,compiled_inputs=compiled_inputs,base_dir=base_dir,
+        cache_dir=cache_dir,run_id=run_id,session_dir=session_dir,
+        output_dir=output_dir,client_binary=client_binary,
+        budget_seconds=budget_seconds,max_tests=max_tests,
+        search_seed=search_seed,max_runs_per_batch=max_runs_per_batch,
+        rounds_per_case=rounds_per_case)
+
+
+def _f2_run_limits(outcome, report):
+    """Report observed F2 scope without claiming mutation-search benefit."""
+    runtime = outcome.get('runtime')
+    records = getattr(runtime, 'records', ())
+    candidates = {row['raw'] for row in records if isinstance(row, dict) and isinstance(row.get('raw'), str)}
+    responses = {hop['native_obi']['rdata'] for row in records
+        for hop in row.get('certificate', {}).get('exact_hops', {}).get('data_hops', ())
+        if isinstance(hop.get('native_obi', {}).get('rdata'), int)}
+    executor = outcome.get('executor')
+    elapsed = report.get('effective_search_seconds')
+    useful = len(records)
+    return dict(candidate_domain_size=1,
+        observed_distinct_projected_candidates=len(candidates),
+        observed_response_values=sorted(responses),
+        feedback_targets=[target.target_id for target in getattr(executor, 'targets', ())],
+        feedback_hits=sorted(getattr(executor, '_target_hits', ())),
+        build_cost_seconds=report.get('build_cost_seconds'),
+        useful_cases_per_second=useful / elapsed if type(elapsed) in (int, float) and elapsed > 0 else None,
+        useful_chains_per_second=useful / elapsed if type(elapsed) in (int, float) and elapsed > 0 else None,
+        useful_search_benefit_claimed=False)
 
 
 def _compiled_session_preflight(*,client_binary,cache_dir,base_dir,
@@ -1563,7 +1669,7 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
                           search_seed=None, max_runs_per_batch=1,
                           skip_session=False, label=None,
                           ip_capabilities=(), executor=None,
-                          rounds_per_case=DEFAULT_ROUNDS_PER_CASE) -> dict:
+                          rounds_per_case=DEFAULT_ROUNDS_PER_CASE, f6_execution=None, f6_deliveries=None) -> dict:
     """Run every requested P7 stage and return the machine-readable summary.
 
     The returned summary is also written to ``<output>/run-summary.json`` and
@@ -1645,6 +1751,16 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
                                         detail=detail)
         return entry
 
+    def note_f6_execution_absent_after_d3_refusal():
+        """Name requested F6 execution stages stopped by a D3 refusal."""
+        if executor != 'compiled-f6-rfuzz' or skip_session:
+            return
+        absent('session', 'path-compilation-refused', '/path_compilation',
+               'D3 refused the F6 path before a session could be constructed')
+        absent('fresh_verification', 'fresh-replay-requires-a-session',
+               '/session',
+               'D3 refused before a session prefix existed to replay')
+
     def record(key, path: Path, document=None):
         summary['documents'][key] = {
             'path': _display(base, path), 'sha256': _sha256_file(path),
@@ -1682,20 +1798,35 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
                                     'output': str(output)}))
 
     verified_build_output_hashes = {}
+    outcome = None
+    loaded_f6_artifacts=None
 
     def finish():
+        if loaded_f6_artifacts is not None:
+            from myfuzz.local_harness.generated_artifact_admission import release_f6_provider_credentials
+            release_f6_provider_credentials(loaded_f6_artifacts)
+        if (executor == 'compiled-f2-rfuzz'
+                and 'saved_output_hashes' in (executor_stage.get('detail') or {})):
+            executor_stage['detail']['saved_output_hashes'] = dict(verified_build_output_hashes)
+        if executor == 'compiled-f6-rfuzz' and outcome is not None:
+            for name,digest in outcome['saved_output_hashes'].items():
+                verified_build_output_hashes.setdefault(name,digest)
+            for name,digest in outcome['transport_files'].items():
+                verified_build_output_hashes.setdefault(name,digest)
         for name, expected in verified_build_output_hashes.items():
             path = output/name
             if not path.is_file() or _sha256_file(path) != expected:
                 refuse('session', 'compiled-build-saved-output-changed', '/session', {'file':name})
-        build_join_path = output / 'compiled_f4_build_join.v1.json'
+        selected_flow = COMPILED_EXECUTORS.get(executor, {}).get('flow', 'F4')
+        build_join_key = 'compiled_'+selected_flow.lower()+'_build_join'
+        build_join_path = output / (build_join_key+'.v1.json')
         if build_join_path.is_file():
             try:
                 build_document = json.loads(build_join_path.read_text(encoding='utf-8'))
             except (OSError, ValueError) as error:
                 build_document = None
                 refuse('session', 'compiled-build-join-invalid', '/session', str(error))
-            record('compiled_f4_build_join', build_join_path, build_document)
+            record(build_join_key, build_join_path, build_document)
         # ``finish`` is the one place the verdict is decided: a refusal anywhere,
         # or any *requested* stage that is not ``ok``, means the run is refused.
         # A refused driver stage therefore also makes the run refused, and a
@@ -1878,11 +2009,15 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
         build_cache_path = (None if build_cache is None
                             else _resolve(Path.cwd(), build_cache))
         try:
+            provider_kwargs={}
+            if executor=='compiled-f6-rfuzz':
+                from myfuzz.local_harness.dma_artifact_endpoint_links import PROVIDER_ID
+                provider_kwargs={'dma_endpoint_provider':PROVIDER_ID}
             harness_document = generate_harness_set(
                 composition.document, base_dir=base,
                 output_root=output / 'generated',
                 compose_base=composition.compose_base,
-                build_cache=build_cache_path, review=review)
+                build_cache=build_cache_path, review=review,**provider_kwargs)
         except HarnessSetRefused as error:
             refusal_path = _write(output / 'harness-set-refusal.json',
                                   {'schema_version': REFUSAL_SCHEMA,
@@ -1914,7 +2049,40 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
                                    'detail': error.detail})
             record('path_compilation_refusal', refusal_path)
             refuse('path_compilation', error.code, error.pointer, error.detail)
+            note_f6_execution_absent_after_d3_refusal()
             return finish()
+        if f6_execution is not None:
+            if executor != 'compiled-f6-rfuzz':
+                _refuse('f6-execution-requires-f6-executor','/f6_execution')
+            marker_path=_resolve(base,f6_execution)
+            try:
+                marker_bytes=marker_path.read_bytes()
+                marker_document=json.loads(marker_bytes)
+                from myfuzz.scenario.f6_execution_contract import SCHEMA_VERSION,PROGRAM_KEYS
+                if (type(marker_document) is not dict or set(marker_document)!={'schema_version','seed','program'}
+                        or marker_document['schema_version']!=SCHEMA_VERSION
+                        or type(marker_document['program']) is not dict
+                        or set(marker_document['program'])!=PROGRAM_KEYS):
+                    raise ValueError('closed Task1 F6 marker required')
+            except (OSError,ValueError,TypeError) as error:
+                _refuse('f6-execution-marker-invalid','/f6_execution',str(error))
+            verified_build_output_hashes[str(marker_path)]=hashlib.sha256(marker_bytes).hexdigest()
+            record('f6_execution_input',marker_path,{'sha256':verified_build_output_hashes[str(marker_path)]})
+            request_document['f6_execution']=marker_document
+        if f6_deliveries is not None:
+            if executor!='compiled-f6-rfuzz':
+                _refuse('f6-deliveries-requires-f6-executor','/deliveries')
+            delivery_path=_resolve(base,f6_deliveries)
+            try:
+                delivery_bytes=delivery_path.read_bytes()
+                delivery_document=json.loads(delivery_bytes)
+                if type(delivery_document) is not list:
+                    raise ValueError('explicit PathDelivery array required')
+            except (OSError,ValueError,TypeError) as error:
+                _refuse('f6-deliveries-invalid','/deliveries',str(error))
+            verified_build_output_hashes[str(delivery_path)]=hashlib.sha256(delivery_bytes).hexdigest()
+            record('f6_deliveries_input',delivery_path,{'sha256':verified_build_output_hashes[str(delivery_path)]})
+            request_document['deliveries']=delivery_document
         request_path = _write(output / 'path_compile_request.json', request_document)
         record('path_compile_request', request_path, request_document)
         try:
@@ -1928,6 +2096,7 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
                                    'detail': error.detail})
             record('path_compilation_refusal', refusal_path)
             refuse('path_compilation', error.code, error.pointer, error.detail)
+            note_f6_execution_absent_after_d3_refusal()
             return finish()
         compiled_path = _write(output / 'compiled_paths.v1.json', compiled_document)
         record('compiled_paths', compiled_path, compiled_document)
@@ -1943,7 +2112,56 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
                              if family is not None else None)
         directed_entry = (family.directed_session_entry()
                           if family is not None else None)
+        def prepare_compiled_route():
+            nonlocal loaded_f6_artifacts
+            flow = COMPILED_EXECUTORS[executor]['flow']
+            artifacts, inputs = load_compiled_session_inputs(
+                generated_root=output / 'generated', base_dir=base,
+                request=typed_compile_request, compiled=compiled_document, flow=flow)
+            if flow=='F6':
+                loaded_f6_artifacts=artifacts
+                from myfuzz.local_harness.generated_artifact_admission import validated_f6_provider_credentials
+                provider_material=validated_f6_provider_credentials(artifacts,include_files=True)
+                verified_build_output_hashes.update(provider_material['file_pins'])
+            ownership_path = output / 'compiled_ownership.v1.json'
+            if ownership_path.is_file():
+                record('compiled_ownership', ownership_path)
+            from .compiled_execution_projection import assess_compiled_f2_support, assess_compiled_f4_support
+            if flow == 'F6':
+                from myfuzz.integration.compiled_f6_rfuzz_session import assess_compiled_f6_support
+                support = assess_compiled_f6_support(artifacts=artifacts, compiled_inputs=inputs, base_dir=base)
+            elif flow == 'F2':
+                support = assess_compiled_f2_support(artifacts=artifacts, compiled_inputs=inputs, base_dir=base)
+            else:
+                support = assess_compiled_f4_support(artifacts=artifacts, compiled_inputs=inputs, base_dir=base)
+            if flow == 'F2':
+                support = dict(support, flow_id='F2')
+                support.setdefault('unsupported_paths', [
+                    dict(path_id=row['path_id'], flow_id=row['flow_id'],
+                         compiled_status=row['status'], compiled_reason=row['reason'],
+                         reason='compiled-executor-flow-unsupported')
+                    for row in compiled_document['paths'] if row['flow_id'] != flow])
+            projection = dict(support,
+                capability_executable=sum(1 for row in compiled_document['paths'] if row.get('status') == 'executable'),
+                execution_supported=support.get('execution_supported', 0),
+                runtime_admitted=False, executor=executor, family=None, family_fallback=False)
+            projection_path = _write(output / 'execution_projection.v1.json', projection)
+            record('execution_projection', projection_path, projection)
+            summary['stages']['execution_projection'].update(
+                status=OK, execution_status=projection['status'], runtime_admitted=False,
+                capability_executable=projection['capability_executable'],
+                execution_supported=projection['execution_supported'])
+            if projection['execution_supported'] != 1:
+                executor_stage.update(status=REFUSED,
+                    code='compiled-'+flow.lower()+'-target-unsupported', pointer='/compiled_paths')
+                _refuse('compiled-'+flow.lower()+'-target-unsupported', '/compiled_paths',
+                        {'flow': flow, 'support': support,
+                         'requires': 'an admitted compiled '+flow+' target'})
+            return artifacts, inputs
+
         if skip_session:
+            if executor in ('compiled-f2-rfuzz','compiled-f6-rfuzz'):
+                prepare_compiled_route()
             summary['stages']['session'].update(status=NOT_REQUESTED)
             summary['stages']['fresh_verification'].update(status=NOT_REQUESTED)
             if executor is not None:
@@ -1961,7 +2179,7 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
                    '/session', 'no session ran, so there was no compiled prefix '
                                'to replay')
         elif executor is not None:
-            # -- compiled route: one D3 F4 target, one client, no family -----
+            # -- compiled route: one explicit D3 flow, one client, no family --
             run_id = summary['label']
             try:
                 client, cache = _compiled_session_preflight(
@@ -1969,39 +2187,12 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
                     base_dir=base, budget_seconds=budget_seconds,
                     max_tests=max_tests, search_seed=search_seed,
                     max_runs_per_batch=max_runs_per_batch)
-                generated_artifacts, compiled_inputs = load_compiled_session_inputs(
-                    generated_root=output / 'generated', base_dir=base,
-                    request=typed_compile_request, compiled=compiled_document)
-                ownership_path = output / 'compiled_ownership.v1.json'
-                if ownership_path.is_file():
-                    record('compiled_ownership', ownership_path)
-                from .compiled_execution_projection import assess_compiled_f4_support
-                support = assess_compiled_f4_support(
-                    artifacts=generated_artifacts,
-                    compiled_inputs=compiled_inputs, base_dir=base)
-                projection = dict(support,
-                                  capability_executable=sum(
-                                      1 for row in compiled_document['paths']
-                                      if row.get('status') == 'executable'),
-                                  execution_supported=support.get(
-                                      'execution_supported', 0),
-                                  runtime_admitted=False, executor=executor,
-                                  family=None, family_fallback=False)
-                projection_path = _write(
-                    output / 'execution_projection.v1.json', projection)
-                record('execution_projection', projection_path, projection)
-                summary['stages']['execution_projection'].update(
-                    status=OK, execution_status=projection['status'],
-                    runtime_admitted=False,
-                    capability_executable=projection['capability_executable'],
-                    execution_supported=projection['execution_supported'])
-                if projection['execution_supported'] != 1:
-                    _refuse('compiled-f4-target-unsupported', '/compiled_paths',
-                            {'support': support,
-                             'requires': 'the admitted compiled F4 executor '
-                                         'supports this target'})
+                generated_artifacts, compiled_inputs = prepare_compiled_route()
                 with _heavy_worker_lock(base):
-                    outcome = run_compiled_session(
+                    runner = {'compiled-f2-rfuzz':run_compiled_f2_session,
+                              'compiled-f4-rfuzz':run_compiled_session,
+                              'compiled-f6-rfuzz':run_compiled_f6_session}[executor]
+                    outcome = runner(
                         artifacts=generated_artifacts,
                         compiled_inputs=compiled_inputs, base_dir=base,
                         cache_dir=cache, run_id=run_id, output_dir=output,
@@ -2010,11 +2201,23 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
                         search_seed=search_seed,
                         max_runs_per_batch=max_runs_per_batch,
                         rounds_per_case=rounds_per_case)
-                from myfuzz.integration.compiled_rfuzz import verify_saved_compiled_f4_build_outputs
-                verified_build_output_hashes.update(verify_saved_compiled_f4_build_outputs(
+                if executor == 'compiled-f6-rfuzz':
+                    from myfuzz.integration.compiled_f6_saved_outputs import verify_saved_compiled_f6_build_outputs
+                    if outcome.get('expected_error') is True:
+                        from myfuzz.integration.compiled_f6_saved_outputs import verify_saved_compiled_f6_failed_prefix_outputs
+                        verifier=verify_saved_compiled_f6_failed_prefix_outputs
+                    else:
+                        verifier = verify_saved_compiled_f6_build_outputs
+                elif executor == 'compiled-f2-rfuzz':
+                    from myfuzz.integration.compiled_f2_saved_outputs import verify_saved_compiled_f2_build_outputs
+                    verifier = verify_saved_compiled_f2_build_outputs
+                else:
+                    from myfuzz.integration.compiled_rfuzz import verify_saved_compiled_f4_build_outputs
+                    verifier = verify_saved_compiled_f4_build_outputs
+                verified_build_output_hashes.update(verifier(
                     output, outcome=outcome, harness_set=harness_document,
                     manifest=json.loads((output/'session'/'online_session_manifest.json').read_text(encoding='utf-8'))))
-                if outcome['live'].client_returncode != 0:
+                if outcome['live'].client_returncode != 0 and not (executor=='compiled-f6-rfuzz' and outcome.get('expected_error') is True):
                     raise ValueError(
                         'compiled-rfuzz-client-returncode:'
                         f"{outcome['live'].client_returncode}")
@@ -2071,8 +2274,15 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
                                    llive.effective_search_seconds})
                 record('session_report', session_dir / 'report.json', report)
                 verification = outcome['verification']
-                fresh_path = _write(output / 'fresh-verification.json',
-                                    verification)
+                if executor in ('compiled-f2-rfuzz','compiled-f6-rfuzz'):
+                    if executor == 'compiled-f6-rfuzz':
+                        from myfuzz.integration.compiled_f6_saved_outputs import write_pinned_json
+                    else:
+                        from myfuzz.integration.compiled_f2_saved_outputs import write_pinned_json
+                    fresh_path = write_pinned_json(output / 'fresh-verification.json',
+                        verification, verified_build_output_hashes)
+                else:
+                    fresh_path = _write(output / 'fresh-verification.json', verification)
                 record('fresh_verification', fresh_path, verification)
                 summary['stages']['fresh_verification'].update(
                     status=OK, document=_display(base, fresh_path),
@@ -2087,17 +2297,15 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
                 bundle = write_authenticated_bundle(session_dir=session_dir,
                                                     bundle_dir=bundle_dir)
                 record('bundle', bundle_dir / 'bundle-manifest.json', bundle)
-                join_path = output / 'compiled_receipt_join.v1.json'
+                flow = COMPILED_EXECUTORS[executor]['flow']
+                join_key = {'F2':'compiled_f2_receipt_join','F4':'compiled_receipt_join','F6':'compiled_f6_receipt_join'}[flow]
+                join_path = output / (join_key+'.v1.json')
                 if join_path.is_file():
-                    record('compiled_receipt_join', join_path,
-                           {'schema_version': outcome['join']['schema_version']})
-                for name, key in (('compiled_f4_prefix.json',
-                                   'compiled_f4_prefix'),
-                                  ('compiled_f4_replay.json',
-                                   'compiled_f4_replay')):
+                    record(join_key, join_path, {'schema_version': outcome['join']['schema_version']})
+                for name in COMPILED_EXECUTORS[executor]['required_filenames']:
                     artifact = output / name
                     if artifact.is_file():
-                        record(key, artifact)
+                        record(name.removesuffix('.json').removesuffix('.v1'), artifact)
                 executor_stage.update(
                     status=OK, name=executor,
                     path_id=outcome['join']['path_id'],
@@ -2109,6 +2317,19 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
                             'rounds_per_case': rounds_per_case,
                             'receipt_join': outcome['join']['status'],
                             'fresh_replay': verification['matches']})
+                if executor == 'compiled-f6-rfuzz':
+                    executor_stage['detail'].update(scope=outcome.get('scope','full'),
+                        completed=outcome.get('completed',True),useful_search_benefit_claimed=False,
+                        search_diversity=None,search_cost=None,search_rates=None)
+                    if outcome.get('expected_error') is True:
+                        summary['stages']['session'].update(status=REFUSED,scope='failed_prefix_full',completed=False)
+                        executor_stage.update(status=REFUSED,code='compiled-f6-expected-error-prefix')
+                        refuse('session','compiled-f6-expected-error-prefix','/session',
+                            {'scope':'failed_prefix_full','completed':False,'fresh_matches':verification['matches']})
+                if executor == 'compiled-f2-rfuzz':
+                    executor_stage['detail'].update(_f2_run_limits(outcome, report))
+                    executor_stage['detail']['saved_output_hashes'] = dict(verified_build_output_hashes)
+                    executor_stage['detail']['required_filenames'] = list(COMPILED_EXECUTORS[executor]['required_filenames'])
         elif family is None:
             absent('session', 'runtime-family-required', '/runtime',
                    'no runtime family was named, so no session was started; '
@@ -2349,11 +2570,17 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
 
         # -- D4: the graded capability report, from the documents on disk ---
         try:
+            typed_kwargs = {}
+            if executor in ('compiled-f2-rfuzz','compiled-f6-rfuzz') and outcome is not None:
+                typed_kwargs = {
+                    'assertion_results': outcome['assertion_material']['assertions'],
+                    'assertion_evidence': outcome['assertion_material']['assertion_evidence'],
+                }
             report_document = build_capability_report(
                 compiled_path, harness_set=harness_path,
                 session=session_dir, fresh_verification=fresh_path,
                 checker_findings=None, unavailable=None,
-                label=summary['label'], base_dir=base)
+                label=summary['label'], base_dir=base, **typed_kwargs)
         except CapabilityReportRefused as error:
             refusal_path = _write(output / 'capability-report-refusal.json',
                                   {'schema_version': REFUSAL_SCHEMA,
@@ -2363,7 +2590,15 @@ def run_auto_harness_test(*, cpu, ips, compose, output, base_dir='.',
             record('capability_report_refusal', refusal_path)
             refuse('capability_report', error.code, error.pointer, error.detail)
             return finish()
-        report_path = _write(output / 'capability-report.json', report_document)
+        if executor in ('compiled-f2-rfuzz','compiled-f6-rfuzz'):
+            if executor == 'compiled-f6-rfuzz':
+                from myfuzz.integration.compiled_f6_saved_outputs import write_pinned_json
+            else:
+                from myfuzz.integration.compiled_f2_saved_outputs import write_pinned_json
+            report_path = write_pinned_json(output / 'capability-report.json',
+                report_document, verified_build_output_hashes)
+        else:
+            report_path = _write(output / 'capability-report.json', report_document)
         record('capability_report', report_path, report_document)
         summary['stages']['capability_report'].update(
             status=OK, document=_display(base, report_path),

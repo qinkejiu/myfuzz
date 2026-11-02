@@ -1,0 +1,18 @@
+{
+  "schema_version": "dependency_search_scenario.v1",
+  "name": "shared-five-flows",
+  "backend": "descriptor",
+  "descriptor": "configs/scenarios/compiled-f6-ibex-wbdmac-storage/generic_five_slots.json",
+  "flow": "mixed",
+  "records": [
+    "F1:03200000",
+    "F2:04100040",
+    "F3:55000000",
+    "F4:aa000000",
+    "F6:0110c00008000000"
+  ],
+  "goal": {
+    "id": "shared-five-flow-execution",
+    "description": "Online F1/F2/F3/F4/F6 execution in one persistent CPU, RAM, peripheral and DMA session."
+  }
+}

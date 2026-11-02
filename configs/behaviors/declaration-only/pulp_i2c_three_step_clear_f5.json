@@ -1,0 +1,20 @@
+{
+  "schema_version": "inprocess_source_behavior.v1",
+  "description": "Declaration-only F5 behavior for the PULP APB I2C: the same level interrupt and trigger as pulp_i2c_level_f5.json, but the acknowledge is stated as an ordered three-step clear_sequence (acknowledge write, status read, release write). The declaration normalizes; this host performs one clear write and refuses the sequence by name.",
+  "notes": [
+    "apb_i2c.sv:128 states `wire iack = r_cmd[0]` and apb_i2c.sv:189-193 `irq_flag <= (s_done | i2c_al | irq_flag) & ~iack`: CMD[0]=1 is the held acknowledge that clears irq_flag, and a second CMD write releases it so the peripheral is not left masking later transfers. A device whose acknowledge is really two register writes and one register read is stated as what it is here",
+    "the read step is the handler's status observation (STATUS at offset 12), which is not a write and therefore is not something the current handler can perform as part of its clear sequence",
+    "this file is not referenced by a runnable scenario. The executor's own scenario key (irq_clear_sequence, up to two writes) is a different declaration that the host does execute; the behavior schema states the general form and refuses what it cannot run, by name",
+    "no execution is claimed for this file"
+  ],
+  "source_port": "interrupt_o",
+  "source_bit_offset": 0,
+  "trigger_writes": [[4, 192], [16, 90], [20, 16]],
+  "status_offsets": [12],
+  "status_cause_bits": [0],
+  "clear_sequence": [
+    {"kind": "write", "offset": 20, "value": 1},
+    {"kind": "read", "offset": 12},
+    {"kind": "write", "offset": 20, "value": 0}
+  ]
+}

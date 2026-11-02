@@ -78,6 +78,41 @@ class GeneratedCpuSessionTests(unittest.TestCase):
         self.assertEqual(['cpu_7', 'cpu_7'], [key['source_component'] for key in transactions])
         self.assertEqual([1, 2], [key['source_sequence'] for key in transactions])
 
+    def test_instruction_response_outputs_bind_consumed_transaction(self):
+        self.cpu.reset_epoch = 3
+        accepted = self.step(dict(i_req_valid=1, i_req_addr=0x10000, i_req_be=15))
+        self.assertEqual(0, accepted['instr_rsp_consumed'])
+
+        consumed = self.step(dict(i_rsp_ready=1))
+
+        self.assertEqual(1, consumed['instr_rsp_consumed'])
+        self.assertEqual(3, consumed['instr_rsp_source_epoch'])
+        self.assertEqual(1, consumed['instr_rsp_source_sequence'])
+        self.assertEqual(0x13, consumed['instr_rsp_rdata'])
+
+    def test_instruction_response_identity_outputs_are_zero_without_consumption(self):
+        outputs = self.step({})
+
+        self.assertEqual(0, outputs['instr_rsp_consumed'])
+        self.assertEqual(0, outputs['instr_rsp_source_epoch'])
+        self.assertEqual(0, outputs['instr_rsp_source_sequence'])
+        self.assertEqual(0, outputs['instr_rsp_rdata'])
+
+    def test_stalled_instruction_response_keeps_identity_outputs_zero(self):
+        accepted = self.step(dict(i_req_valid=1, i_req_addr=0x10000, i_req_be=15))
+        self.assertEqual(1, accepted['instr_req_accepted'])
+
+        stalled = self.step(dict(i_rsp_ready=0))
+
+        pre = stalled['driver_samples'][0]['pre']['backend']
+        self.assertEqual(1, pre['i_rsp_valid'])
+        self.assertEqual(0, pre['i_rsp_ready'])
+        self.assertEqual(0, stalled['instr_rsp_consumed'])
+        self.assertEqual(0, stalled['instr_rsp_source_epoch'])
+        self.assertEqual(0, stalled['instr_rsp_source_sequence'])
+        self.assertEqual(0, stalled['instr_rsp_rdata'])
+        self.assertIsNotNone(self.cpu._pending_instr)
+
     def test_ram_byte_enables_freeze_readback_and_response_identity(self):
         self.memory.preload(0x20000, b'\x11\x22\x33\x44')
         self.step(dict(d_req_valid=1, d_req_write=1, d_req_addr=0x20000,

@@ -1,0 +1,5575 @@
+{
+  "cases": [
+    {
+      "backend_step": {
+        "component": "processor",
+        "event_id": 3968,
+        "local_tick": 126,
+        "outputs": {
+          "driver_samples": [
+            {
+              "pre": {
+                "backend": {
+                  "d_req_addr": 0,
+                  "d_req_be": 12,
+                  "d_req_ready": 1,
+                  "d_req_valid": 0,
+                  "d_req_wdata": 0,
+                  "d_req_write": 0,
+                  "d_rsp_error": 0,
+                  "d_rsp_rdata": 0,
+                  "d_rsp_ready": 0,
+                  "d_rsp_valid": 0,
+                  "i_req_addr": 0,
+                  "i_req_be": 15,
+                  "i_req_ready": 0,
+                  "i_req_valid": 0,
+                  "i_req_wdata": 0,
+                  "i_req_write": 0,
+                  "i_rsp_error": 0,
+                  "i_rsp_rdata": 19,
+                  "i_rsp_ready": 1,
+                  "i_rsp_valid": 1
+                }
+              }
+            }
+          ],
+          "instr_rsp_consumed": 1,
+          "instr_rsp_rdata": 19,
+          "instr_rsp_source_epoch": 0,
+          "instr_rsp_source_sequence": 60
+        }
+      },
+      "case": {
+        "advances": [
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ]
+        ],
+        "case_id": "shared-case-0",
+        "direction": "IP_TO_CPU",
+        "path_id": "cb5b65e4f78d8df477b1eec8708e30612e72e535ddad5514b66c40a5bb97be64",
+        "source": {
+          "action_id": "shared-case-0:pin",
+          "bit_offset": 8,
+          "component": "peripheral",
+          "kind": "source_event",
+          "port": "gpio_in",
+          "value": 1,
+          "width": 1
+        },
+        "source_role": "fuzz_source",
+        "support_instructions": [
+          {
+            "action_id": "shared-case-0:fixed-support",
+            "address": 69632,
+            "component": "processor",
+            "data_hex": "13000000130000001300000013000000"
+          }
+        ]
+      },
+      "mret": {
+        "actual_post_ref": {
+          "command_scope": {
+            "command_sequence": 122,
+            "component": "processor",
+            "reset_epoch": 0
+          },
+          "local_tick": 122,
+          "phase": "post"
+        },
+        "command_scope": {
+          "command_sequence": 122,
+          "component": "processor",
+          "reset_epoch": 0
+        },
+        "component": "processor",
+        "event_id": 3857,
+        "execution_id": "local-execution",
+        "ext_debug_mode": 0,
+        "ext_debug_req": 0,
+        "ext_expanded_insn": 0,
+        "ext_expanded_insn_last": 0,
+        "ext_expanded_insn_valid": 0,
+        "ext_ic_scr_key_valid": 0,
+        "ext_irq_valid": 0,
+        "ext_mcycle": 123,
+        "ext_mhpmcounters": 0,
+        "ext_mhpmcountersh": 0,
+        "ext_nmi": 0,
+        "ext_nmi_int": 0,
+        "ext_post_mip": 0,
+        "ext_pre_mip": 0,
+        "ext_rf_wr_suppress": 0,
+        "halt": 0,
+        "insn": 807403635,
+        "intr": 0,
+        "irq_serial_observation": {
+          "decision": {
+            "phase": "post",
+            "physical_port": "irq_decision_serial",
+            "status": "observed",
+            "value": 0
+          },
+          "retirement": {
+            "phase": "post",
+            "physical_port": "irq_retirement_serial",
+            "status": "observed",
+            "value": 0
+          },
+          "sampling": "post_rising",
+          "schema_version": "ibex_irq_serial_observation.v1",
+          "width_bits": 64,
+          "zero_semantics": "no_provable_source_lineage"
+        },
+        "ixl": 1,
+        "kind": "cpu_retire",
+        "local_tick": 122,
+        "mem_addr": 4294966526,
+        "mem_is_cap": 0,
+        "mem_rcap": 0,
+        "mem_rdata": 0,
+        "mem_rmask": 15,
+        "mem_wcap": 0,
+        "mem_wdata": 8,
+        "mem_wmask": 0,
+        "mode": 3,
+        "observation": {
+          "physical": {
+            "rvfi_ext_debug_mode": 0,
+            "rvfi_ext_debug_req": 0,
+            "rvfi_ext_expanded_insn": 0,
+            "rvfi_ext_expanded_insn_last": 0,
+            "rvfi_ext_expanded_insn_valid": 0,
+            "rvfi_ext_ic_scr_key_valid": 0,
+            "rvfi_ext_irq_valid": 0,
+            "rvfi_ext_mcycle": 123,
+            "rvfi_ext_mhpmcounters": 0,
+            "rvfi_ext_mhpmcountersh": 0,
+            "rvfi_ext_nmi": 0,
+            "rvfi_ext_nmi_int": 0,
+            "rvfi_ext_post_mip": 0,
+            "rvfi_ext_pre_mip": 0,
+            "rvfi_ext_rf_wr_suppress": 0,
+            "rvfi_halt": 0,
+            "rvfi_insn": 807403635,
+            "rvfi_intr": 0,
+            "rvfi_ixl": 1,
+            "rvfi_mem_addr": 4294966526,
+            "rvfi_mem_is_cap": 0,
+            "rvfi_mem_rcap": 0,
+            "rvfi_mem_rdata": 0,
+            "rvfi_mem_rmask": 15,
+            "rvfi_mem_wcap": 0,
+            "rvfi_mem_wdata": 8,
+            "rvfi_mem_wmask": 0,
+            "rvfi_mode": 3,
+            "rvfi_order": 51,
+            "rvfi_pc_rdata": 66644,
+            "rvfi_pc_wdata": 66648,
+            "rvfi_rd_addr": 0,
+            "rvfi_rd_wcap": 0,
+            "rvfi_rd_wdata": 0,
+            "rvfi_rs1_addr": 0,
+            "rvfi_rs1_rcap": 0,
+            "rvfi_rs1_rdata": 0,
+            "rvfi_rs2_addr": 0,
+            "rvfi_rs2_rcap": 0,
+            "rvfi_rs2_rdata": 0,
+            "rvfi_rs3_addr": 0,
+            "rvfi_rs3_rdata": 0,
+            "rvfi_trap": 0,
+            "rvfi_valid": 1
+          },
+          "sampling_edge": "post_rising"
+        },
+        "observation_contract": {
+          "context_semantics": "planned_binding_refs_never_source_authority",
+          "decision_probes": {
+            "irq_masked_pre": "~u_component.u_dut.u_ibex.u_ibex_core.cs_registers_i.mie_q.irq_external | ((u_component.u_dut.u_ibex.u_ibex_core.cs_registers_i.priv_lvl_q == 2'b11) & ~u_component.u_dut.u_ibex.u_ibex_core.csr_mstatus_mie)",
+            "irq_taken_pre": "u_component.u_dut.u_ibex.u_ibex_core.id_stage_i.controller_i.pc_set_o & u_component.u_dut.u_ibex.u_ibex_core.id_stage_i.controller_i.csr_save_cause_o & (u_component.u_dut.u_ibex.u_ibex_core.id_stage_i.controller_i.exc_pc_mux_o == ibex_pkg::EXC_PC_IRQ) & (u_component.u_dut.u_ibex.u_ibex_core.id_stage_i.controller_i.exc_cause_o == ibex_pkg::ExcCauseIrqExternalM)"
+          },
+          "generic_irq_entry_origin": "unknown",
+          "input_port": "irq_external_i",
+          "input_width": 1,
+          "notification_semantics": "actual_post_extension_even_without_retirement",
+          "notification_widths": {
+            "rvfi_ext_debug_mode": 1,
+            "rvfi_ext_debug_req": 1,
+            "rvfi_ext_irq_valid": 1,
+            "rvfi_ext_nmi": 1,
+            "rvfi_ext_nmi_int": 1,
+            "rvfi_ext_post_mip": 32,
+            "rvfi_ext_pre_mip": 32,
+            "rvfi_intr": 1,
+            "rvfi_valid": 1
+          },
+          "profile_id": "ibex_rvfi_local",
+          "retirement_receipt": {
+            "phase": "post",
+            "rvfi_fields": 44,
+            "schema_version": "cpu_retire.v2",
+            "scope": "complete_parsed_STEP_CPU_receipt",
+            "tick_fields": [
+              "tick_before",
+              "tick_after",
+              "new_ticks",
+              "local_tick_base"
+            ]
+          },
+          "sampling": "pre_post_rising",
+          "schema_version": "ibex_native_irq_receipts.v2",
+          "source": {
+            "revision": "git:34b0705760ef3dfa00e99637432473d2be8f22f3",
+            "root": "third_party/rfuzz/upstream/ibex",
+            "sha256": {
+              "rtl/ibex_controller.sv": "bc3211faf87435b07922e3e61646ef83247ab86c5938d4cd2e108802a4357860",
+              "rtl/ibex_core.sv": "88b8bf3907472f1d413380f62234a7fbf53cb1de392a6660e6ef2d684a2416fd",
+              "rtl/ibex_cs_registers.sv": "898d036f141bdf742c0c772a5493b4bccc9636ffd7c57d3cc37011d233954548",
+              "rtl/ibex_pkg.sv": "d9bfed30b16dd77981f1850a8daf56fec5ce14043789b4a0a4506c833e9a7d5a"
+            }
+          },
+          "startup_reset_receipt": {
+            "initial_csr_origin": "unknown",
+            "schema_version": "cpu_native_startup.v1",
+            "source": "authenticated_startup_ready"
+          },
+          "wire_schema_version": "local_driver.v1"
+        },
+        "order": 51,
+        "pc_rdata": 66644,
+        "pc_wdata": 66648,
+        "phase": "post",
+        "producer_event_id": 3854,
+        "provenance": {
+          "edge_candidates": [],
+          "invalid_origin_references": 0,
+          "observed_case": {
+            "case_id": "shared-case-0",
+            "case_index": 0
+          },
+          "origin_admission_ids": [],
+          "origin_status": "unknown",
+          "proof_scope": "observation_only",
+          "resource": null,
+          "schema_version": "event_source_provenance.v1",
+          "unknown_writer_ids": []
+        },
+        "rd_addr": 0,
+        "rd_wcap": 0,
+        "rd_wdata": 0,
+        "receipt_id": {
+          "execution": "local-driver:processor:1",
+          "sequence": 122
+        },
+        "receipt_ticks": {
+          "local_tick_base": 0,
+          "new_ticks": 1,
+          "tick_after": 122,
+          "tick_before": 121
+        },
+        "reset_epoch": 0,
+        "rs1_addr": 0,
+        "rs1_rcap": 0,
+        "rs1_rdata": 0,
+        "rs2_addr": 0,
+        "rs2_rcap": 0,
+        "rs2_rdata": 0,
+        "rs3_addr": 0,
+        "rs3_rdata": 0,
+        "schema_version": "cpu_retire.v2",
+        "source_component": "processor",
+        "source_epoch": 0,
+        "tick": 122,
+        "trap": 0,
+        "valid": 1
+      },
+      "native_OBI": {
+        "acceptance_event": 3937,
+        "address": 69636,
+        "byte_enable": null,
+        "error": 0,
+        "rdata": 19,
+        "response_event": 3991,
+        "sequence": 60,
+        "value": null,
+        "write": 0
+      },
+      "physical_step": {
+        "component": "processor",
+        "event_id": 3991,
+        "local_tick": 127
+      },
+      "read": {
+        "address": 69636,
+        "byte_offset": 4100,
+        "component": "processor",
+        "data_hex": "13000000",
+        "event_id": 3938,
+        "generation": 0,
+        "kind": "memory_read",
+        "memory_id": "ram",
+        "producer_event_id": 3937,
+        "provenance": {
+          "edge_candidates": [],
+          "invalid_origin_references": 0,
+          "observed_case": {
+            "case_id": "shared-case-0",
+            "case_index": 0
+          },
+          "origin_admission_ids": [
+            "0e31e86d7c2a40cfe1993ae27c0be43fd831814b43d8ce5aef5fb9d370f2dc46"
+          ],
+          "origin_status": "known",
+          "proof_scope": "memory_writer_snapshot",
+          "resource": {
+            "address": 69636,
+            "byte_offset": 4100,
+            "generation": 0,
+            "memory_id": "ram",
+            "transaction": {
+              "channel_id": "instr",
+              "execution_id": "local-execution",
+              "source_component": "processor",
+              "source_epoch": 0,
+              "source_sequence": 60,
+              "testcase_id": "shared-f5"
+            },
+            "versions": [
+              [
+                0,
+                6
+              ],
+              [
+                0,
+                6
+              ],
+              [
+                0,
+                6
+              ],
+              [
+                0,
+                6
+              ]
+            ],
+            "width_bytes": 4,
+            "writer_event_ids": [
+              "shared-case-0:fixed-support",
+              "shared-case-0:fixed-support",
+              "shared-case-0:fixed-support",
+              "shared-case-0:fixed-support"
+            ],
+            "writer_kinds": [
+              "INSTRUCTION_SOURCE",
+              "INSTRUCTION_SOURCE",
+              "INSTRUCTION_SOURCE",
+              "INSTRUCTION_SOURCE"
+            ]
+          },
+          "schema_version": "event_source_provenance.v1",
+          "unknown_writer_ids": []
+        },
+        "transaction": {
+          "channel_id": "instr",
+          "execution_id": "local-execution",
+          "source_component": "processor",
+          "source_epoch": 0,
+          "source_sequence": 60,
+          "testcase_id": "shared-f5"
+        },
+        "value": 19,
+        "versions": [
+          [
+            0,
+            6
+          ],
+          [
+            0,
+            6
+          ],
+          [
+            0,
+            6
+          ],
+          [
+            0,
+            6
+          ]
+        ],
+        "width_bytes": 4,
+        "writer_event_ids": [
+          "shared-case-0:fixed-support",
+          "shared-case-0:fixed-support",
+          "shared-case-0:fixed-support",
+          "shared-case-0:fixed-support"
+        ],
+        "writer_kinds": [
+          "INSTRUCTION_SOURCE",
+          "INSTRUCTION_SOURCE",
+          "INSTRUCTION_SOURCE",
+          "INSTRUCTION_SOURCE"
+        ]
+      },
+      "response": {
+        "acceptance_tick": 125,
+        "address": 69636,
+        "aligned_address": 69636,
+        "be": 15,
+        "component": "processor",
+        "error": 0,
+        "event_id": 3969,
+        "execution_id": "local-execution",
+        "kind": "instr_response",
+        "producer_event_id": 3968,
+        "provenance": {
+          "edge_candidates": [],
+          "invalid_origin_references": 0,
+          "observed_case": {
+            "case_id": "shared-case-0",
+            "case_index": 0
+          },
+          "origin_admission_ids": [],
+          "origin_status": "unknown",
+          "proof_scope": "observation_only",
+          "resource": null,
+          "schema_version": "event_source_provenance.v1",
+          "unknown_writer_ids": []
+        },
+        "raw_address": 69636,
+        "rdata": 19,
+        "reset_epoch": 0,
+        "response_tick": 126,
+        "snapshot": {
+          "byte_offset": 4100,
+          "data_hex": "13000000",
+          "generation": 0,
+          "materialized_offsets": [],
+          "memory_id": "ram",
+          "transaction_id": "TransactionKey(execution_id='local-execution', testcase_id='shared-f5', source_component='processor', source_epoch=0, channel_id='instr', source_sequence=60)",
+          "value": 19,
+          "versions": [
+            [
+              0,
+              6
+            ],
+            [
+              0,
+              6
+            ],
+            [
+              0,
+              6
+            ],
+            [
+              0,
+              6
+            ]
+          ],
+          "writer_event_ids": [
+            "shared-case-0:fixed-support",
+            "shared-case-0:fixed-support",
+            "shared-case-0:fixed-support",
+            "shared-case-0:fixed-support"
+          ],
+          "writer_kinds": [
+            "INSTRUCTION_SOURCE",
+            "INSTRUCTION_SOURCE",
+            "INSTRUCTION_SOURCE",
+            "INSTRUCTION_SOURCE"
+          ]
+        },
+        "source_component": "processor",
+        "source_epoch": 0,
+        "tick": 126,
+        "transaction": {
+          "channel_id": "instr",
+          "execution_id": "local-execution",
+          "source_component": "processor",
+          "source_epoch": 0,
+          "source_sequence": 60,
+          "testcase_id": "shared-f5"
+        },
+        "wdata": 0,
+        "write": 0
+      },
+      "source": {
+        "address": 69632,
+        "component": "processor",
+        "data_hex": "13000000130000001300000013000000",
+        "event_id": 1865,
+        "generation": 0,
+        "kind": "instruction_source",
+        "producer_event_id": 1864,
+        "provenance": {
+          "edge_candidates": [],
+          "invalid_origin_references": 0,
+          "observed_case": {
+            "case_id": "shared-case-0",
+            "case_index": 0
+          },
+          "origin_admission_ids": [
+            "0e31e86d7c2a40cfe1993ae27c0be43fd831814b43d8ce5aef5fb9d370f2dc46"
+          ],
+          "origin_status": "known",
+          "proof_scope": "source_action",
+          "resource": {
+            "address": 69632,
+            "generation": 0
+          },
+          "schema_version": "event_source_provenance.v1",
+          "unknown_writer_ids": []
+        },
+        "source_event_id": "shared-case-0:fixed-support"
+      },
+      "successor": {
+        "actual_post_ref": {
+          "command_scope": {
+            "command_sequence": 128,
+            "component": "processor",
+            "reset_epoch": 0
+          },
+          "local_tick": 128,
+          "phase": "post"
+        },
+        "command_scope": {
+          "command_sequence": 128,
+          "component": "processor",
+          "reset_epoch": 0
+        },
+        "component": "processor",
+        "event_id": 4025,
+        "execution_id": "local-execution",
+        "ext_debug_mode": 0,
+        "ext_debug_req": 0,
+        "ext_expanded_insn": 0,
+        "ext_expanded_insn_last": 0,
+        "ext_expanded_insn_valid": 0,
+        "ext_ic_scr_key_valid": 0,
+        "ext_irq_valid": 0,
+        "ext_mcycle": 129,
+        "ext_mhpmcounters": 0,
+        "ext_mhpmcountersh": 0,
+        "ext_nmi": 0,
+        "ext_nmi_int": 0,
+        "ext_post_mip": 0,
+        "ext_pre_mip": 0,
+        "ext_rf_wr_suppress": 0,
+        "halt": 0,
+        "insn": 19,
+        "intr": 0,
+        "irq_serial_observation": {
+          "decision": {
+            "phase": "post",
+            "physical_port": "irq_decision_serial",
+            "status": "observed",
+            "value": 0
+          },
+          "retirement": {
+            "phase": "post",
+            "physical_port": "irq_retirement_serial",
+            "status": "observed",
+            "value": 0
+          },
+          "sampling": "post_rising",
+          "schema_version": "ibex_irq_serial_observation.v1",
+          "width_bits": 64,
+          "zero_semantics": "no_provable_source_lineage"
+        },
+        "ixl": 1,
+        "kind": "cpu_retire",
+        "local_tick": 128,
+        "mem_addr": 0,
+        "mem_is_cap": 0,
+        "mem_rcap": 0,
+        "mem_rdata": 0,
+        "mem_rmask": 15,
+        "mem_wcap": 0,
+        "mem_wdata": 0,
+        "mem_wmask": 0,
+        "mode": 3,
+        "observation": {
+          "physical": {
+            "rvfi_ext_debug_mode": 0,
+            "rvfi_ext_debug_req": 0,
+            "rvfi_ext_expanded_insn": 0,
+            "rvfi_ext_expanded_insn_last": 0,
+            "rvfi_ext_expanded_insn_valid": 0,
+            "rvfi_ext_ic_scr_key_valid": 0,
+            "rvfi_ext_irq_valid": 0,
+            "rvfi_ext_mcycle": 129,
+            "rvfi_ext_mhpmcounters": 0,
+            "rvfi_ext_mhpmcountersh": 0,
+            "rvfi_ext_nmi": 0,
+            "rvfi_ext_nmi_int": 0,
+            "rvfi_ext_post_mip": 0,
+            "rvfi_ext_pre_mip": 0,
+            "rvfi_ext_rf_wr_suppress": 0,
+            "rvfi_halt": 0,
+            "rvfi_insn": 19,
+            "rvfi_intr": 0,
+            "rvfi_ixl": 1,
+            "rvfi_mem_addr": 0,
+            "rvfi_mem_is_cap": 0,
+            "rvfi_mem_rcap": 0,
+            "rvfi_mem_rdata": 0,
+            "rvfi_mem_rmask": 15,
+            "rvfi_mem_wcap": 0,
+            "rvfi_mem_wdata": 0,
+            "rvfi_mem_wmask": 0,
+            "rvfi_mode": 3,
+            "rvfi_order": 52,
+            "rvfi_pc_rdata": 69636,
+            "rvfi_pc_wdata": 69640,
+            "rvfi_rd_addr": 0,
+            "rvfi_rd_wcap": 0,
+            "rvfi_rd_wdata": 0,
+            "rvfi_rs1_addr": 0,
+            "rvfi_rs1_rcap": 0,
+            "rvfi_rs1_rdata": 0,
+            "rvfi_rs2_addr": 0,
+            "rvfi_rs2_rcap": 0,
+            "rvfi_rs2_rdata": 0,
+            "rvfi_rs3_addr": 0,
+            "rvfi_rs3_rdata": 0,
+            "rvfi_trap": 0,
+            "rvfi_valid": 1
+          },
+          "sampling_edge": "post_rising"
+        },
+        "observation_contract": {
+          "context_semantics": "planned_binding_refs_never_source_authority",
+          "decision_probes": {
+            "irq_masked_pre": "~u_component.u_dut.u_ibex.u_ibex_core.cs_registers_i.mie_q.irq_external | ((u_component.u_dut.u_ibex.u_ibex_core.cs_registers_i.priv_lvl_q == 2'b11) & ~u_component.u_dut.u_ibex.u_ibex_core.csr_mstatus_mie)",
+            "irq_taken_pre": "u_component.u_dut.u_ibex.u_ibex_core.id_stage_i.controller_i.pc_set_o & u_component.u_dut.u_ibex.u_ibex_core.id_stage_i.controller_i.csr_save_cause_o & (u_component.u_dut.u_ibex.u_ibex_core.id_stage_i.controller_i.exc_pc_mux_o == ibex_pkg::EXC_PC_IRQ) & (u_component.u_dut.u_ibex.u_ibex_core.id_stage_i.controller_i.exc_cause_o == ibex_pkg::ExcCauseIrqExternalM)"
+          },
+          "generic_irq_entry_origin": "unknown",
+          "input_port": "irq_external_i",
+          "input_width": 1,
+          "notification_semantics": "actual_post_extension_even_without_retirement",
+          "notification_widths": {
+            "rvfi_ext_debug_mode": 1,
+            "rvfi_ext_debug_req": 1,
+            "rvfi_ext_irq_valid": 1,
+            "rvfi_ext_nmi": 1,
+            "rvfi_ext_nmi_int": 1,
+            "rvfi_ext_post_mip": 32,
+            "rvfi_ext_pre_mip": 32,
+            "rvfi_intr": 1,
+            "rvfi_valid": 1
+          },
+          "profile_id": "ibex_rvfi_local",
+          "retirement_receipt": {
+            "phase": "post",
+            "rvfi_fields": 44,
+            "schema_version": "cpu_retire.v2",
+            "scope": "complete_parsed_STEP_CPU_receipt",
+            "tick_fields": [
+              "tick_before",
+              "tick_after",
+              "new_ticks",
+              "local_tick_base"
+            ]
+          },
+          "sampling": "pre_post_rising",
+          "schema_version": "ibex_native_irq_receipts.v2",
+          "source": {
+            "revision": "git:34b0705760ef3dfa00e99637432473d2be8f22f3",
+            "root": "third_party/rfuzz/upstream/ibex",
+            "sha256": {
+              "rtl/ibex_controller.sv": "bc3211faf87435b07922e3e61646ef83247ab86c5938d4cd2e108802a4357860",
+              "rtl/ibex_core.sv": "88b8bf3907472f1d413380f62234a7fbf53cb1de392a6660e6ef2d684a2416fd",
+              "rtl/ibex_cs_registers.sv": "898d036f141bdf742c0c772a5493b4bccc9636ffd7c57d3cc37011d233954548",
+              "rtl/ibex_pkg.sv": "d9bfed30b16dd77981f1850a8daf56fec5ce14043789b4a0a4506c833e9a7d5a"
+            }
+          },
+          "startup_reset_receipt": {
+            "initial_csr_origin": "unknown",
+            "schema_version": "cpu_native_startup.v1",
+            "source": "authenticated_startup_ready"
+          },
+          "wire_schema_version": "local_driver.v1"
+        },
+        "order": 52,
+        "pc_rdata": 69636,
+        "pc_wdata": 69640,
+        "phase": "post",
+        "producer_event_id": 4022,
+        "provenance": {
+          "edge_candidates": [],
+          "invalid_origin_references": 0,
+          "observed_case": {
+            "case_id": "shared-case-0",
+            "case_index": 0
+          },
+          "origin_admission_ids": [],
+          "origin_status": "unknown",
+          "proof_scope": "observation_only",
+          "resource": null,
+          "schema_version": "event_source_provenance.v1",
+          "unknown_writer_ids": []
+        },
+        "rd_addr": 0,
+        "rd_wcap": 0,
+        "rd_wdata": 0,
+        "receipt_id": {
+          "execution": "local-driver:processor:1",
+          "sequence": 128
+        },
+        "receipt_ticks": {
+          "local_tick_base": 0,
+          "new_ticks": 1,
+          "tick_after": 128,
+          "tick_before": 127
+        },
+        "reset_epoch": 0,
+        "rs1_addr": 0,
+        "rs1_rcap": 0,
+        "rs1_rdata": 0,
+        "rs2_addr": 0,
+        "rs2_rcap": 0,
+        "rs2_rdata": 0,
+        "rs3_addr": 0,
+        "rs3_rdata": 0,
+        "schema_version": "cpu_retire.v2",
+        "source_component": "processor",
+        "source_epoch": 0,
+        "tick": 128,
+        "trap": 0,
+        "valid": 1
+      }
+    },
+    {
+      "backend_step": {
+        "component": "processor",
+        "event_id": 15930,
+        "local_tick": 638,
+        "outputs": {
+          "driver_samples": [
+            {
+              "pre": {
+                "backend": {
+                  "d_req_addr": 0,
+                  "d_req_be": 12,
+                  "d_req_ready": 1,
+                  "d_req_valid": 0,
+                  "d_req_wdata": 0,
+                  "d_req_write": 0,
+                  "d_rsp_error": 0,
+                  "d_rsp_rdata": 0,
+                  "d_rsp_ready": 0,
+                  "d_rsp_valid": 0,
+                  "i_req_addr": 0,
+                  "i_req_be": 15,
+                  "i_req_ready": 0,
+                  "i_req_valid": 0,
+                  "i_req_wdata": 0,
+                  "i_req_write": 0,
+                  "i_rsp_error": 0,
+                  "i_rsp_rdata": 19,
+                  "i_rsp_ready": 1,
+                  "i_rsp_valid": 1
+                }
+              }
+            }
+          ],
+          "instr_rsp_consumed": 1,
+          "instr_rsp_rdata": 19,
+          "instr_rsp_source_epoch": 0,
+          "instr_rsp_source_sequence": 93
+        }
+      },
+      "case": {
+        "advances": [
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ],
+          [
+            "processor",
+            "peripheral"
+          ]
+        ],
+        "case_id": "shared-case-1",
+        "direction": "IP_TO_CPU",
+        "path_id": "cb5b65e4f78d8df477b1eec8708e30612e72e535ddad5514b66c40a5bb97be64",
+        "source": {
+          "action_id": "shared-case-1:pin",
+          "bit_offset": 8,
+          "component": "peripheral",
+          "kind": "source_event",
+          "port": "gpio_in",
+          "value": 0,
+          "width": 1
+        },
+        "source_role": "fuzz_source",
+        "support_instructions": [
+          {
+            "action_id": "shared-case-1:fixed-support",
+            "address": 69648,
+            "component": "processor",
+            "data_hex": "13000000130000001300000013000000"
+          }
+        ]
+      },
+      "mret": {
+        "actual_post_ref": {
+          "command_scope": {
+            "command_sequence": 634,
+            "component": "processor",
+            "reset_epoch": 0
+          },
+          "local_tick": 634,
+          "phase": "post"
+        },
+        "command_scope": {
+          "command_sequence": 634,
+          "component": "processor",
+          "reset_epoch": 0
+        },
+        "component": "processor",
+        "event_id": 15823,
+        "execution_id": "local-execution",
+        "ext_debug_mode": 0,
+        "ext_debug_req": 0,
+        "ext_expanded_insn": 0,
+        "ext_expanded_insn_last": 0,
+        "ext_expanded_insn_valid": 0,
+        "ext_ic_scr_key_valid": 0,
+        "ext_irq_valid": 0,
+        "ext_mcycle": 635,
+        "ext_mhpmcounters": 0,
+        "ext_mhpmcountersh": 0,
+        "ext_nmi": 0,
+        "ext_nmi_int": 0,
+        "ext_post_mip": 0,
+        "ext_pre_mip": 0,
+        "ext_rf_wr_suppress": 0,
+        "halt": 0,
+        "insn": 807403635,
+        "intr": 0,
+        "irq_serial_observation": {
+          "decision": {
+            "phase": "post",
+            "physical_port": "irq_decision_serial",
+            "status": "observed",
+            "value": 0
+          },
+          "retirement": {
+            "phase": "post",
+            "physical_port": "irq_retirement_serial",
+            "status": "observed",
+            "value": 0
+          },
+          "sampling": "post_rising",
+          "schema_version": "ibex_irq_serial_observation.v1",
+          "width_bits": 64,
+          "zero_semantics": "no_provable_source_lineage"
+        },
+        "ixl": 1,
+        "kind": "cpu_retire",
+        "local_tick": 634,
+        "mem_addr": 4294966526,
+        "mem_is_cap": 0,
+        "mem_rcap": 0,
+        "mem_rdata": 0,
+        "mem_rmask": 15,
+        "mem_wcap": 0,
+        "mem_wdata": 8,
+        "mem_wmask": 0,
+        "mode": 3,
+        "observation": {
+          "physical": {
+            "rvfi_ext_debug_mode": 0,
+            "rvfi_ext_debug_req": 0,
+            "rvfi_ext_expanded_insn": 0,
+            "rvfi_ext_expanded_insn_last": 0,
+            "rvfi_ext_expanded_insn_valid": 0,
+            "rvfi_ext_ic_scr_key_valid": 0,
+            "rvfi_ext_irq_valid": 0,
+            "rvfi_ext_mcycle": 635,
+            "rvfi_ext_mhpmcounters": 0,
+            "rvfi_ext_mhpmcountersh": 0,
+            "rvfi_ext_nmi": 0,
+            "rvfi_ext_nmi_int": 0,
+            "rvfi_ext_post_mip": 0,
+            "rvfi_ext_pre_mip": 0,
+            "rvfi_ext_rf_wr_suppress": 0,
+            "rvfi_halt": 0,
+            "rvfi_insn": 807403635,
+            "rvfi_intr": 0,
+            "rvfi_ixl": 1,
+            "rvfi_mem_addr": 4294966526,
+            "rvfi_mem_is_cap": 0,
+            "rvfi_mem_rcap": 0,
+            "rvfi_mem_rdata": 0,
+            "rvfi_mem_rmask": 15,
+            "rvfi_mem_wcap": 0,
+            "rvfi_mem_wdata": 8,
+            "rvfi_mem_wmask": 0,
+            "rvfi_mode": 3,
+            "rvfi_order": 78,
+            "rvfi_pc_rdata": 66644,
+            "rvfi_pc_wdata": 66648,
+            "rvfi_rd_addr": 0,
+            "rvfi_rd_wcap": 0,
+            "rvfi_rd_wdata": 0,
+            "rvfi_rs1_addr": 0,
+            "rvfi_rs1_rcap": 0,
+            "rvfi_rs1_rdata": 0,
+            "rvfi_rs2_addr": 0,
+            "rvfi_rs2_rcap": 0,
+            "rvfi_rs2_rdata": 0,
+            "rvfi_rs3_addr": 0,
+            "rvfi_rs3_rdata": 0,
+            "rvfi_trap": 0,
+            "rvfi_valid": 1
+          },
+          "sampling_edge": "post_rising"
+        },
+        "observation_contract": {
+          "context_semantics": "planned_binding_refs_never_source_authority",
+          "decision_probes": {
+            "irq_masked_pre": "~u_component.u_dut.u_ibex.u_ibex_core.cs_registers_i.mie_q.irq_external | ((u_component.u_dut.u_ibex.u_ibex_core.cs_registers_i.priv_lvl_q == 2'b11) & ~u_component.u_dut.u_ibex.u_ibex_core.csr_mstatus_mie)",
+            "irq_taken_pre": "u_component.u_dut.u_ibex.u_ibex_core.id_stage_i.controller_i.pc_set_o & u_component.u_dut.u_ibex.u_ibex_core.id_stage_i.controller_i.csr_save_cause_o & (u_component.u_dut.u_ibex.u_ibex_core.id_stage_i.controller_i.exc_pc_mux_o == ibex_pkg::EXC_PC_IRQ) & (u_component.u_dut.u_ibex.u_ibex_core.id_stage_i.controller_i.exc_cause_o == ibex_pkg::ExcCauseIrqExternalM)"
+          },
+          "generic_irq_entry_origin": "unknown",
+          "input_port": "irq_external_i",
+          "input_width": 1,
+          "notification_semantics": "actual_post_extension_even_without_retirement",
+          "notification_widths": {
+            "rvfi_ext_debug_mode": 1,
+            "rvfi_ext_debug_req": 1,
+            "rvfi_ext_irq_valid": 1,
+            "rvfi_ext_nmi": 1,
+            "rvfi_ext_nmi_int": 1,
+            "rvfi_ext_post_mip": 32,
+            "rvfi_ext_pre_mip": 32,
+            "rvfi_intr": 1,
+            "rvfi_valid": 1
+          },
+          "profile_id": "ibex_rvfi_local",
+          "retirement_receipt": {
+            "phase": "post",
+            "rvfi_fields": 44,
+            "schema_version": "cpu_retire.v2",
+            "scope": "complete_parsed_STEP_CPU_receipt",
+            "tick_fields": [
+              "tick_before",
+              "tick_after",
+              "new_ticks",
+              "local_tick_base"
+            ]
+          },
+          "sampling": "pre_post_rising",
+          "schema_version": "ibex_native_irq_receipts.v2",
+          "source": {
+            "revision": "git:34b0705760ef3dfa00e99637432473d2be8f22f3",
+            "root": "third_party/rfuzz/upstream/ibex",
+            "sha256": {
+              "rtl/ibex_controller.sv": "bc3211faf87435b07922e3e61646ef83247ab86c5938d4cd2e108802a4357860",
+              "rtl/ibex_core.sv": "88b8bf3907472f1d413380f62234a7fbf53cb1de392a6660e6ef2d684a2416fd",
+              "rtl/ibex_cs_registers.sv": "898d036f141bdf742c0c772a5493b4bccc9636ffd7c57d3cc37011d233954548",
+              "rtl/ibex_pkg.sv": "d9bfed30b16dd77981f1850a8daf56fec5ce14043789b4a0a4506c833e9a7d5a"
+            }
+          },
+          "startup_reset_receipt": {
+            "initial_csr_origin": "unknown",
+            "schema_version": "cpu_native_startup.v1",
+            "source": "authenticated_startup_ready"
+          },
+          "wire_schema_version": "local_driver.v1"
+        },
+        "order": 78,
+        "pc_rdata": 66644,
+        "pc_wdata": 66648,
+        "phase": "post",
+        "producer_event_id": 15820,
+        "provenance": {
+          "edge_candidates": [],
+          "invalid_origin_references": 0,
+          "observed_case": {
+            "case_id": "shared-case-1",
+            "case_index": 1
+          },
+          "origin_admission_ids": [],
+          "origin_status": "unknown",
+          "proof_scope": "observation_only",
+          "resource": null,
+          "schema_version": "event_source_provenance.v1",
+          "unknown_writer_ids": []
+        },
+        "rd_addr": 0,
+        "rd_wcap": 0,
+        "rd_wdata": 0,
+        "receipt_id": {
+          "execution": "local-driver:processor:1",
+          "sequence": 634
+        },
+        "receipt_ticks": {
+          "local_tick_base": 0,
+          "new_ticks": 1,
+          "tick_after": 634,
+          "tick_before": 633
+        },
+        "reset_epoch": 0,
+        "rs1_addr": 0,
+        "rs1_rcap": 0,
+        "rs1_rdata": 0,
+        "rs2_addr": 0,
+        "rs2_rcap": 0,
+        "rs2_rdata": 0,
+        "rs3_addr": 0,
+        "rs3_rdata": 0,
+        "schema_version": "cpu_retire.v2",
+        "source_component": "processor",
+        "source_epoch": 0,
+        "tick": 634,
+        "trap": 0,
+        "valid": 1
+      },
+      "native_OBI": {
+        "acceptance_event": 15899,
+        "address": 69652,
+        "byte_enable": null,
+        "error": 0,
+        "rdata": 19,
+        "response_event": 15953,
+        "sequence": 93,
+        "value": null,
+        "write": 0
+      },
+      "physical_step": {
+        "component": "processor",
+        "event_id": 15953,
+        "local_tick": 639
+      },
+      "read": {
+        "address": 69652,
+        "byte_offset": 4116,
+        "component": "processor",
+        "data_hex": "13000000",
+        "event_id": 15900,
+        "generation": 0,
+        "kind": "memory_read",
+        "memory_id": "ram",
+        "producer_event_id": 15899,
+        "provenance": {
+          "edge_candidates": [],
+          "invalid_origin_references": 0,
+          "observed_case": {
+            "case_id": "shared-case-1",
+            "case_index": 1
+          },
+          "origin_admission_ids": [
+            "fa00a274e08adafe21c9e04e6b79f264c2d9af7d9631d7ad10601d843420e499"
+          ],
+          "origin_status": "known",
+          "proof_scope": "memory_writer_snapshot",
+          "resource": {
+            "address": 69652,
+            "byte_offset": 4116,
+            "generation": 0,
+            "memory_id": "ram",
+            "transaction": {
+              "channel_id": "instr",
+              "execution_id": "local-execution",
+              "source_component": "processor",
+              "source_epoch": 0,
+              "source_sequence": 93,
+              "testcase_id": "shared-f5"
+            },
+            "versions": [
+              [
+                0,
+                18
+              ],
+              [
+                0,
+                18
+              ],
+              [
+                0,
+                18
+              ],
+              [
+                0,
+                18
+              ]
+            ],
+            "width_bytes": 4,
+            "writer_event_ids": [
+              "shared-case-1:fixed-support",
+              "shared-case-1:fixed-support",
+              "shared-case-1:fixed-support",
+              "shared-case-1:fixed-support"
+            ],
+            "writer_kinds": [
+              "INSTRUCTION_SOURCE",
+              "INSTRUCTION_SOURCE",
+              "INSTRUCTION_SOURCE",
+              "INSTRUCTION_SOURCE"
+            ]
+          },
+          "schema_version": "event_source_provenance.v1",
+          "unknown_writer_ids": []
+        },
+        "transaction": {
+          "channel_id": "instr",
+          "execution_id": "local-execution",
+          "source_component": "processor",
+          "source_epoch": 0,
+          "source_sequence": 93,
+          "testcase_id": "shared-f5"
+        },
+        "value": 19,
+        "versions": [
+          [
+            0,
+            18
+          ],
+          [
+            0,
+            18
+          ],
+          [
+            0,
+            18
+          ],
+          [
+            0,
+            18
+          ]
+        ],
+        "width_bytes": 4,
+        "writer_event_ids": [
+          "shared-case-1:fixed-support",
+          "shared-case-1:fixed-support",
+          "shared-case-1:fixed-support",
+          "shared-case-1:fixed-support"
+        ],
+        "writer_kinds": [
+          "INSTRUCTION_SOURCE",
+          "INSTRUCTION_SOURCE",
+          "INSTRUCTION_SOURCE",
+          "INSTRUCTION_SOURCE"
+        ]
+      },
+      "response": {
+        "acceptance_tick": 637,
+        "address": 69652,
+        "aligned_address": 69652,
+        "be": 15,
+        "component": "processor",
+        "error": 0,
+        "event_id": 15931,
+        "execution_id": "local-execution",
+        "kind": "instr_response",
+        "producer_event_id": 15930,
+        "provenance": {
+          "edge_candidates": [],
+          "invalid_origin_references": 0,
+          "observed_case": {
+            "case_id": "shared-case-1",
+            "case_index": 1
+          },
+          "origin_admission_ids": [],
+          "origin_status": "unknown",
+          "proof_scope": "observation_only",
+          "resource": null,
+          "schema_version": "event_source_provenance.v1",
+          "unknown_writer_ids": []
+        },
+        "raw_address": 69652,
+        "rdata": 19,
+        "reset_epoch": 0,
+        "response_tick": 638,
+        "snapshot": {
+          "byte_offset": 4116,
+          "data_hex": "13000000",
+          "generation": 0,
+          "materialized_offsets": [],
+          "memory_id": "ram",
+          "transaction_id": "TransactionKey(execution_id='local-execution', testcase_id='shared-f5', source_component='processor', source_epoch=0, channel_id='instr', source_sequence=93)",
+          "value": 19,
+          "versions": [
+            [
+              0,
+              18
+            ],
+            [
+              0,
+              18
+            ],
+            [
+              0,
+              18
+            ],
+            [
+              0,
+              18
+            ]
+          ],
+          "writer_event_ids": [
+            "shared-case-1:fixed-support",
+            "shared-case-1:fixed-support",
+            "shared-case-1:fixed-support",
+            "shared-case-1:fixed-support"
+          ],
+          "writer_kinds": [
+            "INSTRUCTION_SOURCE",
+            "INSTRUCTION_SOURCE",
+            "INSTRUCTION_SOURCE",
+            "INSTRUCTION_SOURCE"
+          ]
+        },
+        "source_component": "processor",
+        "source_epoch": 0,
+        "tick": 638,
+        "transaction": {
+          "channel_id": "instr",
+          "execution_id": "local-execution",
+          "source_component": "processor",
+          "source_epoch": 0,
+          "source_sequence": 93,
+          "testcase_id": "shared-f5"
+        },
+        "wdata": 0,
+        "write": 0
+      },
+      "source": {
+        "address": 69648,
+        "component": "processor",
+        "data_hex": "13000000130000001300000013000000",
+        "event_id": 13811,
+        "generation": 0,
+        "kind": "instruction_source",
+        "producer_event_id": 13810,
+        "provenance": {
+          "edge_candidates": [],
+          "invalid_origin_references": 0,
+          "observed_case": {
+            "case_id": "shared-case-1",
+            "case_index": 1
+          },
+          "origin_admission_ids": [
+            "fa00a274e08adafe21c9e04e6b79f264c2d9af7d9631d7ad10601d843420e499"
+          ],
+          "origin_status": "known",
+          "proof_scope": "source_action",
+          "resource": {
+            "address": 69648,
+            "generation": 0
+          },
+          "schema_version": "event_source_provenance.v1",
+          "unknown_writer_ids": []
+        },
+        "source_event_id": "shared-case-1:fixed-support"
+      },
+      "successor": {
+        "actual_post_ref": {
+          "command_scope": {
+            "command_sequence": 640,
+            "component": "processor",
+            "reset_epoch": 0
+          },
+          "local_tick": 640,
+          "phase": "post"
+        },
+        "command_scope": {
+          "command_sequence": 640,
+          "component": "processor",
+          "reset_epoch": 0
+        },
+        "component": "processor",
+        "event_id": 15987,
+        "execution_id": "local-execution",
+        "ext_debug_mode": 0,
+        "ext_debug_req": 0,
+        "ext_expanded_insn": 0,
+        "ext_expanded_insn_last": 0,
+        "ext_expanded_insn_valid": 0,
+        "ext_ic_scr_key_valid": 0,
+        "ext_irq_valid": 0,
+        "ext_mcycle": 641,
+        "ext_mhpmcounters": 0,
+        "ext_mhpmcountersh": 0,
+        "ext_nmi": 0,
+        "ext_nmi_int": 0,
+        "ext_post_mip": 0,
+        "ext_pre_mip": 0,
+        "ext_rf_wr_suppress": 0,
+        "halt": 0,
+        "insn": 19,
+        "intr": 0,
+        "irq_serial_observation": {
+          "decision": {
+            "phase": "post",
+            "physical_port": "irq_decision_serial",
+            "status": "observed",
+            "value": 0
+          },
+          "retirement": {
+            "phase": "post",
+            "physical_port": "irq_retirement_serial",
+            "status": "observed",
+            "value": 0
+          },
+          "sampling": "post_rising",
+          "schema_version": "ibex_irq_serial_observation.v1",
+          "width_bits": 64,
+          "zero_semantics": "no_provable_source_lineage"
+        },
+        "ixl": 1,
+        "kind": "cpu_retire",
+        "local_tick": 640,
+        "mem_addr": 0,
+        "mem_is_cap": 0,
+        "mem_rcap": 0,
+        "mem_rdata": 0,
+        "mem_rmask": 15,
+        "mem_wcap": 0,
+        "mem_wdata": 0,
+        "mem_wmask": 0,
+        "mode": 3,
+        "observation": {
+          "physical": {
+            "rvfi_ext_debug_mode": 0,
+            "rvfi_ext_debug_req": 0,
+            "rvfi_ext_expanded_insn": 0,
+            "rvfi_ext_expanded_insn_last": 0,
+            "rvfi_ext_expanded_insn_valid": 0,
+            "rvfi_ext_ic_scr_key_valid": 0,
+            "rvfi_ext_irq_valid": 0,
+            "rvfi_ext_mcycle": 641,
+            "rvfi_ext_mhpmcounters": 0,
+            "rvfi_ext_mhpmcountersh": 0,
+            "rvfi_ext_nmi": 0,
+            "rvfi_ext_nmi_int": 0,
+            "rvfi_ext_post_mip": 0,
+            "rvfi_ext_pre_mip": 0,
+            "rvfi_ext_rf_wr_suppress": 0,
+            "rvfi_halt": 0,
+            "rvfi_insn": 19,
+            "rvfi_intr": 0,
+            "rvfi_ixl": 1,
+            "rvfi_mem_addr": 0,
+            "rvfi_mem_is_cap": 0,
+            "rvfi_mem_rcap": 0,
+            "rvfi_mem_rdata": 0,
+            "rvfi_mem_rmask": 15,
+            "rvfi_mem_wcap": 0,
+            "rvfi_mem_wdata": 0,
+            "rvfi_mem_wmask": 0,
+            "rvfi_mode": 3,
+            "rvfi_order": 79,
+            "rvfi_pc_rdata": 69652,
+            "rvfi_pc_wdata": 69656,
+            "rvfi_rd_addr": 0,
+            "rvfi_rd_wcap": 0,
+            "rvfi_rd_wdata": 0,
+            "rvfi_rs1_addr": 0,
+            "rvfi_rs1_rcap": 0,
+            "rvfi_rs1_rdata": 0,
+            "rvfi_rs2_addr": 0,
+            "rvfi_rs2_rcap": 0,
+            "rvfi_rs2_rdata": 0,
+            "rvfi_rs3_addr": 0,
+            "rvfi_rs3_rdata": 0,
+            "rvfi_trap": 0,
+            "rvfi_valid": 1
+          },
+          "sampling_edge": "post_rising"
+        },
+        "observation_contract": {
+          "context_semantics": "planned_binding_refs_never_source_authority",
+          "decision_probes": {
+            "irq_masked_pre": "~u_component.u_dut.u_ibex.u_ibex_core.cs_registers_i.mie_q.irq_external | ((u_component.u_dut.u_ibex.u_ibex_core.cs_registers_i.priv_lvl_q == 2'b11) & ~u_component.u_dut.u_ibex.u_ibex_core.csr_mstatus_mie)",
+            "irq_taken_pre": "u_component.u_dut.u_ibex.u_ibex_core.id_stage_i.controller_i.pc_set_o & u_component.u_dut.u_ibex.u_ibex_core.id_stage_i.controller_i.csr_save_cause_o & (u_component.u_dut.u_ibex.u_ibex_core.id_stage_i.controller_i.exc_pc_mux_o == ibex_pkg::EXC_PC_IRQ) & (u_component.u_dut.u_ibex.u_ibex_core.id_stage_i.controller_i.exc_cause_o == ibex_pkg::ExcCauseIrqExternalM)"
+          },
+          "generic_irq_entry_origin": "unknown",
+          "input_port": "irq_external_i",
+          "input_width": 1,
+          "notification_semantics": "actual_post_extension_even_without_retirement",
+          "notification_widths": {
+            "rvfi_ext_debug_mode": 1,
+            "rvfi_ext_debug_req": 1,
+            "rvfi_ext_irq_valid": 1,
+            "rvfi_ext_nmi": 1,
+            "rvfi_ext_nmi_int": 1,
+            "rvfi_ext_post_mip": 32,
+            "rvfi_ext_pre_mip": 32,
+            "rvfi_intr": 1,
+            "rvfi_valid": 1
+          },
+          "profile_id": "ibex_rvfi_local",
+          "retirement_receipt": {
+            "phase": "post",
+            "rvfi_fields": 44,
+            "schema_version": "cpu_retire.v2",
+            "scope": "complete_parsed_STEP_CPU_receipt",
+            "tick_fields": [
+              "tick_before",
+              "tick_after",
+              "new_ticks",
+              "local_tick_base"
+            ]
+          },
+          "sampling": "pre_post_rising",
+          "schema_version": "ibex_native_irq_receipts.v2",
+          "source": {
+            "revision": "git:34b0705760ef3dfa00e99637432473d2be8f22f3",
+            "root": "third_party/rfuzz/upstream/ibex",
+            "sha256": {
+              "rtl/ibex_controller.sv": "bc3211faf87435b07922e3e61646ef83247ab86c5938d4cd2e108802a4357860",
+              "rtl/ibex_core.sv": "88b8bf3907472f1d413380f62234a7fbf53cb1de392a6660e6ef2d684a2416fd",
+              "rtl/ibex_cs_registers.sv": "898d036f141bdf742c0c772a5493b4bccc9636ffd7c57d3cc37011d233954548",
+              "rtl/ibex_pkg.sv": "d9bfed30b16dd77981f1850a8daf56fec5ce14043789b4a0a4506c833e9a7d5a"
+            }
+          },
+          "startup_reset_receipt": {
+            "initial_csr_origin": "unknown",
+            "schema_version": "cpu_native_startup.v1",
+            "source": "authenticated_startup_ready"
+          },
+          "wire_schema_version": "local_driver.v1"
+        },
+        "order": 79,
+        "pc_rdata": 69652,
+        "pc_wdata": 69656,
+        "phase": "post",
+        "producer_event_id": 15984,
+        "provenance": {
+          "edge_candidates": [],
+          "invalid_origin_references": 0,
+          "observed_case": {
+            "case_id": "shared-case-1",
+            "case_index": 1
+          },
+          "origin_admission_ids": [],
+          "origin_status": "unknown",
+          "proof_scope": "observation_only",
+          "resource": null,
+          "schema_version": "event_source_provenance.v1",
+          "unknown_writer_ids": []
+        },
+        "rd_addr": 0,
+        "rd_wcap": 0,
+        "rd_wdata": 0,
+        "receipt_id": {
+          "execution": "local-driver:processor:1",
+          "sequence": 640
+        },
+        "receipt_ticks": {
+          "local_tick_base": 0,
+          "new_ticks": 1,
+          "tick_after": 640,
+          "tick_before": 639
+        },
+        "reset_epoch": 0,
+        "rs1_addr": 0,
+        "rs1_rcap": 0,
+        "rs1_rdata": 0,
+        "rs2_addr": 0,
+        "rs2_rcap": 0,
+        "rs2_rdata": 0,
+        "rs3_addr": 0,
+        "rs3_rdata": 0,
+        "schema_version": "cpu_retire.v2",
+        "source_component": "processor",
+        "source_epoch": 0,
+        "tick": 640,
+        "trap": 0,
+        "valid": 1
+      }
+    }
+  ],
+  "schema": "offline_native_successor_regression.v1",
+  "source_trace": "research/input-strategy-audit-20261027/runs/shared-full-20261028/gpio-irq-v2/trace.json.gz",
+  "trace_sha256": "b7fb6e89ec6f207284cb6f22b8ce632bdaee542d8be6969f1133485c24fb2f90"
+}

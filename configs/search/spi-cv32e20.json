@@ -1,0 +1,13 @@
+{
+  "schema_version": "dependency_search_scenario.v1",
+  "name": "spi-cv32e20",
+  "backend": "storage",
+  "descriptor": "configs/scenarios/compiled-f4-obi-apb-spi-cv32e20/generic_scenario.json",
+  "flow": "mixed",
+  "records": null,
+  "goal": {
+    "id": "verified-completion",
+    "description": "Configured objective; live reward requires an admitted state provider."
+  },
+  "rounds": 32
+}

@@ -95,3 +95,49 @@ def test_replay_reset_failure_finishes_all_components():
     with pytest.raises(RuntimeError,match='replay reset failed'):
         replay_online_session(plan,failing_factory,trace)
     assert ended==['cpu']
+
+
+@pytest.mark.parametrize('fail_tick', [1, 2], ids=['warmup', 'submit'])
+def test_replay_unexpected_step_failure_closes_fresh_runner(fail_tick):
+    session = ScenarioSession(_template(), factory())
+    session.begin()
+    session.advance_initial(('cpu',))
+    session.submit_case(case(0))
+    trace, plan = session.finish(), session.encode_plan()
+    ended = []
+    def failing_factory():
+        runner = factory()
+        local = runner.sessions['cpu']
+        step = local.step_local
+        count = 0
+        def fail(inputs):
+            nonlocal count
+            count += 1
+            if count == fail_tick:
+                raise RuntimeError('fresh replay step failed')
+            return step(inputs)
+        local.step_local = fail
+        local.end_case = lambda: ended.append('cpu')
+        return runner
+    with pytest.raises(RuntimeError, match='fresh replay step failed'):
+        replay_online_session(plan, failing_factory, trace)
+    assert ended == ['cpu']
+
+
+def test_replay_preserves_primary_error_when_cleanup_also_fails():
+    session = ScenarioSession(_template(), factory())
+    session.begin()
+    session.advance_initial(('cpu',))
+    trace, plan = session.finish(), session.encode_plan()
+    def failing_factory():
+        runner = factory()
+        def fail_step(inputs):
+            raise RuntimeError('primary replay failure')
+        def fail_cleanup():
+            raise RuntimeError('cleanup failure')
+        runner.sessions['cpu'].step_local = fail_step
+        runner.finalize = fail_cleanup
+        return runner
+    with pytest.raises(RuntimeError, match='primary replay failure') as exc:
+        replay_online_session(plan, failing_factory, trace)
+    assert any('cleanup failure' in note for note in exc.value.__notes__)

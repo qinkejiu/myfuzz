@@ -1,0 +1,17 @@
+{
+  "schema_version": "inprocess_dma_behavior.v1",
+  "description": "The pinned wbdmac status bits plus a declaration of a two-beat master burst, which the pinned RTL does not have.  The planner must refuse it by name; it is never narrowed.",
+  "notes": [
+    "wbdmac's control readback concatenates (dma_state != DMA_IDLE) and cfg_err as bits 31 and 30: third_party/soc-zipcpu/rtl/peripherals/wbdmac.v:600-609 (o_swb_data case 2'b00).",
+    "The RTL's own readback is the source: bit 31 is 'the DMA is not idle' (not a write-protect bit, which is the same word's documentation at wbdmac.v:34-37 but is not what the register drives), and bit 30 is the latched native bus-error/abort flag (wbdmac.v:458-470).",
+    "No block_words key is declared here on purpose: the block length is the scenario's dma_block_words, so the same file serves the four-word and the eight-word transfer and this loader's historical 1..4 block bound cannot silently replace the plan's block.",
+    "The status kind is 'status': the word carries flags and a read counter, not a byte/word count of completed work.",
+    "o_mwb_cyc/o_mwb_stb are one word per cycle (wbdmac.v:551-561) and the length register is the total word count: there is no burst-length master signal to carry two beats in one request."
+  ],
+  "busy_bit": 31,
+  "err_bit": 30,
+  "status_kind": "status",
+  "capabilities": {
+    "burst_beats": 2
+  }
+}

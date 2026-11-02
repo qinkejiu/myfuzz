@@ -1,0 +1,20 @@
+{
+  "schema_version": "inprocess_dma_behavior.v1",
+  "description": "ZipDMA F6 behavior for a four-word RAM block that also declares the device's capability facts: one channel, a four-byte beat, one outstanding request and no master burst.",
+  "notes": [
+    "block_words 4 is the four-word block the F6 record carries; busy_bit 31 and err_bit 30 are the ZipDMA CONTROL_STATUS bits (third_party/soc-zipcpu/rtl/zipdma/zipdma_ctrl.v:116-117)",
+    "capabilities states the four declarable limits the pinned ZipDMA really has: channels 1 (one control/status register block and one master port), beat_bytes 4 (BUS_WIDTH=32 in configs/peripherals/shared_profile_dma/component_profile.json), max_outstanding 1 (mwb request/response pair) and burst_beats 1 (the master has no burst; each accepted request is one beat). The planner cross-checks every one of them against its pinned device facts and refuses any declared value above them by name",
+    "this file declares capabilities, not execution: the run still executes the single-channel four-word transfer its plan states, and no multi-channel, wide-beat or multiple-outstanding transfer is claimed anywhere",
+    "the same pinned ZipDMA RTL backs configs/peripherals/zipdma_smoke, zipdma_declared_example and shared_profile_dma; this behavior file is the capability declaration beside the selected profile, not a new device"
+  ],
+  "block_words": 4,
+  "busy_bit": 31,
+  "err_bit": 30,
+  "status_kind": "status",
+  "capabilities": {
+    "channels": 1,
+    "beat_bytes": 4,
+    "max_outstanding": 1,
+    "burst_beats": 1
+  }
+}

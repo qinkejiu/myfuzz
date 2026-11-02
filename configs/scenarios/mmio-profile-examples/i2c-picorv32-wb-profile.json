@@ -1,0 +1,12 @@
+{
+  "name": "i2c-picorv32-wb-profile",
+  "cpu_profile": "configs/cpus/picorv32_wb/component_profile.json",
+  "cpu_timing": {"reset_assert_ticks": 2, "reset_release_ticks": 3, "max_wait_cycles": 16},
+  "ip_profile": "configs/peripherals/profile_only_idle_i2c/component_profile.json",
+  "ip_timing": {"reset_assert_ticks": 2, "reset_release_ticks": 3, "max_wait_cycles": 16},
+  "ip_capability": "configs/peripherals/profile_only_idle_i2c/test_capability.json",
+  "mmio_base": 1073745920,
+  "ram": {"base": 0, "size": 196608},
+  "write_values": [85, 170],
+  "memory_flows": true
+}

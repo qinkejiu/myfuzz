@@ -1,0 +1,18 @@
+{
+  "cpu_profile": "configs/cpus/cv32e20/component_profile.json",
+  "source_request": "configs/peripherals/pulp_spi_irq/request.json",
+  "active_id": "spi_active",
+  "idle_id": "spi_idle",
+  "active_base": 1073745920,
+  "idle_base": 1073750016,
+  "source_adapter": "declared-output.v1",
+  "source_port": "events_o",
+  "source_bit_offset": 0,
+  "trigger_writes": [
+    [
+      36,
+      2147483648
+    ]
+  ],
+  "pulse_width_ticks": 16
+}

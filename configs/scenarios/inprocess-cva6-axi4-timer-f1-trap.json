@@ -1,0 +1,57 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-cva6-axi4-timer-f1-trap",
+  "cpu_profile": "configs/cpus/cva6/component_profile.json",
+  "cpu_instance_id": "processor",
+  "cpu_timing": {
+    "reset_assert_ticks": 12,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "source_profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+  "source_timing": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "max_wait_cycles": 16
+  },
+  "active_id": "pulp_timer_active",
+  "source_port": "irq_o",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 16,
+  "trigger_writes": [
+    [
+      4,
+      0
+    ],
+    [
+      8,
+      0
+    ],
+    [
+      0,
+      4294967295
+    ]
+  ],
+  "status_offsets": [
+    0
+  ],
+  "status_cause_bits": null,
+  "clear_writes": [],
+  "target_window": {
+    "base": 1073745920,
+    "size": 4096
+  },
+  "image_start": 65536,
+  "image_end": 131072,
+  "assume_single_clock": true,
+  "f1_program_words": 4,
+  "f1_trap_program": {
+    "cause": 11,
+    "words": 2
+  },
+  "notes": [
+    "The declared M-mode trap case on the same one packed AXI4 CVA6, the same PULP timer and the same host RAM. The F1 program slot executes a real ECALL (0x00000073) followed by one ADDI x0,x0,0; the firmware image installs mtvec in vectored mode and carries its own trap handler, which reads mcause/mepc with CSRRS, stores them to the two declared RAM cells, advances mepc past the ECALL, sets its flag and returns with MRET, so the word after the ECALL really executes. The host states the RVFI record's own trap/cause/intr/mode for the ECALL, the scoreboard's registered mcause/mepc readback, and the two words the handler stored; a trap with an unknown cause is never accepted.",
+    "No CSR fuzz, no privilege switch beyond the M-mode ECALL, no compressed parcel, no RV64 word and no F5: F5 stays refused by name because the AXI4 host still holds irq_i low. The ECALL is the only system instruction the declared program admits; every other word is a straight-line RV32I ALU form whose sources the program itself wrote.",
+    "F2-F4 are unchanged from the f1-f2f4 twin and are not part of this scenario's claimed run; the run uses this scenario for the trap case only."
+  ]
+}

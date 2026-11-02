@@ -32,9 +32,10 @@ import shutil
 import tempfile
 
 from myfuzz.local_harness import (build_local_harness, load_local_harness_request,
-                                  plan_local_harness, render_local_driver,
-                                  render_local_harness, render_local_runtime,
-                                  verify_local_source_lock)
+                                  plan_local_harness, render_local_harness)
+from myfuzz.local_harness.build import (render_generated_driver,
+                                        render_generated_runtime,
+                                        verified_source_lock)
 from myfuzz.local_harness.template_contracts import select_template_contract
 
 #: Version of the generated harness-set document.
@@ -373,6 +374,9 @@ def _endpoint_capabilities(plan, endpoint):
                 ('master_byte_enable', 'byte_enable')):
             if source in capabilities:
                 capabilities[destination] = capabilities[source]
+        if (str(capabilities.get('local_runtime_variant', '')).startswith('wishbone_dma_')
+                and 'master_byte_enable' in capabilities):
+            capabilities['partial_write'] = capabilities['master_byte_enable']
     return capabilities
 
 
@@ -430,7 +434,8 @@ def _preflight_dma_routes(cpu, plans):
                                     declaration['initiator_template'],
                                     f'/dma_master_route_bindings/{index}/initiator_template')
         capabilities = _endpoint_capabilities(initiator_plan, initiator)
-        if capabilities.get('master_fixed_byte_enable', route['byte_enable']) != route['byte_enable']:
+        fixed_byte_enable = capabilities.get('master_fixed_byte_enable')
+        if fixed_byte_enable is not None and fixed_byte_enable != route['byte_enable']:
             _refuse('dma-route-byte-enable-mismatch', pointer + '/byte_enable')
         binding = {'route_id': route['route_id'],
                    'initiator': _binding_endpoint(initiator_plan, initiator, selected)}
@@ -536,7 +541,7 @@ def _admit_endpoints(plan, instance_id, declared_role, endpoint_id, pointer,
             'identity_sha256': contract.identity_sha256}
 
 
-def generate_component(request_path, *, base_dir, output, build_cache=None):
+def generate_component(request_path, *, base_dir, output, build_cache=None, dma_endpoint_provider=None):
     """Plan, render, write and optionally build one component harness.
 
     Every planning/rendering/verification ``ValueError`` is a *named* refusal
@@ -557,10 +562,24 @@ def generate_component(request_path, *, base_dir, output, build_cache=None):
     try:
         request = load_local_harness_request(document)
         plan = plan_local_harness(request, base_dir=base_dir)
-        verified = verify_local_source_lock(plan.profile, base_dir=base_dir)
+        # Both gates are content-identity keyed: the same profile/source bytes
+        # verified once by this generator are reused by the builder, and the
+        # exit re-authentication observes their digest instead of re-running.
+        verified = verified_source_lock(
+            plan.profile, base_dir=base_dir,
+            profile_path=Path(base_dir).resolve() / request.profile_path)
         structural = render_local_harness(plan)
-        runtime = render_local_runtime(plan, structural, verified, base_dir=base_dir)
-        artifact = render_local_driver(runtime, base_dir=base_dir)
+        linked=None
+        if dma_endpoint_provider is not None:
+            from .dma_artifact_endpoint_links import render_dma_linked_runtime,PROVIDER_ID
+            if dma_endpoint_provider!=PROVIDER_ID:
+                raise ValueError('unregistered DMA endpoint provider')
+            linked=render_dma_linked_runtime(plan,structural,verified,base_dir=base_dir,provider_id=PROVIDER_ID)
+            artifact=linked.artifact
+        else:
+            runtime = render_generated_runtime(plan, structural, verified,
+                                               base_dir=base_dir)
+            artifact = render_generated_driver(runtime, base_dir=base_dir)
     except ValueError as error:
         _refuse('component-render-refused', pointer,
                 {'instance_id': instance_id, 'request': str(request_path),
@@ -577,6 +596,8 @@ def generate_component(request_path, *, base_dir, output, build_cache=None):
         'abi.json': _json_bytes(structural.abi_document),
         'source_verification.json': _json_bytes(verified),
     }
+    if linked is not None:
+        files['dma_endpoint_links.v1.json']=_json_bytes(linked.endpoint_links_document())
     staging = Path(tempfile.mkdtemp(prefix='.' + output.name + '.',
                                     dir=output.parent))
     try:
@@ -592,12 +613,14 @@ def generate_component(request_path, *, base_dir, output, build_cache=None):
     if build_cache is not None:
         built = str(build_local_harness(artifact, base_dir=base_dir,
                                         cache_dir=Path(build_cache).resolve()))
-    return {'plan': plan, 'artifact': artifact, 'structural': structural,
+    result={'plan': plan, 'artifact': artifact, 'structural': structural,
             'output': str(output), 'binary': built}
+    if linked is not None:result['dma_endpoint_links']=linked.endpoint_links_document()
+    return result
 
 
 def generate_harness_set(compose, *, base_dir, output_root, compose_base=None,
-                         build_cache=None, review=None):
+                         build_cache=None, review=None, dma_endpoint_provider=None):
     """Generate every declared component, or refuse the whole set.
 
     The set is admitted only after *every* declared protocol endpoint matched a
@@ -643,6 +666,15 @@ def generate_harness_set(compose, *, base_dir, output_root, compose_base=None,
     route_bindings = (_preflight_dma_routes(cpu, plans)
                       if 'dma_master_routes' in cpu else None)
 
+    linked_initiator=None
+    if dma_endpoint_provider is not None:
+        from .dma_artifact_endpoint_links import PROVIDER_ID
+        if dma_endpoint_provider!=PROVIDER_ID or route_bindings is None:
+            _refuse('dma-endpoint-provider-unsupported','/dma_endpoint_provider')
+        initiators={route['initiator_instance'] for route in cpu['dma_master_routes']['routes']}
+        if len(initiators)!=1 or not initiators<=set(plans):
+            _refuse('dma-endpoint-provider-initiator-required','/dma_master_routes')
+        linked_initiator=next(iter(initiators))
     if review is not None:
         blocking = [component for component in review['components']
                     if component['status'] != 'ok']
@@ -664,9 +696,11 @@ def generate_harness_set(compose, *, base_dir, output_root, compose_base=None,
         ordered = [cpu] + list(cpu['devices'])
         for index, row in enumerate(ordered):
             directory = staging / row['instance_id']
+            provider_kwargs=({'dma_endpoint_provider':dma_endpoint_provider}
+                if row['instance_id']==linked_initiator else {})
             record = generate_component(compose_base / row['request'],
                                         base_dir=base_dir, output=directory,
-                                        build_cache=build_cache)
+                                        build_cache=build_cache,**provider_kwargs)
             rows.append({
                 'instance_id': row['instance_id'],
                 'role': 'cpu' if index == 0 else 'device',
@@ -679,6 +713,10 @@ def generate_harness_set(compose, *, base_dir, output_root, compose_base=None,
                 'binary': record['binary'],
                 'template': admitted[index],
             })
+            if 'dma_endpoint_links' in record:
+                links=record['dma_endpoint_links']
+                rows[-1]['dma_endpoint_links']=dict(filename='dma_endpoint_links.v1.json',
+                    provider_id=links['provider_id'],identity_sha256=links['identity_sha256'])
         wiring = {
             'schema_version': WIRING_CONTRACT_SCHEMA_VERSION,
             'delivery': 'transaction_level_explicit',

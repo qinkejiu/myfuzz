@@ -84,7 +84,7 @@ class PreparedRegisterProgram:
 
 class RegisterProgramRuntime:
     def __init__(self, session, *, cpu_component, sidecars, advance_rounds,
-                 max_program_bytes=16, max_records=4096):
+                 max_program_bytes=16, max_records=4096, external_sources=()):
         if type(session) is not ScenarioSession:
             raise ValueError('register-runtime-actual-session-required')
         if session._begun or session._finished or session.runner._status != 'created':
@@ -97,6 +97,9 @@ class RegisterProgramRuntime:
                 or max_program_bytes % 4 or max_program_bytes > 4096
                 or type(max_records) is not int or not 1 <= max_records <= 65536):
             raise ValueError('register-runtime-invalid-configuration')
+        from .mixed_external_runtime import bind_external_sources
+        self._external_bindings = external_sources
+        self.external_sources = bind_external_sources(external_sources)
         self.session = session
         self.runner = session.runner
         self.cpu_component = cpu_component
@@ -154,7 +157,8 @@ class RegisterProgramRuntime:
             if (authority.degraded or installed is None or installed[0] is not cpu.service
                     or installed[1] is not cpu.service.ledger or installed[2] is not cpu.memory):
                 raise ValueError('register-runtime-memory-authority-binding')
-        targets = tuple(self.runner.sessions.get(k) for k in sorted(self.sidecars))
+        targets = tuple(self.runner.sessions.get(k) for k in sorted(set(self.sidecars) |
+            {d['source']['component'] for d in self.external_sources}))
         if any(target is None for target in targets):
             raise ValueError('register-runtime-unknown-target')
         return (cpu, cpu.memory, cpu.router, gate, gate._slot_policy, *targets)
@@ -183,7 +187,8 @@ class RegisterProgramRuntime:
                    for other in router.windows[index+1:]):
                 raise ValueError('register-runtime-overlapping-routes')
         artifacts = {}
-        for name in (self.cpu_component, *sorted(self.sidecars)):
+        for name in (self.cpu_component, *sorted(set(self.sidecars) |
+                {d['source']['component'] for d in self.external_sources})):
             artifact = self.runner.sessions[name].artifact
             profile_path = self.runner.sessions[name].base_dir / artifact.plan.request.profile_path
             profile_bytes = profile_path.read_bytes()
@@ -201,7 +206,7 @@ class RegisterProgramRuntime:
                 runtime=artifact.runtime_document,
                 runtime_sha256=hashlib.sha256(artifact.runtime_sv.encode()).hexdigest(),
                 driver_sha256=hashlib.sha256(artifact.cpp_text.encode()).hexdigest())
-        return dict(schema_version='register_program_runtime_configuration.v1',
+        result = dict(schema_version='register_program_runtime_configuration.v1',
             cpu_component=self.cpu_component, advance_rounds=self.advance_rounds,
             max_program_bytes=self.max_program_bytes, max_records=self.max_records,
             sources={name:hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
@@ -223,6 +228,15 @@ class RegisterProgramRuntime:
             routes=[dict(device_id=w.device_id, base=w.base, size=w.size,
                          target=next((k for k,v in self.runner.sessions.items() if v is w.target), None))
                     for w in router.windows], gate_max_actions=gate.max_actions)
+        if self.external_sources:
+            from .mixed_external_runtime import bind_external_sources
+            if _json(bind_external_sources(self._external_bindings)) != _json(self.external_sources):
+                raise ValueError('mixed-runtime-external-declaration-drift')
+            result['scope'] = 'directed_declarative_register_and_external_pin_only'
+            result['external_sources'] = list(self.external_sources)
+            result['sources']['mixed_external_runtime.py'] = hashlib.sha256(Path(__file__).with_name('mixed_external_runtime.py').read_bytes()).hexdigest()
+            result['external_ownership'] = self.runner.ownership.document()
+        return result
 
     def configuration(self):
         return json.loads(self._static_json)
@@ -329,6 +343,8 @@ class RegisterProgramRuntime:
         return profile,cap,args,context
 
     def prepare(self, request, expected_manifest=None):
+        if type(request) is dict and request.get('schema_version') == 'external_pin_request.v1':
+            return self.prepare_external(request, expected_manifest)
         guard_register_program_verifier(self.runner,new_operation=True)
         request = validate_register_request(request)
         self.session._register_capability_preflight()
@@ -357,15 +373,36 @@ class RegisterProgramRuntime:
             self.cpu_component,word,policy.reservation_ref(word))
             for word in range(program.source.address,program.source.address+len(program.fragment),4)),action_sha256='')
         doc = dict(schema_version='register_program_runtime_manifest.v1',request=request,
-            configuration=self.configuration(),context=context,program=program.document(),
+            context=context,program=program.document(),
             source_action=action.document(),admitted_action=admitted.document())
+        if self.external_sources:
+            doc.update(schema_version='register_program_runtime_manifest.v2',
+                       configuration_sha256=self.configuration_sha256)
+        else:
+            doc['configuration'] = self.configuration()
         canonical = _json(doc)
         if expected_manifest is not None and _json(expected_manifest) != canonical:
             raise ValueError('register-runtime-saved-manifest-mismatch')
         return PreparedRegisterProgram(program.source,case,canonical)
 
-    def submit(self, request, expected_manifest=None):
-        request = validate_register_request(request)
+    def submit(self, request, expected_manifest=None, *, stop_after_advance=None):
+        """Submit through the original gate, optionally bounding executed advances.
+
+        The callback has ScenarioSession's ``callback(advance_index) -> bool``
+        contract. It runs after a complete scheduled batch; it is a scheduling
+        decision, never evidence that the register operation completed. Callers
+        must establish completion from actual runtime observations (including a
+        committed result store for reads). The session records the executed
+        prefix for replay. Successful retries do not invoke the callback again.
+        """
+        if stop_after_advance is not None and not callable(stop_after_advance):
+            raise ValueError('register-runtime-stop_after_advance-must-be-callable')
+        external = type(request) is dict and request.get('schema_version') == 'external_pin_request.v1'
+        if external:
+            from .mixed_external_runtime import validate_external_request
+            request = validate_external_request(request)
+        else:
+            request = validate_register_request(request)
         previous = self._successful.get(request['case_id'])
         if previous is not None:
             _guard_native_reset_operation(self.runner, new_operation=False)
@@ -381,7 +418,7 @@ class RegisterProgramRuntime:
                     or cpu.reset_epoch != context['reset_epoch']
                     or self.runner.command_epoch != context['command_epoch']
                     or self._objects[3].tracker._epoch != context['tracker_epoch']
-                    or self.runner.sessions[request['target_instance']].reset_epoch != context['target_reset_epoch']):
+                    or self.runner.sessions[(doc['source_action']['component'] if external else request['target_instance'])].reset_epoch != context['target_reset_epoch']):
                 raise ValueError('register-runtime-successful-retry-drift')
             return dict(manifest=doc,receipt=deepcopy(receipt))
         prepared = self.prepare(request,expected_manifest)
@@ -395,9 +432,18 @@ class RegisterProgramRuntime:
             attempt['phase'] = 'registration_verification'
             if _json(admitted.document()) != _json(doc['admitted_action']):
                 raise ValueError('register-runtime-unexpected-admitted-action')
+            if external:
+                for fragment, expected_support in zip(prepared.case.support_instructions, doc['support_actions']):
+                    support = self._objects[3].register_support_instruction(fragment,
+                        flow_id=doc['source_action']['flow_id'],
+                        local_step_budget=doc['source_action']['local_step_budget'])
+                    if _json(support.document()) != _json(expected_support):
+                        raise ValueError('mixed-runtime-unexpected-support-admission')
             attempt['phase'] = 'session_submission'
             self._active_submission = (prepared.case,deepcopy(doc))
-            receipt = self.session.submit_case(prepared.case)
+            options = ({} if stop_after_advance is None else
+                       dict(stop_after_advance=stop_after_advance))
+            receipt = self.session.submit_case(prepared.case, **options)
         except BaseException as exc:
             self._uncertain = True
             self.session._halted = True
@@ -412,6 +458,16 @@ class RegisterProgramRuntime:
         attempt.update(status='submitted',phase='submitted')
         self._successful[request['case_id']] = (prepared._manifest_json,deepcopy(receipt))
         return dict(manifest=prepared.document(),receipt=deepcopy(receipt))
+
+    def prepare_external(self, request, expected_manifest=None):
+        from .mixed_external_runtime import prepare_external
+        guard_register_program_verifier(self.runner,new_operation=True)
+        return prepare_external(self, request, expected_manifest)
+
+    def submit_external(self, request, expected_manifest=None, *, stop_after_advance=None):
+        from .mixed_external_runtime import validate_external_request
+        return self.submit(validate_external_request(request), expected_manifest,
+                           stop_after_advance=stop_after_advance)
 
     def snapshot(self):
         return json.loads(_json(dict(schema_version='register_program_runtime_state.v1',

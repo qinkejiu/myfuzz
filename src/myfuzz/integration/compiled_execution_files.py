@@ -4,12 +4,17 @@ JSON is an input/evidence transport. It never reconstructs live authority.
 """
 from __future__ import annotations
 
+from copy import deepcopy
+from dataclasses import dataclass
 from contextlib import contextmanager
 from hashlib import sha256
 import fcntl
 import json
+import math
+import os
 from pathlib import Path
 import re
+import stat
 import time
 import tempfile
 import sys
@@ -49,6 +54,9 @@ def _read(path):
 def _save(path, document):
     # Atomic replacement never overwrites any hard-linked source inode.
     path=Path(path)
+    if path.name == 'summary.json':
+        from myfuzz.search.workflow import candidate_summary
+        document = candidate_summary(document)
     with tempfile.NamedTemporaryFile(mode='w',encoding='utf-8',dir=path.parent,
                                      prefix='.'+path.name+'.',delete=False) as handle:
         temporary=Path(handle.name)
@@ -69,6 +77,50 @@ def _closed(document, required, optional=()):
     if type(document) is not dict or not set(required)<=set(document) or set(document)-set(required)-set(optional):
         raise ValueError('compiled-files-declaration-keys')
     return document
+
+
+@dataclass(frozen=True)
+class _IncludeFileLink:
+    path: Path
+    source_root: Path
+
+    def __str__(self):
+        return str(self.path)
+
+
+@dataclass(frozen=True)
+class _IncludeDirectory:
+    path: Path
+
+    def __str__(self):
+        return str(self.path)
+
+
+def _include_directory_pin(directory):
+    path=_no_symlinks(directory.path)
+    if not path.is_dir():
+        raise ValueError('compiled-files-source-directory-changed:'+str(path))
+    return dict(resolved_path=str(path.resolve()),kind='directory')
+
+
+def _include_link_pin(link):
+    """Pin one include-root leaf link and an in-root, non-link file target."""
+    path=link.path
+    _no_symlinks(path.parent)
+    if not path.is_symlink():
+        raise ValueError('compiled-files-source-symlink-changed:'+str(path))
+    literal=os.readlink(path)
+    target=Path(literal)
+    if not target.is_absolute():target=path.parent/target
+    try:
+        _no_symlinks(target)
+        resolved=target.resolve(strict=True)
+        if not resolved.is_relative_to(link.source_root.resolve(strict=True)) or not resolved.is_file():
+            raise ValueError('compiled-files-source-symlink-target-invalid:'+str(path))
+        digest=sha256(resolved.read_bytes()).hexdigest()
+    except (OSError, RuntimeError) as error:
+        raise ValueError('compiled-files-source-symlink-target-invalid:'+str(path)) from error
+    return dict(resolved_path=str(resolved),sha256=digest,link_target=literal)
 
 
 def _source_paths(base, compose_path, capability_paths, supplement_path, records_path):
@@ -98,21 +150,33 @@ def _source_paths(base, compose_path, capability_paths, supplement_path, records
         # Include lookup is a declared directory input. Pin every member and
         # re-enumerate it before startup/replay so added headers cannot hide.
         for name in include_roots:
-            for path in (root/name).rglob('*'):
+            directory=root/name
+            paths.add(_IncludeDirectory(directory))
+            for path in directory.rglob('*'):
+                mode=path.lstat().st_mode
+                if stat.S_ISLNK(mode):
+                    link=_IncludeFileLink(path,root)
+                    _include_link_pin(link)
+                    paths.add(link)
+                    continue
                 _no_symlinks(path)
-                if path.is_file():paths.add(path)
+                if stat.S_ISREG(mode):paths.add(path)
+                elif stat.S_ISDIR(mode):paths.add(_IncludeDirectory(path))
+                else:raise ValueError('compiled-files-source-special-file:'+str(path))
     # The executor's own closure also guards live execution. This outer pin
     # covers renderer/adapter inputs before startup and fresh replay.
     paths.add(_no_symlinks(base/'scripts/run_compiled_dataflow.py'))
     for path in (base/'src/myfuzz').rglob('*'):
         _no_symlinks(path)
         if path.is_file() and path.suffix in {'.py','.sv','.cpp','.h','.json'}:paths.add(path)
-    return sorted(paths)
+    return sorted(paths,key=str)
 
 
 def _hashes(paths):
-    return {str(path):dict(resolved_path=str(_no_symlinks(path).resolve()),
-                           sha256=sha256(path.read_bytes()).hexdigest()) for path in paths}
+    return {str(path):(_include_link_pin(path) if isinstance(path,_IncludeFileLink)
+            else _include_directory_pin(path) if isinstance(path,_IncludeDirectory)
+            else dict(resolved_path=str(_no_symlinks(path).resolve()),
+                      sha256=sha256(path.read_bytes()).hexdigest())) for path in paths}
 
 
 def _unchanged(paths, expected, source_arguments):
@@ -169,13 +233,36 @@ def _artifact_fixed_input_ownership(artifacts):
     return fields,owners,physical
 
 
-def prepare_compiled_execution_files(*, base_dir, compose_path, capability_paths,
-                                     supplement_path, generated_dir, flow='F4'):
-    """Generate D2 and admit exact D3/ownership from explicit declarations.
+@dataclass(frozen=True, slots=True)
+class PreparedCompiledInputs:
+    """One D2 generation plus one D3 request/ownership build for several flows."""
 
-    This creates source artifacts only. It starts no native child process and
-    does not grant runtime admission. Callers must separately pin source inputs.
+    artifacts: dict
+    inputs: dict
+    supports: dict
+    generated_dir: Path
+    request_document: dict
+    capability_selection: dict
+
+
+def prepare_compiled_execution_inputs(*, base_dir, compose_path, capability_paths,
+                                      supplement_path, generated_dir, flow_ids):
+    """Generate D2 once and build D3/ownership once, then assess every flow.
+
+    Every flow assessment consumes the same artifact mapping and the same
+    request/compiled/ownership/physical_port_map objects created here.  This is
+    the only supported way to claim a same-preparation F2/F4 pair; calling the
+    single-flow wrapper twice and comparing hashes is not that claim.  No native
+    child process is started and no runtime admission is granted.
     """
+    flow_ids=tuple(flow_ids)
+    if not flow_ids or len(set(flow_ids))!=len(flow_ids) or any(
+            flow not in ('F1','F2','F3','F4','F5','F6') for flow in flow_ids):
+        raise ValueError('compiled-files-flow-selection-invalid')
+    f6='F6' in flow_ids
+    shared_f6 = f6 and {'F4','F6'} <= set(flow_ids) and not set(flow_ids)-{'F1','F2','F3','F4','F5','F6'}
+    if f6 and flow_ids!=('F6',) and not shared_f6:
+        raise ValueError('compiled-files-mixed-f6-unsupported')
     base=_no_symlinks(base_dir).resolve();compose_path=_no_symlinks(compose_path).resolve()
     capabilities=tuple(_no_symlinks(p).resolve() for p in capability_paths)
     _source_paths(base,compose_path,capabilities,supplement_path,None)
@@ -185,17 +272,26 @@ def prepare_compiled_execution_files(*, base_dir, compose_path, capability_paths
     if supplement['schema_version']!='compiled_execution_file_supplement.v1':
         raise ValueError('compiled-files-supplement-schema')
     additions=_closed(supplement['request_supplements'],set(),
-                      {'environment_links','memory','deliveries','sources'})
+                      {'environment_links','memory','deliveries','sources','fixed_inputs','f6_execution'} if f6 else
+                      {'environment_links','memory','deliveries','sources','fixed_inputs'})
     supplied_generated=Path(generated_dir)
     if supplied_generated.exists() or supplied_generated.is_symlink():
         raise ValueError('compiled-files-generated-directory-must-be-new')
     generated=supplied_generated.resolve()
     if generated.exists() or generated.is_symlink():raise ValueError('compiled-files-generated-directory-must-be-new')
     compose=load_compose(compose_path,base_dir=base)
-    generate_harness_set(compose,base_dir=base,compose_base=compose_path.parent,output_root=generated)
+    provider_kwargs={}
+    if f6:
+        from myfuzz.local_harness.dma_artifact_endpoint_links import PROVIDER_ID
+        provider_kwargs={'dma_endpoint_provider':PROVIDER_ID}
+    generate_harness_set(compose,base_dir=base,compose_base=compose_path.parent,output_root=generated,**provider_kwargs)
     composition=load_composition(compose_path,base_dir=base)
     document,sidecars=build_path_compile_request(composition,
         wiring_path=generated/'wiring_contract.json',ip_capabilities=capabilities)
+    if f6:
+        # Generated output locations are provenance, not wiring semantics.
+        # Load this invocation's real contract through the existing inline API.
+        document['wiring'] = _read(generated / 'wiring_contract.json')
     # Refuse an implicit sibling sidecar even if the composition loader found it.
     declared_capabilities={str(p) for p in capabilities}
     for device in document['devices']:
@@ -205,39 +301,116 @@ def prepare_compiled_execution_files(*, base_dir, compose_path, capability_paths
         if name in document:raise ValueError('compiled-files-supplement-overwrite')
         document[name]=value
     request=load_path_compile_request(document,base_dir=base);compiled=compile_paths(request)
-    artifacts=load_generated_artifacts(generated_root=generated,base_dir=base)
-    ownership_doc=_closed(supplement['ownership'],{'fields','owners'})
-    fields=[dict(row) for row in ownership_doc['fields']]
-    owners=[dict(row) for row in ownership_doc['owners']]
-    physical={}
-    for row in supplement['physical_port_map']:
-        _closed(row,{'component_id','port','physical_port'})
-        key=(row['component_id'],row['port'])
-        if key in physical:raise ValueError('compiled-files-duplicate-physical-map')
-        physical[key]=row['physical_port']
-    fixed_fields,fixed_owners,fixed_physical=_artifact_fixed_input_ownership(artifacts)
-    declared={(row['component_id'],row['port']) for row in fields}
-    for row in fixed_fields:
-        key=(row['component_id'],row['port'])
-        if key in declared:raise ValueError('compiled-files-duplicate-fixed-input')
-        fields.append(row)
-    owners.extend(fixed_owners)
-    for key,port in fixed_physical.items():
-        if key in physical:raise ValueError('compiled-files-duplicate-physical-map')
-        physical[key]=port
-    ownership=compile_ownership(tuple(InputField(**row) for row in fields),
-                                tuple(InputOwner(**row) for row in owners))
-    inputs=dict(request=request,compiled=compiled,ownership=ownership,physical_port_map=physical)
-    if flow=='F4':
-        support=assess_compiled_f4_support(artifacts=artifacts,compiled_inputs=inputs,base_dir=base)
-    elif flow=='F2':
-        support=assess_compiled_f2_support(artifacts=artifacts,compiled_inputs=inputs,base_dir=base)
-    else:
+    if shared_f6 and 'shared_slots' not in document.get('f6_execution', {}):
+        raise ValueError('compiled-files-mixed-f6-explicit-shared-slots-required')
+    artifacts=load_generated_artifacts(generated_root=generated,base_dir=base,**({'flow':'F6'} if f6 else {}))
+    try:
+        ownership_doc=_closed(supplement['ownership'],{'fields','owners'})
+        fields=[dict(row) for row in ownership_doc['fields']]
+        owners=[dict(row) for row in ownership_doc['owners']]
+        physical={}
+        for row in supplement['physical_port_map']:
+            _closed(row,{'component_id','port','physical_port'})
+            key=(row['component_id'],row['port'])
+            if key in physical:raise ValueError('compiled-files-duplicate-physical-map')
+            physical[key]=row['physical_port']
+        fixed_fields,fixed_owners,fixed_physical=_artifact_fixed_input_ownership(artifacts)
+        declared={(row['component_id'],row['port']) for row in fields}
+        for row in fixed_fields:
+            key=(row['component_id'],row['port'])
+            if key in declared:raise ValueError('compiled-files-duplicate-fixed-input')
+            fields.append(row)
+        owners.extend(fixed_owners)
+        for key,port in fixed_physical.items():
+            if key in physical:raise ValueError('compiled-files-duplicate-physical-map')
+            physical[key]=port
+        ownership=compile_ownership(tuple(InputField(**row) for row in fields),
+                                    tuple(InputOwner(**row) for row in owners))
+        inputs=dict(request=request,compiled=compiled,ownership=ownership,physical_port_map=physical)
+        supports={}
+        if any(flow in ('F1','F3') for flow in flow_ids):
+            from myfuzz.runtime.flows.memory import prepare_memory_paths
+            memory_paths, memory_bindings = prepare_memory_paths(request=request, compiled=compiled)
+            f4_support=(dict(execution_supported=1) if shared_f6 else
+                assess_compiled_f4_support(artifacts=artifacts,compiled_inputs=inputs,base_dir=base))
+            if f4_support.get('execution_supported') != 1:
+                raise ValueError('compiled-files-shared-memory-host-unsupported')
+        for flow in flow_ids:
+            if flow in ('F1','F2','F3','F4','F5','F6') and shared_f6:
+                from .compiled_f6_runtime_path import admit_compiled_f6_runtime_path
+                joint = admit_compiled_f6_runtime_path(artifacts=artifacts, compiled_inputs=inputs, base_dir=base)
+                if flow not in joint['shared_flow_paths']:
+                    raise ValueError('compiled-files-shared-flow-not-declared:'+flow)
+                supports[flow]=dict(schema_version='shared_slot_support.v1', execution_supported=1,
+                    runtime_admitted=False, status='supported_requires_actual_startup',
+                    executor='compiled_f6_cpu_dma', runtime_path_id=joint['shared_flow_paths'][flow]['path_id'],
+                    support_scope='same_preparation_typed_online_storage_DMA_slots')
+            elif flow=='F4':
+                supports[flow]=assess_compiled_f4_support(artifacts=artifacts,compiled_inputs=inputs,base_dir=base)
+            elif flow=='F6':
+                from .compiled_f6_rfuzz_session import assess_compiled_f6_support
+                supports[flow]=assess_compiled_f6_support(artifacts=artifacts,compiled_inputs=inputs,base_dir=base)
+            elif flow=='F5':
+                paths=[row for row in compiled['paths'] if row['flow_id']=='F5']
+                if len(paths)!=1:
+                    raise ValueError('compiled-files-f5-path-ambiguous')
+                path=paths[0]
+                supports[flow]=dict(schema_version='compiled_f5_static_support.v1',
+                    execution_supported=0,runtime_admitted=False,path_id=path['path_id'],
+                    static_path_status=path['status'],
+                    status='runtime_not_implemented',
+                    reason='serial_source_and_physical_irq_binding_not_admitted')
+                if len(request.devices)==1:
+                    try:
+                        from .shared_f5_runtime import admit_shared_f5_declaration
+                        irq_port=admit_shared_f5_declaration(artifacts=artifacts,compiled_inputs=inputs)
+                    except ValueError:
+                        pass
+                    else:
+                        supports[flow].update(execution_supported=1,
+                            status='supported_requires_actual_startup',executor='compiled_f4_obi_apb',
+                            support_scope='declared_shared_pin_and_physical_irq_topology',
+                            producer_binding={'path_identity':path['runtime_path_identity'],'cpu_irq_port':irq_port},
+                            startup_requires=['actual_shared_runner_binding','live_preparation_currentness',
+                                              'physical_irq_adapter','unmaterialized_fixed_support_slots'])
+            elif flow in ('F1','F3'):
+                selected=next(row for row in compiled['paths'] if row['flow_id']==flow and row['status']=='executable')
+                binding=next(item for item in memory_bindings if item.source_id==flow+'.program_image')
+                supports[flow]=dict(schema_version='compiled_memory_support.v1',execution_supported=1,
+                    runtime_admitted=False,status='supported_requires_actual_startup',
+                    executor='compiled_f4_obi_apb',path_id=selected['path_id'],
+                    producer_binding=binding.document(),
+                    support_scope='shared_cpu_persistent_memory_requires_live_execution',
+                    startup_requires=['native_first_fetch_inside_instruction_image',
+                                      'exact_private_input_readmission'])
+            else:
+                supports[flow]=assess_compiled_f2_support(artifacts=artifacts,compiled_inputs=inputs,base_dir=base)
+        _save_new(generated.parent/'path_compile_request.json',document)
+        _save_new(generated.parent/'compiled_paths.json',compiled)
+        _save_new(generated.parent/'capability_selection.json',sidecars)
+        return PreparedCompiledInputs(artifacts=artifacts,inputs=inputs,supports=supports,
+            generated_dir=generated,request_document=document,capability_selection=sidecars)
+    except BaseException:
+        if f6:
+            from myfuzz.local_harness.generated_artifact_admission import release_f6_provider_credentials
+            release_f6_provider_credentials(artifacts)
+        raise
+
+
+def prepare_compiled_execution_files(*, base_dir, compose_path, capability_paths,
+                                     supplement_path, generated_dir, flow='F4'):
+    """Single-flow compatible wrapper over :func:`prepare_compiled_execution_inputs`.
+
+    The tuple return is preserved for existing callers.  A caller that needs F2
+    and F4 from one preparation must call the shared function once, not this
+    wrapper twice.
+    """
+    if flow not in ('F2','F4','F6'):
         raise ValueError('compiled-files-flow-unsupported')
-    _save_new(generated.parent/'path_compile_request.json',document)
-    _save_new(generated.parent/'compiled_paths.json',compiled)
-    _save_new(generated.parent/'capability_selection.json',sidecars)
-    return artifacts,inputs,support
+    prepared=prepare_compiled_execution_inputs(base_dir=base_dir,compose_path=compose_path,
+        capability_paths=capability_paths,supplement_path=supplement_path,
+        generated_dir=generated_dir,flow_ids=(flow,))
+    return prepared.artifacts,prepared.inputs,prepared.supports[flow]
 
 
 @contextmanager
@@ -252,15 +425,18 @@ def _worker_lock(path):
 
 def _save_runtime_failure(output,runtime):
     failures={}
-    for key,filename,read in (
+    exports=[
             ('partial_events','partial_events.json',lambda:list(runtime.runner.events_since(0))),
-            ('execution_audit','execution_audit.json',runtime.execution_audit)):
+            ('execution_audit','execution_audit.json',runtime.execution_audit)]
+    if callable(getattr(runtime,'assertion_results',None)):
+        exports.append(('assertions','assertions.json',runtime.assertion_results))
+    for key,filename,read in exports:
         try:_save(output/filename,read())
         except BaseException as error:failures[key]=str(error)
     return failures
 
 
-_FLOW_BY_EXECUTOR = {'compiled_f4_obi_apb': 'F4', 'compiled_f2_obi_apb': 'F2'}
+_FLOW_BY_EXECUTOR = {'compiled_f4_obi_apb': 'F4', 'compiled_f2_obi_apb': 'F2', 'compiled_f6_cpu_dma': 'F6'}
 
 
 def _canonical_document(value):
@@ -277,9 +453,28 @@ def _pin_saved_document(output, name, expected):
     return sha256(raw).hexdigest()
 
 
+def _save_f2_runtime_report(output, *, compiled, runtime, harness_set,
+                            fresh_verification):
+    """Save and re-read same-call typed evidence before final report pinning."""
+    from .compiled_runtime_report import capture_f2_report_material
+    material = capture_f2_report_material(compiled=compiled, runtime=runtime,
+        harness_set=harness_set, fresh_verification=fresh_verification)
+    documents = {
+        'capability_report.json': material['capability_report'],
+        'compiled_assertion_results.v1.json': material['assertions'],
+        'compiled_assertion_evidence.v1.json': material['assertion_evidence'],
+    }
+    for filename, document in documents.items():
+        _save(output / filename, document)
+    for filename, document in documents.items():
+        _pin_saved_document(output, filename, document)
+    return material
+
+
 def run_compiled_execution_files(*, base_dir, compose_path, capability_paths,
         supplement_path, records_path, output_dir, cache_dir, executor,
-        run_id='compiled-dataflow', rounds_per_case=128, max_cases=64, replay_count=1, heavy_lock=None):
+        run_id='compiled-dataflow', rounds_per_case=128, max_cases=64, replay_count=1, heavy_lock=None, max_wall_seconds=None, execution_mode=None, mode="original",
+        record_selector=None, selected_count=None, expected_records=None):
     """Run explicit declaration-sized records continuously and replay fresh RTL.
 
     This is directed candidate execution, not coverage-guided search. Saved
@@ -289,6 +484,15 @@ def run_compiled_execution_files(*, base_dir, compose_path, capability_paths,
     writer records.  Every selected flow gets its typed capability report,
     saved-file pinning and a run-level build join where the executor supports it.
     """
+    if execution_mode is not None:
+        from myfuzz.search.workflow import requires_replay
+        wanted = requires_replay(execution_mode, mode)
+        replay_count = max(1, replay_count) if wanted else 0
+    if max_wall_seconds is not None and (type(max_wall_seconds) not in (int, float)
+            or not math.isfinite(max_wall_seconds) or max_wall_seconds <= 0):
+        raise ValueError("compiled-files-wall-budget-invalid")
+    if max_wall_seconds is not None and executor != "compiled_f6_cpu_dma":
+        raise ValueError("compiled-files-wall-budget-executor-unsupported")
     base = _no_symlinks(base_dir).resolve(); supplied_output = Path(output_dir)
     lock_path = (Path(heavy_lock) if heavy_lock is not None
                  else base / '.superpowers/heavy-worker.lock').resolve()
@@ -302,24 +506,33 @@ def run_compiled_execution_files(*, base_dir, compose_path, capability_paths,
     marker.write_text('execution not complete\n')
     started = time.monotonic(); runtime = None; flow = _FLOW_BY_EXECUTOR.get(executor)
     build_evidence = {'original': {}, 'fresh': {}}
+    construction_started = False
+    f6_artifacts=None
     report = dict(schema_version='compiled_execution_files_report.v1', status='incomplete',
-        executor=executor, flow=flow, runtime_admitted=False, heavy_lock=str(lock_path),
+        executor=executor, flow=flow, execution_mode=execution_mode, runtime_admitted=False, heavy_lock=str(lock_path),
         scope=('experimental_directed_continuous_%s_candidates_and_fresh_prefix_replay'
                % (flow or 'unsupported')),
         coverage_guided=False, general_instruction_search=False, full_D4_accepted=False)
     try:
         if flow is None:
             raise ValueError('compiled-files-executor-unsupported')
-        for value, limit in ((rounds_per_case, 4096), (max_cases, 256), (replay_count, 2)):
+        if type(replay_count) is not int or not (0 if flow == "F6" else 1) <= replay_count <= 2:
+            raise ValueError("compiled-files-replay-count-invalid")
+        for value, limit in ((rounds_per_case, 4096), (max_cases, 256)):
             if type(value) is not int or not 1 <= value <= limit:
                 raise ValueError('compiled-files-budget-invalid')
         if type(run_id) is not str or re.fullmatch(r'[A-Za-z0-9_.-]{1,96}', run_id) is None:
             raise ValueError('compiled-files-run-id-invalid')
         records_file = Path(records_path)
-        if records_file.stat().st_size > max_cases * (MAX_CANDIDATE_BITS // 4 + 4) + 1024:
+        if record_selector is not None and (flow != 'F6' or type(selected_count) is not int or
+                                            not 1 <= selected_count <= max_cases or
+                                            (expected_records is not None and len(expected_records) != selected_count)):
+            raise ValueError('compiled-files-selector-invalid')
+        domain_limit = 64 if record_selector is not None else max_cases
+        if records_file.stat().st_size > domain_limit * (MAX_CANDIDATE_BITS // 4 + 4) + 1024:
             raise ValueError('compiled-files-record-file-budget')
         records = _read(records_file)
-        if type(records) is not list or not 1 <= len(records) <= max_cases:
+        if type(records) is not list or not 1 <= len(records) <= domain_limit:
             raise ValueError('compiled-files-record-count-invalid')
         if any(type(row) is not str or re.fullmatch(r'(?:[0-9a-fA-F]{2}){1,128}', row) is None
                for row in records):
@@ -341,14 +554,26 @@ def run_compiled_execution_files(*, base_dir, compose_path, capability_paths,
             compose_path=compose_path, capability_paths=capabilities,
             supplement_path=supplement_path, generated_dir=output / 'generated',
             flow=flow)
+        if flow=='F6':f6_artifacts=artifacts
         report['generation_seconds'] = time.monotonic() - generation_start
         report['capability'] = support
-        _save(output / 'capability_report.json', support)
+        if flow == 'F2':
+            from myfuzz.scenario.capability_report import build_capability_report
+            _save(output / 'execution_support.json', support)
+            _save(output / 'capability_report.json', build_capability_report(
+                inputs['compiled'], harness_set=_read(output / 'generated/harness_set.json')))
+        else:
+            _save(output / 'capability_report.json', support)
         if support['execution_supported'] != 1:
             raise ValueError('compiled-files-runtime-support-refused')
         path = next(p for p in inputs['compiled']['paths']
                     if p['flow_id'] == flow and p['status'] == 'executable')
-        if flow == 'F2':
+        if flow == 'F6':
+            from .compiled_f6_layout import compile_f6_candidate_layout
+            layout=compile_f6_candidate_layout(path)
+            for row in records:layout.decode(bytes.fromhex(row))
+            layout_document=layout.document()
+        elif flow == 'F2':
             layout = compile_f2_candidate_layout(path)
             for row in records:
                 selection = layout.classify(bytes.fromhex(row))
@@ -362,10 +587,18 @@ def run_compiled_execution_files(*, base_dir, compose_path, capability_paths,
             layout_document = _layout_document(layout)
         _save(output / 'candidate_layout.json', layout_document)
         _unchanged(paths, source_hashes, source_arguments)
+        if flow == 'F6':
+            return _run_f6_file_route(output=output,marker=marker,report=report,artifacts=artifacts,inputs=inputs,
+                base=base,cache_dir=cache_dir,run_id=run_id,rounds=rounds_per_case,max_cases=max_cases,
+                replay_count=replay_count,records=records,lock_path=lock_path, max_wall_seconds=max_wall_seconds,
+                check_sources=lambda:_unchanged(paths,source_hashes,source_arguments),
+                **({'record_selector':record_selector, 'selected_count':selected_count,
+                    'expected_records':expected_records} if record_selector is not None else {}))
         with _worker_lock(lock_path):
             try:
                 _unchanged(paths, source_hashes, source_arguments)
                 startup = time.monotonic()
+                construction_started = True
                 runtime = create_compiled_execution(artifacts=artifacts, compiled_inputs=inputs,
                     executor=executor, base_dir=base, cache_dir=Path(cache_dir).resolve(),
                     run_id=run_id, rounds_per_case=rounds_per_case, max_cases=max_cases,
@@ -382,30 +615,47 @@ def run_compiled_execution_files(*, base_dir, compose_path, capability_paths,
                     _save(output / 'case_timings.json', case_timings)
                 plan = runtime.finish()
                 _save(output / 'prefix.json', plan)
-                _save(output / 'events.json', list(runtime.trace.events))
+                original_events = deepcopy(list(runtime.trace.events))
+                _save(output / 'events.json', original_events)
                 original_audit = runtime.execution_audit()
                 _save(output / 'execution_audit.json', original_audit)
+                initial_pins = {name: _pin_saved_document(output, name, document)
+                    for name, document in {'prefix.json':plan, 'events.json':original_events,
+                        'execution_audit.json':original_audit}.items()}
                 replays = []
+                fresh_documents = {}
                 for replay_index in range(replay_count):
                     _unchanged(paths, source_hashes, source_arguments)
                     replay_start = time.monotonic()
                     replay_dir = output / f'fresh-{replay_index + 1}'
                     replay_dir.mkdir()
                     def save_fresh(envelope):
+                        envelope = deepcopy(envelope)
+                        documents = {}
                         for key, filename in (('actual_prefix', 'prefix.json'),
                                 ('actual_events', 'events.json'),
                                 ('execution_audit', 'execution_audit.json')):
                             if key in envelope:
-                                _save(replay_dir / filename, envelope[key])
+                                documents[filename] = deepcopy(envelope[key])
                         if envelope.get('original_build') is not None:
                             build_evidence['original'] = envelope['original_build']
                         if envelope.get('fresh_build') is not None:
                             build_evidence['fresh'] = envelope['fresh_build']
                         summary = {k: v for k, v in envelope.items()
                                    if k not in {'actual_prefix', 'actual_events'}}
-                        _save(replay_dir / 'comparison.json', summary)
-                        _save(replay_dir / 'artifact_hashes.json',
-                              _hashes(sorted(replay_dir.glob('*.json'))))
+                        documents['comparison.json'] = deepcopy(summary)
+                        for filename, document in documents.items():
+                            _save(replay_dir / filename, deepcopy(document))
+                        pins = {filename: _pin_saved_document(replay_dir, filename, document)
+                                for filename, document in documents.items()}
+                        documents['artifact_hashes.json'] = deepcopy(pins)
+                        _save(replay_dir / 'artifact_hashes.json', deepcopy(pins))
+                        pins['artifact_hashes.json'] = _pin_saved_document(
+                            replay_dir, 'artifact_hashes.json', documents['artifact_hashes.json'])
+                        for filename, document in documents.items():
+                            relative = str((replay_dir / filename).relative_to(output))
+                            fresh_documents[relative] = document
+                            initial_pins[relative] = pins[filename]
                     result = runtime.replay(plan, audit_sink=save_fresh)
                     result = {k: v for k, v in result.items()
                               if k not in {'actual_prefix', 'actual_events'}}
@@ -438,24 +688,49 @@ def run_compiled_execution_files(*, base_dir, compose_path, capability_paths,
                         status=build_join['status'],
                         sha256=sha256((output / 'compiled_f2_build_join.v1.json')
                                       .read_bytes()).hexdigest())
+                capability_document = support
+                assertion_material = None
+                if flow == 'F2':
+                    # Every replay was checked above; the report describes these
+                    # independently rerun assertions without promoting tiers.
+                    assertion_material = _save_f2_runtime_report(output,
+                        compiled=inputs['compiled'], runtime=runtime,
+                        harness_set=_read(output / 'generated/harness_set.json'),
+                        fresh_verification=dict(matches=True, first_difference=None,
+                            verification_scope='full'))
+                    capability_document = assertion_material['capability_report']
                 expected = {
-                    'capability_report.json': support,
+                    'capability_report.json': capability_document,
                     'candidate_layout.json': layout_document,
                     'prefix.json': plan,
                     'execution_audit.json': original_audit,
+                    'events.json': original_events,
                     'case_timings.json': case_timings,
                     'replays.json': replays,
                 }
                 if flow == 'F2':
                     expected['compiled_f2_build_join.v1.json'] = build_join
-                for name, document in expected.items():
-                    _pin_saved_document(output, name, document)
+                    expected['execution_support.json'] = support
+                    expected['compiled_assertion_results.v1.json'] = assertion_material['assertions']
+                    expected['compiled_assertion_evidence.v1.json'] = assertion_material['assertion_evidence']
+                expected.update(fresh_documents)
+                expected_pins = {name: _pin_saved_document(output, name, document)
+                                 for name, document in expected.items()}
+                if any(expected_pins.get(name) != digest
+                       for name, digest in initial_pins.items()):
+                    raise ValueError('compiled-files-final-saved-output-drift')
                 saved_hashes = {str(p.relative_to(output)):
                                 sha256(p.read_bytes()).hexdigest()
                                 for p in sorted(output.rglob('*.json'))}
+                if any(saved_hashes.get(name) != digest
+                       for name, digest in expected_pins.items()):
+                    raise ValueError('compiled-files-final-saved-output-drift')
                 _save(output / 'saved_file_hashes.json', saved_hashes)
                 report['saved_file_hashes'] = saved_hashes
                 report['capability_report_sha256'] = saved_hashes['capability_report.json']
+                if flow == 'F2':
+                    report['assertion_results_sha256'] = saved_hashes['compiled_assertion_results.v1.json']
+                    report['assertion_evidence_sha256'] = saved_hashes['compiled_assertion_evidence.v1.json']
                 useful_seconds = sum(row['wall_seconds'] for row in case_timings)
                 report.update(status='completed', runtime_admitted=True,
                     cases=len(records),
@@ -486,20 +761,181 @@ def run_compiled_execution_files(*, base_dir, compose_path, capability_paths,
             report['startup_partial_trace_available'] = False
         if runtime is not None:
             report['failure_evidence_errors'] = _save_runtime_failure(output, runtime)
-            if flow == 'F2':
-                try:
-                    from .compiled_f2_build_join import build_compiled_f2_build_join
-                    binding = runtime.execution_binding.document()
-                    _save(output / 'compiled_f2_build_join.v1.json',
-                          build_compiled_f2_build_join(artifacts=artifacts,
-                              execution_binding=binding,
-                              compiled_document_sha256=compiled_document_sha256(
-                                  inputs['compiled']),
-                              runtime_path_id=binding.get('runtime_path_id'),
-                              logical_path_id=binding.get('path_id'),
-                              original=build_evidence['original'],
-                              fresh=build_evidence['fresh'], error=error))
-                except BaseException as audit_error:
-                    error.add_note('compiled-F2 refused build join: ' + repr(audit_error))
-        _save(output / 'report.json', report)
+        if flow == 'F2' and construction_started:
+            try:
+                from .compiled_f2_build_join import build_compiled_f2_build_join
+                binding = None
+                if runtime is not None:
+                    try:
+                        binding = runtime.execution_binding.document()
+                    except BaseException as binding_error:
+                        error.add_note('compiled-F2 failed binding export: ' + repr(binding_error))
+                    build_evidence['original'] = _diagnostic_build_snapshot(runtime,
+                        previous=build_evidence['original'], error=error)
+                report['startup_build_observations_available'] = bool(build_evidence['original'])
+                _save(output / 'compiled_f2_build_join.v1.json',
+                      build_compiled_f2_build_join(artifacts=artifacts,
+                          execution_binding=binding,
+                          compiled_document_sha256=compiled_document_sha256(inputs['compiled']),
+                          runtime_path_id=binding.get('runtime_path_id') if binding else None,
+                          logical_path_id=binding.get('path_id') if binding else None,
+                          original=build_evidence['original'],
+                          fresh=build_evidence['fresh'], error=error))
+            except BaseException as audit_error:
+                error.add_note('compiled-F2 refused build join: ' + repr(audit_error))
+        try:
+            _save(output / 'report.json', report)
+        except BaseException as report_error:
+            error.add_note('compiled-files failure report export: ' + repr(report_error))
         raise
+
+    finally:
+        if f6_artifacts is not None:
+            from myfuzz.local_harness.generated_artifact_admission import release_f6_provider_credentials
+            release_f6_provider_credentials(f6_artifacts)
+
+
+def _submit_f6_records(runtime, records, *, check_sources, max_wall_seconds,
+                       record_selector=None, selected_count=None, expected_records=None):
+    requested_count = len(records) if record_selector is None else selected_count
+    executed = []
+    started = time.monotonic()
+    for index in range(requested_count):
+        if executed and max_wall_seconds is not None and time.monotonic()-started >= max_wall_seconds:
+            break
+        selected = record_selector.choose() if record_selector is not None else None
+        if selected is not None and expected_records is not None and selected != expected_records[index]:
+            raise ValueError('F6 replay decision differs from original')
+        row = records[index] if selected is None else selected.split(':', 1)[1]
+        check_sources()
+        runtime.submit(bytes.fromhex(row))
+        if record_selector is not None:
+            record_selector.settle(selected)
+        executed.append(row)
+    return executed, time.monotonic()-started
+
+
+def _run_f6_file_route_owned(*,output,marker,report,artifacts,inputs,base,cache_dir,run_id,
+        rounds,max_cases,replay_count,records,lock_path,check_sources,max_wall_seconds=None,
+        record_selector=None,selected_count=None,expected_records=None):
+    """Closed directed F6 route; shares file pin/lock primitives only."""
+    from .compiled_f6 import CompiledF6Runtime
+    from .compiled_f6_saved_outputs import write_pinned_json,save_f6_replay_outputs,verify_pins
+    from .compiled_f6_rfuzz_session import f6_fresh_verification
+    from .compiled_f6_build_join import build_compiled_f6_build_join,verify_compiled_f6_build_join
+    from myfuzz.scenario.f6_assertion_evidence import build_f6_assertion_material
+    from myfuzz.scenario.capability_report import build_capability_report
+    runtime=None;primary=None;pins={}
+    from myfuzz.local_harness.generated_artifact_admission import validated_f6_provider_credentials,release_f6_provider_credentials
+    pins.update(validated_f6_provider_credentials(artifacts,include_files=True)['file_pins'])
+    if max_cases>16:raise ValueError('compiled-F6-file-slot-budget')
+    try:
+        with _worker_lock(lock_path):
+            check_sources()
+            runtime=CompiledF6Runtime(artifacts=artifacts,compiled_inputs=inputs,base_dir=base,
+                cache_dir=Path(cache_dir),run_id=run_id,rounds_per_case=rounds,max_cases=max_cases)
+            requested_count = len(records) if record_selector is None else selected_count
+            records, execution_seconds = _submit_f6_records(runtime, records,
+                check_sources=check_sources, max_wall_seconds=max_wall_seconds,
+                record_selector=record_selector, selected_count=selected_count,
+                expected_records=expected_records)
+            report.update(requested_case_count=requested_count, budget_ended=len(records)<requested_count,
+                max_wall_seconds=max_wall_seconds, first_case_always_admitted=True, execution_seconds=execution_seconds,
+                wall_budget_overrun_seconds=max(0,execution_seconds-max_wall_seconds) if max_wall_seconds is not None else 0)
+            plan=runtime.finish()
+            write_pinned_json(output/'compiled_f6_prefix.json',plan,pins)
+            replay=None
+            for index in range(replay_count):
+                check_sources()
+                if index==0:
+                    replay=runtime.replay(plan,audit_sink=lambda envelope:save_f6_replay_outputs(output,envelope,pins))
+                else:
+                    directory=output/f'fresh-{index+1}';extra_pins={}
+                    runtime.replay(plan,audit_sink=lambda envelope:save_f6_replay_outputs(directory,envelope,extra_pins))
+                    verify_pins(directory,extra_pins)
+            verification = None
+            joined = None
+            if replay is not None:
+                verification=f6_fresh_verification(replay,plan,route='directed_file')
+                joined=build_compiled_f6_build_join(artifacts=artifacts,execution_binding=runtime.execution_binding,
+                    original=plan['original_build'],fresh=replay['fresh_build'])
+                verify_compiled_f6_build_join(joined,artifacts=artifacts,execution_binding=runtime.execution_binding,
+                    original=plan['original_build'],fresh=replay['fresh_build'])
+            material=build_f6_assertion_material(runtime)
+            evidence=dict(execution_binding=runtime.execution_binding,path_id=runtime.path['path_id'],
+                run_id=run_id,cases=material['assertion_evidence']['cases'])
+            from .compiled_f6_layout import compile_f6_candidate_layout
+            layout=compile_f6_candidate_layout(runtime.path)
+            mappings=[]
+            if len(records)!=len(plan['records']):raise ValueError('compiled-F6-file-record-bijection')
+            for index,(raw_hex,record) in enumerate(zip(records,plan['records'])):
+                candidate=layout.decode(bytes.fromhex(raw_hex))
+                if (record['raw8_hex']!=candidate.raw.hex() or record['words']!=list(candidate.words)
+                        or record.get('prefix_hex')!=runtime.program.prefix(candidate,case_index=index).hex()):
+                    raise ValueError('compiled-F6-file-candidate-program-bijection')
+                mappings.append(dict(case_id=record['case_id'],raw8_hex=candidate.raw.hex(),words=list(candidate.words),
+                    prefix_hex=record['prefix_hex'],source_ids=[s['source_id'] for s in runtime.path['sources']]))
+            if [m['case_id'] for m in mappings]!=[c['case_id'] for c in material['assertions']['cases']]:
+                raise ValueError('compiled-F6-file-typed-bijection')
+            receipt_join=dict(schema_version='compiled_F6_receipt_join.v1',scope='directed_file_records',
+                status='ok',raw_transport_receipts_present=False,path_id=runtime.path['path_id'],run_id=run_id,
+                rows=len(mappings),case_count=len(mappings),cases=mappings)
+            documents={'compiled_f6_receipt_join.v1.json':receipt_join,
+                'compiled_assertion_results.v1.json':material['assertions'],
+                'compiled_assertion_evidence.v1.json':evidence,
+                'compiled_f6_raw8_records.json':records}
+            if verification is not None:
+                documents.update({'compiled_f6_fresh_verification.json':verification,
+                    'compiled_f6_build_join.v1.json':joined})
+            for name,value in documents.items():write_pinned_json(output/name,value,pins)
+            capability=build_capability_report(inputs['compiled'],harness_set=_read(output/'generated/harness_set.json'),
+                fresh_verification=verification,assertion_results=material['assertions'],assertion_evidence=evidence)
+            write_pinned_json(output/'capability_report_final.json',capability,pins)
+            check_sources();verify_pins(output,pins)
+            report.update(status='complete' if plan['completed'] else 'failed_prefix_full',
+                runtime_admitted=True,case_count=len(plan['records']),fresh_verification=verification,
+                replay_matches=None if verification is None else verification.get('matches'),
+                verification={'within_invocation': {'status': 'not-requested' if verification is None else 'verified' if verification.get('matches') is True else 'failed',
+                    'matches': None if verification is None else verification.get('matches')},
+                    'cross_invocation': {'status': 'not-requested', 'matches': None}},
+                saved_output_hashes=dict(pins),useful_search_benefit_claimed=False,search_diversity=None)
+            _save(output/'report.json',report)
+            if plan['completed']:marker.unlink()
+            return report
+    except BaseException as error:
+        primary=error
+        raise
+    finally:
+        if runtime is not None:
+            if not runtime.finished:
+                try:runtime.finish()
+                except BaseException as error:
+                    if primary is None:raise
+                    if error is not primary:primary.add_note('F6 file finish: '+repr(error))
+            if primary is not None:
+                from .compiled_process_audit import diagnostic_build_snapshot
+                exports=[('compiled_f6_build_join.v1.json',lambda:build_compiled_f6_build_join(
+                    artifacts=artifacts,execution_binding=runtime.execution_binding,
+                    original=diagnostic_build_snapshot(runtime,error=primary),fresh={},error=primary)),
+                    ('compiled_f6_partial_prefix.json',lambda:getattr(runtime,'_finish_document',None)),
+                    ('compiled_f6_partial_events.json',lambda:list(runtime.runner.events_since(0))),
+                    ('compiled_f6_execution_audit.json',runtime.execution_audit),
+                    ('compiled_assertion_results.v1.json',lambda:build_f6_assertion_material(runtime)['assertions']),
+                    ('compiled_assertion_evidence.v1.json',lambda:build_f6_assertion_material(runtime)['assertion_evidence'])]
+                for name,capture in exports:
+                    if name in pins:continue
+                    try:write_pinned_json(output/name,capture(),pins)
+                    except BaseException as error:primary.add_note('F6 file export: '+repr(error))
+
+
+def _run_f6_file_route(*,output,marker,report,artifacts,inputs,base,cache_dir,run_id,
+        rounds,max_cases,replay_count,records,lock_path,check_sources,max_wall_seconds=None,
+        record_selector=None,selected_count=None,expected_records=None):
+    from myfuzz.local_harness.generated_artifact_admission import release_f6_provider_credentials
+    try:
+        return _run_f6_file_route_owned(output=output,marker=marker,report=report,artifacts=artifacts,
+            inputs=inputs,base=base,cache_dir=cache_dir,run_id=run_id,rounds=rounds,max_cases=max_cases,
+            replay_count=replay_count,records=records,lock_path=lock_path, max_wall_seconds=max_wall_seconds,check_sources=check_sources,
+            record_selector=record_selector,selected_count=selected_count,expected_records=expected_records)
+    finally:
+        release_f6_provider_credentials(artifacts)

@@ -1,0 +1,32 @@
+{
+  "schema_version": "inprocess_source_behavior.v1",
+  "description": "PULP apb_i2c level interrupt: CTRL=core_en|ien, TX=0x5a, CMD=write starts a byte transfer; irq_flag is STATUS[0] and CMD[0] is the iack clear.",
+  "source_port": "interrupt_o",
+  "source_bit_offset": 0,
+  "trigger_writes": [
+    [
+      4,
+      192
+    ],
+    [
+      16,
+      90
+    ],
+    [
+      20,
+      16
+    ]
+  ],
+  "status_offsets": [
+    12
+  ],
+  "status_cause_bits": [
+    0
+  ],
+  "clear_writes": [
+    [
+      20,
+      1
+    ]
+  ]
+}

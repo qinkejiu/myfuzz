@@ -1,0 +1,35 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-obi-apb-gpio-groups-direction-f1f5",
+  "description": "The same pinned PULP apb_gpio target with two pad groups whose declared directions are falsifiable: an output group the device owns and an inout group the device's own dir port resolves per bit. The case line reports, group by group, the witness the device's PADDIR port produced for the declaration.",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {"reset_assert_ticks": 8, "reset_release_ticks": 8, "max_wait_cycles": 16},
+  "source_profile": "configs/peripherals/pulp_gpio_causal_local/component_profile.json",
+  "source_timing": {"reset_assert_ticks": 2, "reset_release_ticks": 3, "max_wait_cycles": 16},
+  "active_id": "gpio_target",
+  "source_behavior": "configs/behaviors/pulp_gpio_direction_groups_f5_pins.json",
+  "target_window": {"base": 1073741824, "size": 4096},
+  "image_start": 65536,
+  "image_end": 196608,
+  "registers": {
+    "PADDIR": 0,
+    "GPIOEN": 4,
+    "PADIN": 8,
+    "PADOUT": 12,
+    "PADOUTSET": 16,
+    "PADOUTCLR": 20,
+    "INTEN": 24,
+    "INTTYPE_LOW": 28,
+    "INTTYPE_HIGH": 32,
+    "INTSTATUS": 36,
+    "PADCFG_0": 40
+  },
+  "assume_single_clock": true,
+  "notes": [
+    "configs/behaviors/pulp_gpio_direction_groups_f5_pins.json declares group0 'device_pads' as direction out and group1 'shared_pads' as direction inout. An out group is the device's own pad word: the host presents no driver value for it, the wire is the device's PADOUT word, and the witness is the device's PADDIR port. An inout group is the per-bit resolution",
+    "the record chain's first case is the PADDIR(0)=0xffffffff write, which the device only performs part way through the case: group0 is active for the first two ticks while PADDIR is still zero, so that one case's witness is 'contradicted' and the case line counts the bits. Every later case starts with PADDIR already all ones and reports the honoured witness. Both are measurements, not assumptions",
+    "the witness is reported, not imposed: a case is not failed for a contradicted declaration because the host's job is to drive the declared group, and the declaration's own consistency with the RTL is what the case line states. The summary totals the conflicts across the batch",
+    "the F5 facts are the same reviewed PULP GPIO sequence in the same behavior file, with INTSTATUS(36) read-clearing",
+    "this file declares the scenario; it is not evidence. The run under runs/p2-pins-serial-20261103/ is the evidence"
+  ]
+}

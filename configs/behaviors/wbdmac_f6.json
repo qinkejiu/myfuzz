@@ -1,0 +1,13 @@
+{
+  "schema_version": "inprocess_dma_behavior.v1",
+  "description": "Wishbone DMA control status and the four-word transfer used by this scenario.",
+  "notes": [
+    "The RTL control readback concatenates (dma_state != DMA_IDLE) and cfg_err as bits 31 and 30: third_party/soc-zipcpu/rtl/peripherals/wbdmac.v, o_swb_data case 00.",
+    "The source contract independently describes status_busy_mask 0x80000000 and status_error_mask 0x40000000 in src/myfuzz/local_harness/wbdmac_source_contract.py.",
+    "block_words specifies this scenario's transfer size, not the device's maximum transfer capacity; it does not claim that the busy or error bits were asserted by a run."
+  ],
+  "block_words": 4,
+  "busy_bit": 31,
+  "err_bit": 30,
+  "status_kind": "status"
+}

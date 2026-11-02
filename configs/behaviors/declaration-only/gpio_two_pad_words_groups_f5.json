@@ -1,0 +1,55 @@
+{
+  "schema_version": "inprocess_source_behavior.v1",
+  "description": "Declaration-only pad groups that name two different readable pad words on one device. The bound gpio.pins endpoint exposes one pad word, so the second group is refused by name by the executor instead of being folded onto the first.",
+  "notes": [
+    "group 'pads' addresses PADIN(8) and group 'strobes' addresses PADOUT(12), both readable 32-bit words of the pinned apb_gpio map",
+    "one pad endpoint is one 32-bit pad port on the model: a second pad word would need a second endpoint, which no profile in configs/peripherals declares",
+    "the refusal is unsupported-pins:pin_groups:second-pad-word, raised by the executor after the declaration normalizes and before any case runs"
+  ],
+  "source_port": "interrupt",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 16,
+  "trigger_writes": [
+    [
+      4,
+      4294967295
+    ],
+    [
+      24,
+      1
+    ],
+    [
+      28,
+      1
+    ],
+    [
+      12,
+      43
+    ]
+  ],
+  "status_offsets": [
+    36
+  ],
+  "status_cause_bits": null,
+  "clear_writes": [],
+  "pin_groups": [
+    {
+      "name": "pads",
+      "kind": "dir_resolved_pad_word",
+      "direction": "inout",
+      "hold_ticks": 2,
+      "padin_offset": 8,
+      "external_value": 4369,
+      "pad_resolution": "device_drives_when_dir_bit_high_else_host"
+    },
+    {
+      "name": "strobes",
+      "kind": "dir_resolved_pad_word",
+      "direction": "inout",
+      "hold_ticks": 4,
+      "padin_offset": 12,
+      "external_value": 8738,
+      "pad_resolution": "device_drives_when_dir_bit_high_else_host"
+    }
+  ]
+}

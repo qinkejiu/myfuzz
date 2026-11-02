@@ -31,9 +31,11 @@ from .generated_register_reader import declare_reader
 from .compiled_f2_build_join import validate_built_receipts,built_receipt_sha256
 from .compiled_f4 import (_digest,_input_identity,_closure,_artifact_execution_identity,
     _cpu_error_policy,_cpu_traces,_native_steps,_semantic_canonical,
-    normalized_semantic_sha256,_check_fresh_identities,_capture_build_construction,
-    _diagnostic_build_snapshot)
-from .native_obi_hops import check_f2_exact_hops
+    normalized_semantic_sha256,_check_fresh_identities)
+from .compiled_process_audit import (BuiltProcessAudit,
+    diagnostic_build_snapshot as _diagnostic_build_snapshot,
+    capture_build_construction as _capture_build_construction)
+from .native_obi_hops import check_f2_exact_hops, F2ObservationMissing
 
 
 def _layout_document(layout):
@@ -178,7 +180,8 @@ def _admit_f2(*,artifacts,compiled_inputs,base_dir=None):
                 or rule['failure_class']!='constraint_conflict' or rule['basis']!='soc_plan.address_map.windows'):
             raise ValueError('compiled-F2-constraint-rule-unsupported')
     if wiring.deliveries or any(o['kind']=='bound' for o in compiled_inputs['ownership'].document()['owners']):
-        raise ValueError('compiled-F2-physical-binding-unsupported')
+        from .shared_f5_runtime import admit_shared_f5_declaration
+        admit_shared_f5_declaration(artifacts=artifacts, compiled_inputs=compiled_inputs)
     resources=[r for r in wiring.resources if r.component_instance==cpu.instance_id]
     result=image['range'][1]-3
     if (any(r.base is None or r.size is None or r.read is None or r.write is None
@@ -254,7 +257,7 @@ def derive_f2_execution_binding(*,artifacts,compiled_inputs,base_dir=None):
         path=path,layout=compile_f2_candidate_layout(path),producer_binding=producer,base_dir=base_dir))
 
 
-class CompiledF2Runtime:
+class CompiledF2Runtime(BuiltProcessAudit):
     """One continuous F2 testcase with live pre-read versions and fresh replay.
 
     The candidate supplies only the declared load address.  The IP read
@@ -262,17 +265,22 @@ class CompiledF2Runtime:
     observed natively; a read response is never relabelled as a RAM byte
     version and the two route legs keep their own CPU/IP endpoints.
     """
+    _audit_error_prefix = 'compiled-F2'
+    _audit_schema = 'compiled_F2_execution_audit.v1'
     @host_source_discovery_scope()
     @_capture_build_construction
     def __init__(self, *, artifacts, compiled_inputs, base_dir, cache_dir,
                  run_id='compiled-f2', rounds_per_case=128, max_cases=64,
-                 expected_built_receipts=None, build_audit_sink=None):
+                 expected_built_receipts=None, build_audit_sink=None,
+                 defer_begin=False):
         self.path=admit_f2(artifacts=artifacts,compiled_inputs=compiled_inputs,
             base_dir=Path(base_dir))
         self.layout=compile_f2_candidate_layout(self.path)
         self._replay_identities=[]
         if any(type(v) is not int or not 1<=v<=65536 for v in (rounds_per_case,max_cases)):
             raise ValueError('compiled-F2-budget-invalid')
+        if type(defer_begin) is not bool:
+            raise ValueError('compiled-F2-defer-begin-invalid')
         self._caller_inputs=compiled_inputs;self._caller_artifacts=artifacts
         self._input_digest=_input_identity(compiled_inputs,artifacts)
         self.artifacts,self.inputs=_private_admission_snapshot(artifacts,compiled_inputs,
@@ -287,7 +295,8 @@ class CompiledF2Runtime:
         self.row=self.producer_binding.row
         self.register_name=self.producer_binding.document()['register']['name']
         self.rounds=rounds_per_case;self.max_cases=max_cases
-        self.records=[];self.finished=False
+        self.records=[];self.attempts=[];self.finished=False
+        self._attempt=None;self._failed_attempt=None;self.finish_diagnostic=None
         self.closure=_closure(base_dir)
         self.compiled_digest=compiled_document_sha256(compiled_inputs['compiled'])
         request=compiled_inputs['request'];self.cpu_id=request.cpu.instance_id
@@ -355,6 +364,20 @@ class CompiledF2Runtime:
         self.session.configure_runtime_paths(prepared.graph,prepared.contract,
             prepared.runtime_paths,source_ownership=compiled_inputs['ownership'],
             instruction_image_bindings=(self.runtime_path_admission.instruction_binding,))
+        self._deferred_begin = bool(defer_begin)
+        self._begun = False
+        if not defer_begin:
+            self.begin()
+
+    def _accepted_first_fetch(self, events):
+        signals=self.traces['instr']
+        return [(event['event_id'],taps[signals['addr']]) for event,taps in _native_steps(events,self.cpu_id)
+                if taps.get(signals['req'])==1 and taps.get(signals['gnt'])==1]
+
+    def begin(self):
+        """Begin the single native session; the constructor does this unless deferred."""
+        if self._begun:
+            raise ValueError('compiled-F2-already-begun')
         try:
             self._stable()
             self.session.begin()
@@ -362,8 +385,8 @@ class CompiledF2Runtime:
                 for name,session in self.runner.sessions.items()}
             self._process_identities=self._validated_build_process_identities()
             startup_build=_diagnostic_build_snapshot(self)
-            if build_audit_sink is not None:
-                build_audit_sink(startup_build)
+            if self._build_audit_sink is not None:
+                self._build_audit_sink(startup_build)
             # The IP's normal idle step with empty inputs establishes the
             # current source-verified storage state and startup handoff.
             self.session.advance_initial((self.target_id,))
@@ -371,22 +394,23 @@ class CompiledF2Runtime:
             for _ in range(self.rounds):
                 self._stable()
                 bootstrap=self.session.advance_initial((self.cpu_id,))
-                steps=list(_native_steps(bootstrap.events,self.cpu_id))
-                signals=self.traces['instr']
-                accepted=[(event,taps) for event,taps in steps
-                    if taps.get(signals['req'])==1 and taps.get(signals['gnt'])==1]
+                accepted=self._accepted_first_fetch(bootstrap.events)
                 if accepted:
-                    event,taps=accepted[0];self.cursor=taps[signals['addr']]
-                    self.first_fetch=dict(address=self.cursor,event_id=event['event_id'])
+                    event_id,self.cursor=accepted[0]
+                    self.first_fetch=dict(address=self.cursor,event_id=event_id)
                     break
             if (self.cursor is None or self.cursor%4
                     or not self.start<=self.cursor<self.result):
                 raise ValueError('compiled-F2-first-fetch-outside-image')
+            self._begun = True
         except BaseException as error:
             if self.session._begun and not self.session._finished:
                 try:self.session.finish()
                 except BaseException as cleanup:
                     error.add_note('compiled-F2 session cleanup: '+repr(cleanup))
+            if getattr(self, '_build_audit_sink', None) is not None:
+                try:self._build_audit_sink(_diagnostic_build_snapshot(self, closed=True, error=error))
+                except BaseException as audit_error:error.add_note('compiled-F2 partial build audit: '+repr(audit_error))
             raise
 
     def online_identity_configuration(self):
@@ -400,6 +424,9 @@ class CompiledF2Runtime:
             execution_binding_sha256=self.execution_binding.digest)
 
     def _check_receipt(self,receipt):
+        # Keep the input separately: the session adds checker findings to its
+        # final receipt, which is authoritative for the receipt expectation.
+        self._record_receipt(receipt)
         if receipt.violations:
             self._checked=None
             return tuple(receipt.violations)
@@ -433,10 +460,123 @@ class CompiledF2Runtime:
                     f'live_{self.register_name}_dependent_result_RAM'),
                 result_snapshot=result_snapshot)
             self._checked=(observed,after,exact)
+            self._record_assertion('cross_component.declared_edge_hops','passed',
+                'exact native observation available',dict(exact_hops=exact))
             return tuple(receipt.violations)
         except ValueError as error:
             self._checked=None
+            if self._attempt is not None:
+                self._attempt['checker_error']=dict(
+                    error_type=type(error).__name__,error=str(error))
+            self._record_assertion('cross_component.declared_edge_hops',
+                self._observation_error_status(error,receipt,declaration),
+                str(error),dict(error_type=type(error).__name__,error=str(error)))
             return (str(error),)
+
+    def _record_assertion(self,expectation,status,reason,evidence):
+        if self._attempt is not None:
+            self._attempt['assertions'][expectation]=dict(
+                expectation_id=expectation,status=status,reason=reason,
+                evidence=deepcopy(evidence))
+
+    def _record_receipt(self,receipt,*,final=False):
+        if self._attempt is None:return
+        evidence=dict(status=receipt.status,violations=list(receipt.violations))
+        self._attempt['receipt' if final else 'checker_input_receipt']=evidence
+        status=('failed' if receipt.violations else
+            'passed' if final and receipt.status=='running' else 'missing')
+        self._record_assertion('protocol_checker.receipt_violations',status,
+            'observed native receipt' if status!='missing' else
+            'complete running receipt unavailable',evidence)
+
+    def _observation_error_status(self,error,receipt,declaration):
+        """Distinguish absent evidence from observed contradictory evidence."""
+        if isinstance(error,F2ObservationMissing):return 'missing'
+        if str(error) in {'compiled-F2-read-physical-observation-required',
+                'compiled-F2-read-command-incomplete',
+                'compiled-F2-read-command-gap'}:return 'missing'
+        # These consumer errors deliberately combine absence and mismatch.
+        # Inspect the observed events rather than guessing from the error text.
+        if str(error)=='compiled-F2-read-delivery-count-or-value':
+            if not any(e.get('kind')=='mmio_delivery' and
+                    e.get('component')==self.cpu_id for e in receipt.events):
+                return 'missing'
+        if str(error)=='compiled-F2-dependent-RAM-missing':
+            if not any(e.get('kind')=='memory_write' and
+                    e.get('component')==self.cpu_id and
+                    e.get('address')==declaration['result_address']
+                    for e in receipt.events):return 'missing'
+        if str(error)=='compiled-F4-storage-CPU-acceptance-join':
+            if not any(e.get('kind')=='mmio_acceptance' and
+                    e.get('component')==self.cpu_id for e in receipt.events):
+                return 'missing'
+        phases={'compiled-F4-storage-native-transfer-missing':'pre',
+            'compiled-F4-storage-native-post-sample-missing':'post'}
+        if str(error) in phases:
+            return self._read_phase_error_status(receipt,phases[str(error)])
+        return 'failed'
+
+    def _read_phase_error_status(self,receipt,phase):
+        """Classify absence at the selected read; diagnostics never grant pass."""
+        access=self.stream['register_access']
+        deliveries=[e for e in receipt.events if e.get('kind')=='mmio_delivery'
+            and e.get('component')==self.cpu_id and e.get('write') is False
+            and e.get('device_id')==access['device_id']
+            and e.get('address')==access['address']
+            and e.get('offset')==access['register_offset']]
+        if not deliveries:return 'missing'
+        if len(deliveries)!=1:return 'failed'
+        producer=deliveries[0].get('producer_event_id')
+        if type(producer) is not int:return 'failed'
+        target=self.runner.sessions[self.target_id]
+        epoch=target.reset_epoch
+        signals=self.artifacts[self.target_id].runtime_document['base_protocol_trace']['signals']
+        def accepted(sample):
+            backend=sample.get('backend',{})
+            return isinstance(backend,dict) and all(
+                backend.get(signals[role])==value for role,value in (
+                    ('psel',1),('penable',1),('pready',1),('pwrite',0),
+                    ('paddr',access['register_offset'])))
+        rows=[e for e in receipt.events if e.get('kind')=='local_tick_sample'
+            and e.get('component')==self.target_id
+            and e.get('producer_event_id')==producer
+            and e.get('reset_epoch')==epoch]
+        tick=None
+        # The native command projection retains the accepted read tick even
+        # when that PRE or its paired POST is absent from the Runner events.
+        # Restrict it to the current pending attempt, never earlier commands.
+        if self._pending is not None:
+            before=self._pending[1].document()
+            capture=getattr(target,'native_reset_observation_commands',None)
+            if callable(capture) and type(before.get('command_sequence')) is int:
+                try:commands=capture()
+                except Exception:commands=()
+                current=[c for c in commands if c.get('target_epoch')==epoch
+                    and before['command_sequence']<c.get('command_sequence',-1)<=target._sequence
+                    and c.get('operation')=='ACCESS_APB3_REG'
+                    and c.get('fields')==[0,access['register_offset'],0,15]]
+                if len(current)>1:return 'failed'
+                if current:
+                    payload=(current[0].get('parsed_receipt_projection') or {}).get('payload') or {}
+                    ticks=[sample['local_tick']+target._tick_base
+                        for sample in payload.get('samples',())
+                        if type(sample.get('local_tick')) is int
+                        and accepted(sample.get('pre',{}))]
+                    if len(ticks)>1:return 'failed'
+                    if not ticks:return 'missing'
+                    tick=ticks[0]
+        if tick is None:
+            # With no native diagnostic, a selected accepted PRE can still
+            # locate the paired POST. Idle PRE samples cannot select a tick.
+            ticks=[e.get('local_tick') for e in rows if e.get('phase')=='pre'
+                and isinstance(e.get('outputs'),dict) and accepted(e['outputs'])]
+            if len(ticks)>1:return 'failed'
+            if not ticks:return 'missing'
+            tick=ticks[0]
+        selected=[e for e in rows if e.get('phase')==phase and e.get('local_tick')==tick]
+        # Any row at this exact phase/tick that the consumer refused is an
+        # observed duplicate or contradiction; absence is explicitly missing.
+        return 'failed' if selected else 'missing'
 
     def _stable(self,*,allow_finished=False):
         if self.finished and not allow_finished:
@@ -494,104 +634,42 @@ class CompiledF2Runtime:
             raise ValueError('compiled-F2-candidate-'+str(selection.reason))
         return selection.address
 
-    def _validated_built_receipts(self):
-        receipts={name:local.validate_built_executable_receipt()
-            for name,local in sorted(self._build_sessions.items())}
-        validate_built_receipts(self.artifacts,receipts)
-        if _semantic_canonical(receipts)!=_semantic_canonical(self._built_receipts):
-            raise ValueError('compiled-F2-built-receipt-identity-changed')
-        return receipts
 
-    def _validated_build_process_identities(self):
-        receipts=self._validated_built_receipts()
-        identities={}
-        for name,local in self._build_sessions.items():
-            launches=local.built_executable_launch_observations()
-            if len(launches)!=1:
-                raise ValueError('compiled-F2-built-process-launch-missing')
-            row=launches[0];receipt=receipts[name]
-            expected=dict(artifact_digest=receipt['artifact_digest'],
-                build_digest=receipt['build_digest'],binary_sha256=receipt['binary_sha256'],
-                built_receipt_sha256=built_receipt_sha256(receipt),
-                observed_executable_sha256=receipt['binary_sha256'],
-                ready_artifact_digest=receipt['artifact_digest'])
-            process=self._native_processes[name]
-            if (any(row.get(key)!=value for key,value in expected.items())
-                    or row.get('pid')!=process.pid
-                    or row.get('execution_nonce')!=local._execution):
-                raise ValueError('compiled-F2-built-process-identity-mismatch')
-            identities[name]=dict(component=name,
-                role='cpu' if name==self.cpu_id else 'bound_target',
-                pid=row['pid'],execution_nonce=row['execution_nonce'],**expected)
-        return identities
 
-    def build_audit_snapshot(self,*,closed=None):
-        previous=deepcopy(getattr(self,'_build_audit_previous',{}))
-        receipts=previous.get('receipts',{})
-        observations=previous.get('preparation_observations',{})
-        audit=previous.get('execution_audit',{})
-        identities=audit.get('identities',{})
-        exits=audit.get('exits',{})
-        failures=previous.get('unavailable',{})
-        for name,local in self._build_sessions.items():
-            def unavailable(label,error):
-                failures.setdefault(name,{})[label]=dict(
-                    error_type=type(error).__name__,error=str(error))
-            for target,label,accessor in (
-                    (receipts,'receipt','built_executable_receipt_document'),
-                    (observations,'preparation','build_preparation_observation_document')):
-                try:target[name]=getattr(local,accessor)()
-                except BaseException as error:unavailable(label,error)
-            try:launches=local.built_executable_launch_observations()
-            except BaseException as error:
-                unavailable('launches',error)
-                try:launches=local._built_executable_launch_diagnostics()
-                except BaseException as diagnostic_error:
-                    unavailable('launch_diagnostics',diagnostic_error)
-                    launches=()
-            try:
-                if launches:
-                    row=launches[-1]
-                    identities[name]=dict(row,component=name,
-                        role='cpu' if name==getattr(self,'cpu_id',None) else 'bound_target')
-                    exits[name]=dict(returncode=row.get('returncode'),
-                        reaped=row.get('reaped',False))
-            except BaseException as error:
-                unavailable('launch_document',error)
-        snapshot=dict(receipts=receipts,preparation_observations=observations,
-            execution_audit=dict(identities=identities,exits=exits,
-                closed=bool(getattr(self,'finished',False) if closed is None else closed)),
-            unavailable=failures)
-        self._build_audit_previous=deepcopy(snapshot)
-        return deepcopy(snapshot)
 
-    def execution_audit(self):
-        identities=self._validated_build_process_identities()
-        if identities!=self._process_identities:
-            raise ValueError('compiled-F2-built-process-identity-changed')
-        codes={name:proc.poll() for name,proc in self._native_processes.items()}
-        return dict(schema_version='compiled_F2_execution_audit.v1',
-            identities=deepcopy(self._process_identities),
-            exits={name:dict(returncode=code,reaped=code is not None)
-                for name,code in codes.items()},closed=self.finished)
 
     @host_source_discovery_scope()
     def submit(self,raw):
         """Submit one declared load address; the IP response stays bound."""
+        if self._failed_attempt is not None:
+            raise ValueError('compiled-F2-failed-attempt:'+self._failed_attempt)
         self._stable()
         address=self._decode_candidate(raw)
-        if len(self.records)>=self.max_cases:
+        if len(self.attempts)>=self.max_cases:
             raise ValueError('compiled-F2-case-budget-exhausted')
         declaration=declare_reader(self.inputs['request'],self.inputs['compiled'],
             source_id=self.stream['source_id'],address=address,result_address=self.result)
         code=bytes.fromhex(declaration['code_hex'])
         if self.cursor+len(code)>self.result:
             raise ValueError('compiled-F2-slot-exhausted')
+        index=len(self.attempts);case_id=f'{self.run_id}:{index}'
+        attempt=dict(case_id=case_id,raw=raw.hex(),value=address,
+            instruction_address=self.cursor,assertions={})
+        self.attempts.append(attempt);self._attempt=attempt
+        try:
+            return self._execute_attempt(raw,address,declaration,code,index,case_id)
+        except BaseException as error:
+            attempt['error']=dict(error_type=type(error).__name__,error=str(error))
+            self._failed_attempt=case_id
+            raise
+        finally:
+            self._pending=None;self._attempt=None
+
+    def _execute_attempt(self,raw,address,declaration,code,index,case_id):
         target=self.runner.sessions[self.target_id]
         before=capture_f2_read_version(self.authority,register=self.register_name,
             reset_epoch=target.reset_epoch)
         pre=before.document();prior=pre['write_count']
-        index=len(self.records);case_id=f'{self.run_id}:{index}'
         case=OnlineCase(case_id,'CPU_TO_IP',
             self.runtime_path_admission.runtime_path_id,
             BoundOnlineInstruction(self.image['source_id']+f':{index}',self.cpu_id,
@@ -601,7 +679,7 @@ class CompiledF2Runtime:
         self._stable()
         self._pending=(declaration,before,prior);self._checked=None
         receipt=self.session.submit_case(case)
-        self._pending=None
+        self._record_receipt(receipt,final=True)
         if receipt.violations or self._checked is None or receipt.status!='running':
             raise ValueError('compiled-F2-protocol-checker-failed:'+
                 str(receipt.violations))
@@ -614,7 +692,7 @@ class CompiledF2Runtime:
         # execution nonce and build identity are validated against the live
         # token but cannot enter a fresh-prefix comparison; the raw witnesses
         # remain in the recorded events.
-        from .generated_storage_consumer import stable_storage_version
+        from .compiled_f2_consumer import stable_f2_read_version as stable_storage_version
         certificate=dict(schema_version='compiled_F2_chain.v1',status='certified',
             path_id=self.path['path_id'],source_id=self.stream['source_id'],
             case_id=case_id,instruction_source_id=self.image['source_id'],
@@ -649,19 +727,21 @@ class CompiledF2Runtime:
         self.records.append(dict(raw=raw.hex(),value=address,
             source_values={self.stream['source_id']:address},
             certificate=certificate))
+        for assertion in certificate['assertions']:
+            self._record_assertion(assertion['expectation_id'],assertion['status'],
+                'exact native observation available',assertion['evidence'])
         self.cursor+=len(code)
         return deepcopy(certificate)
 
     def feedback(self):
-        return dict(cases=len(self.records),certified=len(self.records),
+        return dict(cases=len(self.attempts),certified=len(self.records),
             distinct_addresses=len({record['value'] for record in self.records}),
             dependent_result_stores=len(self.records),
             register_versions=len({record['certificate']['version_before']['field_version']
                 for record in self.records}))
 
-    def assertion_results(self):
-        """Typed expectation rows over this runtime's own observed evidence."""
-        from myfuzz.scenario.compiled_assertion_results import build_assertion_results
+    def assertion_case_evidence(self):
+        """Private-copy evidence for every admitted attempt, including failures."""
         from myfuzz.scenario.compiled_assertion_results import _json
         path=self.execution_binding.document()['runtime_path_admission']['selected_path']
         path_sha256=sha256(_json(path).encode()).hexdigest()
@@ -669,31 +749,58 @@ class CompiledF2Runtime:
             binding_sha256=self.execution_binding.digest,path_sha256=path_sha256,
             run_id=self.run_id)
         cases=[]
-        for record in self.records:
-            certificate=record['certificate'];case_id=certificate['case_id']
+        for attempt in self.attempts:
+            case_id=attempt['case_id']
             inventory={};observations={}
-            for assertion in certificate['assertions']:
-                expectation=assertion['expectation_id']
+            for declaration in path['assertions']:
+                expectation=declaration['expectation_id']
+                assertion=attempt['assertions'].get(expectation)
+                if assertion is None:
+                    assertion=dict(status='missing',reason='observation unavailable',
+                        evidence=deepcopy(attempt.get('error',{})))
                 ref=f'{case_id}:{expectation}'
                 inventory[ref]=dict(kind=expectation,outcome=assertion['status'],
                     scope={**identity,'case_id':case_id,'expectation_id':expectation},
                     details=deepcopy(assertion['evidence']))
                 observations[expectation]=dict(status=assertion['status'],
-                    reason='exact native observation available',
+                    reason=assertion['reason'],
                     evidence_refs=[ref])
             cases.append(dict(case_id=case_id,observations=observations,
                 evidence_inventory=inventory))
+        return cases
+
+    def assertion_results(self):
+        """Typed expectation rows over this runtime's own observed evidence."""
+        from myfuzz.scenario.compiled_assertion_results import build_assertion_results
+        path=self.execution_binding.document()['runtime_path_admission']['selected_path']
         return build_assertion_results(
             compiled_document_sha256=self.compiled_digest,
             binding_sha256=self.execution_binding.digest,path=path,
-            run_id=self.run_id,cases=cases)
+            run_id=self.run_id,cases=self.assertion_case_evidence())
 
     @host_source_discovery_scope()
     def finish(self):
+        try:return self._finish()
+        except BaseException as error:
+            self.finish_diagnostic=dict(error_type=type(error).__name__,error=str(error))
+            try:self.finish_diagnostic['assertions']=self.assertion_results()
+            except BaseException as export_error:
+                error.add_note('compiled-F2 finish assertions: '+repr(export_error))
+            raise
+
+    def _finish(self):
         if not self.finished:
+            primary=None
             try:self._stable()
-            finally:
+            except BaseException as error:primary=error
+            try:
                 self.trace=self.session.finish();self.finished=True
+            except BaseException as cleanup:
+                if primary is None:raise
+                primary.add_note('compiled-F2 session cleanup: '+repr(cleanup))
+            if primary is not None:raise primary
+        if self._failed_attempt is not None:
+            raise ValueError('compiled-F2-failed-attempt:'+self._failed_attempt)
         self._stable(allow_finished=True)
         if any(row['returncode']!=0 for row in self.execution_audit()['exits'].values()):
             raise ValueError('compiled-F2-native-exit-failed')
@@ -786,6 +893,7 @@ class CompiledF2Runtime:
                 primary=secondary_errors[0]
                 for error in secondary_errors[1:]:
                     primary.add_note('compiled-F2 replay cleanup/audit: '+repr(error))
+                raise primary
 
 
 def _compare_prefixes(expected,actual):

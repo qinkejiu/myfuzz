@@ -1,0 +1,14 @@
+{
+  "schema_version": "generic_scenario_descriptor.v1",
+  "scenario_id": "ibex-wbdmac-f6",
+  "root": ".superpowers/sdd/compiled-f6-20261024/gates/inputs/f6-ram",
+  "compose": "base.compose.json",
+  "supplement": "base.supplement.json",
+  "capability": "base.test_capability.json",
+  "flow_ids": ["F6"],
+  "executors": {"F6": "compiled_f6_cpu_dma"},
+  "f4_records": null,
+  "f2_records": null,
+  "f6_records": ["0110c00008000000"],
+  "rounds": 256
+}

@@ -248,3 +248,49 @@ def test_normal_provenance_startup_reuses_real_readback_authorities():
     runner._append_external_events('cpu', 1)
     assert runner.memory_dependency_evidence_report()['counts']['verified'] == 4
     assert commits.pending_count == reads.pending_count == 0
+
+
+def test_uninstalled_dma_commit_keeps_cpu_authority_and_cannot_claim_dma_write():
+    from myfuzz.scenario.ledger import TransactionKey, TransactionLedger
+    from myfuzz.scenario.live_memory_prerequisites import LiveMemoryEffectTracker
+    from myfuzz.scenario.memory_service import MemoryService
+    runner, cpu = wired()
+    dma = MemoryService(cpu.memory, TransactionLedger(), include_writer_kinds=True,
+                        commit_stream_capacity=16)
+    runner.sessions['dma'] = SimpleNamespace(service=dma)
+    runner.configure_memory_dependency_evidence(runtime_contract_sha256='a'*64)
+    tracker = LiveMemoryEffectTracker(consumer=runner._memory_dependency_consumer)
+    cpu._serve('data', 1, 0x20000, 0x11, 15)
+    runner._append_external_events('cpu', 0)
+    assert len(tracker.retained_ram_witnesses('ram', 0)) == 1
+    runner._events.append({'event_id':runner.event_count+1,'kind':'reset_barrier'})
+    dma.write(TransactionKey('dma-exec','case','dma',1,'dma-memory',1),
+              0x20000, 0x55, width_bytes=4, byte_enable=15)
+    runner._append_external_events('dma', 0)
+    assert tracker.retained_ram_witnesses('ram', 0) == ()
+    cpu.reset_epoch = 1
+    cpu._sequences = {'instr':0,'data':0}
+    cpu._serve('data', 0, 0x20000, 0, 15)
+    runner._append_external_events('cpu', 0)
+    report = runner.memory_dependency_evidence_report()
+    assert report['journal_integrity'] is True
+    assert report['counts']['verified'] == 0
+    cpu._serve('data', 1, 0x20000, 0xaa, 15)
+    runner._append_external_events('cpu', 0)
+    cpu._serve('data', 0, 0x20000, 0, 15)
+    runner._append_external_events('cpu', 0)
+    report = runner.memory_dependency_evidence_report()
+    assert report['journal_integrity'] is True
+    assert report['counts']['verified'] == 4
+    assert len(tracker.retained_ram_witnesses('ram', 0)) == 1
+    assert all(c['write_transaction']['source_component']=='cpu' and
+               c['write_transaction']['source_epoch']==1 for c in report['certificates'])
+
+
+def test_installed_cpu_commit_without_authority_still_fails_closed():
+    runner, _ = wired()
+    runner.configure_memory_dependency_evidence(runtime_contract_sha256='a'*64)
+    runner._events.append({'event_id':1, 'kind':'memory_write_commit', 'component':'cpu'})
+    report = runner.memory_dependency_evidence_report()
+    assert report['journal_integrity'] is False
+    assert report['reason'] == 'missing_live_commit_authority'

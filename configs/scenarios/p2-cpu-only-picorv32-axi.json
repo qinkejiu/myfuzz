@@ -1,0 +1,27 @@
+{
+  "schema_version": "p0_cpu_only.v1",
+  "description": "P2 CPU-only AXI4-Lite scenario: the pinned PicoRV32 AXI4-Lite master (picorv32_axi) with one unified AR/R + AW/W/B port served by host RAM. This core exports no RVFI retirement pair and no mem_instr, so retirement and trap are reported unknown; a case passes on its own completion store (sentinel 0xffffffff -> 0) and on the data window matching the reference model, never on bus success alone. The CPU artifact is resolved from the profile on each invocation.",
+  "cpu_profile": "configs/cpus/picorv32_axi/component_profile.json",
+  "cpu_artifact_source": "profile",
+  "artifact_cache": "runs/p2-cpu-only-20261103/artifacts",
+  "instance_id": "cpu",
+  "ram_base": 0,
+  "ram_size": 131072,
+  "boot_address": 0,
+  "program_address": 0,
+  "program_data_address": 73728,
+  "program_data_words": 16,
+  "program_max_words": 8,
+  "mailbox_address": 69632,
+  "result_address": 69636,
+  "reset_assert_ticks": 8,
+  "reset_release_ticks": 8,
+  "max_ticks": 20000,
+  "records": [
+    "0x1",
+    "0x2",
+    "0x100",
+    "0xffffffff"
+  ],
+  "required_observations": []
+}

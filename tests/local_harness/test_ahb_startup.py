@@ -9,6 +9,7 @@ from myfuzz.local_harness.ahb_startup import startup_contract,validate_startup_p
 from myfuzz.scenario.ahb_cpu_events import SHAPE,AhbCpuObserver
 from tests.local_harness.ahb_domain_support import (command_sample,domain_values,
                                                     start_measured_prefix,startup_record)
+from tests.local_harness.driver_text_support import strip_dut_eval_timing
 from tests.local_harness.test_ahb_cpu_contract import generated
 
 
@@ -269,6 +270,16 @@ def test_zero_release_and_maximum_capture_no_tick_rewrite(asserted,released):
  assert len([e for e in o.events if e['kind']=='ahb_raw'])==c['total_ticks']+1
 
 
+# ``driver_renderer`` now wraps every ``dut.eval()`` in an env-gated
+# ``eval_dut()`` timing helper (plus its includes and a per-pid JSON writer).
+# The startup/template contracts below pin the *rendered shape* of the firmware,
+# not this instrumentation, so both sides are normalised with the shared
+# ``tests.local_harness.driver_text_support`` primitive before the comparison.
+# Nothing else is dropped: the AHB startup helpers, the tick body and every
+# ``ahb_startup_*`` marker are still compared byte for byte.
+_strip_dut_timing = strip_dut_eval_timing
+
+
 def test_template_defaults_identical_for_other_kinds():
  import ast,gzip
  from myfuzz.local_harness import driver_renderer
@@ -279,9 +290,13 @@ def test_template_defaults_identical_for_other_kinds():
   return next(n.value.value for n in ast.walk(tree) if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='template' for t in n.targets))
  old=template(before);new=template(after)
  replacements={'AHB_STARTUP_HELPERS':'','STARTUP_TICK':'tick(dut, nullptr);',
-  'COMMAND_SET':'','AHB_STARTUP_VARIABLE':'','AHB_STARTUP_FINISH':'','OBSERVATIONS_EXPRESSION':'snapshot(dut)'}
+  'COMMAND_SET':'','AHB_STARTUP_VARIABLE':'','AHB_STARTUP_FINISH':'','OBSERVATIONS_EXPRESSION':'snapshot(dut)',
+  # Timing/diagnostic slots added after the snapshot: the pinned comparison
+  # covers the AHB startup shape, not this later instrumentation.
+  'TIMED_TICK_BEGIN':'','TIMED_LOW_SETTLE':'','TIMED_HIGH_SETTLE':'',
+  'STARTUP_DIAGNOSTICS_BEGIN':'','STARTUP_DIAGNOSTICS_END':''}
  for key,value in replacements.items():new=new.replace('@'+key+'@',value)
- assert new==old
+ assert _strip_dut_timing(new)==_strip_dut_timing(old)
 
 
 def test_actual_reset_tick_and_ready_bytes_preserved(generated):
@@ -293,6 +308,7 @@ def test_actual_reset_tick_and_ready_bytes_preserved(generated):
  from myfuzz.local_harness import render_local_runtime
  top=render_local_runtime(artifact.plan,artifact.structural,artifact.source_verification,base_dir=Path.cwd())
  old=namespace['render_local_driver'](top,base_dir=Path.cwd()).cpp_text;new=artifact.cpp_text
+ old=_strip_dut_timing(old);new=_strip_dut_timing(new)
  def startup(cpp):return cpp[cpp.index('int main('):cpp.index('  BoundedReplay replay(')]
  assert startup(new).replace('capture_ahb_startup(dut);','tick(dut, nullptr);')==startup(old)
  def tick(cpp):return cpp[cpp.index('static void tick('):cpp.index('static std::string encode_hex(')].split('static std::vector<std::string> ahb_startup_records;')[0]
@@ -315,7 +331,7 @@ def test_nonahb_memory_template_cpp_bytes_unchanged(generated,monkeypatch,kind):
  exec(compile(before,'saved_driver_renderer.py','exec'),namespace)
  namespace['render_local_runtime']=lambda *a,**kw:top
  monkeypatch.setattr(driver_renderer,'render_local_runtime',lambda *a,**kw:top)
- assert namespace['render_local_driver'](top,base_dir=Path.cwd()).cpp_text==driver_renderer.render_local_driver(top,base_dir=Path.cwd()).cpp_text
+ assert _strip_dut_timing(namespace['render_local_driver'](top,base_dir=Path.cwd()).cpp_text)==_strip_dut_timing(driver_renderer.render_local_driver(top,base_dir=Path.cwd()).cpp_text)
 
 
 def test_startup_receipts_are_global_raw_budgeted_and_not_replaced(generated,monkeypatch):

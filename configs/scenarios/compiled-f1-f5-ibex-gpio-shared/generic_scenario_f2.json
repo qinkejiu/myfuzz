@@ -1,0 +1,41 @@
+{
+  "schema_version": "generic_scenario_descriptor.v1",
+  "scenario_id": "ibex-gpio-shared-with-f2",
+  "root": ".",
+  "compose": "configs/scenarios/compiled-f1-f5-ibex-gpio-shared/compose.json",
+  "supplement": "configs/scenarios/compiled-f1-f5-ibex-gpio-shared/execution_supplement.json",
+  "capability": "configs/scenarios/compiled-f4-obi-apb-ibex/test_capability.json",
+  "flow_ids": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5"
+  ],
+  "executors": {
+    "F1": "compiled_f4_obi_apb",
+    "F3": "compiled_f4_obi_apb",
+    "F4": "compiled_f4_obi_apb",
+    "F5": "compiled_f4_obi_apb",
+    "F2": "compiled_f2_obi_apb"
+  },
+  "f1_records": [
+    "13000000",
+    "03200000"
+  ],
+  "f3_records": [
+    "55000000",
+    "aa000000"
+  ],
+  "f4_records": [
+    "0001000000"
+  ],
+  "f5_records": [
+    "0000000100000000",
+    "0000000000000000"
+  ],
+  "f2_records": [
+    "08100040"
+  ],
+  "rounds": 128
+}

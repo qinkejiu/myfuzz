@@ -1,0 +1,35 @@
+{
+  "schema_version": "ip_test_capability.v3",
+  "component_id": "pulp_gpio",
+  "profile_fingerprint": "sha256:9fe64143ebbacebfa1f32ee0d0ca993f1ccabf396033eec42d7eb78256c58ec8",
+  "endpoint_capabilities": [
+    {
+      "endpoint_id": "gpio.bus",
+      "operations": [
+        "request",
+        "accept",
+        "response",
+        "read",
+        "write",
+        "wait",
+        "error"
+      ]
+    }
+  ],
+  "register_semantics": [
+    {
+      "register": "PADDIR",
+      "field": "value",
+      "lsb": 0,
+      "width": 32,
+      "access": "rw",
+      "read_mask": 4294967295,
+      "write_mask": 4294967295,
+      "side_effect": "none",
+      "reset_value": 0,
+      "evidence_ref": "rtl:third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv@f82caeb7f7d89427f05e9af5ed31e0675efe0d83:11,121,209-233,274-286,526-536,781-784;sha256=1e271914da4d25c87acd12121dde60a6ed955033870fd7a6730b2c9bafcbcaef"
+    }
+  ],
+  "observation_mappings": [],
+  "register_aliases": []
+}

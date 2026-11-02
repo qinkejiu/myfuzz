@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import shutil
 import subprocess
+from types import SimpleNamespace
 
 import pytest
 
@@ -31,7 +32,8 @@ def test_pipelined_protocol_is_separate_and_has_no_invented_select():
     protocol = load_builtin_protocol('wishbone', 'pipelined')
     assert protocol.version != load_builtin_protocol('wishbone', 'classic').version
     fields = {f.field_id for f in protocol.fields}
-    assert fields == {'cyc','stb','we','adr','dat_w','stall','ack','dat_r','err'}
+    assert fields == {'cyc','stb','we','adr','dat_w','sel','stall','ack','dat_r','err'}
+    assert next(f for f in protocol.fields if f.field_id == 'sel').required is False
     assert protocol.legal_adapters == ()
 
 
@@ -52,6 +54,126 @@ def test_generated_driver_exposes_both_bus_faces_and_one_edge_only(artifact):
     assert 'WishboneDmaEdgeState' in artifact.cpp_text
     assert document['driver_limits']['max_samples_per_command'] == 1
     assert {r['contract']['side'] for r in document['selected_template']['executor']['protocol_templates']} == {'target','master'}
+    trace_set = document['protocol_checker_trace_set']
+    assert trace_set['schema_version'] == 'wishbone_dma_protocol_checker.v1'
+    assert trace_set['sample_group'] == 'backend'
+    traces = {row['endpoint_role']: row for row in trace_set['traces']}
+    assert set(traces) == {'control_target', 'memory_master'}
+    assert set(traces['control_target']['signals']) == {
+        'cyc', 'stb', 'we', 'adr', 'dat_w', 'stall', 'ack', 'dat_r'}
+    assert set(traces['memory_master']['signals']) == {
+        'cyc', 'stb', 'we', 'adr', 'dat_w', 'stall', 'ack', 'dat_r', 'err'}
+    assert all('sel' not in row['signals'] for row in traces.values())
+    assert traces['memory_master']['byte_enable'] == {
+        'signal': 'absent', 'partial_write': False, 'fixed_value': 15,
+        'basis': 'profile.capabilities.master_fixed_byte_enable'}
+    assert traces['control_target']['byte_enable'] == {
+        'signal': 'absent', 'partial_write': False}
+
+
+def test_runner_installs_both_dma_endpoint_checkers_before_execution(artifact):
+    from myfuzz.scenario.runner import ScenarioRunner
+
+    runner = object.__new__(ScenarioRunner)
+    runner._status = 'created'
+    runner._events = []
+    runner.sessions = {'dma': SimpleNamespace(artifact=artifact)}
+    runner._ip_protocol_checkers = {}
+
+    checker = runner.install_protocol_checker('dma')
+
+    assert checker.report()['status'] == 'incomplete'
+    assert checker.report()['installed_endpoint_ids'] == [
+        'dma.control', 'dma.memory']
+    assert runner.protocol_checker_report('dma')['artifact_identity'] == {
+        'component_id': 'zipcpu_wbdmac',
+        'instance_id': 'dma',
+        'artifact_digest': artifact.runtime_document['artifact_digest'],
+        'profile_fingerprint': artifact.plan.profile.profile_fingerprint,
+        'source_verification_sha256': __import__(
+            'myfuzz.local_harness.renderer', fromlist=['_sha'])._sha(
+                artifact.source_verification),
+        'runtime_artifact_sha256': __import__(
+            'myfuzz.local_harness.renderer', fromlist=['_sha'])._sha(
+                artifact.runtime_document),
+    }
+
+
+def test_runner_rejects_unbound_or_missing_dma_checker_scope(artifact):
+    from dataclasses import replace
+    from myfuzz.local_harness.renderer import _sha
+    from myfuzz.scenario.runner import ScenarioRunner
+
+    changed = dict(artifact.runtime_document)
+    changed.pop('protocol_checker_trace_set')
+    unsigned = dict(changed)
+    unsigned.pop('artifact_digest')
+    changed['artifact_digest'] = _sha(unsigned)
+    tampered = replace(artifact, runtime_document=changed)
+    runner = object.__new__(ScenarioRunner)
+    runner._status = 'created'
+    runner._events = []
+    runner.sessions = {'dma': SimpleNamespace(artifact=tampered)}
+    runner._ip_protocol_checkers = {}
+
+    with pytest.raises(ValueError, match='protocol-admission-required'):
+        runner.install_protocol_checker('dma')
+
+    alias_changed = dict(artifact.runtime_document)
+    alias_changed['protocol_checker_trace_set'] = {
+        **alias_changed['protocol_checker_trace_set'],
+        'traces': [dict(row) for row in
+            alias_changed['protocol_checker_trace_set']['traces']]}
+    alias_changed['protocol_checker_trace_set']['traces'][1] = dict(
+        alias_changed['protocol_checker_trace_set']['traces'][1])
+    alias_changed['protocol_checker_trace_set']['traces'][1]['signals'] = dict(
+        alias_changed['protocol_checker_trace_set']['traces'][1]['signals'])
+    alias_changed['protocol_checker_trace_set']['traces'][1]['signals']['adr'] = 'mwb_stb'
+    unsigned_alias = dict(alias_changed)
+    unsigned_alias.pop('artifact_digest')
+    alias_changed['artifact_digest'] = _sha(unsigned_alias)
+    tampered_alias = replace(artifact, runtime_document=alias_changed)
+    runner._status = 'created'
+    runner.sessions = {'dma': SimpleNamespace(artifact=tampered_alias)}
+    with pytest.raises(ValueError, match='backend-signal-mismatch'):
+        runner.install_protocol_checker('dma')
+
+    runner.sessions = {'dma': SimpleNamespace(artifact=artifact)}
+    runner._status = 'running'
+    with pytest.raises(ValueError, match='install-after-run-start'):
+        runner.install_protocol_checker('dma')
+
+
+def test_runner_feeds_the_same_pre_receipt_to_both_dma_endpoint_checkers(artifact):
+    from myfuzz.scenario.ownership import compile_ownership
+    from myfuzz.scenario.runner import ScenarioRunner
+
+    backend = {row['name']: 0 for row in artifact.runtime_document['backend_ports']}
+
+    class Session:
+        reset_epoch = 0
+
+        def __init__(self):
+            self.artifact = artifact
+
+        def drain_tick_samples(self):
+            return [{'local_tick': 1,
+                'pre': {'backend': dict(backend), 'physical': {}},
+                'post': {'backend': dict(backend), 'physical': {}}}]
+
+    runner = ScenarioRunner(sessions={'dma': Session()},
+        ownership=compile_ownership((), ()), bindings=())
+    checker = runner.install_protocol_checker('dma')
+    runner.local_ticks['dma'] = 1
+
+    runner._drain_tick_samples(producer_event_id=1)
+
+    report = runner.protocol_checker_report('dma')
+    assert report['status'] == 'clean'
+    assert report['pre_sample_counts'] == {'dma.control': 1, 'dma.memory': 1}
+    assert {row['last_raw_sample_event_id'] for row in report['endpoints']} == {1}
+    assert report['findings'] == []
+    assert runner.event_count == 2
 
 
 def test_policy_refuses_unowned_trigger_input(artifact):
@@ -61,6 +183,20 @@ def test_policy_refuses_unowned_trigger_input(artifact):
         if r.port == 'i_dev_ints' else r for r in plan.dispositions)
     with pytest.raises(ValueError, match='dma-trigger-must-be-fixed-zero'):
         dma_edge_policy(replace(plan, dispositions=dispositions))
+
+
+def test_policy_accepts_declared_fixed_inputs_without_requiring_a_specific_trigger(artifact):
+    """Synthetic dispositions exercise admission, not a new physical RTL."""
+    from myfuzz.local_harness.wishbone_dma_template import dma_edge_policy
+    plan = artifact.plan
+    original = next(r for r in plan.dispositions if r.port == 'i_dev_ints')
+    others = tuple(r for r in plan.dispositions if r.port != 'i_dev_ints')
+    dma_edge_policy(replace(plan, dispositions=others))
+    first = replace(original, width=1, bit_hi=0, value=1)
+    second = replace(first, port='i_enable', value=0)
+    dma_edge_policy(replace(plan, dispositions=others + (first, second)))
+    with pytest.raises(ValueError, match='dma-trigger-must-be-fixed-zero'):
+        dma_edge_policy(replace(plan, dispositions=others + (first, replace(second, value=2))))
 
 
 def test_native_edge_guard_and_command_parser(tmp_path):
@@ -106,7 +242,9 @@ def test_build_identity_captures_dma_host_policy_and_protocol(artifact):
     assert {'src/myfuzz/local_harness/wishbone_dma_template.py',
             'src/myfuzz/local_harness/wishbone_dma_fields.py',
             'src/myfuzz/local_harness/rtl/wishbone_dma_edge.h',
-            'src/myfuzz/protocols/plugins/wishbone_pipelined.json'} <= inputs
+            'src/myfuzz/protocols/plugins/wishbone_pipelined.json',
+            'src/myfuzz/scenario/ip_protocol_checker.py',
+            'src/myfuzz/scenario/runner.py'} <= inputs
 
 
 def test_full_generated_transport_with_a_stub_model_ticks_once_and_replays(artifact, tmp_path):

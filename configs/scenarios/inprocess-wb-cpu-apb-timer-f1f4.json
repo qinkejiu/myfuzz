@@ -1,0 +1,29 @@
+{
+  "schema_version": "inprocess_wb_scenario.v1",
+  "description": "One PicoRV32 Wishbone CPU (RVFI declared) reaching the host RAM and one APB3 target through a single shared Wishbone master port. The CPU boot address is its own reset vector 0, so the RAM image starts at 0; the APB IP owns the declared 4 KiB window.",
+  "active_id": "target",
+  "cpu_profile": "configs/cpus/picorv32_wb_irq_rvfi/component_profile.json",
+  "source_profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+  "image_start": 0,
+  "image_end": 131072,
+  "target_window": {
+    "base": 1073741824,
+    "size": 4096
+  },
+  "cpu_timing": {
+    "reset_assert_ticks": 4,
+    "reset_release_ticks": 4,
+    "max_wait_cycles": 16
+  },
+  "source_timing": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "max_wait_cycles": 16
+  },
+  "assume_single_clock": true,
+  "registers": {
+    "TIMER0_COUNT": 0,
+    "TIMER0_CTRL": 4,
+    "TIMER0_CMP": 8
+  }
+}

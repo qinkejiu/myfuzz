@@ -1,0 +1,27 @@
+{
+  "schema_version": "p0_cpu_only.v1",
+  "description": "P0-2 CPU-only replacement sample: pinned CV32E40P CPU model, host RAM, no target IP/DMA. This CPU profile exports no RVFI retirement pair, so the runner reports retirement/trap as unknown (never as zero) and builds only the observation signals the wrapper really exports.",
+  "cpu_profile": "configs/cpus/cv32e40p/component_profile.json",
+  "artifact_cache": "runs/cv32e40p-pulp-online-20261007-cache",
+  "cpu_cache_digest": "7e5778575a767b36c1618191e6dbc7ff8a233cf9612f76618fc022990e54ec89",
+  "instance_id": "cpu",
+  "ram_base": 65536,
+  "ram_size": 65536,
+  "boot_address": 65536,
+  "program_address": 65536,
+  "mailbox_address": 69632,
+  "result_address": 69636,
+  "reset_assert_ticks": 8,
+  "reset_release_ticks": 8,
+  "max_ticks": 20000,
+  "records": [
+    "0x1",
+    "0x2",
+    "0x3"
+  ],
+  "fuzz": {
+    "cases": 16,
+    "seed": 1
+  },
+  "required_observations": []
+}

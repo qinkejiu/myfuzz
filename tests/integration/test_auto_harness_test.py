@@ -702,7 +702,7 @@ def test_an_unknown_executor_is_refused_by_name_without_running_a_stage(tmp_path
     assert result.returncode != 0, result.stdout
     assert payload['executor']['status'] == 'refused'
     assert payload['executor']['code'] == 'compiled-executor-unknown'
-    assert payload['executor']['known'] == ['compiled-f4-rfuzz']
+    assert payload['executor']['known'] == ['compiled-f2-rfuzz', 'compiled-f4-rfuzz']
     assert payload['refusals'][0]['code'] == 'compiled-executor-unknown'
     assert not (output / 'compiled_paths.v1.json').exists()
     assert (output / '.incomplete').exists()
@@ -736,6 +736,87 @@ def test_the_cli_passes_the_executor_through_for_a_software_only_run(tmp_path):
     executable = [row for row in compiled['paths']
                   if row['flow_id'] == 'F4' and row['status'] == 'executable']
     assert len(executable) == 1
+
+
+@pytest.mark.parametrize(('skip_session', 'expected_status'), [
+    (False, 'absent'), (True, 'not_requested'),
+])
+@pytest.mark.parametrize('refusal_at', ['request_builder', 'compiler'])
+def test_f6_d3_refusal_marks_requested_session_and_fresh_absent(
+        tmp_path, monkeypatch, skip_session, expected_status, refusal_at):
+    """A requested F6 run that refuses at D3 has named downstream absences."""
+    from myfuzz.local_harness import auto_harness_test as driver
+    from myfuzz.scenario.compiled_paths import PathCompilationError
+
+    output = tmp_path / 'f6-d3-refusal'
+    compose_path = (ROOT / '.superpowers/sdd/compiled-f6-20261024/gates/'
+                    'inputs/f6-ram/unsupported-irq/compose.json')
+    execution_path = compose_path.with_name('f6_execution.json')
+    deliveries_path = compose_path.with_name('f6_deliveries.json')
+
+    class Composition:
+        document = {}
+        path = compose_path
+        base_dir = ROOT
+        compose_base = compose_path.parent
+
+    monkeypatch.setattr(driver, 'review_profiles', lambda *a, **k: {
+        'status': 'ok', 'components': []})
+    monkeypatch.setattr(driver, 'review_document_json', lambda review: '{}\n')
+    monkeypatch.setattr(driver, '_reviewed_profiles', lambda *a, **k: set())
+    monkeypatch.setattr(driver, 'load_composition', lambda *a, **k: Composition())
+    monkeypatch.setattr(driver, 'check_review_coverage', lambda *a, **k: [])
+
+    def generate(compose, *, output_root, **kwargs):
+        output_root.mkdir(parents=True)
+        document = {
+            'schema_version': 'harness_set.v1', 'tier': 'generated',
+            'components': [], 'binaries': {},
+        }
+        (output_root / 'harness_set.json').write_text(
+            json.dumps(document, sort_keys=True, indent=2) + '\n')
+        return document
+
+    monkeypatch.setattr(driver, 'generate_harness_set', generate)
+    def build_request(*args, **kwargs):
+        if refusal_at == 'request_builder':
+            raise driver.AutoHarnessRefused(
+                'f6-native-irq-binding-required', '/wiring/deliveries')
+        return {'schema_version': 'path_compile_request.v1'}, {}
+
+    monkeypatch.setattr(driver, 'build_path_compile_request', build_request)
+    monkeypatch.setattr(driver, 'load_path_compile_request', lambda *a, **k: object())
+
+    def refuse_d3(*args, **kwargs):
+        raise PathCompilationError('f6-native-irq-binding-required',
+                                  '/wiring/deliveries')
+
+    if refusal_at == 'compiler':
+        monkeypatch.setattr(driver, 'compile_paths', refuse_d3)
+    summary = driver.run_auto_harness_test(
+        cpu=ROOT / 'configs/cpus/ibex_rvfi_local/component_profile.json',
+        ips=[ROOT / 'configs/peripherals/zipcpu_wbdmac/component_profile.json'],
+        compose=compose_path, output=output, base_dir=ROOT,
+        executor='compiled-f6-rfuzz',
+        client_binary=tmp_path / 'kfuzz', cache_dir=tmp_path / 'cache',
+        f6_execution=execution_path, f6_deliveries=deliveries_path,
+        skip_session=skip_session, label='f6-d3-refusal')
+
+    assert summary['status'] == 'refused'
+    assert summary['stages']['path_compilation']['status'] == 'refused'
+    assert summary['stages']['session']['status'] == expected_status
+    assert summary['stages']['fresh_verification']['status'] == expected_status
+    if skip_session:
+        assert not summary['absences']
+    else:
+        assert summary['stages']['session']['code'] == 'path-compilation-refused'
+        assert summary['stages']['fresh_verification']['code'] == (
+            'fresh-replay-requires-a-session')
+        assert len(summary['absences']) == 2
+    assert not (output / 'session').exists()
+    assert not (output / 'bundle').exists()
+    assert not (output / 'fresh-verification.json').exists()
+    assert (output / '.incomplete').is_file()
 
 
 # ---------------------------------------------------------------------------
@@ -774,7 +855,8 @@ def test_a_non_default_rounds_per_case_requires_the_compiled_executor(tmp_path):
     assert not (output / 'declaration-review.json').exists()
 
 
-def test_rounds_per_case_reaches_the_compiled_session(monkeypatch, tmp_path):
+@pytest.mark.parametrize('late_raw_swap',[False,True])
+def test_rounds_per_case_reaches_the_compiled_session(monkeypatch, tmp_path, late_raw_swap):
     from contextlib import nullcontext
     from myfuzz.integration import compiled_rfuzz
     from myfuzz.local_harness import auto_harness_test as driver
@@ -786,13 +868,19 @@ def test_rounds_per_case_reaches_the_compiled_session(monkeypatch, tmp_path):
     cache = tmp_path / 'cache'
     cache.mkdir()
     captured: dict = {}
+    fresh_documents = {'compiled_f4_fresh_prefix.json':{'records':[]},
+        'compiled_f4_fresh_events.json':[{'event_id':1}],
+        'compiled_f4_fresh_execution_audit.json':{'closed':True},
+        'compiled_f4_fresh_verification.json':{'matches':True}}
     verified = []
     # This argument-forwarding fixture never starts a native worker.
     monkeypatch.setattr(driver, '_heavy_worker_lock', lambda base: nullcontext())
 
     def fake_saved_output_verification(output_dir, **kwargs):
+        from hashlib import sha256
         verified.append((output_dir, kwargs))
-        return {}
+        return {name:sha256((output_dir/name).read_bytes()).hexdigest()
+                for name in fresh_documents}
 
     monkeypatch.setattr(compiled_rfuzz, 'verify_saved_compiled_f4_build_outputs',
                         fake_saved_output_verification)
@@ -813,6 +901,8 @@ def test_rounds_per_case_reaches_the_compiled_session(monkeypatch, tmp_path):
 
     def fake_session(**kwargs):
         captured.update(kwargs)
+        for name,document in fresh_documents.items():
+            (Path(kwargs['output_dir'])/name).write_text(json.dumps(document))
         session = Path(kwargs['session_dir'])
         session.mkdir(parents=True)
         (session / 'online_session_manifest.json').write_text('{}\n',
@@ -836,6 +926,8 @@ def test_rounds_per_case_reaches_the_compiled_session(monkeypatch, tmp_path):
     monkeypatch.setattr(driver, 'run_compiled_session', fake_session)
 
     def fake_bundle(*, session_dir, bundle_dir):
+        if late_raw_swap:
+            (output/'compiled_f4_fresh_events.json').write_text('[{"event_id":999}]')
         bundle_dir.mkdir(parents=True, exist_ok=True)
         (bundle_dir / 'bundle-manifest.json').write_text('{}\n',
                                                           encoding='utf-8')
@@ -851,7 +943,18 @@ def test_rounds_per_case_reaches_the_compiled_session(monkeypatch, tmp_path):
     assert len(verified) == 1
     assert verified[0][0] == output
     assert verified[0][1]['manifest'] == {}
-    assert summary['executor']['status'] == 'ok', summary['refusals']
+    from hashlib import sha256
+    for name in fresh_documents:
+        key=name.removesuffix('.json')
+        assert key in summary['documents'],'fresh replay document missing from final summary: '+name
+        assert summary['documents'][key]['sha256']==sha256((output/name).read_bytes()).hexdigest()
+    if late_raw_swap:
+        assert summary['status']=='refused'
+        assert any(row['code']=='compiled-build-saved-output-changed' for row in summary['refusals'])
+        assert (output/'.incomplete').exists()
+    else:
+        assert summary['status']=='complete',summary['refusals']
+        assert summary['executor']['status'] == 'ok', summary['refusals']
     assert captured['rounds_per_case'] == 32
     assert summary['rounds_per_case'] == 32
     assert summary['executor']['detail']['rounds_per_case'] == 32

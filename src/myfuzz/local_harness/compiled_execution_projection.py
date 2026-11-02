@@ -150,8 +150,88 @@ def _storage_consumer_support(*, binding, artifacts):
     return storage_consumer_support(binding=binding, artifacts=artifacts)
 
 
+def _wishbone_consumer_support(*, binding, artifacts):
+    """One indirection so the report mapping itself stays unit-testable."""
+    from myfuzz.integration.generated_wishbone_storage_consumer import (
+        wishbone_storage_consumer_support)
+    return wishbone_storage_consumer_support(binding=binding, artifacts=artifacts)
+
+
+def _wishbone_row_binding(*, artifacts, compiled_inputs, base_dir):
+    """The closed producer binding, only when it names the Wishbone row.
+
+    The APB executor's admission cannot describe a Wishbone artifact, so the
+    sibling row is recognised from the same closed producer selection every
+    other layer uses.  Any other row (or a selection refusal) keeps the exact
+    previous APB/GPIO result.
+    """
+    from myfuzz.integration.compiled_storage_producer import (
+        ROW_GENERIC_WISHBONE_STORAGE, select_storage_producer)
+    try:
+        binding = select_storage_producer(artifacts=artifacts,
+            compiled_inputs=compiled_inputs, base_dir=base_dir)
+    except ValueError:
+        return None
+    if binding.row != ROW_GENERIC_WISHBONE_STORAGE:
+        return None
+    return binding
+
+
+def _assess_compiled_wishbone_f4_support(*, artifacts, compiled_inputs,
+                                         base_dir, binding):
+    """Static Wishbone F4 support report; it never grants runtime authority."""
+    from myfuzz.integration.compiled_wishbone_f4 import admit_wishbone_f4
+    f4_paths = [path for path in compiled_inputs['compiled']['paths']
+                if path['flow_id'] == 'F4' and path['status'] == 'executable']
+    selected_id = f4_paths[0]['path_id'] if len(f4_paths) == 1 else None
+    unsupported_paths = [dict(path_id=path['path_id'], flow_id=path['flow_id'],
+        reason='compiled-executor-flow-unsupported')
+        for path in compiled_inputs['compiled']['paths']
+        if path['path_id'] != selected_id]
+    support = _wishbone_consumer_support(binding=binding, artifacts=artifacts)
+    try:
+        path = admit_wishbone_f4(artifacts=artifacts,
+            compiled_inputs=compiled_inputs, base_dir=base_dir)
+    except ValueError as error:
+        return dict(schema_version='compiled_F4_support.v1',
+            execution_supported=0, runtime_admitted=False,
+            status='unsupported', reason=str(error),
+            executor='compiled_f4_wishbone', producer_binding=binding.document(),
+            receipt_elements=support,
+            support_scope='generic_Wishbone_storage_admission_refused',
+            unsupported_paths=unsupported_paths)
+    unsupported_paths = [dict(path_id=row['path_id'], flow_id=row['flow_id'],
+        reason='compiled-executor-flow-unsupported')
+        for row in compiled_inputs['compiled']['paths']
+        if row['path_id'] != path['path_id']]
+    if support['complete'] is not True:
+        missing = ','.join(row['element'] for row in support['refusals'])
+        return dict(schema_version='compiled_F4_support.v1',
+            execution_supported=0, runtime_admitted=False,
+            status='unsupported',
+            reason='compiled-F4-wishbone-receipt-join-incomplete:' + missing,
+            executor='compiled_f4_wishbone', path_id=path['path_id'],
+            producer_binding=binding.document(), receipt_elements=support,
+            support_scope='generic_Wishbone_storage_receipt_join_incomplete',
+            unsupported_paths=unsupported_paths)
+    return dict(schema_version='compiled_F4_support.v1', execution_supported=1,
+        runtime_admitted=False, status='supported_requires_actual_startup',
+        executor='compiled_f4_wishbone', path_id=path['path_id'],
+        producer_binding=binding.document(), receipt_elements=support,
+        support_scope=('experimental_RV32I_writer_generic_Wishbone_storage_'
+                       'with_live_version_token'),
+        startup_requires=['native_first_fetch_inside_instruction_image',
+                          'exact_private_input_readmission',
+                          'writable_instruction_image_result_word',
+                          'actual_native_wishbone_storage_version_token'],
+        unsupported_paths=unsupported_paths)
+
+
 def assess_compiled_f4_support(*,artifacts,compiled_inputs,base_dir=None):
     """Inspect the installed executor without granting live execution authority."""
+    from myfuzz.integration.compiled_mmio import mmio_support
+    protocol_support=mmio_support(artifacts=artifacts,compiled_inputs=compiled_inputs,flow='F4')
+    if protocol_support is not None:return protocol_support
     from myfuzz.integration.compiled_f4 import admit_f4
     from myfuzz.integration.compiled_storage_producer import (
         ROW_GPIO_CAUSAL,select_storage_producer)
@@ -160,8 +240,15 @@ def assess_compiled_f4_support(*,artifacts,compiled_inputs,base_dir=None):
         binding=select_storage_producer(artifacts=artifacts,compiled_inputs=compiled_inputs,
             base_dir=base_dir)
     except ValueError as error:
-        return dict(schema_version='compiled_F4_support.v1',execution_supported=0,
-            runtime_admitted=False,status='unsupported',reason=str(error))
+        # The APB/OBI executor cannot describe a Wishbone artifact; only the
+        # closed producer row may hand the report to the sibling executor.
+        wishbone=_wishbone_row_binding(artifacts=artifacts,
+            compiled_inputs=compiled_inputs,base_dir=base_dir)
+        if wishbone is None:
+            return dict(schema_version='compiled_F4_support.v1',execution_supported=0,
+                runtime_admitted=False,status='unsupported',reason=str(error))
+        return _assess_compiled_wishbone_f4_support(artifacts=artifacts,
+            compiled_inputs=compiled_inputs,base_dir=base_dir,binding=wishbone)
     if binding.row!=ROW_GPIO_CAUSAL:
         # The generic APB storage row is executable only after the in-row
         # consumer and all four live receipt joins are installed.  This report
@@ -208,6 +295,9 @@ def assess_compiled_f2_support(*,artifacts,compiled_inputs,base_dir=None):
     binding only.  Startup, the live pre-read token and every exact hop are
     still required at execution time.
     """
+    from myfuzz.integration.compiled_mmio import mmio_support
+    protocol_support=mmio_support(artifacts=artifacts,compiled_inputs=compiled_inputs,flow='F2')
+    if protocol_support is not None:return protocol_support
     from myfuzz.integration.compiled_f2 import admit_f2
     from myfuzz.integration.compiled_f2_consumer import select_f2_read_producer
     try:
@@ -220,10 +310,10 @@ def assess_compiled_f2_support(*,artifacts,compiled_inputs,base_dir=None):
             runtime_admitted=False,status='unsupported',reason=str(error),
             executor='compiled_f2_obi_apb')
     unsupported=[dict(path_id=p['path_id'],flow_id=p['flow_id'],
-        reason='compiled-executor-flow-unsupported')
+        reason='compiled-executor-flow-unsupported',
+        compiled_status=p['status'],compiled_reason=deepcopy(p['reason']))
         for p in compiled_inputs['compiled']['paths']
-        if p['path_id']!=selected['path_id']
-        and (p['flow_id']=='F2' and p['status']=='executable')]
+        if p['path_id']!=selected['path_id']]
     return dict(schema_version='compiled_F2_support.v1',execution_supported=1,
         runtime_admitted=False,status='supported_requires_actual_startup',
         executor='compiled_f2_obi_apb',flow_id='F2',path_id=selected['path_id'],

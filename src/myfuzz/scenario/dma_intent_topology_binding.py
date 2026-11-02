@@ -277,7 +277,8 @@ def _target_policy(wiring, intent, route, pointer):
         permissions = tuple(name for name in ('read', 'write') if getattr(resource, name) is True)
         if ((resource.base, resource.size) != (route.base, route.size)
                 or resource.read is None or resource.write is None
-                or permissions != route.permissions):
+                or not set(route.permissions).issubset(permissions)
+                or route.operation not in permissions):
             _fail('target-unsupported', pointer + '/target')
 
 
@@ -429,7 +430,7 @@ class BoundDmaIntentTopology:
         only identifies a declared route; callers still join the accepted
         request, target effect, and native response under the transaction key.
         """
-        self.validate_topology()
+        self.runtime_compilation.validate_dynamic_topology()
         return self._runtime_edge_index.match_dma_master_route(path_id,
             initiator_component=initiator_component, endpoint_id=endpoint_id,
             target_kind=target_kind, target_component=target_component,
@@ -733,13 +734,16 @@ def _target_binding(wiring, intent, session, pointer, *, provider_snapshots=None
 
 
 def bind_dma_intent_topology(declaration, runner, *, artifact_links,
-                             path_ids: tuple[str, ...] | None = None) -> BoundDmaIntentTopology:
+                             path_ids: tuple[str, ...] | None = None,
+                             boundary_static_validation=False) -> BoundDmaIntentTopology:
     """Validate actual generated artifacts, then bind the supplied route set once."""
     from myfuzz.local_harness.dma_artifact_endpoint_links import validate_dma_artifact_endpoint_links
     from myfuzz.local_harness.wishbone_dma_session import GeneratedWishboneDmaSession
     from myfuzz.local_harness.wishbone_dma_scenario_session import GeneratedWishboneDmaScenarioSession
     if not isinstance(declaration, PreparedDmaIntentBinding):
         _fail('replay-material-invalid', '/')
+    if type(boundary_static_validation) is not bool:
+        raise ValueError("boundary_static_validation must be boolean")
     supplied_prepared = declaration._prepared_runtime_paths
     verified = PreparedDmaIntentBinding.from_document(
         declaration.document(), prepared_runtime_paths=supplied_prepared)
@@ -802,20 +806,21 @@ def bind_dma_intent_topology(declaration, runner, *, artifact_links,
             runtime_route_sha256=route.identity_sha256, endpoint_link_sha256=_digest(endpoint)))
     link_objects = tuple((name, artifact_links[name], _canonical(artifact_links[name])) for name in sorted(initiators))
 
-    def guard():
+    def guard(*, dynamic=False):
         try:
             if set(artifact_links) != initiators:
                 _fail('topology-changed', '/artifact_links')
             for name, original, saved in link_objects:
-                if artifact_links[name] is not original or _canonical(original) != saved:
+                if artifact_links[name] is not original or (not dynamic and _canonical(original) != saved):
                     _fail('topology-changed', '/artifact_links/' + name)
             for name, session, artifact, plan, structural, saved, saved_plan in snapshots:
                 if (runner.sessions.get(name) is not session or session.artifact is not artifact
                         or artifact.plan is not plan or artifact.structural is not structural
-                        or _canonical(artifact.runtime_document) != saved
-                        or _canonical(plan.document()) != saved_plan):
+                        or (not dynamic and (_canonical(artifact.runtime_document) != saved
+                        or _canonical(plan.document()) != saved_plan))):
                     _fail('topology-changed', '/sessions/' + name)
-                _actual_artifact(session, '/sessions/' + name, instance_id=name)
+                if not dynamic:
+                    _actual_artifact(session, '/sessions/' + name, instance_id=name)
             for session, provider_identity_json, provider_methods in provider_snapshots:
                 provider_pointer = '/sessions/' + session.artifact.plan.request.instance_id + '/provider'
                 if (runner.sessions.get(session.artifact.plan.request.instance_id) is not session):
@@ -860,20 +865,22 @@ def bind_dma_intent_topology(declaration, runner, *, artifact_links,
                         or current_configuration != configuration
                         or _canonical(current_identity) != provider_identity_json):
                     _fail('topology-changed', provider_pointer)
-            for name in sorted(initiators):
+            for name in sorted(initiators) if not dynamic else ():
                 validate_dma_artifact_endpoint_links(artifact_links[name], runner.sessions[name].artifact)
         except DmaIntentBindingError:
             raise
         except (ValueError, TypeError, KeyError, AttributeError) as error:
             raise DmaIntentBindingError('dma-binding-topology-changed', '/') from error
 
+    from functools import partial
     try:
         # Fresh RFuzz selection replay may bind one already-prepared selection
         # at a time. The route/link declaration above remains complete; the
         # existing compiler still requires every DMA route to be covered by
         # the selected path set.
         compilation = prepared.bind(runner, path_ids=path_ids,
-                                    topology_guard=guard)
+                                    topology_guard=guard, dynamic_topology_guard=partial(guard, dynamic=True),
+                                    boundary_static_validation=boundary_static_validation)
     except DmaIntentBindingError:
         raise
     except ValueError as error:

@@ -1,0 +1,46 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "p1-dma-shared-profile-dma-f6",
+  "description": "DMA replacement sample: the same pinned ZipDMA RTL selected through the shared_profile_dma declaration instead of zipdma_smoke, with its own test capability and its own behavior file carrying a declared capability block. F6 executes the four-word RAM block; the timer target declares no F5 facts, so F5 is refused by name while F1-F4 and F6 run.",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "source_profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+  "source_timing": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "max_wait_cycles": 16
+  },
+  "active_id": "pulp_timer_active",
+  "dma_profile": "configs/peripherals/shared_profile_dma/component_profile.json",
+  "dma_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "dma_capability": "configs/peripherals/shared_profile_dma/test_capability.json",
+  "dma_behavior": "configs/behaviors/zipdma_capability_f6.json",
+  "dma_block_words": 4,
+  "target_window": {
+    "base": 1073745920,
+    "size": 4096
+  },
+  "dma_window": {
+    "base": 1073754112,
+    "size": 16
+  },
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "handler_wait_iterations": 128,
+  "notes": [
+    "the DMA model is the same pinned ZipDMA RTL (third_party/soc-zipcpu, git:42606d2d6ef55df313772232977621b2d72f0159) that zipdma_smoke selects; the selected profile differs (component declaration, local harness block, test capability), and configs/behaviors/zipdma_capability_f6.json is that declaration's behavior file. This is a different profile over the same device, not a new device",
+    "the timer target declares no source_behavior and no inline F5 keys, so F5 is refused by name by the entry (unsupported-f5:target-irq-semantics:apb3:...) instead of being quietly skipped; F1-F4 and F6 still run",
+    "F6 is the four-word RAM block: the plan states dma_block_words 4, start word 0x00000000, LENGTH 16 bytes and full-word master strobes, and the case line reports the DMA master's own reads and writes plus the control-status word the ISR reads",
+    "the behavior file declares capabilities {channels 1, beat_bytes 4, max_outstanding 1, burst_beats 1}; the planner cross-checks them against the pinned device facts and the summary reports them beside the executed transfer. No capability above 1/4/1/1 is claimed or run",
+    "the target and DMA windows do not overlap: the timer owns 0x40001000..0x40001fff and the DMA control port 0x40003000..0x4000300f"
+  ]
+}

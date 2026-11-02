@@ -25,6 +25,24 @@ def scope():
     return build.host_source_discovery_scope()
 
 
+def profile_fixture(component_id):
+    """Minimal stand-in for ``ComponentProfile``.
+
+    ``capabilities``/``evidence`` are required mapping attributes of the loaded
+    profile contract; an empty profile selects no timing mode and embeds no
+    source manifest.
+    """
+    from types import SimpleNamespace
+    return SimpleNamespace(component_id=component_id,capabilities={},evidence={})
+
+
+def plan_fixture(component_id):
+    """Minimal stand-in for ``LocalHarnessPlan``: profile plus its request path."""
+    from types import SimpleNamespace
+    return SimpleNamespace(profile=profile_fixture(component_id),
+        request=SimpleNamespace(profile_path='fixture.json'))
+
+
 def test_same_size_changed_bytes_with_restored_stat_are_rejected(tree):
     name='src/myfuzz/local_harness/wire.py';path=tree/name
     with scope():
@@ -113,7 +131,8 @@ def test_nested_scope_does_not_replace_outer_scope_snapshot(tree):
 
 
 @pytest.mark.parametrize('binding',['_HOST_SOURCE_ACCESS','_HOST_SOURCE_CONTEXT'])
-def test_prepare_rejects_saved_map_accessor_before_prepared_cache(tree,monkeypatch,binding):
+@pytest.mark.parametrize('cached',[False,True])
+def test_prepare_rejects_saved_map_accessor_before_prepared_cache(tree,monkeypatch,binding,cached):
     """A valid admission prefix must check the live accessor before fast return."""
     import hashlib
     from myfuzz.local_harness.runtime_artifact import LocalRuntimeArtifact
@@ -124,12 +143,18 @@ def test_prepare_rejects_saved_map_accessor_before_prepared_cache(tree,monkeypat
         cpp_sha256=hashlib.sha256(cpp.encode()).hexdigest(),
         runtime_sv_sha256=hashlib.sha256(rtl.encode()).hexdigest())
     document['artifact_digest']=_sha(document)
-    artifact=LocalRuntimeArtifact(None,None,{},rtl,cpp,document)
+    # The admission prefix is driver-schema-valid; the plan carries only the
+    # profile attributes ``_prepare`` reads before the host-source guard runs.
+    artifact=LocalRuntimeArtifact(plan_fixture('admission_prefix_fixture'),None,{},rtl,cpp,document)
     calls=[]
     def prepared(*args):
         calls.append('prepared-cache')
-        return ({'saved':'identity'},{'saved':'inputs'})
+        return ({'saved':'identity'},{'saved':'inputs'}) if cached else None
+    def cold(*args,**kwargs):
+        calls.append('cold-admission')
+        raise AssertionError('entry guard was skipped')
     monkeypatch.setattr(build,'_prepared_if_current',prepared)
+    monkeypatch.setattr(build,'verify_local_source_lock',cold)
     with scope():
         saved=build._host_sources();original=getattr(build,binding)
         from contextvars import ContextVar
@@ -198,7 +223,7 @@ def test_preexisting_prepared_cache_cannot_skip_new_candidate_present_before_sco
         cpp_sha256=hashlib.sha256(cpp.encode()).hexdigest(),
         runtime_sv_sha256=hashlib.sha256(rtl.encode()).hexdigest())
     document['artifact_digest']=_sha(document)
-    artifact=LocalRuntimeArtifact(SimpleNamespace(profile=SimpleNamespace(component_id='cache_prefix_fixture')),None,{},rtl,cpp,document)
+    artifact=LocalRuntimeArtifact(plan_fixture('cache_prefix_fixture'),None,{},rtl,cpp,document)
     snapshots=build._host_sources()
     identity=dict(toolchain={},host_sources=dict(files=[dict(path=path,
         sha256=hashlib.sha256(raw).hexdigest()) for path,raw in sorted(snapshots.items())]))

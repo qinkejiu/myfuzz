@@ -1,5 +1,48 @@
 # 项目代码与文件整理台账
 
+## 2026-11-01 历史参考与临时产物整理
+
+- 后续将过时的 F1–F4 交接文档和六份 2026-07-22 早期实施计划迁入同一参考归档，并将 23 份根目录临时测试日志打包，逐份验证 SHA-256；原始约 5.7 MiB，压缩包约 335 KiB，日志索引在 `reference_archive/temporary-test-logs-20261101.json`。交接文档保留原文，其相对链接按原目录解释。
+- 清理七份旧 AXI-Lite 实验构建缓存与六份早期 BOOM 探针构建缓存，合计约 2.1 GiB；保留对应 case/失败记录和较新的运行证据。清单见 `reference_archive/deleted-cache-20261101.json`。这会失去旧二进制与热缓存，重建不保证相同哈希；引用扫描有范围限制，不能保证历史材料的每一条动态路径仍可复现。
+- 将 14 个旧 scheme 脚本、10 个历史性能或阶段性实验脚本、旧脚本说明、2 份历史专题文档及根目录 6 份审查报告移入 [reference_archive/](../reference_archive/README.md)，不再属于当前运行入口。原路径、目标及 SHA-256 见[迁移清单](../reference_archive/migration-20261101.json)。历史文档中保留的旧命令反映当时目录布局；归档代码仅供参考。
+- 清理未发现当前引用的 `runs/_f5cache`（约 178 MiB，可重建）及 pytest 临时树 `runs/_pytest-tmp`（约 3.8 MiB）。没有清除当前证据、被文档或脚本引用的共享缓存和历史运行目录。
+- 本轮没有迁移现有业务模块，也没有把其他未提交改动视为待清理对象；合并前需继续逐项审查调用链和已有工作区内容。
+
+## 2026-10-26 第三轮：历史脚本成组迁移与报告索引拆分
+
+- 当时将14个旧 scheme runner 成组迁往 `scripts/legacy/`；它们已于 2026-11-01 再迁入[参考归档](../reference_archive/README.md)，不再保证直接运行。当前专题目录保留被测试或证据使用的工具。
+- 约232 KB 报告首页拆为约2 KB 的[专题导航](reports/README.md)、[508份报告目录](reports/CATALOG.md)及[完整旧索引](history/2026-10-26-report-index.md)。原文已备份，相对链接随迁移调整。
+- 删除两个没有文件、没有Git跟踪内容的空目录：根 `integration/`、`scripts/maintenance/`。实际 Python 集成层仍在 `src/myfuzz/integration/`。
+- 全部1,747个第一方Python文件在迁移映射下字节一致且可解析；文档仍为原有121个失效目标。独立复查发现一个带嵌套方括号标签的链接未重定位，已修复并复核。
+- 扩展测试95 passed、10 failed、54 subtests passed；十项失败在临时恢复原脚本路径后逐项复现，根因是旧 static campaign 缺少 `instrumented/sources.f`。不把该结果记成完整测试通过。
+- 本轮分支/远端引用和worktree登记不变。恢复文件、前后哈希和完整日志见 `runs/repository-organization/20261026/`。
+
+
+## 2026-10-25 第二轮：代码删除、文档分类、本地分支
+
+- 扫描 src/scripts/tests 中 **1,754** 个 Python 文件的 AST/import，再核对动态脚本路径、配置、普通文档和冻结引用。
+- 删除一个未接入的旧 `integration/cli.py` 适配器及六个无调用的一次性实验 launcher。它们均为未修改的已跟踪文件；具体路径、理由、SHA-256 与原文保存在 `runs/repository-organization/20261025-deep/manifest.json` 和 `originals/`。
+- 保留通过子进程启动的 `_reference_supervisor.py`、通过路径加载的 frontend 工具、BOOM CLI 和仍被测试/报告引用的旧脚本。两组字节相同的 r11 脚本分别承担冻结副本和当前入口，保留各自身份。
+- 将八份旧实验材料、旧 composition guide 和脚本任务流水迁入 [history/](history/README.md)，两份协议/ISA资料迁入 [reference/](reference/README.md)。
+- 近 400 KB 进度页拆为[当前摘要](CURRENT_PROGRESS.md)和[完整历史流水](history/2026-10-25-progress-log.md)；原文已备份，迁移中仅调整链接。
+- 全部分支打包并验证后，用 `git branch -d` 删除已合入的本地 stage2 分支。main、当前分支、独立 native 分支及其脏 worktree、所有远端 refs 保留；见[分支表](WORKSPACE_MAP.md)。
+- 历史冻结清单、原始 evidence、测试和第三方源码不改写；旧快照的输入哈希不用于声明整理后源码通过。
+
+
+## 2026-10-25 入口与目录整理
+
+- 根 README 收敛为任务导航；文档首页按入门、开发验收、历史资料分组。
+- 新增 [工作区地图](WORKSPACE_MAP.md)、[源码导航](../src/myfuzz/README.md)、[集成层导航](../src/myfuzz/integration/README.md)及[测试导航](../tests/README.md)。
+- 更新 [配置入口](../configs/README.md)，明确 CPU/IP、scenario/scenarios 与历史 designs 的区别。
+- [脚本入口](../scripts/README.md)改为用途表；旧 398 行正文逐字节保存到 [脚本历史](history/2026-10-25-script-log.md)，原相对链接仍适用。
+- 历史 inventory 增加日期提示；旧统计不再作为当前工作区大小和数量。
+- 根目录 `trace_hart_0.dasm` 移入 `runs/quarantine/folder-organize-20261025/`，保留 SHA-256、原路径和恢复说明；未删除。
+- 修复 4 份普通说明文档中的 8 处路径错误；原文和替换表另存，原始 evidence 归档不改写。
+- 原始入口快照、哈希、整理前 Git 状态及检查输出保存在 `runs/repository-organization/20261025/`。
+
+源码 import、运行脚本、配置、第三方依赖和 gate 证据保留原路径。本轮不改变协议行为或验收结论。后续移动代码需逐批核对调用和冻结依赖。
+
+
 ## 2026-10-08 第一步 P1–P5 归档
 
 代码、文档、配置／测试和复核输出分别保存至 `archive/development/first-step-p1-p5/20261008/` 的四个压缩包；逐文件原路径、职责分类、内容 SHA-256 和 Git 状态随包保存。归档说明见[第一步归档入口](reproduction/first-step-archive-20261008.md)。当前代码、冻结运行与第三方源码保留原位；源文件快照包括未提交内容，构建缓存按清单规则排除。恢复到新空目录并核对清单，避免覆盖当前工作。
@@ -47,7 +90,7 @@
 - 根目录 `/home/qinkejiu/myfuzz`：当前活动 checkout，分支 `fix/soc-production-path`；SoC 自动组合、RFuzz 输入链和中断说明均在此工作树。
 - `.worktrees/`：目录当前为空；`git worktree list` 仅登记根目录这一棵工作树。保留目录本身，不把未登记的内容自动视作可删除文件。
 - `third_party/rfuzz/upstream/ibex` 有未跟踪状态；保留，不在本轮清理。
-- 当前已知用户修改：`.superpowers/sdd/task-2-report.md`、`docs/系统总览与RFuzz约束组合示例_20260909.md`。本轮不覆盖。
+- 当前已知用户修改：`.superpowers/sdd/task-2-report.md`、`docs/history/experiments/系统总览与RFuzz约束组合示例_20260909.md`。本轮不覆盖。
 - 未跟踪 `third_party/` 含上游源码及实核证据；不因 untracked 就视为缓存。
 
 ## 路径处置表

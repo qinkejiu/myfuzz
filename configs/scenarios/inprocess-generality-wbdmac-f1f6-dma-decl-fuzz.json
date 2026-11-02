@@ -1,0 +1,66 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-generality-wbdmac-f1f6-dma-decl-fuzz",
+  "cpu_profile": "configs/cpus/ibex_rvfi_local/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "source_profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+  "source_timing": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "max_wait_cycles": 16
+  },
+  "active_id": "pulp_timer_active",
+  "source_port": "irq_o",
+  "source_bit_offset": 0,
+  "pulse_width_ticks": 16,
+  "trigger_writes": [
+    [
+      4,
+      0
+    ],
+    [
+      8,
+      0
+    ],
+    [
+      0,
+      4294967295
+    ]
+  ],
+  "status_offsets": [
+    0
+  ],
+  "status_cause_bits": null,
+  "clear_writes": [],
+  "dma_profile": "configs/peripherals/inprocess_generality_wbdmac/component_profile.json",
+  "dma_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "dma_capability": "configs/scenarios/inprocess-generality-wbdmac-f1f6/dma.test_capability.json",
+  "dma_behavior": "configs/behaviors/wbdmac_f6.json",
+  "dma_block_words": 4,
+  "target_window": {
+    "base": 1073745920,
+    "size": 4096
+  },
+  "dma_window": {
+    "base": 1073754112,
+    "size": 16
+  },
+  "image_start": 65536,
+  "image_end": 196608,
+  "assume_single_clock": true,
+  "notes": [
+    "Task 6 first increment fuzz copy: identical to configs/scenarios/inprocess-generality-wbdmac-f1f6-fuzz.json except the scenario name and this note; dma_behavior points at configs/behaviors/wbdmac_f6.json",
+    "f1_program_words 4 and handler_wait_iterations 128 keep the F1 program and the bounded F5/F6 wait loop of the source scenario, so one batch can cover F1-F6",
+    "the behavior file only declares block_words/busy_bit/err_bit/status_kind; the CSR units, length unit, IRQ trigger and clear facts remain profile declarations, and the host-limit list in docs/reports/dma-declaration-wbdmac-20261101.md still applies"
+  ],
+  "f1_program_words": 4,
+  "handler_wait_iterations": 128
+}

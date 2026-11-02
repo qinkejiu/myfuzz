@@ -1,0 +1,35 @@
+{
+  "schema_version": "ip_test_capability.v3",
+  "component_id": "opentitan_rv_timer_local",
+  "profile_fingerprint": "sha256:65f8a00dc65e3b5d1d1b294ba8a5742cd73347e2c0d2c5cd44fd9da17ad8d9d4",
+  "endpoint_capabilities": [
+    {
+      "endpoint_id": "opentitan_rv_timer.mmio",
+      "operations": [
+        "request",
+        "accept",
+        "response",
+        "read",
+        "write",
+        "wait",
+        "error"
+      ]
+    }
+  ],
+  "register_semantics": [
+    {
+      "register": "CTRL",
+      "field": "value",
+      "lsb": 0,
+      "width": 32,
+      "access": "rw",
+      "read_mask": 4294967295,
+      "write_mask": 4294967295,
+      "side_effect": "none",
+      "reset_value": 0,
+      "evidence_ref": "rtl:third_party/soc-opentitan/hw/ip/rv_timer/rtl/rv_timer_reg_top.sv"
+    }
+  ],
+  "observation_mappings": [],
+  "register_aliases": []
+}

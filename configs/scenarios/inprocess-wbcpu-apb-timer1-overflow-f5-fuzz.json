@@ -1,0 +1,49 @@
+{
+  "schema_version": "inprocess_f1f6_config.v1",
+  "name": "inprocess-wbcpu-apb-timer1-overflow-f5-fuzz",
+  "cpu_profile": "configs/cpus/picorv32_wb_irq_rvfi/component_profile.json",
+  "cpu_timing": {
+    "reset_assert_ticks": 4,
+    "reset_release_ticks": 4,
+    "max_wait_cycles": 16
+  },
+  "cpu_irq_bit": 3,
+  "source_profile": "configs/peripherals/pulp_timer_irq/component_profile.json",
+  "source_timing": {
+    "reset_assert_ticks": 2,
+    "reset_release_ticks": 3,
+    "max_wait_cycles": 16
+  },
+  "active_id": "pulp_timer_active",
+  "source_behavior": "configs/behaviors/pulp_timer1_overflow_f5.json",
+  "dma_profile": "configs/peripherals/zipdma_smoke/component_profile.json",
+  "dma_timing": {
+    "reset_assert_ticks": 8,
+    "reset_release_ticks": 8,
+    "max_wait_cycles": 16
+  },
+  "dma_capability": "configs/scenarios/compiled-f1-f6-ibex-gpio-zipdma-shared/dma.test_capability.json",
+  "dma_block_words": 4,
+  "target_window": {
+    "base": 1073745920,
+    "size": 4096
+  },
+  "dma_window": {
+    "base": 1073754112,
+    "size": 16
+  },
+  "image_start": 0,
+  "image_end": 131072,
+  "assume_single_clock": true,
+  "notes": [
+    "The same PicoRV32 Wishbone CPU and custom IRQ ABI as configs/scenarios/inprocess-wbcpu-apb-timer-zipdma-f1f6-fuzz.json (cpu_irq_bit 3, the CPU's own EOI vector), with the new timer1 overflow declaration configs/behaviors/pulp_timer1_overflow_f5.json instead of the timer0 overflow inline facts",
+    "this CPU declares a 32-bit irq vector, not a one-bit machine-external input; the entry refuses F5 for that CPU unless cpu_irq_bit names a custom bit and scripts/inprocess_wishbone_irq.py supplies the boot/vector/ISR segments.  The IRQ source declaration itself is CPU-independent and is shared with the Ibex runs",
+    "the behavior file declares pulse_width_ticks 32 as the shared line's delivery width; the custom IRQ ABI turns the rising edge of that delivered line into one CPU bit pulse and observes acceptance through the CPU EOI vector, so the CPU does not sample a 32-tick level.  The existing Wishbone scenario declares 1 tick for the same reason; this run keeps the shared file's value instead of duplicating the declaration",
+    "handler_wait_iterations 64 and case_tick_budget 12000: the Wishbone CPU spends about 34 ticks per wait iteration, so a 256-iteration no-trigger wait would exceed the fixed 4000-tick guard; 64 iterations stay below it",
+    "the RAM image starts at 0 because this CPU's own boot contract declares reset_vector 0 (boot_address_required false)",
+    "two IRQ sources share the one CPU bit: the target pulse on irq_o[2] and the ZipDMA completion level; the host reports one edge pulse per asserted shared line and states that simultaneous source attribution is unknown"
+  ],
+  "f1_program_words": 4,
+  "handler_wait_iterations": 64,
+  "case_tick_budget": 12000
+}

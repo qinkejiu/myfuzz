@@ -67,3 +67,16 @@ def test_native_obi_exact_outstanding_and_legacy_diagnostics():
     with pytest.raises(ValueError,match='compiled-F4-native-response-unowned'):
         collect_native_obi_beats(events[1:],cpu='cpu',traces=traces,
             error_policy={'native_error_observation':True},error_prefix='compiled-F4')
+
+
+def test_obi_reset_discards_pending_and_restarts_epoch_sequence():
+    from myfuzz.integration.native_obi_hops import collect_native_obi_beats
+    traces={'data':{k:k for k in ('req','gnt','rvalid','error','addr','rdata','we','wdata','be')}}
+    events=[native_step(1,req=1,gnt=1,addr=0x8000,we=0,be=15),
+        {'event_id':2,'kind':'reset_barrier'},
+        native_step(3,req=1,gnt=1,addr=0x9000,we=0,be=15),
+        native_step(4,rvalid=1,error=0,rdata=123)]
+    beats=collect_native_obi_beats(events,cpu='cpu',traces=traces,error_policy={'native_error_observation':True})
+    assert list(beats)==[('data',1)]
+    assert beats[('data',1)]['acceptance_event']==3
+    assert beats[('data',1)]['response_event']==4

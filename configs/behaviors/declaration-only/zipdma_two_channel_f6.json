@@ -1,0 +1,19 @@
+{
+  "schema_version": "inprocess_dma_behavior.v1",
+  "description": "Declaration-only ZipDMA F6 behavior that states a two-channel, eight-byte-beat, two-outstanding transfer. The planner must refuse it by name: the pinned ZipDMA has one channel, a 32-bit bus and one outstanding request, and this file is the negative declaration that proves the refusal.",
+  "notes": [
+    "This file is deliberately beyond the selected device. It is not referenced by any scenario that is expected to pass: it exists so the planner's refusal (dma-capability-beyond-device:channels:2>1, then the beat and outstanding facts) is exercised on a real declaration instead of only in a unit test",
+    "the transfer geometry is otherwise the same four-word block, so the only reason a run would refuse is the capability block: a refusal that named the block would be a different finding",
+    "no execution is claimed: a two-channel or wide-beat transfer cannot be encoded by this RTL, so nothing here is a multi-channel DMA run"
+  ],
+  "block_words": 4,
+  "busy_bit": 31,
+  "err_bit": 30,
+  "status_kind": "status",
+  "capabilities": {
+    "channels": 2,
+    "beat_bytes": 8,
+    "max_outstanding": 2,
+    "burst_beats": 4
+  }
+}

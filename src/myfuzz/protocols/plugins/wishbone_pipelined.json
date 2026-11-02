@@ -44,6 +44,14 @@
       "reset_value": 0
     },
     {
+      "field_id": "sel",
+      "direction": "host_to_device",
+      "width": "data_width/8",
+      "required": false,
+      "runtime_required": false,
+      "reset_value": 0
+    },
+    {
       "field_id": "stall",
       "direction": "device_to_host",
       "width": "1",
@@ -79,8 +87,8 @@
   "channel_relations": [],
   "capability_limits": {
     "stall_supported": true,
-    "byte_enable": false,
-    "partial_write": false,
+    "byte_enable": true,
+    "partial_write": true,
     "x-acceptance": "cyc && stb && !stall before edge",
     "x-completion": "cyc && (ack || err) before edge",
     "x-address-units": "word; widths are endpoint-typed because control and memory differ",

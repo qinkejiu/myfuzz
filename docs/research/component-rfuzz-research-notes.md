@@ -26,11 +26,11 @@ RFuzz 侧的核心不变量是：**输入位宽、位到字段的归属和覆盖
 
 | 主题 | 本地文件 | 可确认的事实 |
 |---|---|---|
-| 多组件实验设计 | `docs/CPU_IP_MULTICOMPONENT_EXPERIMENT_PLAN.md` | Ibex + instruction/data RAM + timer + GPIO + UART + SPI；baseline direct slice 与 depaware projection 的边界 |
-| 候选项目调查 | `docs/CANDIDATE_COMPONENT_PROJECTS_RVX_COREV_PULP_20260617.md` | RVX、CV32E40P、CORE-V MCU、PULPissimo、PULP 的本地调查和建议优先级 |
-| 系统/组件案例 | `docs/MULTICOMPONENT_SCHEME5_TARGETS_AND_CASES_20260617.md` | Rocket/OpenTitan/CPU/IP/DSP 分类，以及多组件状态模型 |
-| Ibex 395-bit 基线 | `docs/IBEX_41_PRE_POST_AND_BASELINE_HARNESS_20260616.md` | RFuzz 56-byte 封装、395-bit 有效向量、baseline/pre/post 对照定义 |
-| Ibex 约束原则 | `docs/IBEX_SCHEME5_BIT_CONSTRAINTS.md` | 固定位宽、纯输入位投影、协议关系与事件稀有度约束 |
+| 多组件实验设计 | `docs/history/experiments/CPU_IP_MULTICOMPONENT_EXPERIMENT_PLAN.md` | Ibex + instruction/data RAM + timer + GPIO + UART + SPI；baseline direct slice 与 depaware projection 的边界 |
+| 候选项目调查 | `docs/history/experiments/CANDIDATE_COMPONENT_PROJECTS_RVX_COREV_PULP_20260617.md` | RVX、CV32E40P、CORE-V MCU、PULPissimo、PULP 的本地调查和建议优先级 |
+| 系统/组件案例 | `docs/history/experiments/MULTICOMPONENT_SCHEME5_TARGETS_AND_CASES_20260617.md` | Rocket/OpenTitan/CPU/IP/DSP 分类，以及多组件状态模型 |
+| Ibex 395-bit 基线 | `docs/history/experiments/IBEX_41_PRE_POST_AND_BASELINE_HARNESS_20260616.md` | RFuzz 56-byte 封装、395-bit 有效向量、baseline/pre/post 对照定义 |
+| Ibex 约束原则 | `docs/history/experiments/IBEX_SCHEME5_BIT_CONSTRAINTS.md` | 固定位宽、纯输入位投影、协议关系与事件稀有度约束 |
 | 精确 Ibex 映射 | `configs/designs/ibex_scheme6_relaxed_bit_constraints/harness/ibex_core_scheme6_relaxed_bit_constraints_harness.sv` | 395 bit 的逐字段切片和 relaxed 合法化 |
 | 基础 CPU 配置 | `configs/designs/ibex/config.json`、`configs/designs/cva6/config.json`、`configs/designs/boom/config.json`、`configs/designs/xiangshan/config.json` | 仓库已有四类 CPU/系统目标入口，但第三方源码可用性和实际构建状态需由运行报告确认 |
 | 组合 manifest | `configs/designs/ibex_protocol_composition/manifest.json` | 32/32 位目标，TL-UL/APB4/AXI4-Lite 的 RAM/timer/GPIO/UART/SPI 映射 |
@@ -112,7 +112,7 @@ ibex_core (addr=32, data=32)
 | PULP | cluster/SoC 平台 | 多核 cluster、共享存储/互连、DMA 与多时钟；需要更强 ordering/coherence 描述 | P3 | [PULP](https://github.com/pulp-platform/pulp) |
 | CORE-V MCU | CV32E40P MCU SoC | APB timer/GPIO、uDMA UART/I2C/QSPI、AXI/APB 互连；已有 top，也可拆组件 | P1 | [CORE-V MCU](https://github.com/openhwgroup/core-v-mcu) |
 | OpenTitan Earlgrey | Ibex 安全 MCU SoC | TL-UL、RACL/完整性、alert、PLIC/timer、crypto、存储控制器和多时钟复位 | P2，安全与多 IP 对照 | [OpenTitan top](https://opentitan.org/book/hw/top_earlgrey/) |
-| RVX | 小型 RV32 MCU 项目 | core + bus + RAM + UART + mtime + GPIO + SPI；仓库文档记录清晰地址图，外部项目版本须另行锁定 | P0，轻量多组件原型 | 本地调查：`docs/CANDIDATE_COMPONENT_PROJECTS_RVX_COREV_PULP_20260617.md` |
+| RVX | 小型 RV32 MCU 项目 | core + bus + RAM + UART + mtime + GPIO + SPI；仓库文档记录清晰地址图，外部项目版本须另行锁定 | P0，轻量多组件原型 | 本地调查：`docs/history/experiments/CANDIDATE_COMPONENT_PROJECTS_RVX_COREV_PULP_20260617.md` |
 
 ### 4.1 CPU 接入时必须抽取的端口事实
 
@@ -309,7 +309,7 @@ effective raw ABI: 395 bit
 projected DUT fields: 395 bit 的确定性解释/合法化结果
 ```
 
-本地历史文档 `docs/IBEX_41_PRE_POST_AND_BASELINE_HARNESS_20260616.md` 记录自动 harness 把 `io_input_bytes_0..55` 拼成 padded input，再切出 395-bit `rfuzz_input_bits`。当前手写 scheme6 harness 的接口直接是 `logic [394:0] rfuzz_input_bits`。因此：
+本地历史文档 `docs/history/experiments/IBEX_41_PRE_POST_AND_BASELINE_HARNESS_20260616.md` 记录自动 harness 把 `io_input_bytes_0..55` 拼成 padded input，再切出 395-bit `rfuzz_input_bits`。当前手写 scheme6 harness 的接口直接是 `logic [394:0] rfuzz_input_bits`。因此：
 
 - `448 - 395 = 53` bit 是字节传输层填充/余量，不是额外 DUT fuzz 字段。
 - 生成产物必须记录 395 bit 从 448 bit 的具体 slice、byte order 和 padding canonical value；仅凭文档中的省略表达式不能推断填充位位于高端还是低端。

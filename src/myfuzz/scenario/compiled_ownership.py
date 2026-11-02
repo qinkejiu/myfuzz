@@ -397,6 +397,8 @@ def _d3_bound(compiled: Mapping) -> tuple[list[dict], list[dict], list[dict]]:
                       'kind': row.get('kind'),
                       'component_id': row.get('component'),
                       'endpoint_id': row.get('endpoint_id')}
+            if 'consumer_bit_offset' in row:
+                record['consumer_bit_offset'] = row['consumer_bit_offset']
             kind = row.get('kind')
             if kind in PHYSICAL_BOUND_KINDS:
                 record['producer_input_id'] = None if irq is None else irq.get('input_id')
@@ -414,7 +416,7 @@ def _d3_bound(compiled: Mapping) -> tuple[list[dict], list[dict], list[dict]]:
     return physical, protocol, producers
 
 
-def _cpu_irq_input(row: Mapping, surface, artifacts) -> tuple[str, _Input]:
+def _cpu_irq_input(row: Mapping, surface, artifacts) -> tuple[str, _Input, int]:
     """Resolve one ``cpu_irq_input`` declaration to its physical ABI input."""
     component = row.get('component_id')
     artifact = artifacts.get(component)
@@ -436,7 +438,7 @@ def _cpu_irq_input(row: Mapping, surface, artifacts) -> tuple[str, _Input]:
                  'requires': 'one declared physical alias for the CPU IRQ input'})
     port = fields[0].aliases[0]
     key = (component, port)
-    if key not in surface or surface[key].width != 1:
+    if key not in surface:
         _refuse('compiled-bound-producer-unknown', '/bound_inputs',
                 {'input_id': row.get('input_id'), 'port': port,
                  'requires': 'a one-bit non-protocol ABI input at that alias'})
@@ -445,7 +447,22 @@ def _cpu_irq_input(row: Mapping, surface, artifacts) -> tuple[str, _Input]:
                 {'input_id': row.get('input_id'),
                  'requires': 'the paired ip_irq declaration that names the real '
                              'IP output; a bound end is never a random source'})
-    return row['producer_input_id'], surface[key]
+    field = surface[key]
+    selected = row.get('consumer_bit_offset')
+    if selected is None:
+        if field.width != 1:
+            _refuse('compiled-bound-producer-unknown', '/bound_inputs',
+                    {'input_id': row.get('input_id'), 'requires': 'explicit consumer bit for vector IRQ'})
+        return row['producer_input_id'], field, 0
+    if type(selected) is not int or selected < 0:
+        _refuse('compiled-bound-producer-unknown', '/bound_inputs', {'input_id': row.get('input_id')})
+    offset = 0
+    for low, high in field.physical_bits:
+        if low <= selected <= high:
+            return row['producer_input_id'], field, offset + selected - low
+        offset += high - low + 1
+    _refuse('compiled-bound-producer-unknown', '/bound_inputs',
+            {'input_id': row.get('input_id'), 'requires': 'consumer bit in ABI input spans'})
 
 
 # ---------------------------------------------------------------------------
@@ -553,8 +570,8 @@ def compile_compiled_ownership(*, artifacts, compiled, fixed_inputs=(),
     physical_bound, protocol_bound, producer_bound = _d3_bound(compiled)
     for row in physical_bound:
         pointer = f'/paths/{row["flow_id"]}/bound_inputs/{row["input_id"]}'
-        producer, field = _cpu_irq_input(row, surface, artifacts)
-        builder.place(_Owner(field.component_id, field.port, 0, field.width,
+        producer, field, bit_offset = _cpu_irq_input(row, surface, artifacts)
+        builder.place(_Owner(field.component_id, field.port, bit_offset, 1,
                              _BOUND, producer, ORIGIN_D3_BOUND), pointer=pointer)
 
     fixed_records = []
